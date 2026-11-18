@@ -1697,6 +1697,11 @@ bool SpellMgr::HitKindAccepted(uint32 eventProcEx, uint32 procEx, bool active)
     return !((eventProcEx & hitKinds & procEx) && !active);
 }
 
+bool SpellMgr::InterruptedACast(uint32 procEx)
+{
+    return (procEx & PROC_EX_INTERRUPT) != 0;
+}
+
 /**
  * @brief Checks whether one spell is a rank of another spell.
  *

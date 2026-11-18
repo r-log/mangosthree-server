@@ -2826,7 +2826,8 @@ SpellAuraProcResult Unit::HandleModResistanceAuraProc(Unit* /*pVictim*/, uint32 
 /**
  * @brief Handles procs that remove an aura on incoming damage. A confuse or a stun is removed by each hit
  *        BreaksOnDamageProc accepts (Polymorph, Wyvern Sting); a fear, a root or a pacify-silence by a chance that
- *        grows with `damage`, which for them is the ThresholdDamage the proc loop counts.
+ *        grows with `damage`, which for them is the ThresholdDamage the proc loop counts. The holder is removed in
+ *        AURA_REMOVE_BY_DAMAGE.
  *
  * @return SpellAuraProcResult The proc handling result. A confuse or a stun that stays answers OK, as an aura type with
  *         no proc handler does, so a holder with charges still spends one.
@@ -2859,7 +2860,7 @@ SpellAuraProcResult Unit::HandleRemoveByDamageProc(Unit* /*pVictim*/, uint32 dam
     }
 
     triggeredByAura->SetInUse(true);
-    RemoveAurasByCasterSpell(triggeredByAura->GetId(), triggeredByAura->GetCasterGuid());
+    RemoveSpellAuraHolder(triggeredByAura->GetHolder(), AURA_REMOVE_BY_DAMAGE);
     triggeredByAura->SetInUse(false);
     return SPELL_AURA_PROC_OK;
 }
@@ -2948,11 +2949,13 @@ float Unit::GetPPMProcChance(uint32 WeaponSpeed, float PPM) const
 
 struct ProcTriggeredData
 {
-    ProcTriggeredData(SpellProcEventEntry const* _spellProcEvent, SpellAuraHolder* _triggeredByHolder)
-        : spellProcEvent(_spellProcEvent), triggeredByHolder(_triggeredByHolder)
+    ProcTriggeredData(SpellProcEventEntry const* _spellProcEvent, SpellAuraHolder* _triggeredByHolder,
+                      bool _scriptAccepted)
+        : spellProcEvent(_spellProcEvent), triggeredByHolder(_triggeredByHolder), scriptAccepted(_scriptAccepted)
     {}
     SpellProcEventEntry const* spellProcEvent;
     SpellAuraHolder* triggeredByHolder;
+    bool scriptAccepted;                                    // its check-proc script answered true for the event
 };
 
 typedef std::list< ProcTriggeredData > ProcTriggeredList;
@@ -3133,7 +3136,7 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
         }
 
         itr->second->SetInUse(true);                        // prevent holder deletion
-        procTriggered.push_back(ProcTriggeredData(spellProcEvent, itr->second));
+        procTriggered.push_back(ProcTriggeredData(spellProcEvent, itr->second, checkProc.IsReturn()));
     }
 
     if (!procTriggered.empty())
@@ -3221,8 +3224,11 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                         // CanProcFrom's generic mask check would drop every proc. An aura with its own
                         // case in HandleProcTriggerSpellAuraProc or HandleDummyAuraProc skips the check,
                         // and that case decides.
+                        // A holder whose check-proc script answered true for the event skips the check too: the
+                        // script decided.
                         bool isCoreHandledMasteryProc = IsCoreHandledMasteryProc(triggeredByHolder->GetId());
-                        if (!isCoreHandledMasteryProc
+                        bool const decided = isCoreHandledMasteryProc || itr->scriptAccepted;
+                        if (!decided
                             && !triggeredByAura->CanProcFrom(procSpell, procFlag, PROC_EX_NONE, procExtra,
                                                              effectDamage != 0, true))
                         {
@@ -3251,7 +3257,7 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                         // procEx alternating 0x80000 (CAST_END) / 0x1
                         // (NORMAL_HIT), explaining the ~30% observed Wild
                         // Quiver rate against ~16% Cata baseline.
-                        if (isCoreHandledMasteryProc
+                        if (decided
                             && procExtra == PROC_EX_CAST_END)
                         {
                             continue;

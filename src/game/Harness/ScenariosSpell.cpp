@@ -160,8 +160,14 @@
 // 1103 a staged Arcane mage's Arcane Blast deals 6% more to a Camel under a movement, a cast or an attack slow with
 // Torment the Weak 3, and with Nether Vortex 2 slows its target while none of his Slow is out: never a second Camel
 // while one holds it, never by refreshing it, never from Fireball or Arcane Barrage.
-// The guard of 931-938, 941-978, 980-994, 1025-1028, 1100-1101 and 1103 (Qualify) fingerprints every spell a scenario
-// reaches and refuses the random-pick labels, the random chain targets and any script binding.
+// 1104 a staged Arcane mage's Counterspell that interrupts a Camel's cast gives him Invocation's buff, at 13% with
+// Glyph of Arcane Blast, one at a Camel that casts nothing gives none and a Fireball hit none, and Improved
+// Counterspell silences the Camel at every Counterspell.
+// 1105 a staged Arcane mage's Polymorph that damage breaks stuns the Camel for Improved Polymorph's rank and marks it,
+// a second break while the mark holds stuns nothing, and a Polymorph that runs out, is dispelled or is removed stuns
+// nothing and marks nothing.
+// The guard of 931-938, 941-978, 980-994, 1025-1028, 1100-1101 and 1103-1105 (Qualify) fingerprints every spell a
+// scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -3998,11 +4004,11 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-994,
-     * 1025-1028, 1100-1101, 1103): a human mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings
-     * and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then the
-     * pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario
-     * sets its own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps,
-     * in order:
+     * 1025-1028, 1100-1101, 1103-1105): a human mage staged to level 85 with the scenario's talents, glyphs, spell
+     * power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged
+     * (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85
+     * unless the scenario sets its own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the
+     * scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him when he does not hold it, by a triggered self-cast or, when CasterAuraPut()
      *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
@@ -4896,6 +4902,7 @@ namespace Harness
                 case AURA_REMOVE_BY_EXPIRE:         return "expire";
                 case AURA_REMOVE_BY_TRACKING:       return "tracking";
                 case AURA_REMOVE_BY_TARGET_LIMIT:   return "targetLimit";
+                case AURA_REMOVE_BY_DAMAGE:         return "damage";
             }
             return "mode" + U(uint32(mode));
         }
@@ -15688,6 +15695,512 @@ namespace Harness
         }
     };
 
+    /**
+     * S1104 `mage-arcane-interrupts`: Invocation (84723, rank 2 of 2) and Improved Counterspell (12598, rank 2 of 2) on
+     * a staged Arcane mage. Invocation: a hit of his Counterspell (2139) that interrupts a spell its target is casting
+     * gives him Invocation's buff (87098) at the rank's 10%, 13% with Glyph of Arcane Blast (62210), whose class mask
+     * names the buff; a Counterspell at a target that casts nothing gives none, and no other spell gives it. Improved
+     * Counterspell: every Counterspell hit silences its target for 4 s (55021), whether it was casting or not. Staged
+     * with Improved Counterspell 2, an Arcane talent, so the stage learns the Arcane tree's spells; Counterspell,
+     * Fireball (133) and Invocation 2 learned through Player::learnSpell, as the stage learns its spells (Invocation's
+     * talent stands on the second row, which asks for points this stage does not spend). Once staged, his Offensive
+     * State (79684) and Mana Adept (76547) are taken off. Three Camels stand ten yards ahead: A (the first), B and C.
+     * Before each cast he takes Precision (13843, +6% spell hit), so nothing misses, and the crit aura at -100. A
+     * Camel's cast is Spark (32110: 2 s, Nature, no cost, interrupted by an interrupt effect, prevented by a
+     * silence) at him, by call. Each Counterspell first takes its cooldown off him by call. Steps, kEveryMs apart
+     * unless named:
+     *  1. Camel A casts Spark at him, kLeadMs before the next step;
+     *  2. Counterspell at A, while A casts;
+     *  3. Counterspell at B, which casts nothing;
+     *  4. Fireball at B, kFireballMs before the next step;
+     *  5. a wait at B, kLeadMs before the next step, after the Fireball's hit;
+     *  6. Glyph of Arcane Blast cast at himself, triggered, as GlyphMgr::ApplyGlyph casts it;
+     *  7. Camel C casts Spark at him, kLeadMs before the next step;
+     *  8. Counterspell at C, while C casts.
+     * Right after each step acts the scenario keeps whether the step's Camel casts Spark, the amount of his 87098
+     * (effect 0; 0 for none) and the full duration of his 55021 on the step's Camel (-1 for none). At the read of every
+     * cast step his 87098 is taken off him by call, so each step reads only the buff it gave.
+     *
+     * `interrupts`: `casting=<lead><stopped>/<87098>/<55021>,idle=<87098>/<55021>,fireball=<87098>,
+     * glyph=<lead><stopped>/<87098>/<55021>`. `<lead>` is 1 when the Camel casts Spark right after the step
+     * before the Counterspell acts; `<stopped>` 1 when it casts nothing right after the Counterspell and no
+     * SMSG_SPELL_GO of Spark came in the two steps' windows; the others are kept right after the Counterspell
+     * acts, `fireball` right after step 5 acts. OK when casting is 11/10/4000, idle 0/4000, fireball 0 and glyph
+     * 11/13/4000.
+     */
+    class MageArcaneInterrupts : public MageProcScenario
+    {
+    public:
+        MageArcaneInterrupts() : MageProcScenario("mage-arcane-interrupts", 1104, "interrupts") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 1 } }; }
+        std::vector<uint32> Spells() const override { return { kCounterspell, kFireball, kInvocation }; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        bool TakesDamage() const override { return true; }
+        uint32 TargetCount() const override { return 3; }
+        uint32 CastEveryMs() const override { return kEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kInvocation) + (p.HasAura(kInvocation) ? " on him" : " not on him") + "; his " +
+                       U(kImprovedCounterspell) + (p.HasAura(kImprovedCounterspell) ? " on him" : " not on him"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step fireball = Aimed(Cast(kFireball, false), kCamelB);
+            fireball.everyMs = kFireballMs;
+            return { Lead(kCamelA), Counter(kCamelA), Counter(kCamelB), fireball, Aimed(Wait(kLeadMs), kCamelB),
+                     SelfAura(kGlyph), Lead(kCamelC), Counter(kCamelC) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 2139: 26 fields, fnv ea673d74
+                { 2139, { { "eff0.present", 1 }, { "eff0.Effect", 68 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12598: 26 fields, fnv f61abcfc
+                { 12598, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 55021 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 55021: 26 fields, fnv 3204750c
+                { 55021, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84723: 26 fields, fnv a1242402
+                { 84723, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 231 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 87098 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 87098: 26 fields, fnv 1e749b42
+                { 87098, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 79 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 536870912 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 32110: 26 fields, fnv 56b50723
+                { 32110, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 62210: 26 fields, fnv 34f4f9d7
+                { 62210, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 3 }, { "eff0.EffectSpellClassMask.Flags2", 4 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            if (atRead)
+            {
+                if (IsCast(st.steps[k]))
+                {
+                    const bool held = p->HasAura(kInvocationBuff);
+                    p->RemoveAurasDueToSpell(kInvocationBuff);
+                    m_rec.Note("at the read: his " + U(kInvocationBuff) + (held ? " taken off" : " was not on him"));
+                }
+                return;
+            }
+            if (k == kLeadA || k == kLeadC)
+            {
+                target->CastSpell(p, kSpark, false);
+                m_rec.Note("the Camel casts " + U(kSpark) + " at him");
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            Spell const* cast = target->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+            Aura const* buff = p->GetAura(kInvocationBuff, EFFECT_INDEX_0);
+            SpellAuraHolder const* silence = target->GetSpellAuraHolder(kSilence, p->GetObjectGuid());
+            reads["casting"] = cast && cast->m_spellInfo->ID == kSpark ? 1 : 0;
+            reads["buff"] = buff ? int64(buff->GetModifier()->m_amount) : 0;
+            reads["silence"] = silence ? int64(silence->GetAuraMaxDuration()) : -1;
+            const std::string castText = reads["casting"] ? "casts " + U(kSpark) : std::string("casts nothing");
+            const std::string silenceText = silence ? "for " + std::to_string(reads["silence"]) + " ms"
+                                                    : std::string("none");
+            m_rec.Note("right after the step acts: the Camel " + castText + "; his " + U(kInvocationBuff) + " at " +
+                       std::to_string(reads["buff"]) + "; his " + U(kSilence) + " on the Camel " + silenceText);
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const std::string casting = Num(Kept(st, kLeadA, "casting")) + Stopped(st, kLeadA, kCounterA) + "/" +
+                                        Num(Kept(st, kCounterA, "buff")) + "/" + Num(Kept(st, kCounterA, "silence"));
+            const std::string idle = Num(Kept(st, kCounterB, "buff")) + "/" + Num(Kept(st, kCounterB, "silence"));
+            const std::string fireball = Num(Kept(st, kFireballRead, "buff"));
+            const std::string glyph = Num(Kept(st, kLeadC, "casting")) + Stopped(st, kLeadC, kCounterC) + "/" +
+                                      Num(Kept(st, kCounterC, "buff")) + "/" + Num(Kept(st, kCounterC, "silence"));
+            const bool ok = casting == "11/10/4000" && idle == "0/4000" && fireball == "0" && glyph == "11/13/4000";
+            return (ok ? "OK(" : "BUG(") + std::string("casting=") + casting + ",idle=" + idle + ",fireball=" +
+                   fireball + ",glyph=" + glyph + "; casting and glyph: the Camel casting before the Counterspell, " +
+                   "its cast stopped, then his 87098 and the Camel's 55021 right after the Counterspell; idle: the " +
+                   "same at a Camel that casts nothing; fireball: his 87098 after the Fireball's hit)";
+        }
+
+    private:
+        static constexpr uint32 kCounterspell = 2139;
+        static constexpr uint32 kImprovedCounterspell = 12598;
+        static constexpr uint32 kSilence = 55021;
+        static constexpr uint32 kInvocation = 84723;
+        static constexpr uint32 kInvocationBuff = 87098;
+        static constexpr uint32 kFireball = 133;
+        static constexpr uint32 kSpark = 32110;
+        static constexpr uint32 kGlyph = 62210;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kEveryMs = 2400;
+        static constexpr uint32 kReadMs = 2200;
+        static constexpr uint32 kLeadMs = 600;
+        static constexpr uint32 kFireballMs = 3600;
+        static constexpr uint32 kCamelA = 0;
+        static constexpr uint32 kCamelB = 1;
+        static constexpr uint32 kCamelC = 2;
+        static constexpr uint32 kLeadA = 0;
+        static constexpr uint32 kCounterA = 1;
+        static constexpr uint32 kCounterB = 2;
+        static constexpr uint32 kFireballRead = 4;
+        static constexpr uint32 kLeadC = 6;
+        static constexpr uint32 kCounterC = 7;
+        static constexpr size_t kSteps = 8;
+
+        /// `step` aimed at the Camel of index `camel`.
+        static Step Aimed(Step step, uint32 camel)
+        {
+            step.target = camel;
+            return step;
+        }
+
+        /// A wait at the Camel of index `camel`, whose cast of Spark the scenario starts right after it acts.
+        static Step Lead(uint32 camel)
+        {
+            return Aimed(Wait(kLeadMs), camel);
+        }
+
+        /// His Counterspell at the Camel of index `camel`, its cooldown taken off him by call first.
+        static Step Counter(uint32 camel)
+        {
+            Step step = Aimed(AuraCast(kCounterspell, 0), camel);
+            step.clearCooldown = true;
+            return step;
+        }
+
+        static std::string Num(int64 v)
+        {
+            return std::to_string(v);
+        }
+
+        /// A read ReadOwn kept for step k; -1 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        /// "1" when the Camel of the Counterspell step `counter` casts nothing right after it and no SMSG_SPELL_GO of
+        /// Spark came in the windows of the step `lead` that started the cast or of the Counterspell's; else "0".
+        static std::string Stopped(St const& st, uint32 lead, uint32 counter)
+        {
+            const bool stopped = Kept(st, counter, "casting") == 0 && !Triggered(st.seen[lead], kSpark) &&
+                                 !Triggered(st.seen[counter], kSpark);
+            return stopped ? "1" : "0";
+        }
+    };
+
+    /**
+     * S1105 `mage-arcane-improved-polymorph`: Improved Polymorph (11210 and 12592, ranks 1 and 2 of 2) on a staged
+     * Arcane mage. When damage breaks his Polymorph (118), the Camel it held is stunned, for 1.5 s by the first rank
+     * (83046) and for 3 s by the second (83047), and marked for 10 s by Improved Polymorph Marker (87515); a break
+     * while the Camel holds the marker stuns nothing; a Polymorph that runs out, is dispelled or is removed by the
+     * plain call stuns nothing and marks nothing. Staged with Improved Counterspell 1, an Arcane talent that touches
+     * none of these spells, so the stage learns the Arcane tree's spells; Polymorph, Fire Blast (2136) and Improved
+     * Polymorph 1 learned through Player::learnSpell, as the stage learns its spells (the talent stands on the fourth
+     * row, which asks for points this stage does not spend); Improved Polymorph 2 learned at step 3. Once staged, his
+     * Offensive State (79684) and Mana Adept (76547) are taken off. Three Camels stand ten yards ahead: A (the first),
+     * B and C; each takes him as its victim at the first step, so a Polymorph that ends sends it after him and not
+     * home, where it would evade the next cast. Before each cast he takes Precision (13843), so nothing misses, and the
+     * crit aura at -100. Each Fire Blast first takes its cooldown off him by call; its hit lands within its cast.
+     * Steps, kEveryMs apart unless named:
+     *  1. Polymorph at A;  2. Fire Blast at A;  3. a wait at A, kShortMs before the next step: he learns rank 2;
+     *  4. Polymorph at B;  5. Fire Blast at B;  6. Polymorph at B;  7. Fire Blast at B, inside the marker's 10 s;
+     *  8. Polymorph at C;  9. a wait at C, kShortMs before the next step: his Polymorph's time on C set to 0, so C
+     *     removes it as run out at its next update;
+     * 10. Polymorph at C; 11. his Polymorph dispelled off C (Unit::RemoveAuraHolderDueToSpellByDispel), kShortMs before
+     *     the next step;
+     * 12. Polymorph at C; 13. his Polymorph taken off C by the plain call (Unit::RemoveAurasDueToSpell), kShortMs
+     *     before the next step;
+     * 14. Polymorph at C; 15. Fire Blast at C.
+     * Right after each step acts and at its read, the scenario keeps whether the step's Camel holds his Polymorph,
+     * which of 83046 and 83047 it holds with that holder's full duration, and the time its 87515 has left and its full
+     * duration.
+     *
+     * `polymorph`: `rank1=<2>,rank2=<5>,again=<7>,expire=<9>,dispel=<11>,remove=<13>,after=<15>,landed=<n>/7`, by step
+     * number, each `<Polymorph>/<stun>/<marker>`: `gone` or `held`; `83046@<ms>`, `83047@<ms>` or `none`; `87515@<ms>`
+     * for a marker with its full time left, `kept` for one with less, `none`. A Fire Blast, the dispel and the removal
+     * are read right after they act, the run-out at its read; `landed` counts the Polymorph casts whose Camel holds
+     * his Polymorph at their read. OK when rank1 is gone/83046@1500/87515@10000, rank2 and after
+     * gone/83047@3000/87515@10000, again gone/none/kept, expire, dispel and remove gone/none/none, and landed 7/7.
+     */
+    class MageArcaneImprovedPolymorph : public MageProcScenario
+    {
+    public:
+        MageArcaneImprovedPolymorph() : MageProcScenario("mage-arcane-improved-polymorph", 1105, "polymorph") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kPolymorph, kFireBlast, kRankOne }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kRankTwo }; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 TargetCount() const override { return 3; }
+        uint32 CastEveryMs() const override { return kEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kRankOne) + (p.HasAura(kRankOne) ? " on him" : " not on him") + "; " + U(kRankTwo) +
+                       (p.HasAura(kRankTwo) ? " on him" : " not on him"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { PolymorphAt(kCamelA), BlastAt(kCamelA), Aimed(Wait(kShortMs), kCamelA),
+                     PolymorphAt(kCamelB), BlastAt(kCamelB), PolymorphAt(kCamelB), BlastAt(kCamelB),
+                     PolymorphAt(kCamelC), Aimed(Wait(kShortMs), kCamelC),
+                     PolymorphAt(kCamelC), Aimed(Removal(kPolymorph, AURA_REMOVE_BY_DISPEL, kShortMs), kCamelC),
+                     PolymorphAt(kCamelC), Aimed(Removal(kPolymorph, AURA_REMOVE_BY_DEFAULT, kShortMs), kCamelC),
+                     PolymorphAt(kCamelC), BlastAt(kCamelC) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 118: 49 fields, fnv ffbe2272
+                { 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 2136: 26 fields, fnv 30ec504c
+                { 2136, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 23 }, { "eff0.EffectBonusCoefficient", 1054582243 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11210: 26 fields, fnv 3507e48b
+                { 11210, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1500 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 64 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12592: 26 fields, fnv fa6c88f6
+                { 12592, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 3000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 64 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83046: 26 fields, fnv 296931cd
+                { 83046, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83047: 26 fields, fnv 296931cd
+                { 83047, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 87515: 26 fields, fnv ba87eed9
+                { 87515, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            if (!atRead)
+            {
+                Act(st, k, p, target);
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            const std::string at = atRead ? "" : "act.";
+            SpellAuraHolder const* polymorph = target->GetSpellAuraHolder(kPolymorph, p->GetObjectGuid());
+            SpellAuraHolder const* stunOne = target->GetSpellAuraHolder(kStunOne);
+            SpellAuraHolder const* stunTwo = target->GetSpellAuraHolder(kStunTwo);
+            SpellAuraHolder const* stun = stunTwo ? stunTwo : stunOne;
+            SpellAuraHolder const* marker = target->GetSpellAuraHolder(kMarker);
+            reads[at + "polymorph"] = polymorph ? 1 : 0;
+            reads[at + "stun"] = stun ? int64(stun->GetId()) : 0;
+            reads[at + "stunMax"] = stun ? int64(stun->GetAuraMaxDuration()) : -1;
+            reads[at + "marker"] = marker ? int64(marker->GetAuraDuration()) : -1;
+            reads[at + "markerMax"] = marker ? int64(marker->GetAuraMaxDuration()) : -1;
+            const std::string stunText = stun ? U(stun->GetId()) + " for " + std::to_string(reads[at + "stunMax"]) +
+                                                    " ms"
+                                              : std::string("no stun");
+            const std::string markerText = marker ? std::to_string(reads[at + "marker"]) + " of " +
+                                                    std::to_string(reads[at + "markerMax"]) + " ms left"
+                                                  : std::string("none");
+            m_rec.Note(std::string(atRead ? "at the read" : "right after the step acts") + ": his " + U(kPolymorph) +
+                       " on the Camel " + (polymorph ? "held" : "gone") + "; " + stunText + "; " + U(kMarker) + " " +
+                       markerText);
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const std::string rank1 = State(st, kBlastA, "act.");
+            const std::string rank2 = State(st, kBlastB, "act.");
+            const std::string again = State(st, kAgainB, "act.");
+            const std::string expire = State(st, kExpireStep, "");
+            const std::string dispel = State(st, kDispelStep, "act.");
+            const std::string remove = State(st, kRemoveStep, "act.");
+            const std::string after = State(st, kBlastC, "act.");
+            uint32 landed = 0;
+            uint32 casts = 0;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                if (st.steps[k].spell == kPolymorph && IsCast(st.steps[k]))
+                {
+                    ++casts;
+                    landed += Kept(st, k, "polymorph") == 1 ? 1 : 0;
+                }
+            }
+            const bool ok = rank1 == "gone/83046@1500/87515@10000" && rank2 == "gone/83047@3000/87515@10000" &&
+                            again == "gone/none/kept" && expire == "gone/none/none" && dispel == "gone/none/none" &&
+                            remove == "gone/none/none" && after == "gone/83047@3000/87515@10000" && landed == casts &&
+                            casts == 7;
+            return (ok ? "OK(" : "BUG(") + std::string("rank1=") + rank1 + ",rank2=" + rank2 + ",again=" + again +
+                   ",expire=" + expire + ",dispel=" + dispel + ",remove=" + remove + ",after=" + after + ",landed=" +
+                   U(landed) + "/" + U(casts) + "; each: his Polymorph on the step's Camel, the stun it holds with " +
+                   "its full duration, the marker with its full duration when it has all of it left or kept when " +
+                   "less; a Fire Blast, the dispel and the removal right after they act, the run-out at its read)";
+        }
+
+    private:
+        static constexpr uint32 kPolymorph = 118;
+        static constexpr uint32 kFireBlast = 2136;
+        static constexpr uint32 kRankOne = 11210;
+        static constexpr uint32 kRankTwo = 12592;
+        static constexpr uint32 kStunOne = 83046;
+        static constexpr uint32 kStunTwo = 83047;
+        static constexpr uint32 kMarker = 87515;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kEveryMs = 2400;
+        static constexpr uint32 kReadMs = 2200;
+        static constexpr uint32 kShortMs = 600;
+        static constexpr uint32 kCamelA = 0;
+        static constexpr uint32 kCamelB = 1;
+        static constexpr uint32 kCamelC = 2;
+        static constexpr uint32 kBlastA = 1;
+        static constexpr uint32 kLearnStep = 2;
+        static constexpr uint32 kBlastB = 4;
+        static constexpr uint32 kAgainB = 6;
+        static constexpr uint32 kExpireStep = 8;
+        static constexpr uint32 kDispelStep = 10;
+        static constexpr uint32 kRemoveStep = 12;
+        static constexpr uint32 kBlastC = 14;
+        static constexpr size_t kSteps = 15;
+
+        /// `step` aimed at the Camel of index `camel`.
+        static Step Aimed(Step step, uint32 camel)
+        {
+            step.target = camel;
+            return step;
+        }
+
+        /// His Polymorph at the Camel of index `camel`.
+        static Step PolymorphAt(uint32 camel)
+        {
+            return AuraCastAt(kPolymorph, camel, 0);
+        }
+
+        /// His Fire Blast at the Camel of index `camel`, its cooldown taken off him by call first; no crit.
+        static Step BlastAt(uint32 camel)
+        {
+            Step step = Aimed(Cast(kFireBlast, false), camel);
+            step.clearCooldown = true;
+            return step;
+        }
+
+        /// A read ReadOwn kept for step k; -1 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, std::string const& name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        /// Step k's `<Polymorph>/<stun>/<marker>` from the reads kept under `at` ("act." right after it acted, "" at
+        /// its read).
+        static std::string State(St const& st, uint32 k, std::string const& at)
+        {
+            const int64 polymorph = Kept(st, k, at + "polymorph");
+            const int64 stun = Kept(st, k, at + "stun");
+            const int64 marker = Kept(st, k, at + "marker");
+            const int64 markerMax = Kept(st, k, at + "markerMax");
+            const std::string polymorphText = polymorph < 0 ? "?" : polymorph ? "held" : "gone";
+            const int64 stunMax = Kept(st, k, at + "stunMax");
+            const std::string stunText = stun > 0 ? std::to_string(stun) + "@" + std::to_string(stunMax)
+                                                  : std::string("none");
+            const std::string markerText = marker < 0 ? std::string("none")
+                                         : marker == markerMax ? U(kMarker) + "@" + std::to_string(markerMax)
+                                                               : std::string("kept");
+            return polymorphText + "/" + stunText + "/" + markerText;
+        }
+
+        /// What step k does besides the base's step, right after it acts: every Camel takes him as its victim at the
+        /// first step, he learns Improved Polymorph 2 at the learn step, and his Polymorph's time on C is set to 0 at
+        /// the run-out step.
+        void Act(St& st, uint32 k, Player* p, Creature* target)
+        {
+            if (k == 0)
+            {
+                for (ObjectGuid const& guid : st.targets)
+                {
+                    if (Creature* camel = Get(guid))
+                    {
+                        const bool attacking = camel->Attack(p, false);
+                        m_rec.Note(std::string("a Camel takes him as its victim: ") +
+                                   (attacking ? "it does" : "refused"));
+                    }
+                }
+            }
+            else if (k == kLearnStep)
+            {
+                p->learnSpell(kRankTwo, false);
+                m_rec.Note("he learns " + U(kRankTwo) + (p->HasSpell(kRankTwo) ? " (known, " : " (unknown, ") +
+                           (p->HasAura(kRankTwo) ? "its aura on him); " : "no aura); ") + U(kRankOne) +
+                           (p->HasAura(kRankOne) ? " still on him" : " no longer on him"));
+            }
+            else if (k == kExpireStep)
+            {
+                SpellAuraHolder* polymorph = target->GetSpellAuraHolder(kPolymorph, p->GetObjectGuid());
+                if (polymorph)
+                {
+                    polymorph->SetAuraDuration(0);
+                }
+                m_rec.Note(std::string("his ") + U(kPolymorph) + " on the Camel " +
+                           (polymorph ? "set to 0 ms left: it runs out at the Camel's next update" : "not found"));
+            }
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -15759,5 +16272,7 @@ namespace Harness
         r.Register(new MageArcaneMissiles());
         r.Register(new MageArcaneBlastStacks());
         r.Register(new MageArcaneTormentVortex());
+        r.Register(new MageArcaneInterrupts());
+        r.Register(new MageArcaneImprovedPolymorph());
     }
 }

@@ -1025,7 +1025,7 @@ enum ProcFlagsEx
     PROC_EX_DEFLECT             = 0x0000200,
     PROC_EX_ABSORB              = 0x0000400,
     PROC_EX_REFLECT             = 0x0000800,
-    /// Melee hit result can be Interrupt (not used)
+    /// The hit's interrupt effect (SPELL_EFFECT_INTERRUPT_CAST) stopped a spell its target was casting or channelling
     PROC_EX_INTERRUPT           = 0x0001000,
     PROC_EX_FULL_BLOCK          = 0x0002000,                // block al attack damage
     /// A row with this bit accepts only a hit (normal or critical) the row asks for, whether it dealt damage or not, a
@@ -1368,6 +1368,10 @@ class SpellMgr
         /// that dealt damage or healed, or a cast end; with one, any event except a hit or crit the row asks for that dealt
         /// no damage and healed nothing; with PROC_EX_HIT_WITHOUT_DAMAGE, only a hit or crit the row asks for, damage or not.
         static bool HitKindAccepted(uint32 eventProcEx, uint32 procEx, bool active);
+
+        /// Whether a proc event's `procEx` says its hit interrupted a spell its target was casting or channelling: the
+        /// hit's interrupt effect (Spell::EffectInterruptCast) stopped one, and the event carries PROC_EX_INTERRUPT.
+        static bool InterruptedACast(uint32 procEx);
 
         // Spell bonus data
         SpellBonusEntry const* GetSpellBonusData(uint32 spellId) const
