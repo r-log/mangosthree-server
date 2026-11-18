@@ -149,6 +149,10 @@
 // 998 a second mage's glyphed Frostfire Bolt on a Camel a first mage's unglyphed bolt slows: the first mage's slow
 // stays, and the second mage's holder is sent from the start with its periodic damage alone. 999 a mage's second
 // unglyphed Frostfire Bolt on a Camel his first one slows refreshes his slow in one aura update, at one stack.
+// 1010 a staged Frost mage's Ring of Frost forms in 3 seconds and freezes the units in its band, a Camel and a hostile
+// player standing there as it forms, and a Camel moved in later; never one at its centre, one the pole hides from
+// it or one immune to the freeze, which shows Immune once; the player's freeze lasts 8 s and halves his Deep Freeze;
+// a dispelled freeze leaves its 3 s marker, after which the unit is frozen again; a second ring ends the first.
 // 1025 Polymorph and Wyvern Sting on the Camel break on a direct hit and on a periodic tick, not on Molten Armor's
 // hit, a heal or a hit a shield takes whole, and Hex breaks on a chance per hit.
 // 1026 a root, a fear and Hex on the Camel count the damage a shield absorbed and the damage its damage-reduction
@@ -172,8 +176,9 @@
 // 1105 a staged Arcane mage's Polymorph that damage breaks stuns the Camel for Improved Polymorph's rank and marks it,
 // a second break while the mark holds stuns nothing, and a Polymorph that runs out, is dispelled or is removed stuns
 // nothing and marks nothing.
-// The guard of 931-938, 941-978, 980-995, 998-999, 1025-1028, 1100-1101 and 1103-1105 (Qualify) fingerprints every
-// spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
+// The guard of 931-938, 941-978, 980-995, 998-999, 1010, 1025-1028, 1100-1101 and 1103-1105 (Qualify) fingerprints
+// every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script
+// binding.
 namespace Harness
 {
     namespace
@@ -17013,6 +17018,502 @@ namespace Harness
         }
     };
 
+    /**
+     * S1010 `mage-frost-ring`: Ring of Frost (82676) and its ring (44199). A staged Frost mage (Shatter 2, so the stage
+     * learns the Frost tree's spells; 82676 learned) stands on the plain. kPoleX, kPoleY is the axis of a pole of the
+     * plain's static geometry 28.8 yards from him, ahead and to his left, whose trunk crosses the sight line between
+     * two units standing on either side of it. The ring's centre C is kPoleGap yards from that axis toward him. Around
+     * C stand, each rooted by [DND] Bwemba Root (97936) so that nothing they take sends them after him: Camel A
+     * kBandYards across his line (in the band), Camel B kCentreYards the other way (inside the band's inner edge),
+     * Camel W kOutsideYards that way (outside the band), Camel D kBandYards beyond C behind the pole (in the band, out
+     * of the ring's sight) and Camel E kBandYards from C toward him (in the band) under Fel Rage 3 (41625: immune to
+     * the freeze's mechanic); and a second player, P, a level-85 human warrior kBandYards from C between A and E. Both
+     * players are put in the free-for-all PvP state, so P is his enemy. Steps, each acting first:
+     *  1. a wait of kFormWaitMs: he casts 82676 at C as the cast handler starts a ground cast (a spell whose targets
+     *     hold the point alone); every 100 ms from kFirstSampleMs to kLastSampleMs after it, each unit's 82691 is
+     *     sampled;
+     *  2. a wait of kMoveWaitMs: W moved into the band, kBandYards from C (Unit::NearTeleportTo); the ring's unit flags
+     *     and display and P's 82691 read;
+     *  3. A's 82691 dispelled (Unit::RemoveAuraHolderDueToSpellByDispel), kMarkerWaitMs before the next step; A's
+     *     91264 read right after;
+     *  4. a wait of kStepMs, read inside the marker's 3 s;
+     *  5. a wait of kStepMs: he casts Deep Freeze (44572) at P, triggered; read after the marker ran out;
+     *  6. a wait of kStepMs: his cooldown of 82676 taken off by call, he casts 82676 at C2, kSecondRingAhead yards
+     *     ahead of him and kSecondRingAcross across, far from every Camel, as in step 1.
+     *
+     * `ring`: `formed=<ms from the cast to A's first sampled 82691>/<P's>,centre=<B ever frozen>,walkIn=<W frozen
+     * before its move>/<at the read after it>,wall=<D ever frozen>/<the sight line from C to D: blocked or clear>,
+     * immune=<Immune misses of 82691 on E in the run>/<E ever frozen>,ring=<44199 not selectable>/<its display>,
+     * pvp=<P's 82691 full duration>,deepFreeze=<P's 44572 full duration>,marker=<A's 91264 full duration after the
+     * dispel>/<A frozen inside it>/<A frozen after it>,rings=<44199 alive after the second cast>/<the one alive is
+     * the second>`, a frozen unit 1 and one never frozen 0, -1 for a duration never read. OK when formed is
+     * kFormedLow..kFormedHigh for both, centre 0, walkIn 0/1, wall 0/blocked, immune 1/0, ring 1/34997, pvp 8000,
+     * deepFreeze 2500 (half of 5000: the freeze raised the diminishing returns the two share), marker 3000/0/1 and
+     * rings 1/1.
+     */
+    class MageFrostRing : public MageProcScenario
+    {
+    public:
+        MageFrostRing() : MageProcScenario("mage-frost-ring", 1010, "ring") {}
+
+        void Prepare() override
+        {
+            m_read = RingRead();
+            m_camels.clear();
+            m_pvp = ObjectGuid();
+            m_pvpStaged = false;
+            m_firstRing = ObjectGuid();
+            MageProcScenario::Prepare();
+        }
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11158, 1 } }; }
+        std::vector<uint32> Spells() const override { return { kRing }; }
+
+        std::vector<std::pair<float, float> > ExtraTargets() const override
+        {
+            const float tx = P0.x + TargetDistance();
+            std::vector<std::pair<float, float> > out;
+            for (Pt const& spot : { Spot(0.0f, kBandYards), Spot(0.0f, -kCentreYards), Spot(0.0f, -kOutsideYards),
+                                    Spot(-kBandYards, 0.0f), Spot(kBandYards, 0.0f) })
+            {
+                out.push_back(std::make_pair(spot.x - tx, spot.y - P0.y));
+            }
+            return out;
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Wait(kFormWaitMs), Wait(kMoveWaitMs),
+                     Aimed(Removal(kFreeze, AURA_REMOVE_BY_DISPEL, kMarkerWaitMs), kCamelA), Wait(kStepMs),
+                     Wait(kStepMs), Wait(kStepMs) };
+        }
+
+        void AfterStage(Player& p) override
+        {
+            const Pt spot = Spot(kDiagonalYards, kDiagonalYards);
+            Player* pvp = SpawnPlayer(spot.x, spot.y, Ground(spot.x, spot.y, P0.z), 0.0f);
+            if (!pvp)
+            {
+                m_rec.Note("the second player did not spawn");
+                return;
+            }
+            m_pvp = pvp->GetObjectGuid();
+            StagePlan plan;
+            plan.level = kLevel;
+            m_pvpStaged = StagePlayer(*pvp, plan);
+            p.SetFFAPvP(true);
+            pvp->SetFFAPvP(true);
+            m_rec.Note(std::string("the second player: level ") + U(pvp->getLevel()) +
+                       (m_pvpStaged ? ", staged" : ", not staged") + "; both in free-for-all PvP: " +
+                       (p.IsFFAPvP() && pvp->IsFFAPvP() ? "yes" : "no") + "; his enemy: " +
+                       (p.IsHostileTo(pvp) ? "yes" : "no"));
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 82676: 49 fields, fnv dc06c2d5
+                { 82676, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 44199 }, { "eff0.EffectMiscValue_1", 3018 }, { "eff0.EffectRadiusIndex_0", 14 }, { "eff0.ImplicitTarget_0", 87 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 100 }, { "eff1.EffectBasePoints", 10 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 82691: 26 fields, fnv f045cca8
+                { 82691, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 13 }, { "eff0.EffectRadiusIndex_1", 9 }, { "eff0.ImplicitTarget_0", 87 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 91264: 26 fields, fnv 49f88bfc
+                { 91264, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 41625: 49 fields, fnv 3a48a886
+                { 41625, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 77 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 25 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 77 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 13 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 97936: 26 fields, fnv c1d55c6d
+                { 97936, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 26 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44572: 26 fields, fnv 8e0a4500
+                { 44572, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            if (!atRead)
+            {
+                Act(st, k, p, target);
+                return;
+            }
+            Creature* a = Camel(kCamelA);
+            Creature* w = Camel(kCamelW);
+            m_read.centre = m_read.centre || Frozen(Camel(kCamelB));
+            m_read.wall = m_read.wall || Frozen(Camel(kCamelD));
+            m_read.immuneFrozen = m_read.immuneFrozen || Frozen(Camel(kCamelE));
+            if (k == kMoveStep)
+            {
+                m_read.walkerAfter = Frozen(w);
+                m_rec.Note(std::string("W ") + (m_read.walkerAfter ? "frozen" : "not frozen") + " after its move");
+            }
+            else if (k == kInsideMarkerStep)
+            {
+                m_read.frozenInMarker = Frozen(a);
+                m_rec.Note(std::string("A ") + (m_read.frozenInMarker ? "frozen" : "not frozen") +
+                           " inside the marker; " + U(kMarker) + (a && a->HasAura(kMarker) ? " held" : " not held"));
+            }
+            else if (k == kAfterMarkerStep)
+            {
+                m_read.refrozen = Frozen(a);
+                m_rec.Note(std::string("A ") + (m_read.refrozen ? "frozen" : "not frozen") + " after the marker; " +
+                           U(kMarker) + (a && a->HasAura(kMarker) ? " held" : " not held"));
+            }
+            else if (k == kSecondRingStep)
+            {
+                const std::vector<Creature*> rings = Rings(p);
+                m_read.rings = int32(rings.size());
+                m_read.secondIsNew = rings.size() == 1 && rings[0]->GetObjectGuid() != m_firstRing;
+                m_rec.Note(U(kRingCreature) + " alive near him after the second cast: " + U(rings.size()) +
+                           (m_read.secondIsNew ? ", the second ring" : ""));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            const int32 immune = int32(ImmuneShown(st));
+            auto formedOk = [](int32 ms) { return ms >= kFormedLow && ms <= kFormedHigh; };
+            const bool ok = formedOk(m_read.formedA) && formedOk(m_read.formedP) && !m_read.centre &&
+                            !m_read.walkerBefore && m_read.walkerAfter && !m_read.wall && m_read.wallBlocked &&
+                            immune == 1 && !m_read.immuneFrozen && m_read.notSelectable == 1 &&
+                            m_read.display == int32(kHostileDisplay) && m_read.pvp == kPvpMs &&
+                            m_read.deepFreeze == kDiminishedDeepFreezeMs && m_read.marker == kMarkerMs &&
+                            !m_read.frozenInMarker && m_read.refrozen && m_read.rings == 1 && m_read.secondIsNew;
+            const std::string value =
+                "formed=" + std::to_string(m_read.formedA) + "/" + std::to_string(m_read.formedP) +
+                ",centre=" + Bit(m_read.centre) + ",walkIn=" + Bit(m_read.walkerBefore) + "/" +
+                Bit(m_read.walkerAfter) + ",wall=" + Bit(m_read.wall) + "/" +
+                (m_read.wallBlocked ? "blocked" : "clear") + ",immune=" + std::to_string(immune) + "/" +
+                Bit(m_read.immuneFrozen) + ",ring=" + std::to_string(m_read.notSelectable) + "/" +
+                std::to_string(m_read.display) + ",pvp=" + std::to_string(m_read.pvp) + ",deepFreeze=" +
+                std::to_string(m_read.deepFreeze) + ",marker=" + std::to_string(m_read.marker) + "/" +
+                Bit(m_read.frozenInMarker) + "/" + Bit(m_read.refrozen) + ",rings=" + std::to_string(m_read.rings) +
+                "/" + Bit(m_read.secondIsNew);
+            const std::string detail = "A and P frozen from the ring's first formed tick, the centre, the wall and the "
+                                       "immune Camel left alone with one Immune miss, the walker frozen in the band, "
+                                       "the ring not selectable with the hostile display, P frozen 8 s, Deep Freeze "
+                                       "halved, the marker 3 s after a dispel and one ring after the second cast";
+            return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kRing = 82676;
+        static constexpr uint32 kFreeze = 82691;
+        static constexpr uint32 kMarker = 91264;
+        static constexpr uint32 kRingCreature = 44199;
+        static constexpr uint32 kImmunity = 41625;
+        static constexpr uint32 kRoot = 97936;
+        static constexpr uint32 kDeepFreeze = 44572;
+        static constexpr uint32 kHostileDisplay = 34997;
+        static constexpr uint32 kLevel = 85;
+        static constexpr float kPoleX = -3112.07f;
+        static constexpr float kPoleY = -234.49f;
+        static constexpr float kPoleGap = 3.0f;
+        static constexpr float kBandYards = 6.0f;
+        static constexpr float kCentreYards = 2.0f;
+        static constexpr float kOutsideYards = 12.0f;
+        static constexpr float kDiagonalYards = 4.24f;
+        static constexpr float kSecondRingAhead = 10.0f;
+        static constexpr float kSecondRingAcross = -15.0f;
+        static constexpr float kRingSearchRange = 60.0f;
+        static constexpr float kSightLift = 2.0f;
+        static constexpr uint32 kFormWaitMs = 4500;
+        static constexpr uint32 kMoveWaitMs = 1000;
+        static constexpr uint32 kMarkerWaitMs = 2000;
+        static constexpr uint32 kStepMs = 1500;
+        static constexpr uint32 kFirstSampleMs = 2500;
+        static constexpr uint32 kLastSampleMs = 4200;
+        static constexpr uint32 kSampleEveryMs = 100;
+        static constexpr int32 kAuraMs = 60000;
+        static constexpr int32 kFormedLow = 3000;
+        static constexpr int32 kFormedHigh = 3200;
+        static constexpr int32 kPvpMs = 8000;
+        static constexpr int32 kDiminishedDeepFreezeMs = 2500;
+        static constexpr int32 kMarkerMs = 3000;
+        static constexpr uint32 kCamelA = 1;
+        static constexpr uint32 kCamelB = 2;
+        static constexpr uint32 kCamelW = 3;
+        static constexpr uint32 kCamelD = 4;
+        static constexpr uint32 kCamelE = 5;
+        static constexpr uint32 kCastStep = 0;
+        static constexpr uint32 kMoveStep = 1;
+        static constexpr uint32 kDispelStep = 2;
+        static constexpr uint32 kInsideMarkerStep = 3;
+        static constexpr uint32 kAfterMarkerStep = 4;
+        static constexpr uint32 kSecondRingStep = 5;
+
+        /// What the scenario's acts and reads kept.
+        struct RingRead
+        {
+            int32 formedA = -1;             ///< ms after the cast of the first sample at which A held 82691
+            int32 formedP = -1;             ///< the same for P
+            bool centre = false;            ///< B held 82691 at a sample or a read
+            bool walkerBefore = false;      ///< W held 82691 before its move
+            bool walkerAfter = false;       ///< W held 82691 at the read after its move
+            bool wall = false;              ///< D held 82691 at a sample or a read
+            bool wallBlocked = false;       ///< the sight line from C to D was blocked at the cast
+            bool immuneFrozen = false;      ///< E held 82691 at a sample or a read
+            int32 notSelectable = -1;       ///< the ring's UNIT_FLAG_NOT_SELECTABLE, 1 or 0
+            int32 display = -1;             ///< the ring's display
+            int32 pvp = -1;                 ///< P's 82691 full duration
+            int32 deepFreeze = -1;          ///< P's 44572 full duration
+            int32 marker = -1;              ///< A's 91264 full duration right after the dispel
+            bool frozenInMarker = true;     ///< A held 82691 at the read inside the marker
+            bool refrozen = false;          ///< A held 82691 at the read after the marker
+            int32 rings = -1;               ///< the 44199 alive near him after the second cast
+            bool secondIsNew = false;       ///< the one alive is not the first ring
+        };
+
+        /// `step` aimed at the Camel of index `camel`.
+        static Step Aimed(Step step, uint32 camel)
+        {
+            step.target = camel;
+            return step;
+        }
+
+        /// The point `along` yards from the ring's centre C toward him and `across` yards a quarter turn to the left
+        /// of that line; C is kPoleGap yards from the pole's axis toward him. Its z is the plain's, for Ground to
+        /// start from.
+        static Pt Spot(float along, float across)
+        {
+            const float dx = P0.x - kPoleX;
+            const float dy = P0.y - kPoleY;
+            const float length = std::sqrt(dx * dx + dy * dy);
+            const float ux = dx / length;
+            const float uy = dy / length;
+            const float cx = kPoleX + kPoleGap * ux;
+            const float cy = kPoleY + kPoleGap * uy;
+            const Pt spot = { cx + along * ux - across * uy, cy + along * uy + across * ux, P0.z };
+            return spot;
+        }
+
+        static std::string Bit(bool value)
+        {
+            return value ? "1" : "0";
+        }
+
+        static bool Frozen(Unit const* unit)
+        {
+            return unit && unit->HasAura(kFreeze);
+        }
+
+        /// The Camel of index `camel`, by the guids the first step kept; NULL when it is gone.
+        Creature* Camel(uint32 camel) const
+        {
+            return camel < m_camels.size() ? Get(m_camels[camel]) : NULL;
+        }
+
+        /// Every live creature 44199 within kRingSearchRange of him.
+        std::vector<Creature*> Rings(Player* p) const
+        {
+            std::vector<Creature*> out;
+            if (!p || !p->IsInWorld())
+            {
+                return out;
+            }
+            std::list<Creature*> found;
+            MaNGOS::AllCreaturesOfEntryInRangeCheck check(p, kRingCreature, kRingSearchRange);
+            MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(found, check);
+            Cell::VisitGridObjects(p, searcher, kRingSearchRange);
+            for (Creature* ring : found)
+            {
+                if (ring->IsAlive())
+                {
+                    out.push_back(ring);
+                }
+            }
+            return out;
+        }
+
+        /// His cast of `spellId` at the point (x, y, z) as the cast handler starts a ground cast: the spellbook check,
+        /// his mana set to its maximum, then a spell whose targets hold the point alone, started (Spell::SpellStart).
+        void CastAtPoint(Player* p, uint32 spellId, float x, float y, float z, uint8 castCount)
+        {
+            SpellEntry const* info = sSpellStore.LookupEntry(spellId);
+            if (!info || !p->HasActiveSpell(spellId))
+            {
+                m_rec.Note("his spellbook refuses " + U(spellId));
+                return;
+            }
+            p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA));
+            SpellCastTargets targets;
+            targets.setDestination(x, y, z);
+            Spell* spell = new Spell(p, info, false, p->GetObjectGuid(), NULL);
+            spell->m_cast_count = castCount;
+            spell->m_glyphIndex = 0;
+            spell->SpellStart(&targets, NULL);
+            char buf[160];
+            snprintf(buf, sizeof(buf), "he casts %u at (%.2f, %.2f, %.2f), %.2f yards from him", spellId, x, y, z,
+                     p->Where().DistanceTo(Geometry::Vector3(x, y, z)));
+            m_rec.Note(buf);
+        }
+
+        /// One sample, `ms` after the cast: each unit's 82691.
+        void Sample(uint32 ms)
+        {
+            Player* pvp = sPlayerRegistry.Find(m_pvp);
+            if (Frozen(Camel(kCamelA)) && m_read.formedA < 0)
+            {
+                m_read.formedA = int32(ms);
+            }
+            if (Frozen(pvp) && m_read.formedP < 0)
+            {
+                m_read.formedP = int32(ms);
+            }
+            m_read.centre = m_read.centre || Frozen(Camel(kCamelB));
+            m_read.walkerBefore = m_read.walkerBefore || Frozen(Camel(kCamelW));
+            m_read.wall = m_read.wall || Frozen(Camel(kCamelD));
+            m_read.immuneFrozen = m_read.immuneFrozen || Frozen(Camel(kCamelE));
+        }
+
+        /// What step k does besides the base's step, right after it acts: the Camels' auras and the first cast, W's
+        /// move and the ring's reads, the marker's read, Deep Freeze at P, the second cast.
+        void Act(St& st, uint32 k, Player* p, Creature* /*target*/)
+        {
+            if (k == kCastStep)
+            {
+                m_camels = st.targets;
+                for (uint32 camel = kCamelA; camel <= kCamelE; ++camel)
+                {
+                    if (Creature* unit = Camel(camel))
+                    {
+                        PutReadyAura(unit, kRoot, kAuraMs, unit);
+                    }
+                }
+                if (Creature* immune = Camel(kCamelE))
+                {
+                    PutReadyAura(immune, kImmunity, kAuraMs, immune);
+                }
+                const Pt centre = Spot(0.0f, 0.0f);
+                const Pt wall = Spot(-kBandYards, 0.0f);
+                const float centreZ = Ground(centre.x, centre.y, P0.z);
+                const float wallZ = Ground(wall.x, wall.y, P0.z);
+                m_read.wallBlocked = !p->GetMap()->IsInLineOfSight(centre.x, centre.y, centreZ + kSightLift, wall.x,
+                                                                   wall.y, wallZ + kSightLift, p->GetPhaseMask());
+                m_rec.Note(std::string("the Camels rooted, E under ") + U(kImmunity) + "; the sight line from C to D " +
+                           (m_read.wallBlocked ? "blocked" : "clear"));
+                CastAtPoint(p, kRing, centre.x, centre.y, centreZ, uint8(k + 1));
+                for (uint32 ms = kFirstSampleMs; ms <= kLastSampleMs; ms += kSampleEveryMs)
+                {
+                    At(ms, [this, ms]() { Sample(ms); });
+                }
+            }
+            else if (k == kMoveStep)
+            {
+                Creature* w = Camel(kCamelW);
+                m_read.walkerBefore = m_read.walkerBefore || Frozen(w);
+                const Pt band = Spot(0.0f, -kBandYards);
+                if (w)
+                {
+                    w->NearTeleportTo(band.x, band.y, Ground(band.x, band.y, P0.z), w->Where().Facing());
+                }
+                const std::vector<Creature*> rings = Rings(p);
+                Creature* ring = rings.size() == 1 ? rings[0] : NULL;
+                if (ring)
+                {
+                    m_firstRing = ring->GetObjectGuid();
+                    m_read.notSelectable = ring->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE) ? 1 : 0;
+                    m_read.display = int32(ring->GetUInt32Value(UNIT_FIELD_DISPLAYID));
+                }
+                Player* pvp = sPlayerRegistry.Find(m_pvp);
+                SpellAuraHolder const* freeze = pvp ? pvp->GetSpellAuraHolder(kFreeze) : NULL;
+                m_read.pvp = freeze ? freeze->GetAuraMaxDuration() : -1;
+                m_rec.Note("W moved into the band; " + U(rings.size()) + " ring(s) near him, flags " +
+                           std::to_string(ring ? ring->GetUInt32Value(UNIT_FIELD_FLAGS) : 0) + ", display " +
+                           std::to_string(m_read.display) + "; P's " + U(kFreeze) + " for " +
+                           std::to_string(m_read.pvp) + " ms");
+            }
+            else if (k == kDispelStep)
+            {
+                Creature* a = Camel(kCamelA);
+                SpellAuraHolder const* marker = a ? a->GetSpellAuraHolder(kMarker) : NULL;
+                m_read.marker = marker ? marker->GetAuraMaxDuration() : -1;
+                m_rec.Note("A's " + U(kMarker) + " right after the dispel: " + std::to_string(m_read.marker) +
+                           " ms; A " + (Frozen(a) ? "frozen" : "not frozen"));
+            }
+            else if (k == kAfterMarkerStep)
+            {
+                Player* pvp = m_pvpStaged ? sPlayerRegistry.Find(m_pvp) : NULL;
+                if (!pvp)
+                {
+                    m_rec.Note("no second player for Deep Freeze");
+                    return;
+                }
+                const bool frozen = pvp->HasAuraState(AURA_STATE_FROZEN);
+                p->CastSpell(pvp, kDeepFreeze, true);
+                SpellAuraHolder const* deepFreeze = pvp->GetSpellAuraHolder(kDeepFreeze);
+                m_read.deepFreeze = deepFreeze ? deepFreeze->GetAuraMaxDuration() : -1;
+                m_rec.Note(std::string("P ") + (frozen ? "frozen" : "not frozen") + "; he casts " + U(kDeepFreeze) +
+                           " at P, triggered: " + std::to_string(m_read.deepFreeze) + " ms");
+            }
+            else if (k == kSecondRingStep)
+            {
+                p->RemoveSpellCooldown(kRing, true);
+                const float x = P0.x + kSecondRingAhead;
+                const float y = P0.y + kSecondRingAcross;
+                CastAtPoint(p, kRing, x, y, Ground(x, y, P0.z), uint8(k + 1));
+            }
+        }
+
+        /// The Immune misses of 82691 on E in every step's windows: the misses of condition 7 or 8
+        /// (SPELL_MISS_IMMUNE, SPELL_MISS_IMMUNE2) that name E in the SMSG_SPELL_GO packets of 82691.
+        uint32 ImmuneShown(St const& st) const
+        {
+            const Trace::Roles roles = RolesAt(st, kCamelE);
+            uint32 shown = 0;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                for (std::string const& window : StepWindows(k))
+                {
+                    std::vector<Recorder::Seen const*> gos = m_rec.SeenIn(window, SMSG_SPELL_GO);
+                    for (Recorder::Seen const* go : gos)
+                    {
+                        std::string text;
+                        uint32 spell = 0;
+                        if (go->payload.empty() ||
+                            !Trace::DecodeSpellCast(true, &go->payload[0], go->payload.size(), roles, text) ||
+                            sscanf(text.c_str(), "spell=%u", &spell) != 1 || spell != kFreeze)
+                        {
+                            continue;
+                        }
+                        const size_t from = text.find(" miss=[");
+                        const size_t to = from == std::string::npos ? from : text.find(']', from);
+                        if (from == std::string::npos || to == std::string::npos)
+                        {
+                            continue;
+                        }
+                        const std::string misses = text.substr(from, to - from);
+                        for (char const* immune : { "target:7", "target:8" })
+                        {
+                            for (size_t at = misses.find(immune); at != std::string::npos;
+                                 at = misses.find(immune, at + 1))
+                            {
+                                ++shown;
+                            }
+                        }
+                    }
+                }
+            }
+            return shown;
+        }
+
+        RingRead m_read;
+        std::vector<ObjectGuid> m_camels;   ///< every Camel, as St::targets holds them
+        ObjectGuid m_pvp;                   ///< the second player, P
+        bool m_pvpStaged = false;
+        ObjectGuid m_firstRing;             ///< the ring the first cast made, read at the move step
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -17089,5 +17590,6 @@ namespace Harness
         r.Register(new MageArcaneTormentVortex());
         r.Register(new MageArcaneInterrupts());
         r.Register(new MageArcaneImprovedPolymorph());
+        r.Register(new MageFrostRing());
     }
 }
