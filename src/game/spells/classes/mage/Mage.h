@@ -46,12 +46,11 @@
  * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and
  * the shares' (ShareBase) and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's
  * (CountsAsFrozen, UsesFingers, ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers) and Fingers of
- * Frost's (RefusesChillSource, FingersRefusesSource, FingersMarkOf, MarkFingers, TakeFingersMark, UseFingersCharge,
- * GiveFingers and IceLanceMultiplier). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its
- * scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor,
- * OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file
- * registers its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and
- * RegisterRanks per script hook.
+ * Frost's (RefusesChillSource, UseFingersCharge and IceLanceMultiplier). Orb.cpp holds the orb a mage's Flame Orb
+ * summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
+ * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
+ * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
+ * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -296,42 +295,25 @@ namespace Mage
         FINGERS                                     ///< the target does not, and the spell counts it as frozen all the same
     };
 
-    /// How `spell`, cast by `caster` at `target`, counts the target: REALLY_FROZEN when the target holds the frozen aura
-    /// state; else FINGERS for Deep Freeze's damage (71757, cast only at a target a stun cannot hold), and for a spell
-    /// that uses a Fingers of Frost charge (UsesFingers); else NOT_FROZEN. Defined in Frost.cpp.
-    FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell);
+    /// How `spell`, cast by `caster` at `target`, counts the target for damage of `damageType`: REALLY_FROZEN when the
+    /// target holds the frozen aura state; else, for a hit, FINGERS for Deep Freeze's damage (71757, cast only at a
+    /// target a stun cannot hold) and for a spell that uses a Fingers of Frost charge (UsesFingers); else NOT_FROZEN,
+    /// and always NOT_FROZEN for a periodic effect (DOT) at a target that is not frozen. Defined in Frost.cpp.
+    FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
+                              DamageEffectType damageType);
 
     /// Whether `spell`, cast by `caster`, uses a Fingers of Frost charge: the caster holds Fingers of Frost (44544) and
     /// the spell is Ice Lance (30455), Deep Freeze (44572), or a Frostfire Bolt (44614) cast while Brain Freeze's buff
     /// (57761) makes it instant. The target's state plays no part. Defined in Frost.cpp.
     bool UsesFingers(Unit const& caster, SpellEntry const& spell);
 
-    /// Whether a chill source is refused for Fingers of Frost and Brain Freeze although its class bit passes their
-    /// rows: Frost Armor's Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in Frost.cpp.
+    /// Whether Fingers of Frost refuses a proc of `procSpellId` although its class bit passes the talent's rows: Frost
+    /// Armor's Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in Frost.cpp.
     bool RefusesChillSource(uint32 procSpellId);
-
-    /// Whether Fingers of Frost refuses a proc of `procSpellId`: a source RefusesChillSource names, or a Frostfire Bolt
-    /// (44614) of a mage with Glyph of Frostfire, whose bolt chills nothing. Defined in Frost.cpp.
-    bool FingersRefusesSource(uint32 procSpellId, bool glyphOfFrostfire);
-
-    /// The bit Fingers of Frost's script word holds for a spell that travels to its target and left with a charge: 1
-    /// for Ice Lance (30455), 2 for Frostfire Bolt (44614), 0 for any other spell. Defined in Frost.cpp.
-    uint32 FingersMarkOf(uint32 spellId);
-
-    /// Sets the bit of `spellId` (FingersMarkOf) in the script word of Fingers of Frost's holder. Defined in Frost.cpp.
-    void MarkFingers(AuraHandle& fingers, uint32 spellId);
-
-    /// Clears the bit of `spellId` in the script word of Fingers of Frost's holder; answers whether it was set. Defined
-    /// in Frost.cpp.
-    bool TakeFingersMark(AuraHandle& fingers, uint32 spellId);
 
     /// Takes one charge of Fingers of Frost off `mage`: one stack fewer, the buff removed at none. Answers whether he
     /// held the buff. Defined in Frost.cpp.
     bool UseFingersCharge(Unit& mage);
-
-    /// Gives `mage` `charges` charges of Fingers of Frost: one triggered cast of the buff (44544) at himself per
-    /// charge, each a stack, up to the buff's two. Defined in Frost.cpp.
-    void GiveFingers(Unit& mage, uint32 charges);
 
     /// Ice Lance's done multiplier: its effect-1 percent `doubledPercent` (100: double damage) at a target it counts as
     /// frozen, times `fingersPercent` more when it uses a Fingers of Frost charge; 1 for neither. Defined in Frost.cpp.
