@@ -26,6 +26,23 @@
 #include "spells/SpellScriptHooks.h"
 #include "spells/auras/SpellAuras.h"
 
+namespace
+{
+    /// Whether `target`'s holder map holds `holder`.
+    bool HeldBy(Unit const& target, SpellAuraHolder const& holder)
+    {
+        Unit::SpellAuraHolderConstBounds bounds = target.GetSpellAuraHolderBounds(holder.GetId());
+        for (Unit::SpellAuraHolderMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
+        {
+            if (itr->second == &holder)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 uint32 AuraHandle::Charges() const
 {
     return m_holder.GetAuraCharges();
@@ -90,8 +107,19 @@ void AuraHandle::RemoveEffect(SpellEffectIndex eff)
     {
         return;
     }
+    if (!HeldBy(*target, m_holder))
+    {
+        m_holder.RemoveAura(eff);
+        delete aura;
+        return;
+    }
     target->RemoveSingleAuraFromSpellAuraHolder(&m_holder, eff);
     m_holder.SendAuraUpdate(false);
+}
+
+void AuraHandle::CapStacks(uint32 stacks)
+{
+    m_holder.SetStackCap(stacks);
 }
 
 void AuraHandle::Expire()

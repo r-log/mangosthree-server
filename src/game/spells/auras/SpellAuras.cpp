@@ -2693,7 +2693,7 @@ SpellAuraHolder::SpellAuraHolder(SpellEntry const* spellproto, Unit* target, Wor
     m_spellProto(spellproto), m_target(target),
     m_castItemGuid(castItem ? castItem->GetObjectGuid() : ObjectGuid()), m_triggeredBy(triggeredBy),
     m_auraSlot(MAX_AURAS), m_auraFlags(AFLAG_NONE), m_auraLevel(1),
-    m_procCharges(0), m_stackAmount(1),
+    m_procCharges(0), m_stackAmount(1), m_stackCap(0),
     m_timeCla(1000), m_removeMode(AURA_REMOVE_BY_DEFAULT), m_AuraDRGroup(DIMINISHING_NONE),
     m_permanent(false), m_isRemovedOnShapeLost(true), m_deleted(false), m_in_use(0)
 {
@@ -3189,7 +3189,9 @@ void SpellAuraHolder::CleanupTriggeredSpells()
 }
 
 /**
- * @brief Modifies the current stack amount within spell-defined limits.
+ * @brief Modifies the current stack amount within the holder's cap, or its spell's limit when it has none.
+ *
+ * A change that meets the limit sets the stack to the limit, which refreshes the holder when it is there already.
  *
  * @param num The stack delta to apply.
  * @return True if the aura should be removed after the change; otherwise, false.
@@ -3204,11 +3206,12 @@ bool SpellAuraHolder::ModStackAmount(int32 num)
         return true;
     }
 
-    // Modify stack but limit it
+    // Modify stack but limit it: to the holder's cap when it has one, else to the spell's limit
+    uint32 const limit = m_stackCap ? m_stackCap : protoStackAmount;
     int32 stackAmount = m_stackAmount + num;
-    if (stackAmount > (int32)protoStackAmount)
+    if (stackAmount > (int32)limit)
     {
-        stackAmount = protoStackAmount;
+        stackAmount = limit;
     }
     else if (stackAmount <= 0) // Last aura from stack removed
     {
