@@ -112,7 +112,8 @@ void Unit::AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType, bool ext
     // Send log damage message to client
     DealDamageMods(pVictim, damageInfo.damage, &damageInfo.absorb);
     SendAttackStateUpdate(&damageInfo);
-    ProcDamageAndSpell(damageInfo.target, damageInfo.procAttacker, damageInfo.procVictim, damageInfo.procEx, damageInfo.damage, damageInfo.attackType);
+    ProcDamageAndSpell(damageInfo.target, damageInfo.procAttacker, damageInfo.procVictim, damageInfo.procEx,
+                       damageInfo.damage, damageInfo.attackType, NULL, damageInfo.absorb);
     DealMeleeDamage(&damageInfo, true);
 
     if (GetTypeId() == TYPEID_PLAYER)

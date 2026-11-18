@@ -362,6 +362,9 @@ TEST(SpellTables_PolymorphBreaksOnAnyDamageThatGetsThrough)
 {
     // a direct hit or a periodic tick that deals damage
     CHECK(BreaksOnDamageProc(1, true, 0, false, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(BreaksOnDamageProc(355, true, 0, false, 0, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+
+    // a hit whose Ex4 attributes hold bits other than SPELL_ATTR_EX4_REACTIVE_DAMAGE_PROC
     CHECK(BreaksOnDamageProc(355, true, 0, false, 0x8080, kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
 
     // a hit the absorbs take whole, or one that deals nothing
@@ -413,6 +416,44 @@ TEST(SpellTables_NoOtherAuraTypeBreaksOnAnyDamage)
         CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, kPolymorphFlags, auraType));
         CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, kWyvernStingFlags, auraType));
     }
+}
+
+TEST(SpellTables_TheThresholdEffectsAreFearRootAndPacifySilenceAndNoOther)
+{
+    // Fear, Entangling Roots and Frost Nova, and Hex's pacify-silence
+    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_FEAR));
+    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_ROOT));
+    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_PACIFY_SILENCE));
+
+    // Polymorph's confuse and transform, Wyvern Sting's stun, a pacify and no aura
+    for (uint32 auraType : { uint32(SPELL_AURA_MOD_CONFUSE), uint32(SPELL_AURA_TRANSFORM), uint32(SPELL_AURA_MOD_STUN),
+                             uint32(SPELL_AURA_MOD_PACIFY), uint32(SPELL_AURA_NONE) })
+    {
+        CHECK(!CountsPreventedDamage(auraType));
+    }
+}
+
+TEST(SpellTables_AThresholdEffectCountsTheDamageAbsorbsAndReductionEffectsTook)
+{
+    // no absorb and no reduction effect: the damage that got through
+    CHECK_EQ(ThresholdDamage(500, 0, 1.0f), 500u);
+    CHECK_EQ(ThresholdDamage(0, 0, 1.0f), 0u);
+
+    // a shield that took the hit whole, and one that took part of it
+    CHECK_EQ(ThresholdDamage(0, 3518, 1.0f), 3518u);
+    CHECK_EQ(ThresholdDamage(1518, 2000, 1.0f), 3518u);
+
+    // Pain Suppression (-40%), and Pain Suppression with Shield Wall (-40%, -40%), after a shield
+    CHECK_EQ(ThresholdDamage(600, 0, 0.6f), 1000u);
+    CHECK_EQ(ThresholdDamage(160, 200, 0.6f * 0.6f), 1000u);
+
+    // a multiplier that is no reduction, or that left nothing to take back, counts the sum
+    CHECK_EQ(ThresholdDamage(500, 200, 1.0f), 700u);
+    CHECK_EQ(ThresholdDamage(500, 200, 1.25f), 700u);
+    CHECK_EQ(ThresholdDamage(500, 200, 0.0f), 700u);
+
+    // a count past the largest uint32 stops there
+    CHECK_EQ(ThresholdDamage(4294967295u, 4294967295u, 0.5f), 4294967295u);
 }
 
 TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)

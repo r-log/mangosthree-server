@@ -90,6 +90,15 @@ bool DamageBreaksAuras(uint32 attributesEx4);
 bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ownSpell, uint32 procAttributesEx4,
                         uint32 auraInterruptFlags, uint32 auraType);
 
+/// Whether an aura of `auraType` breaks on damage past a threshold and counts the damage a hit's absorbs and the
+/// victim's damage-reduction effects took (ThresholdDamage): a fear, a root or a pacify-silence.
+bool CountsPreventedDamage(uint32 auraType);
+
+/// The damage a threshold effect counts for a hit: the `damage` that got through plus the `absorbed` part, taken back
+/// to before the victim's damage-reduction effects, whose product is `reductionMultiplier`, rounded to the nearest
+/// whole point. A multiplier of 1 or more, or of 0 or less, leaves the sum as it is.
+uint32 ThresholdDamage(uint32 damage, uint32 absorbed, float reductionMultiplier);
+
 /// The spells a proc casts for the rank of the aura or of the spell that procs it; 0 for a spell the table does not hold.
 uint32 GetArcanePotencyProcSpell(uint32 rankSpellId);
 uint32 GetSecondWindProcSpell(uint32 rankSpellId);

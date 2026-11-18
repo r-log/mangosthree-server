@@ -1862,9 +1862,12 @@ class Unit : public WorldObject
          * @param amount
          * @param attType
          * @param procSpell
+         * @param absorb the part of the hit's damage the victim's absorbs took; only the victim's procs read it
          * \see ProcFlagsEx
          */
-        void ProcDamageAndSpell(Unit* pVictim, uint32 procAttacker, uint32 procVictim, uint32 procEx, uint32 amount, WeaponAttackType attType = BASE_ATTACK, SpellEntry const* procSpell = NULL);
+        void ProcDamageAndSpell(Unit* pVictim, uint32 procAttacker, uint32 procVictim, uint32 procEx, uint32 amount,
+                                WeaponAttackType attType = BASE_ATTACK, SpellEntry const* procSpell = NULL,
+                                uint32 absorb = 0);
         /**
          * Same as for Unit::ProcDamageAndSpell
          * @param isVictim whether the target is considered the victim or not
@@ -1874,9 +1877,11 @@ class Unit : public WorldObject
          * @param attType
          * @param procSpell
          * @param damage
+         * @param absorb the part of the hit's damage the absorbs took
          * \see ProcFlagsEx
          */
-        void ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, SpellEntry const* procSpell, uint32 damage);
+        void ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra,
+                                   WeaponAttackType attType, SpellEntry const* procSpell, uint32 damage, uint32 absorb);
 
         /**
          * Handles an emote, for example /charge would write something

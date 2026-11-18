@@ -229,7 +229,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // Do triggers for unit (reflect triggers passed on hit phase for correct drop charge)
         if (m_canTrigger && missInfo != SPELL_MISS_REFLECT)
         {
-            caster->ProcDamageAndSpell(unitTarget, real_caster ? procAttacker : uint32(PROC_FLAG_NONE), procVictim, procEx, damageInfo.damage, m_attackType, m_spellInfo);
+            caster->ProcDamageAndSpell(unitTarget, real_caster ? procAttacker : uint32(PROC_FLAG_NONE), procVictim,
+                                       procEx, damageInfo.damage, m_attackType, m_spellInfo, damageInfo.absorb);
         }
 
         // trigger weapon enchants for weapon based spells; exclude spells that stop attack, because may break CC
