@@ -2696,6 +2696,12 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // Arcane Missiles! (79683) and Arcane Missiles Aurastate (79808) share an icon and stand together
+    if ((spellId_1 == 79683 && spellId_2 == 79808) || (spellId_1 == 79808 && spellId_2 == 79683))
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)

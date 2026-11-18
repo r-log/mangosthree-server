@@ -1676,6 +1676,51 @@ TEST(MageScripts_CombustionsDoTStacksWithTheOtherAurasOfItsIcon)
     CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIconSpell, 19891));
 }
 
+namespace
+{
+    // The class options and the Spell.dbc rows of the Arcane Missiles stacking test: mage spells of class mask 0 and
+    // icon 1952 with no effect rows, as Arcane Missiles! (79683) and Arcane Missiles Aurastate (79808) are. The test
+    // takes the rows out of the spell store again.
+    const uint32 kOptionsArcaneMissilesAuras = 94210;
+    const uint32 kOtherIcon1952Spell = 94211;
+
+    SpellClassOptionsEntry s_optionsArcaneMissilesAuras;
+    ServerSpell s_arcaneMissilesBuff;
+    ServerSpell s_arcaneMissilesAurastate;
+    ServerSpell s_otherIcon1952Spell;
+
+    void StoreIcon1952Spell(ServerSpell& spell, uint32 spellId)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = kOptionsArcaneMissilesAuras;
+        spell.Entry().SpellIconID = 1952;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+    }
+}
+
+TEST(MageScripts_ArcaneMissilesBuffAndItsAurastateStackWithEachOther)
+{
+    // The two share icon 1952 and hold no spell modifier effect, so the generic same-icon rule would have a new holder
+    // of either remove the other's from the mage. They are exempt from it, both ways.
+    s_optionsArcaneMissilesAuras.SpellClassMask = ClassFamilyMask(0, 0);
+    s_optionsArcaneMissilesAuras.SpellClassSet = SPELLFAMILY_MAGE;
+    sSpellClassOptionsStore.SetEntry(kOptionsArcaneMissilesAuras, &s_optionsArcaneMissilesAuras);
+    StoreIcon1952Spell(s_arcaneMissilesBuff, 79683);
+    StoreIcon1952Spell(s_arcaneMissilesAurastate, 79808);
+    StoreIcon1952Spell(s_otherIcon1952Spell, kOtherIcon1952Spell);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(79683, 79808));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(79808, 79683));
+
+    // The rule itself stands for another aura of the icon.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(79808, kOtherIcon1952Spell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIcon1952Spell, 79683));
+
+    sSpellStore.SetEntry(79683, NULL);
+    sSpellStore.SetEntry(79808, NULL);
+    sSpellStore.SetEntry(kOtherIcon1952Spell, NULL);
+    CHECK(sSpellStore.LookupEntry(79808) == NULL);
+}
+
 TEST(MageScripts_ImpactSpreadsPyroblastIgniteAndCombustionAlwaysAndLivingBombToTwoEnemies)
 {
     // Pyroblast, Pyroblast!, Ignite and Combustion always, and the count of Living Bombs stays as it is.
