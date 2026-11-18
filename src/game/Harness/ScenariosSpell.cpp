@@ -139,8 +139,10 @@
 // Unit::IsSpellCrit for Frostbolt crit at the share Shatter's second rank gives the
 // sheet chance and Glyph of Frostbolt's 5 together.
 // 1025 Polymorph and Wyvern Sting on the Camel break on a direct hit and on a periodic tick, not on Molten Armor's
-// hit or a hit a shield takes whole, and Hex breaks on a chance per hit.
-// The guard of 931-938, 941-978, 980-992 and 1025 (Qualify) fingerprints every spell a scenario reaches and
+// hit, a heal or a hit a shield takes whole, and Hex breaks on a chance per hit.
+// 1026 a root, a fear and Hex on the Camel count the damage a shield absorbed and the damage its damage-reduction
+// effects took off a hit toward the chance that the hit breaks them.
+// The guard of 931-938, 941-978, 980-992 and 1025-1026 (Qualify) fingerprints every spell a scenario reaches and
 // refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3977,8 +3979,8 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-992, 1025):
-     * a human mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings and spells
+     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-992,
+     * 1025-1026): a human mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings and spells
      * (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then the pet the
      * scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario sets its
      * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -4260,31 +4262,32 @@ namespace Harness
             bool petCast = false;               ///< a cast by his pet at the Camel; its own category judges it
         };
         /// The aura of `spell` put on `unit` as the GM aura command puts it: a holder and one aura per aura effect,
-        /// with no cast.
-        static void PutAura(Unit* unit, uint32 spell)
+        /// with no cast. `caster` is the holder's caster; `unit` itself when NULL.
+        static void PutAura(Unit* unit, uint32 spell, Unit* caster = NULL)
         {
             SpellEntry const* info = sSpellStore.LookupEntry(spell);
             if (!info)
             {
                 return;
             }
-            SpellAuraHolder* holder = CreateSpellAuraHolder(info, unit, unit);
+            SpellAuraHolder* holder = CreateSpellAuraHolder(info, unit, caster ? caster : unit);
             for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
             {
                 SpellEffectEntry const* effect = info->GetSpellEffect(SpellEffectIndex(i));
                 if (effect && effect->Effect < TOTAL_SPELL_EFFECTS &&
                     (IsAreaAuraEffect(effect->Effect) || effect->Effect == SPELL_EFFECT_APPLY_AURA || effect->Effect == SPELL_EFFECT_PERSISTENT_AREA_AURA))
                 {
-                    holder->AddAura(CreateAura(info, SpellEffectIndex(i), NULL, holder, unit), SpellEffectIndex(i));
+                    holder->AddAura(CreateAura(info, SpellEffectIndex(i), NULL, holder, unit, caster),
+                                    SpellEffectIndex(i));
                 }
             }
             unit->AddSpellAuraHolder(holder);
         }
         /// The aura of `spell` put on `unit` as PutAura puts it, for `durationMs`, and ready as a cast leaves it, so
         /// that its procs run.
-        static void PutReadyAura(Unit* unit, uint32 spell, int32 durationMs)
+        static void PutReadyAura(Unit* unit, uint32 spell, int32 durationMs, Unit* caster = NULL)
         {
-            PutAura(unit, spell);
+            PutAura(unit, spell, caster);
             if (SpellAuraHolder* holder = unit->GetSpellAuraHolder(spell))
             {
                 holder->SetAuraMaxDuration(durationMs);
@@ -12047,11 +12050,12 @@ namespace Harness
 
     /**
      * S1025 `mage-polymorph-damage`: Polymorph (118) and Wyvern Sting (19386) on the Camel break on any damage that
-     * gets through, a direct hit or a periodic tick, and not on reactive damage or a hit the absorbs take whole; Hex
-     * (51514) breaks on a chance per hit. A Fire mage staged as MageFireProofScenario stages him, with Polymorph,
-     * Fireball (133), Living Bomb (44457) and Molten Armor (30482) learned and Precision on him before each cast; no
-     * cast crits. Power Word: Shield (17), Wyvern Sting and Hex are put on the Camel as PutReadyAura puts them, the
-     * shield at kShieldAmount. Steps:
+     * gets through, a direct hit or a periodic tick, and not on reactive damage, a heal or a hit the absorbs take
+     * whole; a broken Wyvern Sting of his casts its damage over time (24131); Hex (51514) breaks on a chance per hit. A
+     * Fire mage staged as MageFireProofScenario stages him, with Polymorph, Fireball (133), Living Bomb (44457) and
+     * Molten Armor (30482) learned and Precision on him before each cast; no cast crits. Power Word: Shield (17),
+     * Wyvern Sting and Hex are put on the Camel as PutReadyAura puts them, the shield at kShieldAmount and the Wyvern
+     * Sting with him as its caster. Steps:
      *  1. Molten Armor cast at himself; the Camel takes him as its victim, so a confuse that ends sends it after him
      *     and not home, where it would evade the next cast;
      *  2.-3. Polymorph at the Camel; a Fireball at it;
@@ -12060,16 +12064,20 @@ namespace Harness
      *  8.-10. Polymorph; Molten Armor's hit (34913) cast at the Camel by call as the armor's proc casts it; a Fireball;
      *  11.-14. Polymorph; the shield put on the Camel; a Fireball, which the shield takes whole; kSwings melee swings
      *     of his at the Camel by call (Unit::AttackerStateUpdate), which the shield takes whole too;
-     *  15.-16. Polymorph and the shield taken off the Camel and Wyvern Sting put on; a Fireball;
-     *  17. kHexHits times: Hex put on the Camel when it does not hold it, then the proc call a Living Bomb tick of
+     *  15. the sheep's side of the proc call a Flash Heal (2061) of kHealAmount on it makes
+     *     (Spell::DoAllEffectOnTarget: Unit::ProcDamageAndSpell with the taken-positive-spell flag);
+     *  16.-17. Polymorph and the shield taken off the Camel and Wyvern Sting put on; a Fireball, at whose read the
+     *     damage over time is taken off the Camel;
+     *  18. kHexHits times: Hex put on the Camel when it does not hold it, then the proc call a Living Bomb tick of
      *     kTickDamage makes (Aura::PeriodicTick: Unit::ProcDamageAndSpell with the periodic and damage-taken flags).
      *
      * `polymorphDamage`: `direct=<118 after the Fireball>,tick=<118 before the tick>/<after it>,armor=<118 after
-     * 34913>/<after the Fireball>,absorbed=<118 after the absorbed Fireball>/<after the absorbed swings>,sting=<19386
-     * after the Fireball>,hex=<hits that took Hex off>/<hits>`, 1 for held and 0 for gone. OK when each Polymorph and
-     * the Wyvern Sting landed, the values read `direct=0,tick=1/0,armor=1/0,absorbed=1/1,sting=0`, the shield fell by
-     * the Fireball and by at least one swing while the Camel's health did not fall, and Hex went on at least one hit
-     * and stayed on at least one (a chance of kTickDamage / (25 x 85 - 150) a hit).
+     * 34913>/<after the Fireball>,absorbed=<118 after the absorbed Fireball>/<after the absorbed swings>,heal=<118
+     * after the heal>,sting=<19386 after the Fireball>,wakeUp=<24131 after it>,hex=<hits that took Hex off>/<hits>`, 1
+     * for held and 0 for gone. OK when each Polymorph and the Wyvern Sting landed, the values read
+     * `direct=0,tick=1/0,armor=1/0,absorbed=1/1,heal=1,sting=0,wakeUp=1`, the shield fell by the Fireball and by at
+     * least one swing while the Camel's health did not fall, and Hex went on at least one hit and stayed on at least
+     * one (a chance of kTickDamage / (25 x 85 - 150) a hit).
      */
     class MagePolymorphDamage : public MageFireProofScenario
     {
@@ -12091,7 +12099,7 @@ namespace Harness
                      Wait(kSwingEveryMs),
                      AuraCast(kPolymorph, 0), Wait(kSwingEveryMs), Cast(kFireball, false),
                      AuraCast(kPolymorph, 0), Wait(kSwingEveryMs), Cast(kFireball, false), Wait(kSwingEveryMs),
-                     Wait(kSwingEveryMs), Cast(kFireball, false),
+                     Wait(kSwingEveryMs), Wait(kSwingEveryMs), Cast(kFireball, false),
                      Wait(kSwingEveryMs) };
         }
 
@@ -12114,6 +12122,10 @@ namespace Harness
                 { 19386, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 10 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 51514: 72 fields, fnv e2d49f1b
                 { 51514, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 56 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 13321 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 60 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 260 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 754 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 2061: 26 fields, fnv b42e3764
+                { 2061, { { "eff0.present", 1 }, { "eff0.Effect", 10 }, { "eff0.EffectAmplitude", 1065353216 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectBonusCoefficient", 1060739482 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRealPointsPerLevel", 1072902963 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 24131: 26 fields, fnv f85d4807
+                { 24131, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
             });
         }
 
@@ -12124,12 +12136,19 @@ namespace Harness
             {
                 seen.reads["poly"] = target->HasAura(kPolymorph) ? 1 : 0;
                 seen.reads["sting"] = target->HasAura(kWyvernSting) ? 1 : 0;
+                seen.reads["wakeUp"] = target->HasAura(kWyvernStingDot) ? 1 : 0;
                 seen.reads["shield"] = ShieldLeft(target);
                 seen.reads["health"] = target->GetHealth();
                 if (k == kAfterTickStep)
                 {
                     target->RemoveAurasDueToSpell(kLivingBomb);
                     m_rec.Note(U(kLivingBomb) + " taken off the Camel: " + HolderOf(target, kLivingBomb));
+                }
+                else if (k == kStingHit)
+                {
+                    m_rec.Note(U(kWyvernStingDot) + " on the Camel: " + HolderOf(target, kWyvernStingDot) +
+                               "; taken off it");
+                    target->RemoveAurasDueToSpell(kWyvernStingDot);
                 }
                 return;
             }
@@ -12174,11 +12193,18 @@ namespace Harness
                            std::to_string(ShieldLeft(target)) + " left; " + U(kPolymorph) + " on it: " +
                            HolderOf(target, kPolymorph));
             }
+            else if (k == kHealStep)
+            {
+                p->ProcDamageAndSpell(target, PROC_FLAG_NONE, PROC_FLAG_TAKEN_POSITIVE_SPELL, PROC_EX_NORMAL_HIT,
+                                      kHealAmount, BASE_ATTACK, sSpellStore.LookupEntry(kFlashHeal));
+                m_rec.Note("the sheep's proc of a heal of " + U(kHealAmount) + " by call; " + U(kPolymorph) +
+                           " on it: " + HolderOf(target, kPolymorph));
+            }
             else if (k == kStingStep)
             {
                 target->RemoveAurasDueToSpell(kPolymorph);
                 target->RemoveAurasDueToSpell(kShield);
-                PutReadyAura(target, kWyvernSting, kAuraMs);
+                PutReadyAura(target, kWyvernSting, kAuraMs, p);
                 seen.reads["stingPut"] = target->HasAura(kWyvernSting) ? 1 : 0;
                 m_rec.Note(U(kPolymorph) + " and " + U(kShield) + " taken off the Camel; " + U(kWyvernSting) +
                            " put on it: " + HolderOf(target, kWyvernSting));
@@ -12219,7 +12245,9 @@ namespace Harness
             const int64 afterArmorHit = Kept(st, kStrikeHit, "poly");
             const int64 afterAbsorbedHit = Kept(st, kAbsorbedHit, "poly");
             const int64 afterSwings = Kept(st, kSwingStep, "poly");
+            const int64 afterHeal = Kept(st, kHealStep, "poly");
             const int64 sting = Kept(st, kStingHit, "sting");
+            const int64 wakeUp = Kept(st, kStingHit, "wakeUp");
             const int64 hexBroke = Kept(st, kHexStep, "hexBroke");
             const int64 shieldBefore = Kept(st, kAbsorbedHit, "shieldBefore");
             const int64 shieldAfter = Kept(st, kAbsorbedHit, "shield");
@@ -12228,13 +12256,16 @@ namespace Harness
             const bool swingsTaken = Kept(st, kSwingStep, "swingsTaken") >= 1 &&
                                      Kept(st, kSwingStep, "healthAfterSwings") >= Kept(st, kSwingStep, "healthBefore");
             const bool ok = landed && direct == 0 && beforeTick == 1 && afterTick == 0 && afterStrike == 1 &&
-                            afterArmorHit == 0 && afterAbsorbedHit == 1 && afterSwings == 1 && sting == 0 &&
-                            hitTaken && swingsTaken && hexBroke >= 1 && hexBroke < int64(kHexHits);
+                            afterArmorHit == 0 && afterAbsorbedHit == 1 && afterSwings == 1 && afterHeal == 1 &&
+                            sting == 0 && wakeUp == 1 && hitTaken && swingsTaken && hexBroke >= 1 &&
+                            hexBroke < int64(kHexHits);
             const std::string value = "direct=" + std::to_string(direct) +
                                       ",tick=" + std::to_string(beforeTick) + "/" + std::to_string(afterTick) +
                                       ",armor=" + std::to_string(afterStrike) + "/" + std::to_string(afterArmorHit) +
-                                      ",absorbed=" + std::to_string(afterAbsorbedHit) + "/" + std::to_string(afterSwings) +
-                                      ",sting=" + std::to_string(sting) +
+                                      ",absorbed=" + std::to_string(afterAbsorbedHit) + "/" +
+                                      std::to_string(afterSwings) +
+                                      ",heal=" + std::to_string(afterHeal) +
+                                      ",sting=" + std::to_string(sting) + ",wakeUp=" + std::to_string(wakeUp) +
                                       ",hex=" + std::to_string(hexBroke) + "/" + U(kHexHits);
             const std::string detail =
                 std::string("each Polymorph and the Wyvern Sting ") + (landed ? "landed" : "did not all land") +
@@ -12245,8 +12276,8 @@ namespace Harness
                 std::to_string(Kept(st, kSwingStep, "swingsTaken")) + " of " + U(kSwings) + " swings, the health " +
                 std::to_string(Kept(st, kSwingStep, "healthBefore")) + " and " +
                 std::to_string(Kept(st, kSwingStep, "healthAfterSwings")) +
-                "; wanted direct=0,tick=1/0,armor=1/0,absorbed=1/1,sting=0, the shield taking the Fireball and a swing "
-                "with no health lost, and Hex both gone and kept";
+                "; wanted direct=0,tick=1/0,armor=1/0,absorbed=1/1,heal=1,sting=0,wakeUp=1, the shield taking the "
+                "Fireball and a swing with no health lost, and Hex both gone and kept";
             return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
         }
 
@@ -12258,7 +12289,10 @@ namespace Harness
         static constexpr uint32 kMoltenArmorHit = 34913;
         static constexpr uint32 kShield = 17;
         static constexpr uint32 kWyvernSting = 19386;
+        static constexpr uint32 kWyvernStingDot = 24131;
         static constexpr uint32 kHex = 51514;
+        static constexpr uint32 kFlashHeal = 2061;
+        static constexpr uint32 kHealAmount = 5000;
         static constexpr int32 kShieldAmount = 100000;
         static constexpr int32 kAuraMs = 60000;
         static constexpr uint32 kSwings = 6;
@@ -12278,9 +12312,247 @@ namespace Harness
         static constexpr uint32 kShieldStep = 11;
         static constexpr uint32 kAbsorbedHit = 12;
         static constexpr uint32 kSwingStep = 13;
-        static constexpr uint32 kStingStep = 14;
-        static constexpr uint32 kStingHit = 15;
-        static constexpr uint32 kHexStep = 16;
+        static constexpr uint32 kHealStep = 14;
+        static constexpr uint32 kStingStep = 15;
+        static constexpr uint32 kStingHit = 16;
+        static constexpr uint32 kHexStep = 17;
+
+        /// What the Camel's Power Word: Shield has left to absorb; -1 when it holds none.
+        static int64 ShieldLeft(Unit* unit)
+        {
+            Aura* shield = unit->GetAura(kShield, EFFECT_INDEX_0);
+            return shield ? int64(shield->GetModifier()->m_amount) : -1;
+        }
+    };
+
+    /**
+     * S1026 `mage-threshold-prevented`: a root (Frost Nova, 122), a fear (Fear, 5782) and Hex's pacify-silence (51514)
+     * on the Camel break on a hit by a chance that grows with the damage, and they count the damage a shield absorbed
+     * and the damage the Camel's damage-reduction effects took off the hit. A Fire mage staged as MageFireProofScenario
+     * stages him, with Fireball (133) learned and Precision on him before each cast; no cast crits. The Camel is level
+     * 85, so a hit that counts 25 x 85 - 150 = 1975 or more breaks for certain. Frost Nova, Fear and Hex are put on the
+     * Camel as PutReadyAura puts them with him as their caster, and so are Power Word: Shield (17) at kShieldAmount,
+     * Shield Wall (871, -40% damage taken) and Pain Suppression (33206, -40% damage taken), with the Camel as theirs.
+     * Steps:
+     *  1. a wait; the Camel takes him as its victim, so a fear that ends sends it after him and not home; Frost Nova
+     *     and the shield put on the Camel;
+     *  2. a Fireball, which the shield takes whole;
+     *  3.-4. Fear put on the Camel, and Frost Nova put back on when it does not hold it, so the fear cannot run it out
+     *     of range; a Fireball, which the shield takes whole;
+     *  5.-6. Fear and Frost Nova taken off the Camel and Hex put on; a Fireball, which the shield takes whole;
+     *  7.-8. Hex and the shield taken off the Camel, and Frost Nova, Shield Wall and Pain Suppression put on; a
+     *     Fireball, which the two effects reduce to 0.36 of itself;
+     *  9. kProcHits times: Frost Nova put on the Camel when it does not hold it, then the Camel's side of the proc call
+     *     a Fireball hit of kHitDamage makes (Spell::DoAllEffectOnTarget: Unit::ProcDamageAndSpell with the
+     *     taken-negative-spell and damage-taken flags), still under the two effects;
+     *  10. Shield Wall and Pain Suppression taken off the Camel; the same kProcHits proc calls.
+     *
+     * `thresholdDamage`: `absorbed=<122 after its Fireball>/<5782 after its>/<51514 after its>,reducedHit=<122 after
+     * the reduced Fireball>,reduced=<calls that took Frost Nova off under the effects>/<calls>,plain=<calls that took
+     * it off without them>/<calls>`, 1 for held and 0 for gone. OK when each aura landed, the values read
+     * `absorbed=0/0/0,reducedHit=0,reduced=<calls>/<calls>`, the shield fell by each absorbed Fireball while the
+     * Camel's health did not fall, the reduced Fireball took at most half of what the shield took of the first one,
+     * and plain went on at least one call and stayed on at least one (a chance of kHitDamage / 1975 a call;
+     * kHitDamage / 0.36 is over 1975).
+     */
+    class MageThresholdPreventedDamage : public MageFireProofScenario
+    {
+    public:
+        MageThresholdPreventedDamage() : MageFireProofScenario("mage-threshold-prevented", 1026, "thresholdDamage") {}
+
+    protected:
+        std::vector<uint32> Spells() const override { return { kFireball }; }
+        uint32 CasterAura() const override { return kPrecision; }
+        uint32 Watched() const override { return kFrostNova; }
+        bool WatchedOnTarget() const override { return true; }
+        bool NotesBeforeStep() const override { return true; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Wait(kSwingEveryMs), Cast(kFireball, false),
+                     Wait(kSwingEveryMs), Cast(kFireball, false),
+                     Wait(kSwingEveryMs), Cast(kFireball, false),
+                     Wait(kSwingEveryMs), Cast(kFireball, false),
+                     Wait(kSwingEveryMs), Wait(kSwingEveryMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return ProofPrints({
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 122: 49 fields, fnv 2ec0d9e1
+                { 122, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 18 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRadiusIndex_1", 32 }, { "eff0.EffectRealPointsPerLevel", 1056964608 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_1", 32 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 5782: 72 fields, fnv 0a17642c
+                { 5782, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 7 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 31 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 26 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 51514: 72 fields, fnv e2d49f1b
+                { 51514, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 56 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 13321 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 60 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 260 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 754 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 17: 26 fields, fnv bff13de9
+                { 17, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 871: 26 fields, fnv 97c2b77b
+                { 871, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 87 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 33206: 49 fields, fnv 5f4b6a7c
+                { 33206, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 87 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.EffectSpellClassMask.Flags", 1 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 235 }, { "eff1.EffectBasePoints", 65 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 24502834282863 }, { "eff1.ImplicitTarget_0", 21 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            if (atRead)
+            {
+                seen.reads["nova"] = target->HasAura(kFrostNova) ? 1 : 0;
+                seen.reads["fear"] = target->HasAura(kFear) ? 1 : 0;
+                seen.reads["hex"] = target->HasAura(kHex) ? 1 : 0;
+                seen.reads["shield"] = ShieldLeft(target);
+                seen.reads["health"] = target->GetHealth();
+                return;
+            }
+            seen.reads["healthBefore"] = target->GetHealth();
+            seen.reads["shieldBefore"] = ShieldLeft(target);
+            if (k == kNovaStep)
+            {
+                // a creature with no victim runs home when its fear ends, and evades every spell on the way; the
+                // silenced Camel takes the mage as its victim, as a creature fighting him has him
+                const bool attacking = target->Attack(p, false);
+                PutReadyAura(target, kFrostNova, kAuraMs, p);
+                PutReadyAura(target, kShield, kAuraMs);
+                if (Aura* shield = target->GetAura(kShield, EFFECT_INDEX_0))
+                {
+                    shield->GetModifier()->m_amount = kShieldAmount;
+                }
+                seen.reads["put"] = target->HasAura(kFrostNova) ? 1 : 0;
+                m_rec.Note(std::string("the Camel takes him as its victim: ") + (attacking ? "it does" : "refused") +
+                           "; " + U(kFrostNova) + " put on it: " + HolderOf(target, kFrostNova) + "; " + U(kShield) +
+                           " put on it, absorbing " + std::to_string(ShieldLeft(target)));
+            }
+            else if (k == kFearStep)
+            {
+                if (!target->HasAura(kFrostNova))
+                {
+                    PutReadyAura(target, kFrostNova, kAuraMs, p);
+                }
+                PutReadyAura(target, kFear, kAuraMs, p);
+                seen.reads["put"] = target->HasAura(kFear) && target->HasAura(kFrostNova) ? 1 : 0;
+                m_rec.Note(U(kFear) + " put on the Camel: " + HolderOf(target, kFear) + "; " + U(kFrostNova) +
+                           " on it: " + HolderOf(target, kFrostNova) + "; the shield absorbing " +
+                           std::to_string(ShieldLeft(target)));
+            }
+            else if (k == kHexStep)
+            {
+                target->RemoveAurasDueToSpell(kFear);
+                target->RemoveAurasDueToSpell(kFrostNova);
+                PutReadyAura(target, kHex, kAuraMs, p);
+                seen.reads["put"] = target->HasAura(kHex) ? 1 : 0;
+                m_rec.Note(U(kFear) + " and " + U(kFrostNova) + " taken off the Camel; " + U(kHex) + " put on it: " +
+                           HolderOf(target, kHex) + "; the shield absorbing " + std::to_string(ShieldLeft(target)));
+            }
+            else if (k == kReduceStep)
+            {
+                target->RemoveAurasDueToSpell(kHex);
+                target->RemoveAurasDueToSpell(kShield);
+                PutReadyAura(target, kFrostNova, kAuraMs, p);
+                PutReadyAura(target, kShieldWall, kAuraMs);
+                PutReadyAura(target, kPainSuppression, kAuraMs);
+                seen.reads["put"] = target->HasAura(kFrostNova) && target->HasAura(kShieldWall) &&
+                                    target->HasAura(kPainSuppression) ? 1 : 0;
+                m_rec.Note(U(kHex) + " and " + U(kShield) + " taken off the Camel; " + U(kFrostNova) + ", " +
+                           U(kShieldWall) + " and " + U(kPainSuppression) + " put on it: " +
+                           HolderOf(target, kFrostNova) + "; " + HolderOf(target, kShieldWall) + "; " +
+                           HolderOf(target, kPainSuppression));
+            }
+            else if (k == kReducedProcStep || k == kPlainProcStep)
+            {
+                if (k == kPlainProcStep)
+                {
+                    target->RemoveAurasDueToSpell(kShieldWall);
+                    target->RemoveAurasDueToSpell(kPainSuppression);
+                }
+                SpellEntry const* fireball = sSpellStore.LookupEntry(kFireball);
+                uint32 broke = 0;
+                for (uint32 i = 0; i < kProcHits; ++i)
+                {
+                    if (!target->HasAura(kFrostNova))
+                    {
+                        PutReadyAura(target, kFrostNova, kAuraMs, p);
+                    }
+                    p->ProcDamageAndSpell(target, PROC_FLAG_NONE,
+                                          PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT | PROC_FLAG_TAKEN_ANY_DAMAGE,
+                                          PROC_EX_NORMAL_HIT, kHitDamage, BASE_ATTACK, fireball);
+                    broke += target->HasAura(kFrostNova) ? 0 : 1;
+                }
+                seen.reads["broke"] = broke;
+                m_rec.Note(U(kProcHits) + " Fireball hit procs of " + U(kHitDamage) + " at the Camel under " +
+                           U(kFrostNova) + (k == kReducedProcStep ? ", " + U(kShieldWall) + " and " +
+                           U(kPainSuppression) : std::string(" alone")) + ": they took it off " + U(broke));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            const bool landed = Kept(st, kNovaStep, "put") == 1 && Kept(st, kFearStep, "put") == 1 &&
+                                Kept(st, kHexStep, "put") == 1 && Kept(st, kReduceStep, "put") == 1;
+            const int64 nova = Kept(st, kNovaHit, "nova");
+            const int64 fear = Kept(st, kFearHit, "fear");
+            const int64 hex = Kept(st, kHexHit, "hex");
+            const int64 reducedHit = Kept(st, kReducedHit, "nova");
+            const int64 reduced = Kept(st, kReducedProcStep, "broke");
+            const int64 plain = Kept(st, kPlainProcStep, "broke");
+
+            bool shieldTook = true;
+            std::string shieldReads;
+            const uint32 absorbedHits[] = { kNovaHit, kFearHit, kHexHit };
+            for (uint32 k : absorbedHits)
+            {
+                const int64 before = Kept(st, k, "shieldBefore");
+                const int64 after = Kept(st, k, "shield");
+                shieldTook = shieldTook && after >= 0 && after < before &&
+                             Kept(st, k, "health") >= Kept(st, k, "healthBefore");
+                shieldReads += (shieldReads.empty() ? "" : ", ") + std::to_string(before) + " to " +
+                               std::to_string(after);
+            }
+            const int64 firstTake = Kept(st, kNovaHit, "shieldBefore") - Kept(st, kNovaHit, "shield");
+            const int64 reducedTake = Kept(st, kReducedHit, "healthBefore") - Kept(st, kReducedHit, "health");
+            const bool effectsTook = reducedTake > 0 && reducedTake * 2 <= firstTake;
+
+            const bool ok = landed && nova == 0 && fear == 0 && hex == 0 && shieldTook && reducedHit == 0 &&
+                            effectsTook && reduced == int64(kProcHits) && plain >= 1 && plain < int64(kProcHits);
+            const std::string value = "absorbed=" + std::to_string(nova) + "/" + std::to_string(fear) + "/" +
+                                      std::to_string(hex) + ",reducedHit=" + std::to_string(reducedHit) +
+                                      ",reduced=" + std::to_string(reduced) + "/" + U(kProcHits) +
+                                      ",plain=" + std::to_string(plain) + "/" + U(kProcHits);
+            const std::string detail =
+                std::string("each aura ") + (landed ? "landed" : "did not all land") + "; the shield read " +
+                shieldReads + " over the three absorbed Fireballs, the Camel's health not falling: " +
+                (shieldTook ? "yes" : "no") + "; the reduced Fireball took " + std::to_string(reducedTake) +
+                " of the Camel's health, the shield took " + std::to_string(firstTake) + " of the first; wanted " +
+                "absorbed=0/0/0,reducedHit=0,reduced=" + U(kProcHits) + "/" + U(kProcHits) + ", the shield taking " +
+                "each Fireball whole, the reduced one at most half the first, and plain both gone and kept";
+            return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kFireball = 133;
+        static constexpr uint32 kFrostNova = 122;
+        static constexpr uint32 kFear = 5782;
+        static constexpr uint32 kHex = 51514;
+        static constexpr uint32 kShield = 17;
+        static constexpr uint32 kShieldWall = 871;
+        static constexpr uint32 kPainSuppression = 33206;
+        static constexpr int32 kShieldAmount = 100000;
+        static constexpr int32 kAuraMs = 60000;
+        static constexpr uint32 kProcHits = 20;
+        static constexpr uint32 kHitDamage = 720;
+        static constexpr uint32 kNovaStep = 0;
+        static constexpr uint32 kNovaHit = 1;
+        static constexpr uint32 kFearStep = 2;
+        static constexpr uint32 kFearHit = 3;
+        static constexpr uint32 kHexStep = 4;
+        static constexpr uint32 kHexHit = 5;
+        static constexpr uint32 kReduceStep = 6;
+        static constexpr uint32 kReducedHit = 7;
+        static constexpr uint32 kReducedProcStep = 8;
+        static constexpr uint32 kPlainProcStep = 9;
 
         /// What the Camel's Power Word: Shield has left to absorb; -1 when it holds none.
         static int64 ShieldLeft(Unit* unit)
@@ -13382,5 +13654,6 @@ namespace Harness
         r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 947, false));
         r.Register(new MageFrostShatter());
         r.Register(new MagePolymorphDamage());
+        r.Register(new MageThresholdPreventedDamage());
     }
 }
