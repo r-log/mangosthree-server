@@ -14206,8 +14206,9 @@ namespace Harness
      * S995 `mage-frost-brain-freeze`: Brain Freeze's buff (57761) and Arcane Missiles! for a staged Frost mage with
      * Brain Freeze: Early Frost 2, Piercing Ice 3, Ice Floes 3 and Improved Cone of Cold 2, then Fingers of Frost 3,
      * Ice Shards 2 and Brain Freeze 3 (44549); Frostbolt (116), Fireball (133) and Frostfire Bolt (44614) learned, and
-     * the crit aura at -100, so no cast crits. His mana is set to its maximum before each cast, and each read sets the
-     * Camel's health back to its maximum. Steps:
+     * the crit aura at -100, so no cast crits. Before his first cast Precision (13843, +6% spell hit) is put on him
+     * without a cast, so no cast misses a level-85 Camel but the one that is to. His mana is set to its maximum before
+     * each cast, and each read sets the Camel's health back to its maximum. Steps:
      *  1-8. eight Frostbolts, each a chance for Brain Freeze, and for Arcane Missiles! but for the talent;
      *  9. a wait at whose act he casts the buff at himself, triggered;
      *  10. a Frostfire Bolt the buff makes instant;
@@ -14217,7 +14218,8 @@ namespace Harness
      *  14. a Frostfire Bolt;
      *  15. a wait at whose act he casts the buff at himself, triggered, and Wily Wits (75533, 100 less chance for a
      *      spell to hit its holder) is put on the Camel as PutReadyAura puts it;
-     *  16. a Frostfire Bolt the buff makes instant, which misses; the Camel's aura is taken off at its read;
+     *  16. a Frostfire Bolt the buff makes instant, cast with Precision taken off him, which misses; the Camel's aura
+     *      is taken off at its read;
      *  17. a wait at whose act the scenario makes kCalls cast-end procs on him by call, as Spell::cast makes one at a
      *      launch (Unit::ProcDamageAndSpell with the harmful-spell flag and PROC_EX_CAST_END), each with the buff taken
      *      off him first, for Frostbolt and for Frost Armor's Chilled (7321).
@@ -14248,6 +14250,8 @@ namespace Harness
         uint32 Watched() const override { return kBrainFreeze; }
         bool NotesBeforeStep() const override { return true; }
         int32 NonCritAuraPoints() const override { return -100; }
+        uint32 CasterAura() const override { return kPrecision; }
+        bool CasterAuraPut() const override { return true; }
         uint32 CastEveryMs() const override { return 3800; }
         uint32 CastReadMs() const override { return 3500; }
 
@@ -14257,6 +14261,7 @@ namespace Harness
             buff.spell = kBrainFreeze;
             Step missed = Cast(kFrostfireBolt, false);
             missed.refusal = true;
+            missed.noCasterAura = true;
             std::vector<Step> steps;
             for (uint32 i = 0; i < kBolts; ++i)
             {
@@ -14315,6 +14320,8 @@ namespace Harness
                 { 55094, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -20 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 11 }, { "eff0.EffectSpellClassMask.Flags", 70939974828608 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 12489: 26 fields, fnv 24d98121
                 { 12489, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 512 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
             };
         }
 
@@ -14424,6 +14431,7 @@ namespace Harness
         static constexpr uint32 kArcaneMissilesBuff = 79683;
         static constexpr uint32 kFrostArmorChill = 7321;
         static constexpr uint32 kWilyWits = 75533;
+        static constexpr uint32 kPrecision = 13843;
         static constexpr int32 kWilyWitsMs = 5000;
         static constexpr uint32 kBolts = 8;
         static constexpr uint32 kCalls = 40;
