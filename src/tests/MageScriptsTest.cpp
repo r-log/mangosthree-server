@@ -25,8 +25,9 @@
 
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
-/// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
-/// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
+/// refusals of the proc scripts, Ignite's munching leaves against the roll-over, Clearcasting's check-proc refusal of
+/// Pyroblast!, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the removal of Hot
+/// Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
 /// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
 /// the dummy aura hook, Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its
@@ -52,6 +53,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/SpellScriptQueries.h"
+#include "spells/PeriodicTiming.h"
 #include "Creature.h"
 #include "Player.h"
 #include "WorldSession.h"
@@ -114,6 +116,9 @@ namespace
 
     // Impact's ids at the proc hook: the talent's two ranks.
     uint32 const IMPACT_IDS[] = { 11103, 12357 };
+
+    // The id Clearcasting's script holds at the check-proc hook: the buff, whose charge Pyroblast! does not take.
+    uint32 const CLEARCASTING_IDS[] = { 12536 };
 
     // The id Impact's spread holds at the dummy-effect hook: the spell the Impact buff casts at its Fire Blast's victim.
     uint32 const IMPACT_SPREAD_IDS[] = { 12355 };
@@ -493,11 +498,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Frostburn's mask covers at the damage-done hook and the 26 Shatter's covers at the crit-chance hook. At the proc
     // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State
     // and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the
-    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact also at the check-proc hook.
-    // 116 rows, 113 keys and 3 defaults, none twice.
+    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact and Clearcasting also at the
+    // check-proc hook. 117 rows, 114 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(116));
-    CHECK_EQ(registry.Count(), std::size_t(113));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(117));
+    CHECK_EQ(registry.Count(), std::size_t(114));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -506,7 +511,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
-    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(22));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
@@ -533,7 +538,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 39, 39, 0 },
+        { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 54, 54, 0 },
         { &Mage::RegisterArcane, 5, 5, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
@@ -547,8 +552,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(116));
-    CHECK_EQ(registry.Count(), std::size_t(113));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(117));
+    CHECK_EQ(registry.Count(), std::size_t(114));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -559,7 +564,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(113));
+    CHECK_EQ(mine.size(), std::size_t(114));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -717,7 +722,8 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     CHECK_EQ(ids, std::size_t(21));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), sizeof(IMPACT_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key),
+             sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(CLEARCASTING_IDS) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data), and Arcane Blast's buff (36032 holds no damage-done aura).
@@ -901,6 +907,89 @@ TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
 
     // Nothing was cast: the victim holds no Ignite.
     CHECK(victim.GetSpellAuraHolder(12654) == NULL);
+}
+
+TEST(MageScripts_IgniteMunchesACritOfTheUpdateOfItsLastBankBeforeItTicks)
+{
+    // An Ignite banked in update 5000 with two ticks: a crit of that update, while both ticks are left, replaces the
+    // banked share.
+    CHECK(Mage::IgniteMunches(5000, 2, 5000, 2));
+
+    // A crit of the next update adds to it, and so does one of the same update after the Ignite has ticked.
+    CHECK(!Mage::IgniteMunches(5000, 2, 5050, 2));
+    CHECK(!Mage::IgniteMunches(5000, 3, 5000, 2));
+
+    // An Ignite no crit banked in (a copy Impact spread) never munches.
+    CHECK(!Mage::IgniteMunches(0, 0, 0, 0));
+    CHECK(!Mage::IgniteMunches(5000, 0, 5000, 0));
+}
+
+TEST(MageScripts_AMunchedIgniteRollsOverTheLaterShareAndOnlyWhatTheIgniteBeforeTheEarlierHadLeft)
+{
+    // Ignite's two ticks, and the three of an Ignite that replaces one before its next tick and carries that tick's
+    // time.
+    uint32 const shareTicks = 2;
+    uint32 const refreshed = 3;
+
+    // On a target with no Ignite the earlier crit banks 1000 a tick. A later crit of 1500 a tick in another update
+    // rolls both over: (2 x 1500 + 2 x 1000) / 3 = 1666 a tick.
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, 1000, shareTicks, refreshed), int32(1666));
+
+    // In the same update the earlier Ignite first carries what was left before it, nothing, so the later one ticks for
+    // (2 x 1500) / 3 = 1000: the later share alone.
+    int32 const nothingLeft = Mage::IgniteMunchedTick(0, shareTicks);
+    CHECK_EQ(nothingLeft, int32(0));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, nothingLeft, shareTicks, refreshed), int32(1000));
+
+    // On a target whose Ignite has one tick of 600 left, the earlier crit's Ignite rolls it over, (2 x 1000 + 600) / 3
+    // = 866 a tick, and banks 600 as the leftover. A later crit of 1500 a tick in another update carries all of it:
+    // (2 x 1500 + 3 x 866) / 3 = 1866.
+    int32 const leftover = 600;
+    int32 const earlier = Spells::RolledOverTick(1000, shareTicks, 600, 1, refreshed);
+    CHECK_EQ(earlier, int32(866));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, earlier, refreshed, refreshed), int32(1866));
+
+    // In the same update the earlier Ignite first carries 600 / 3 = 200 a tick, so the later one ticks for
+    // (2 x 1500 + 3 x 200) / 3 = 1200, what the later crit alone gives on the 600 left.
+    int32 const munched = Mage::IgniteMunchedTick(leftover, refreshed);
+    CHECK_EQ(munched, int32(200));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, munched, refreshed, refreshed), int32(1200));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, 600, 1, refreshed), int32(1200));
+
+    // A leftover its ticks do not divide drops the remainder: 601 over three is 200. No tick left carries nothing.
+    CHECK_EQ(Mage::IgniteMunchedTick(601, refreshed), int32(200));
+    CHECK_EQ(Mage::IgniteMunchedTick(600, 0), int32(0));
+}
+
+TEST(MageScripts_ClearcastingIsNotTakenByPyroblastBang)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<CheckProcHook>(registry, CLEARCASTING_IDS);
+
+    BareCreature owner;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage clearcastingRow;
+    SpellRowStorage eventRow;
+    SpellEntry const& clearcasting = SpellRow(clearcastingRow, 12536);
+
+    // Pyroblast! (92315) at its cast's end is refused, so the charge stays.
+    CheckProcContext pyroblast(owner, NULL, clearcasting, AuraHandle(holder), &SpellRow(eventRow, 92315), 0x10000,
+                               PROC_EX_CAST_END, 0);
+    SpellHandlerOutcome<bool> const refused = registry.Dispatch<CheckProcHook>(12536, pyroblast);
+    CHECK(refused.IsReturn());
+    CHECK(!refused.GetValue());
+
+    // Fireball, Pyroblast and Flame Orb go on to the other checks, and so does an event with no spell.
+    for (uint32 spellId : { 133u, 11366u, 82731u })
+    {
+        CheckProcContext ctx(owner, NULL, clearcasting, AuraHandle(holder), &SpellRow(eventRow, spellId), 0x10000,
+                             PROC_EX_CAST_END, 0);
+        CHECK(registry.Dispatch<CheckProcHook>(12536, ctx).IsContinue());
+    }
+    CheckProcContext melee(owner, NULL, clearcasting, AuraHandle(holder), NULL, 0x10000, PROC_EX_CAST_END, 0);
+    CHECK(registry.Dispatch<CheckProcHook>(12536, melee).IsContinue());
 }
 
 TEST(MageScripts_BlinkKeepsOneTarget)
