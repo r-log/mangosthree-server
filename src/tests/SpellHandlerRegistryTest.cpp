@@ -909,11 +909,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
     // script-effect site's 283 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
     // the eight dummy proc sites' 37, 3, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
-    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 113 rows on the check-proc, proc, target,
+    // proc-trigger sites' 2, 1, 16 and 19 rows, and the mage scripts' 117 rows on the check-proc, proc, target,
     // damage-done, crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast, launch and after-hit
     // hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1340));
+    CHECK_EQ(game.Count(), std::size_t(1343));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(34));
 }
@@ -2022,9 +2022,8 @@ namespace
     // Kill Command, at the cast-check site and the hunter aura dummy apply site; Conflagration, at the generic
     // dummy-effect site and the max-targets site; Unstable Power and Restless Strength, at the generic dummy proc site and
     // the generic aura dummy apply-and-remove site; 58914, at the generic dummy proc site and the generic boost site;
-    // Tricks of the Trade, at the rogue dummy proc site and the rogue aura dummy site; Brain Freeze, at the
-    // triggered-spell proc site and the mage boost site. An entry lists an id at two to four sites; a listed id held at
-    // a site its entry does not list fails HeldByAnotherSite.
+    // Tricks of the Trade, at the rogue dummy proc site and the rogue aura dummy site. An entry lists an id at two to
+    // four sites; a listed id held at a site its entry does not list fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -2061,7 +2060,6 @@ namespace
         { 24661, { DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key } },
         { 58914, { DummyAuraProcGenericSite::Key, AuraBoostGenericSite::Key } },
         { 57934, { DummyAuraProcRogueSite::Key, AuraDummyRogueSite::Key } },
-        { 57761, { ProcTriggerSpellAuraProcTriggeredSite::Key, AuraBoostMageSite::Key } },
         { 34026, { SpellCheckCastAuraDummySite::Key, AuraDummyApplyHunterSite::Key } },
         { 74452, { SpellEffectDummyGenericSite::Key, SpellMaxTargetsGenericSite::Key } },
     };
@@ -4883,9 +4881,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(147));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
 
-    // The game's table holds these with the other files' 1193 rows and 17 defaults.
+    // The game's table holds these with the other files' 1196 rows and 17 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1340));
+    CHECK_EQ(game.Count(), std::size_t(1343));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5766,9 +5764,9 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(302));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 1038 rows and 27 defaults.
+    // The game's table holds these with the other files' 1041 rows and 27 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1340));
+    CHECK_EQ(game.Count(), std::size_t(1343));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(283));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
@@ -6457,9 +6455,9 @@ TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(20));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1320 rows and 29 defaults.
+    // The game's table holds these with the other files' 1323 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1340));
+    CHECK_EQ(game.Count(), std::size_t(1343));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
 }
@@ -6736,9 +6734,9 @@ TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(11));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1329 rows and 29 defaults.
+    // The game's table holds these with the other files' 1332 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1340));
+    CHECK_EQ(game.Count(), std::size_t(1343));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
@@ -7073,11 +7071,11 @@ namespace
 
 TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 37, 0, 10, 8, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 20 at the haste, crit-chance
-    // and two proc-trigger sites, and no default: 146 rows and 146 keys, none twice. The mage dummy proc site's 4
+    // 37, 0, 10, 8, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 19 at the haste, crit-chance
+    // and two proc-trigger sites, and no default: 145 rows and 145 keys, none twice. The mage dummy proc site's 4
     // rows are RegisterMageScripts'.
-    std::size_t const perSite[] = { 37, 0, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
-    std::size_t const inGame[] = { 37, 3, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
+    std::size_t const perSite[] = { 37, 0, 10, 8, 11, 5, 26, 10, 2, 1, 16, 19 };
+    std::size_t const inGame[] = { 37, 3, 10, 8, 11, 5, 26, 10, 2, 1, 16, 19 };
     uint32 const siteKeys[] = { DummyAuraProcGenericSite::Key, DummyAuraProcMageSite::Key,
                                 DummyAuraProcWarlockSite::Key, DummyAuraProcPriestSite::Key,
                                 DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
@@ -7085,8 +7083,8 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
                                 HasteAuraProcRogueSite::Key, SpellCritChanceAuraProcMageSite::Key,
                                 ProcTriggerSpellAuraProcGenericSite::Key, ProcTriggerSpellAuraProcTriggeredSite::Key };
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(146));
-    CHECK_EQ(registry.Count(), std::size_t(146));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(145));
+    CHECK_EQ(registry.Count(), std::size_t(145));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     for (std::size_t k = 0; k < 12; ++k)
     {
@@ -7094,13 +7092,13 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key is taken.
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(146));
-    CHECK_EQ(registry.Count(), std::size_t(146));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(145));
+    CHECK_EQ(registry.Count(), std::size_t(145));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1194 rows and 29 defaults.
+    // The game's table holds these with the other files' 1198 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1340));
+    CHECK_EQ(game.Count(), std::size_t(1343));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     for (std::size_t k = 0; k < 12; ++k)
     {
@@ -7623,8 +7621,7 @@ namespace
     uint32 const PROC_TRIGGER_GENERIC_IDS[] = { 23780, 27522, 40336, 46939, 31255, 33896, 45057, 43820, 57345, 64148,
                                                 64415, 64440, 64568, 67702, 67771, 69023 };
     uint32 const PROC_TRIGGER_TRIGGERED_IDS[] = { 7099, 39647, 29494, 20233, 15250, 14189, 14157, 70802, 23880, 30824,
-                                                  35095, 48090, 50227, 53817, 57761, 52179, 54748, 56453, 59052,
-                                                  62606 };
+                                                  35095, 48090, 50227, 53817, 52179, 54748, 56453, 59052, 62606 };
 
     // `Unit::HandleHasteAuraProc`'s parameters and locals as its dispatch binds them, with the context over them for
     // `unit`: the damage is 1000, the target the victim and nothing triggered yet.
@@ -7718,14 +7715,14 @@ TEST(UnitAuraProcHandlerHandlers_TheHasteCritAndTriggerSitesHoldTheirLabelsAndNo
     RegisterUnitAuraProcHandlerHandlers(registry);
 
     // The haste site's 2 labels in 1 body, the crit-chance site's 1, the generic proc-trigger site's 16 in 14 and the
-    // triggered-spell site's 20 in 15; no default. 30824's body and Savage Defense's (62606) are one code, so the two
+    // triggered-spell site's 19 in 14; no default. 30824's body and Savage Defense's (62606) are one code, so the two
     // count as one body whether the linker gives them one address or two.
     std::size_t folds = registry.Find<ProcTriggerSpellAuraProcTriggeredSite>(30824) ==
                         registry.Find<ProcTriggerSpellAuraProcTriggeredSite>(62606) ? 1 : 0;
     CheckSiteLabels<HasteAuraProcRogueSite>(registry, HASTE_PROC_ROGUE_IDS, 1);
     CheckSiteLabels<SpellCritChanceAuraProcMageSite>(registry, CRIT_PROC_MAGE_IDS, 1);
     CheckSiteLabels<ProcTriggerSpellAuraProcGenericSite>(registry, PROC_TRIGGER_GENERIC_IDS, 14);
-    CheckSiteLabels<ProcTriggerSpellAuraProcTriggeredSite>(registry, PROC_TRIGGER_TRIGGERED_IDS, 15 - folds);
+    CheckSiteLabels<ProcTriggerSpellAuraProcTriggeredSite>(registry, PROC_TRIGGER_TRIGGERED_IDS, 14 - folds);
     CHECK(registry.FindDefault<HasteAuraProcRogueSite>() == NULL);
     CHECK(registry.FindDefault<SpellCritChanceAuraProcMageSite>() == NULL);
     CHECK(registry.FindDefault<ProcTriggerSpellAuraProcGenericSite>() == NULL);
@@ -7756,13 +7753,10 @@ TEST(UnitAuraProcHandlerHandlers_TheHasteCritAndTriggerSitesHoldTheirLabelsAndNo
         CHECK(HeldByAnotherSite(game, DummyAuraProcGenericSite::Key, spellId));
     }
 
-    // Brain Freeze is a key at the mage boost site too, and at no other.
-    CHECK(SharedWith(57761, ProcTriggerSpellAuraProcTriggeredSite::Key) == AuraBoostMageSite::Key);
-    CHECK(SharedWith(57761, AuraBoostMageSite::Key) == ProcTriggerSpellAuraProcTriggeredSite::Key);
-    CHECK(HeldByAnotherSite(game, ProcTriggerSpellAuraProcTriggeredSite::Key, 57761));
-    CHECK(!HeldByAnotherSite(game, ProcTriggerSpellAuraProcTriggeredSite::Key, 57761, AuraBoostMageSite::Key));
-    CHECK(HeldByAnotherSite(game, AuraBoostMageSite::Key, 57761));
-    CHECK(!HeldByAnotherSite(game, AuraBoostMageSite::Key, 57761, ProcTriggerSpellAuraProcTriggeredSite::Key));
+    // Brain Freeze's buff (57761) is a key at the mage boost site alone: the triggered-spell site holds no row for it.
+    CHECK(SharedWith(57761, AuraBoostMageSite::Key) == AuraBoostMageSite::Key);
+    CHECK(!HeldByAnotherSite(game, AuraBoostMageSite::Key, 57761));
+    CHECK(game.Find<ProcTriggerSpellAuraProcTriggeredSite>(57761) == NULL);
     CHECK(game.Find<AuraBoostMageSite>(57761) != NULL);
 
     // An id the switch never held answers Miss and leaves the locals: 12345 and labels of the other proc sites.
@@ -7788,7 +7782,7 @@ TEST(UnitAuraProcHandlerHandlers_TheHasteCritAndTriggerSitesHoldTheirLabelsAndNo
     {
         CHECK(game.Dispatch<ProcTriggerSpellAuraProcGenericSite>(spellId, trigger.ctx).IsMiss());
     }
-    for (uint32 spellId : { 12345u, 13877u, 54646u, 23780u, 66063u })
+    for (uint32 spellId : { 12345u, 13877u, 54646u, 23780u, 66063u, 57761u })
     {
         CHECK(game.Dispatch<ProcTriggerSpellAuraProcTriggeredSite>(spellId, trigger.ctx).IsMiss());
     }
@@ -7910,7 +7904,6 @@ TEST(UnitAuraProcHandlerHandlers_TheProcTriggerGuardsEndTheProcBeforeTheUnitIsRe
     GuardCase const cases[] =
     {
         { 15250, false, false, 0, 0, 15, false },                                       // no victim
-        { 57761, true, false, 0, 0, 15, false },                                        // no proc spell
         { 52179, true, false, PROC_EX_NORMAL_HIT, 0, 15, false },                       // no proc spell
         { 52179, true, true, 0, 0, 15, false },                                         // neither hit nor crit
         { 52179, true, true, PROC_EX_NORMAL_HIT, 0, 15, true },                         // the unit hit itself
@@ -7936,13 +7929,7 @@ TEST(UnitAuraProcHandlerHandlers_TheProcTriggerGuardsEndTheProcBeforeTheUnitIsRe
         CHECK(locals.BasePointsAre(0));
     }
 
-    // Brain Freeze after a proc spell with no class options, and Lock and Load from a trap at 100 percent, go on.
-    ProcTriggerLocals freeze(NULL);
-    freeze.procSpell = ProcSpellRow(0, 1, SPELL_SCHOOL_MASK_FROST);
-    CHECK(DispatchTriggered(57761, freeze).IsContinue());
-    CHECK(freeze.target == NULL);
-    CHECK(freeze.BasePointsAre(0));
-
+    // Lock and Load from a trap at 100 percent goes on.
     ProcTriggerLocals trap(NULL);
     trap.procFlags = PROC_FLAG_ON_TRAP_ACTIVATION;
     trap.triggerAmount = 100;

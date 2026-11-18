@@ -539,27 +539,33 @@ TEST(SpellScriptHooks_TheSixteenKeysAre100To115AboveEveryLegacySite)
              game.Count());
 }
 
-TEST(SpellScriptHooks_TheLaunchHookCarriesTheCasterAndTheSpell)
+TEST(SpellScriptHooks_TheLaunchHookCarriesTheCasterTheSpellAndTheCastTime)
 {
     BareCreature caster;
     SpellEntry const& spell = HookSpell();
 
-    // The body notes the caster it was given and takes nothing else; a fresh registry reaches it for its spell and
-    // misses another.
+    // The body notes the caster, the spell and the cast time it was given and takes nothing else; a fresh registry
+    // reaches it for its spell and misses another.
     SpellHandlerRegistry registry;
     CHECK(registry.Register<LaunchHook>(kHookSpell, [](LaunchContext& ctx)
     {
         s_seen.castTarget = &ctx.caster;
         s_seen.amount = ctx.spell.ID;
+        s_seen.duration = int32(ctx.castTime);
         return SpellHandlerOutcome<void>::Continue();
     }));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(1));
 
     Forget();
-    LaunchContext launch(caster, spell);
+    LaunchContext launch(caster, spell, 2500);
     CHECK(registry.Dispatch<LaunchHook>(kHookSpell, launch).IsContinue());
     CHECK(s_seen.castTarget == &caster);
     CHECK_EQ(s_seen.amount, kHookSpell);
+    CHECK_EQ(s_seen.duration, int32(2500));
+    Forget();
+    LaunchContext instant(caster, spell, 0);
+    CHECK(registry.Dispatch<LaunchHook>(kHookSpell, instant).IsContinue());
+    CHECK_EQ(s_seen.duration, int32(0));
     Forget();
     CHECK(registry.Dispatch<LaunchHook>(kOtherSpell, launch).IsMiss());
     CHECK(s_seen.castTarget == NULL);
@@ -1231,13 +1237,14 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's and Fingers of Frost's
-    // three, the proc hook the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the
-    // damage-done hook the 22 spells
+    // three and Brain Freeze's three, the proc hook the mage's 21 proc scripts, the target hook Blink's and the orb's
+    // scan's, the damage-done hook the 22 spells
     // Frostburn's class mask covers, the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living
     // Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s and Arcane
     // Missiles', the aura-remove hook Hot Streak's buff's, Mage Ward's, Pyromaniac's ten and Arcane Missiles!'s, the
     // dummy-effect hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, the after-cast hook Blast
-    // Wave's, the launch hook Ice Lance's, Deep Freeze's and Frostfire Bolt's, and the after-hit hook Frostfire Bolt's
+    // Wave's, the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's and Fireball's, and the after-hit hook
+    // Frostfire Bolt's
     // (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
@@ -1249,7 +1256,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(7));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(10));
     CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(21));
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(22));
@@ -1259,9 +1266,9 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(13));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1340));
+    CHECK_EQ(game.Count(), std::size_t(1343));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 
