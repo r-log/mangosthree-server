@@ -84,9 +84,69 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 37436));
     }
 
+    uint32 const ARCANE_MISSILES_BUFF = 79683;
+    uint32 const ARCANE_MISSILES_AURASTATE = 79808;
+
+    /// Casts Arcane Missiles Aurastate (79808) on the unit the context's aura is on, or takes it off him, as
+    /// Mage::ArcaneMissilesAurastateStep answers for what he holds of it and of Arcane Missiles! (79683).
+    template <class Context>
+    void PairArcaneMissilesAurastate(Context& ctx)
+    {
+        switch (Mage::ArcaneMissilesAurastateStep(ctx.target.HasAura(ARCANE_MISSILES_BUFF),
+                                                  ctx.target.HasAura(ARCANE_MISSILES_AURASTATE)))
+        {
+            case Mage::AURASTATE_APPLY:
+                ctx.CastTriggered(ctx.target, ARCANE_MISSILES_AURASTATE);
+                break;
+            case Mage::AURASTATE_REMOVE:
+                ctx.RemoveAura(ctx.target, ARCANE_MISSILES_AURASTATE);
+                break;
+            case Mage::AURASTATE_KEEP:
+                break;
+        }
+    }
+
+    /// 79683: Arcane Missiles!: at its apply the mage gets Arcane Missiles Aurastate (79808), which Arcane Missiles
+    /// (5143) asks for on its caster.
+    SpellHandlerOutcome<void> ArcaneMissilesBuffApply(AuraApplyContext& ctx)
+    {
+        PairArcaneMissilesAurastate(ctx);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 79683: Arcane Missiles!: at its removal (used up, run out, dispelled, cancelled or at death) Arcane Missiles
+    /// Aurastate (79808) is taken off the mage.
+    SpellHandlerOutcome<void> ArcaneMissilesBuffRemove(AuraRemoveContext& ctx)
+    {
+        PairArcaneMissilesAurastate(ctx);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 5143: Arcane Missiles: the channel's holder on the mage himself, applied at the cast, takes Arcane Missiles!
+    /// (79683) off him: the cast uses it up. The channel's holder on its target does nothing here.
+    SpellHandlerOutcome<void> ArcaneMissilesChannelApply(AuraApplyContext& ctx)
+    {
+        if (ctx.caster == &ctx.target)
+        {
+            ctx.RemoveAura(ctx.target, ARCANE_MISSILES_BUFF);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
     uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
     uint32 const MANA_SHIELD[] = { 1463 };
+    uint32 const ARCANE_MISSILES_BUFFS[] = { ARCANE_MISSILES_BUFF };
+    uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
+}
+
+Mage::AurastateStep Mage::ArcaneMissilesAurastateStep(bool holdsBuff, bool holdsAurastate)
+{
+    if (holdsBuff == holdsAurastate)
+    {
+        return AURASTATE_KEEP;
+    }
+    return holdsBuff ? AURASTATE_APPLY : AURASTATE_REMOVE;
 }
 
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
@@ -94,5 +154,8 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
     rows += RegisterRanks<OnProcHook>(registry, ARCANE_POTENCY, &ArcanePotencyProc);
     rows += RegisterRanks<OnProcHook>(registry, MANA_SHIELD, &ManaShieldProc);
+    rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffApply);
+    rows += RegisterRanks<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffRemove);
+    rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
     return rows;
 }
