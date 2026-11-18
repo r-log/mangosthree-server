@@ -159,14 +159,6 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
                 }
                 break;
             }
-            case SPELLFAMILY_MAGE:
-                // remove Arcane Blast buffs at any non-Arcane Blast arcane damage spell.
-                // NOTE: it removed at hit instead cast because currently spell done-damage calculated at hit instead cast
-                if ((m_spellInfo->SchoolMask & SPELL_SCHOOL_MASK_ARCANE) && !(classOptions && classOptions->SpellClassMask & UI64LIT(0x20000000)))
-                {
-                    m_caster->RemoveAurasDueToSpell(36032); // Arcane Blast buff
-                }
-                break;
             case SPELLFAMILY_WARRIOR:
             {
                 // Bloodthirst
