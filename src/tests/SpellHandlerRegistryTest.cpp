@@ -909,8 +909,9 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
     // script-effect site's 283 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
     // the eight dummy proc sites' 37, 3, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
-    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 108 rows on the check-proc, proc, target, damage-done,
-    // crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast and after-hit hooks.
+    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 108 rows on the check-proc, proc, target,
+    // damage-done, crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast, launch and after-hit
+    // hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK_EQ(game.Count(), std::size_t(1335));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
