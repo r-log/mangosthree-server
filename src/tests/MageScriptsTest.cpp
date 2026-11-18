@@ -123,7 +123,8 @@ namespace
     // Impact's ids at the proc hook: the talent's two ranks.
     uint32 const IMPACT_IDS[] = { 11103, 12357 };
 
-    // The id Clearcasting's script holds at the check-proc hook: the buff, whose charge Pyroblast! does not take.
+    // The id Clearcasting's script holds at the check-proc hook: the buff, whose charge only a spell it makes cheaper
+    // takes.
     uint32 const CLEARCASTING_IDS[] = { 12536 };
 
     // The id Impact's spread holds at the dummy-effect hook: the spell the Impact buff casts at its Fire Blast's victim.
@@ -1311,7 +1312,7 @@ namespace
     // cost, as an item's spell is; a priest spell and a mage spell of a rage cost, on Fireball's mask bit.
     ClearcastingEvent const CLEARCASTING_EVENTS[] =
     {
-        { 133, SPELLFAMILY_MAGE, 0x00000001, 0, 0, POWER_MANA, 0, 9, true },
+        { 133, SPELLFAMILY_MAGE, 0x00000001, 0, 0x00000008, POWER_MANA, 0, 9, true },
         { 11366, SPELLFAMILY_MAGE, 0x00400000, 0, 0x00001008, POWER_MANA, 0, 17, true },
         { 82731, SPELLFAMILY_MAGE, 0, 0, 0x00000880, POWER_MANA, 0, 6, true },
         { kFlatCostSpell, SPELLFAMILY_MAGE, 0x00000001, 0, 0, POWER_MANA, 100, 0, true },
@@ -1819,7 +1820,8 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
              sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32));
 
     // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
-    // and a removal by re-application or with no caster, change nothing and let the holder's boosts run.
+    // the call before the add, and a removal by re-application or with no caster, change nothing and let the holder's
+    // boosts run.
     BareCreature target;
     BareCreature caster;
     SpellRowStorage row;
@@ -1836,6 +1838,8 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
         CHECK(registry.Dispatch<AuraApplyHook>(spellId, noCaster).IsContinue());
         AuraApplyContext creatureCaster(target, &caster, SpellRow(row, spellId), AuraHandle(holder), true);
         CHECK(registry.Dispatch<AuraApplyHook>(spellId, creatureCaster).IsContinue());
+        AuraApplyContext beforeAdd(target, &caster, SpellRow(row, spellId), AuraHandle(holder), false);
+        CHECK(registry.Dispatch<AuraApplyHook>(spellId, beforeAdd).IsContinue());
         AuraRemoveContext refreshed(target, &caster, SpellRow(row, spellId), AuraHandle(holder), AURA_REMOVE_BY_STACK);
         CHECK(registry.Dispatch<AuraRemoveHook>(spellId, refreshed).IsContinue());
         for (AuraRemoveMode mode : modes)
@@ -1845,12 +1849,15 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
         }
     }
 
-    // The talent's bodies take the haste off the mage, which holds none here, and let the holder's boosts run.
+    // The talent's bodies take the haste off the mage, which holds none here, at the add and not before it, and let
+    // the holder's boosts run.
     BareCreature mage;
     for (uint32 spellId : PYROMANIAC_IDS)
     {
         AuraApplyContext learned(mage, &mage, SpellRow(row, spellId), AuraHandle(holder), true);
         CHECK(registry.Dispatch<AuraApplyHook>(spellId, learned).IsContinue());
+        AuraApplyContext beforeAdd(mage, &mage, SpellRow(row, spellId), AuraHandle(holder), false);
+        CHECK(registry.Dispatch<AuraApplyHook>(spellId, beforeAdd).IsContinue());
         AuraRemoveContext unlearned(mage, &mage, SpellRow(row, spellId), AuraHandle(holder), AURA_REMOVE_BY_DEFAULT);
         CHECK(registry.Dispatch<AuraRemoveHook>(spellId, unlearned).IsContinue());
         CHECK(!mage.HasAura(83582));
@@ -2630,14 +2637,53 @@ TEST(MageScripts_FrostfireBoltsApplyTakesTheSlowOffWithTheGlyphAndTheDamageOffWi
     CHECK_EQ(withoutGlyph->GetAuraDuration(), int32(9000));
     delete withoutGlyph;
 
-    // An apply that is not real, and one whose caster cannot be found, take nothing off.
+    // An apply whose caster cannot be found takes nothing off and caps nothing, at the add and before it.
     SpellAuraHolder* untouched = AuraHolder(spell, target);
-    AuraApplyContext notReal(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*untouched), false);
-    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, notReal).IsContinue());
     AuraApplyContext noCaster(target, NULL, SpellRow(row, kFrostfireBolt), AuraHandle(*untouched), true);
     CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, noCaster).IsContinue());
+    AuraApplyContext noCasterBefore(target, NULL, SpellRow(row, kFrostfireBolt), AuraHandle(*untouched), false);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, noCasterBefore).IsContinue());
     CHECK_EQ(EffectsHeld(*untouched), uint32(0x7));
+    CHECK_EQ(untouched->GetStackCap(), uint32(0));
     delete untouched;
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(MageScripts_FrostfireBoltsCallBeforeTheAddTakesTheGlyphedSlowOffAndCapsTheUnglyphedStack)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 5);
+    SpellRowStorage row;
+    BareCreature target;
+
+    // The call before the add, with the holder not on its target. A caster with Glyph of Frostfire: the holder loses
+    // the slow, effect 0, there, so the stacking checks never see a slow of his; its stack keeps the spell's limit.
+    BareCreature glyphed;
+    HolderStorage glyph;
+    glyphed.HoldAura(kGlyphOfFrostfire, EmptyHolder(glyph));
+    SpellAuraHolder* withGlyph = AuraHolder(spell, target);
+    AuraApplyContext glyphedBefore(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*withGlyph), false);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, glyphedBefore).IsContinue());
+    CHECK_EQ(EffectsHeld(*withGlyph), uint32(0x6));
+    CHECK_EQ(withGlyph->GetStackCap(), uint32(0));
+
+    // The call at the add then finds no slow to take: the holder keeps effects 1 and 2.
+    AuraApplyContext glyphedApply(target, &glyphed, SpellRow(row, kFrostfireBolt), AuraHandle(*withGlyph), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, glyphedApply).IsContinue());
+    CHECK_EQ(EffectsHeld(*withGlyph), uint32(0x6));
+    delete withGlyph;
+
+    // A caster without it: the holder keeps its three effects until the add, and its stack is capped at one, so his
+    // own re-cast refreshes it instead of adding a stack.
+    BareCreature plain;
+    SpellAuraHolder* withoutGlyph = AuraHolder(spell, target);
+    AuraApplyContext plainBefore(target, &plain, SpellRow(row, kFrostfireBolt), AuraHandle(*withoutGlyph), false);
+    CHECK(registry.Dispatch<AuraApplyHook>(kFrostfireBolt, plainBefore).IsContinue());
+    CHECK_EQ(EffectsHeld(*withoutGlyph), uint32(0x7));
+    CHECK_EQ(withoutGlyph->GetStackCap(), uint32(1));
+    delete withoutGlyph;
     CHECK(target.GetSpellAuraHolderMap().empty());
 }
 
