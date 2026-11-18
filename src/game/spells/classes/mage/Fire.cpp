@@ -239,11 +239,13 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, HOT_STREAK_BUFF));
     }
 
-    /// 12536: Clearcasting: the proc that takes its charge is refused for Pyroblast! (92315), which costs no mana, so
-    /// casting it leaves Clearcasting on. Any other event goes on to the other checks.
+    /// 12536: Clearcasting: the proc that takes its charge goes on to the other checks only for a spell its cost
+    /// modifier makes cheaper (IsCostReducedByModifier: a mage spell of its class mask with a mana cost above 0).
+    /// Every other event is refused, so Pyroblast! (92315), the free Flamestrike (88148), Blizzard's damage (42208), a
+    /// spell with no class options (an item's use among them) and an event with no spell leave Clearcasting on.
     SpellHandlerOutcome<bool> ClearcastingCheckProc(CheckProcContext& ctx)
     {
-        if (ctx.procSpell && ctx.procSpell->ID == PYROBLAST_INSTANT)
+        if (!ctx.procSpell || !IsCostReducedByModifier(&ctx.spell, EFFECT_INDEX_0, ctx.procSpell))
         {
             return SpellHandlerOutcome<bool>::Return(false);
         }

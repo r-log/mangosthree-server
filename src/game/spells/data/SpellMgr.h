@@ -350,6 +350,12 @@ inline bool IsPeriodicRegenerateEffect(SpellEntry const* spellInfo, SpellEffectI
 
 bool IsCastEndProcModifierAura(SpellEntry const* spellInfo, SpellEffectIndex effecIdx, SpellEntry const* procSpell);
 
+/// Whether the effect `effIndex` of `modifier` is a cost modifier (a flat or percent SPELLMOD_COST modifier below 0)
+/// that makes `spell` cheaper: `spell` is of the modifier's family and in the effect's class mask, and its data gives
+/// it a mana cost above 0 (a flat mana cost or a percent of base mana). False for a spell with no class options, no
+/// mana cost or a cost in another power.
+bool IsCostReducedByModifier(SpellEntry const* modifier, SpellEffectIndex effIndex, SpellEntry const* spell);
+
 inline bool IsSpellHaveAura(SpellEntry const* spellInfo, AuraType aura, uint32 effectMask = (1 << EFFECT_INDEX_0) | (1 << EFFECT_INDEX_1) | (1 << EFFECT_INDEX_2))
 {
     for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
