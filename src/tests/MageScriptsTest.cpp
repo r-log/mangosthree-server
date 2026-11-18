@@ -1847,8 +1847,8 @@ TEST(MageScripts_CombustionsDoTStacksWithTheOtherAurasOfItsIcon)
 namespace
 {
     // The class options and the Spell.dbc rows of the Arcane Missiles stacking test: mage spells of class mask 0 and
-    // icon 1952 with no effect rows, as Arcane Missiles! (79683) and Arcane Missiles Aurastate (79808) are. The test
-    // takes the rows out of the spell store again.
+    // icon 1952, as Arcane Missiles! (79683) and Arcane Missiles Aurastate (79808) are; the test rows carry no effects.
+    // The test takes the rows out of the spell store again.
     const uint32 kOptionsArcaneMissilesAuras = 94210;
     const uint32 kOtherIcon1952Spell = 94211;
 

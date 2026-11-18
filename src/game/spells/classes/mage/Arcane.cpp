@@ -117,7 +117,7 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 79683: Arcane Missiles!: at its removal (used up, run out, dispelled, cancelled or at death) Arcane Missiles
+    /// 79683: Arcane Missiles!: at its removal (used up, run out, cancelled or at death) Arcane Missiles
     /// Aurastate (79808) is taken off the mage.
     SpellHandlerOutcome<void> ArcaneMissilesBuffRemove(AuraRemoveContext& ctx)
     {
