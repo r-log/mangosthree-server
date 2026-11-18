@@ -24,10 +24,11 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
-/// target and script word, the after-cast context's count and point, the aura handle's reads, its removal of one effect
-/// and its stack count, RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and
-/// the period, tick time, duration and amount a copy keeps, the low-health multiplier a script query answers from the
-/// caster's class-script auras, and the game table, whose only hook rows are the mage's scripts.
+/// target and script word, the after-cast context's count and point, the aura handle's reads, its removal of one
+/// effect, its stack count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the holder's script
+/// words, the holder copy's answer for a unit holding none and the period, tick time, duration and amount a copy keeps,
+/// the low-health multiplier a script query answers from the caster's class-script auras, and the game table, whose
+/// only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -37,8 +38,9 @@
 /// spell put into the store as the registry's own holder test does, in storage whose bytes were all 0xA5. The periodic
 /// damage query reads holders and auras made through their constructors, on spells put into the spell, effect and
 /// duration stores, held in a bare creature's holder map; the copy is added through Unit::AddSpellAuraHolder to a bare
-/// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder. The effect removal
-/// and the stack count run on holders made the same way, of auras whose apply and removal change nothing on the unit.
+/// creature, which sends nothing out of a world, and removed through Unit::RemoveSpellAuraHolder. The effect removal,
+/// the stack count and the stack cap run on holders made the same way, of auras whose apply and removal change nothing
+/// on the unit; the cap's spell takes its three stacks from a SpellAuraOptions row put into its store.
 /// The low-health multiplier reads class-script auras made through their constructors, on spells put into the spell,
 /// effect and class options stores, held in a bare creature's per-type aura list.
 ///
@@ -73,6 +75,8 @@ namespace
     const uint32 kCopiedDotSpell = 94210;
     const uint32 kThreeAuraSpell = 94251;
     const uint32 kStackedAuraSpell = 94252;
+    const uint32 kCappedAuraSpell = 94253;
+    const uint32 kCappedAuraOptions = 94253;    // a SpellAuraOptions row of three stacks
 
     // A creature with its update fields allocated and no world, map, template or AI.
     class BareCreature : public Creature
@@ -910,8 +914,9 @@ TEST(SpellScriptHooks_TheAuraHandleReadsTheHoldersFields)
 
 TEST(SpellScriptHooks_TheAuraHandleTakesOneEffectOffItsHolderButNeverTheLast)
 {
-    // A holder of three auras of 7 on a bare creature: the handle takes the aura at effect 0 off its target and out of
-    // the holder, with its effect bit, and leaves the other two as they were.
+    // A holder of three auras of 7 made for a bare creature that does not hold it, as at the aura-apply hook's call
+    // before the add: the handle takes the aura at effect 0 out of the holder alone, with its effect bit, and leaves
+    // the other two as they were.
     static StoredAuras rows;
     SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 7);
     BareCreature target;
@@ -945,6 +950,27 @@ TEST(SpellScriptHooks_TheAuraHandleTakesOneEffectOffItsHolderButNeverTheLast)
     delete holder;
 }
 
+TEST(SpellScriptHooks_TheAuraHandleTakesAnEffectOffAHolderItsTargetHolds)
+{
+    // The same holder held in the bare creature's holder map: the aura at effect 0 comes off the target through the
+    // unit's removal of one aura and out of the holder, with its effect bit; the other two and the holder stay.
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 7);
+    BareCreature target;
+    SpellAuraHolder* holder = AuraHolder(spell, target);
+    target.HoldAura(kThreeAuraSpell, *holder);
+    uint32 const effectBits = AFLAG_EFF_INDEX_0 | AFLAG_EFF_INDEX_1 | AFLAG_EFF_INDEX_2;
+    AuraHandle handle(*holder);
+
+    handle.RemoveEffect(EFFECT_INDEX_0);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_0) == NULL);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_1) != NULL);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_2) != NULL);
+    CHECK_EQ(uint32(holder->GetAuraFlags()) & effectBits, uint32(AFLAG_EFF_INDEX_1 | AFLAG_EFF_INDEX_2));
+    CHECK(target.GetSpellAuraHolder(kThreeAuraSpell) == holder);
+    delete holder;
+}
+
 TEST(SpellScriptHooks_TheAuraHandleSetsTheStacksAsAStackChangeDoes)
 {
     // A holder of one aura of -40 on a bare creature that is its caster: two stacks make the amount -80, one stack
@@ -975,6 +1001,47 @@ TEST(SpellScriptHooks_TheAuraHandleSetsTheStacksAsAStackChangeDoes)
     CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-25));
     handle.SetAmount(EFFECT_INDEX_1, 9);
     CHECK_EQ(handle.Amount(EFFECT_INDEX_1), int32(0));
+    delete holder;
+}
+
+TEST(SpellScriptHooks_AStackCapHoldsAReapplicationAtTheCapAndRefreshesTheHolder)
+{
+    // A holder of one aura of -40 on a bare creature that is its caster, of a spell whose aura options allow three
+    // stacks, with 4000 ms of its 9000 left.
+    static StoredAuras rows;
+    static SpellAuraOptionsEntry options;
+    SpellEntry const* spell = StoreAuras(rows, kCappedAuraSpell, 1, -40);
+    options = SpellAuraOptionsEntry();
+    options.CumulativeAura = 3;
+    sSpellAuraOptionsStore.SetEntry(kCappedAuraOptions, &options);
+    rows.spell.Entry().AuraOptionsID = kCappedAuraOptions;
+    CHECK_EQ(spell->GetStackAmount(), uint32(3));
+    BareCreature target;
+    SpellAuraHolder* holder = AuraHolder(spell, target);
+    holder->SetAuraMaxDuration(9000);
+    holder->SetAuraDuration(4000);
+    AuraHandle handle(*holder);
+    CHECK_EQ(holder->GetStackCap(), uint32(0));
+
+    // Capped at one: a stack added to its one leaves one and the amount, refreshes its time and keeps the holder.
+    handle.CapStacks(1);
+    CHECK_EQ(holder->GetStackCap(), uint32(1));
+    CHECK(!holder->ModStackAmount(1));
+    CHECK_EQ(handle.Stacks(), uint32(1));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-40));
+    CHECK_EQ(handle.Duration(), int32(9000));
+
+    // The cap given back: the spell's three. Two stacks make -80, three -120, and a fourth stays at three.
+    handle.CapStacks(0);
+    CHECK_EQ(holder->GetStackCap(), uint32(0));
+    CHECK(!holder->ModStackAmount(1));
+    CHECK_EQ(handle.Stacks(), uint32(2));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-80));
+    CHECK(!holder->ModStackAmount(1));
+    CHECK(!holder->ModStackAmount(1));
+    CHECK_EQ(handle.Stacks(), uint32(3));
+    CHECK_EQ(handle.Amount(EFFECT_INDEX_0), int32(-120));
+    CHECK(target.GetSpellAuraHolderMap().empty());
     delete holder;
 }
 
