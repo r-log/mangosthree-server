@@ -683,13 +683,18 @@ void Spell::cast(bool skipCheck)
         // critical hit related part is currently done on hit so proc there,
         // 0 damage since any damage based procs should be on hit
         // 0 victim proc since there is no victim proc dependent on successfull cast for caster
+        // the modifiers it takes off the caster stay with this spell for its hits
+        SpellModMgr::KeepScope keep(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
         m_caster->ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
     }
     else
     {
         DispatchLaunch(*m_caster, *m_spellInfo, m_casttime);
 
-        m_caster->ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
+        {
+            SpellModMgr::KeepScope keep(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
+            m_caster->ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
+        }
 
         // Immediate spell, no big deal
         handle_immediate();
@@ -736,24 +741,28 @@ void Spell::TakeAmmo()
  */
 void Spell::handle_immediate()
 {
-    // process immediate effects (items, ground, etc.) also initialize some variables
-    _handle_immediate_phase();
-
-    // start channeling if applicable (after _handle_immediate_phase for get persistent effect dynamic object for channel target
-    if (IsChanneledSpell(m_spellInfo) && m_duration)
     {
-        m_spellState = SPELL_STATE_CASTING;
-        SendChannelStart(m_duration);
-    }
+        SpellModMgr::KeptScope kept(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
 
-    for (TargetList::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
-    {
-        DoAllEffectOnTarget(&(*ihit));
-    }
+        // process immediate effects (items, ground, etc.) also initialize some variables
+        _handle_immediate_phase();
 
-    for (GOTargetList::iterator ihit = m_UniqueGOTargetInfo.begin(); ihit != m_UniqueGOTargetInfo.end(); ++ihit)
-    {
-        DoAllEffectOnTarget(&(*ihit));
+        // start channeling if applicable (after _handle_immediate_phase for get persistent effect dynamic object for channel target
+        if (IsChanneledSpell(m_spellInfo) && m_duration)
+        {
+            m_spellState = SPELL_STATE_CASTING;
+            SendChannelStart(m_duration);
+        }
+
+        for (TargetList::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+        {
+            DoAllEffectOnTarget(&(*ihit));
+        }
+
+        for (GOTargetList::iterator ihit = m_UniqueGOTargetInfo.begin(); ihit != m_UniqueGOTargetInfo.end(); ++ihit)
+        {
+            DoAllEffectOnTarget(&(*ihit));
+        }
     }
 
     // spell is finished, perform some last features of the spell here
@@ -778,40 +787,44 @@ uint64 Spell::handle_delayed(uint64 t_offset)
 {
     uint64 next_time = 0;
 
-    if (!m_immediateHandled)
     {
-        _handle_immediate_phase();
-        m_immediateHandled = true;
-    }
+        SpellModMgr::KeptScope kept(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
 
-    // now recheck units targeting correctness (need before any effects apply to prevent adding immunity at first effect not allow apply second spell effect and similar cases)
-    for (TargetList::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
-    {
-        if (!ihit->processed)
+        if (!m_immediateHandled)
         {
-            if (ihit->timeDelay <= t_offset)
+            _handle_immediate_phase();
+            m_immediateHandled = true;
+        }
+
+        // now recheck units targeting correctness (need before any effects apply to prevent adding immunity at first effect not allow apply second spell effect and similar cases)
+        for (TargetList::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+        {
+            if (!ihit->processed)
             {
-                DoAllEffectOnTarget(&(*ihit));
-            }
-            else if (next_time == 0 || ihit->timeDelay < next_time)
-            {
-                next_time = ihit->timeDelay;
+                if (ihit->timeDelay <= t_offset)
+                {
+                    DoAllEffectOnTarget(&(*ihit));
+                }
+                else if (next_time == 0 || ihit->timeDelay < next_time)
+                {
+                    next_time = ihit->timeDelay;
+                }
             }
         }
-    }
 
-    // now recheck gameobject targeting correctness
-    for (GOTargetList::iterator ighit = m_UniqueGOTargetInfo.begin(); ighit != m_UniqueGOTargetInfo.end(); ++ighit)
-    {
-        if (!ighit->processed)
+        // now recheck gameobject targeting correctness
+        for (GOTargetList::iterator ighit = m_UniqueGOTargetInfo.begin(); ighit != m_UniqueGOTargetInfo.end(); ++ighit)
         {
-            if (ighit->timeDelay <= t_offset)
+            if (!ighit->processed)
             {
-                DoAllEffectOnTarget(&(*ighit));
-            }
-            else if (next_time == 0 || ighit->timeDelay < next_time)
-            {
-                next_time = ighit->timeDelay;
+                if (ighit->timeDelay <= t_offset)
+                {
+                    DoAllEffectOnTarget(&(*ighit));
+                }
+                else if (next_time == 0 || ighit->timeDelay < next_time)
+                {
+                    next_time = ighit->timeDelay;
+                }
             }
         }
     }

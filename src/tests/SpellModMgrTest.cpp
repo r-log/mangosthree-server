@@ -27,7 +27,8 @@
 /// before the list changes; the removal of every entry of the same aura; the application of the
 /// listed modifiers to a spell's value for each of the three value types, with the family and
 /// class mask filter, the skips for a zero value and for the instant-cast case; the amount read
-/// through its address at each use; the assertion on a sink no session installed; and the units
+/// through its address at each use; the modifiers a spell keeps from a removal during its cast end
+/// and their use at its own reads; the assertion on a sink no session installed; and the units
 /// that answer no spell modifiers.
 ///
 /// Spell.dbc and SpellClassOptions.dbc rows are seeded with DBCStorage::SetEntry, as
@@ -118,7 +119,16 @@ namespace
 
         SpellModEntry Entry(bool flat, SpellModOp op, SpellFamily family = SPELLFAMILY_MAGE, bool mastery = false) const
         {
-            SpellModEntry entry = { aura, flat, &amount, int32(op), uint32(family), &mask, mastery };
+            SpellModEntry entry = { aura, flat, &amount, int32(op), uint32(family), &mask, mastery, 0, 0 };
+            return entry;
+        }
+
+        /// The entry of effect `effIndex` of aura spell `spellId`.
+        SpellModEntry Named(uint32 spellId, uint8 effIndex, bool flat, SpellModOp op) const
+        {
+            SpellModEntry entry = Entry(flat, op);
+            entry.spellId = spellId;
+            entry.effIndex = effIndex;
             return entry;
         }
     };
@@ -392,7 +402,7 @@ TEST(SpellModMgr_TheAmountIsReadAtEachUse)
     float amount = 10.0f;
     ClassFamilyMask mask = kBit1;
     SpellModEntry entry = { reinterpret_cast<Aura const*>(uintptr_t(1)), false, &amount, int32(SPELLMOD_DAMAGE),
-                            uint32(SPELLFAMILY_MAGE), &mask, false };
+                            uint32(SPELLFAMILY_MAGE), &mask, false, 0, 0 };
     mgr.Change(entry, true, recorder.Sink());
 
     float before = 100.0f;
@@ -669,6 +679,221 @@ TEST(SpellModMgr_EachChangeReportsOnce)
 
     CHECK_EQ(first.facts.size(), size_t(1));
     CHECK_EQ(second.facts.size(), size_t(1));
+}
+
+// The operations a spell reads after its cast has ended, at its hits or on the auras they make,
+// are the ones it keeps; those its cast has already read (cast time, cost, cooldowns, range, the
+// target count, the hit roll) and the proc chances read for the aura's own spell are not.
+TEST(SpellModMgr_TheOperationsASpellReadsAfterItsCast)
+{
+    const SpellModOp kept[] = { SPELLMOD_DAMAGE, SPELLMOD_DURATION, SPELLMOD_THREAT, SPELLMOD_EFFECT1, SPELLMOD_CHARGES,
+                                SPELLMOD_RADIUS, SPELLMOD_CRITICAL_CHANCE, SPELLMOD_ALL_EFFECTS, SPELLMOD_EFFECT2,
+                                SPELLMOD_CRIT_DAMAGE_BONUS, SPELLMOD_ACTIVATION_TIME, SPELLMOD_EFFECT_PAST_FIRST,
+                                SPELLMOD_DOT, SPELLMOD_EFFECT3, SPELLMOD_SPELL_BONUS_DAMAGE, SPELLMOD_MULTIPLE_VALUE,
+                                SPELLMOD_RESIST_DISPEL_CHANCE };
+    const SpellModOp spent[] = { SPELLMOD_RANGE, SPELLMOD_NOT_LOSE_CASTING_TIME, SPELLMOD_CASTING_TIME, SPELLMOD_COOLDOWN,
+                                 SPELLMOD_COST, SPELLMOD_RESIST_MISS_CHANCE, SPELLMOD_JUMP_TARGETS,
+                                 SPELLMOD_CHANCE_OF_SUCCESS, SPELLMOD_GLOBAL_COOLDOWN, SPELLMOD_FREQUENCY_OF_SUCCESS,
+                                 SPELLMOD_SPELL_COST_REFUND_ON_FAIL };
+    for (SpellModOp op : kept)
+    {
+        CHECK(SpellModMgr::ReadAfterTheCast(op));
+    }
+    for (SpellModOp op : spent)
+    {
+        CHECK(!SpellModMgr::ReadAfterTheCast(op));
+    }
+}
+
+// Arcane Potency's shape at an Arcane Blast's cast end: while the keep scope of the spell lives, a
+// removal copies the removed crit chance modifier that fits it, with its amount as it is then; a
+// cost modifier of the same spell, a modifier on another class mask bit and another family's are
+// not copied, and a removal after the scope keeps nothing. The scope empties its list first.
+TEST(SpellModMgr_ACastEndKeepsTheRemovedModifiersItsSpellReadsAtItsHits)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier potency(15, kBit1, 1);
+    FakeModifier freeCast(-100, kBit1, 2);
+    FakeModifier otherBit(7, ClassFamilyMask(UI64LIT(0x0000000000000004)), 3);
+    FakeModifier priest(9, kBit1, 4);
+    FakeModifier late(5, kBit1, 5);
+    mgr.Change(potency.Named(57531, 0, true, SPELLMOD_CRITICAL_CHANCE), true, recorder.Sink());
+    mgr.Change(freeCast.Named(12536, 0, false, SPELLMOD_COST), true, recorder.Sink());
+    mgr.Change(otherBit.Named(94110, 0, true, SPELLMOD_CRITICAL_CHANCE), true, recorder.Sink());
+    SpellModEntry priestEntry = priest.Named(94111, 1, true, SPELLMOD_CRITICAL_CHANCE);
+    priestEntry.family = uint32(SPELLFAMILY_PRIEST);
+    mgr.Change(priestEntry, true, recorder.Sink());
+    mgr.Change(late.Named(94112, 0, true, SPELLMOD_DAMAGE), true, recorder.Sink());
+
+    KeptSpellMod stale = { 1, 0, true, 99.0f, int32(SPELLMOD_DAMAGE), uint32(SPELLFAMILY_MAGE), 0, 0, false };
+    KeptSpellMods kept(1, stale);
+    {
+        SpellModMgr::KeepScope keep(&mgr, kSpellMage, kept);
+        CHECK(kept.empty());
+
+        potency.amount = 300.0f;
+        mgr.Change(potency.Named(57531, 0, true, SPELLMOD_CRITICAL_CHANCE), false, recorder.Sink());
+        potency.amount = 15.0f;
+        mgr.Change(freeCast.Named(12536, 0, false, SPELLMOD_COST), false, recorder.Sink());
+        mgr.Change(otherBit.Named(94110, 0, true, SPELLMOD_CRITICAL_CHANCE), false, recorder.Sink());
+        mgr.Change(priestEntry, false, recorder.Sink());
+    }
+    mgr.Change(late.Named(94112, 0, true, SPELLMOD_DAMAGE), false, recorder.Sink());
+
+    REQUIRE(kept.size() == 1u);
+    CHECK_EQ(kept[0].spellId, uint32(57531));
+    CHECK_EQ(uint32(kept[0].effIndex), uint32(0));
+    CHECK(kept[0].flat);
+    CHECK(kept[0].amount == 300.0f);
+    CHECK_EQ(kept[0].op, int32(SPELLMOD_CRITICAL_CHANCE));
+    CHECK_EQ(kept[0].family, uint32(SPELLFAMILY_MAGE));
+    CHECK(kept[0].maskFlags == UI64LIT(0x0000000000000002));
+    CHECK_EQ(kept[0].maskFlags2, uint32(0));
+    CHECK(!kept[0].mastery);
+
+    // the modifiers left the list as before: nothing is listed for the spell any more
+    float listed = 0.0f;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, listed);
+    CHECK(listed == 0.0f);
+
+    // a null manager keeps nothing and still empties the list
+    {
+        SpellModMgr::KeepScope keep(NULL, kSpellMage, kept);
+    }
+    CHECK(kept.empty());
+}
+
+// While the kept scope of a spell lives, ApplySpellMod for that spell adds its kept modifiers as
+// listed ones are added (flat, percentage, the zero-value skip, the mastery-only apply); another
+// spell, another operation and any read after the scope ends take none of them.
+TEST(SpellModMgr_KeptModifiersReachOnlyTheirSpellWhileTheScopeLives)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    KeptSpellMods kept;
+    KeptSpellMod crit = { 57531, 0, true, 15.0f, int32(SPELLMOD_CRITICAL_CHANCE), uint32(SPELLFAMILY_MAGE),
+                          UI64LIT(0x0000000000000002), 0, false };
+    KeptSpellMod damage = { 36032, 0, false, 10.0f, int32(SPELLMOD_DAMAGE), uint32(SPELLFAMILY_MAGE),
+                            UI64LIT(0x0000000000000002), 0, false };
+    kept.push_back(crit);
+    kept.push_back(damage);
+
+    {
+        SpellModMgr::KeptScope use(&mgr, kSpellMage, kept);
+
+        float chance = 5.0f;
+        CHECK(mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, chance) == 15.0f);
+        CHECK(chance == 20.0f);
+
+        int32 hit = 1000;
+        CHECK_EQ(mgr.ApplySpellMod(kSpellMage, SPELLMOD_DAMAGE, hit), int32(100));
+        CHECK_EQ(hit, int32(1100));
+
+        int32 zero = 0;
+        CHECK_EQ(mgr.ApplySpellMod(kSpellMage, SPELLMOD_DAMAGE, zero), int32(0));
+
+        int32 masteryOnly = 1000;
+        CHECK_EQ(mgr.ApplySpellMod(kSpellMage, SPELLMOD_DAMAGE, masteryOnly, true), int32(0));
+
+        float otherSpell = 5.0f;
+        mgr.ApplySpellMod(kSpellMageOther, SPELLMOD_CRITICAL_CHANCE, otherSpell);
+        CHECK(otherSpell == 5.0f);
+
+        float otherOp = 5.0f;
+        mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRIT_DAMAGE_BONUS, otherOp);
+        CHECK(otherOp == 5.0f);
+    }
+
+    float after = 5.0f;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, after);
+    CHECK(after == 5.0f);
+
+    // a null manager does nothing
+    SpellModMgr::KeptScope none(NULL, kSpellMage, kept);
+    float stillNone = 5.0f;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, stillNone);
+    CHECK(stillNone == 5.0f);
+}
+
+// A new listing of the aura spell and effect a spell keeps (Arcane Potency cast again during the
+// spell's hits) adds nothing to that spell while its kept scope lives: the kept copy stands for it.
+// Another listed modifier still adds, a listing with no spell named is never taken for a kept one,
+// and outside the scope the new listing adds as any listed modifier does.
+TEST(SpellModMgr_AKeptModifierStandsForANewListingOfTheSameAuraEffect)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier renewed(15, kBit1, 1);
+    FakeModifier other(4, kBit1, 2);
+    FakeModifier unnamed(2, kBit1, 3);
+    mgr.Change(renewed.Named(57531, 0, true, SPELLMOD_CRITICAL_CHANCE), true, recorder.Sink());
+    mgr.Change(other.Named(57531, 1, true, SPELLMOD_CRITICAL_CHANCE), true, recorder.Sink());
+    mgr.Change(unnamed.Entry(true, SPELLMOD_CRITICAL_CHANCE), true, recorder.Sink());
+
+    KeptSpellMod spent = { 57531, 0, true, 15.0f, int32(SPELLMOD_CRITICAL_CHANCE), uint32(SPELLFAMILY_MAGE),
+                           UI64LIT(0x0000000000000002), 0, false };
+    KeptSpellMod noName = { 0, 0, true, 1.0f, int32(SPELLMOD_CRITICAL_CHANCE), uint32(SPELLFAMILY_MAGE),
+                            UI64LIT(0x0000000000000002), 0, false };
+    KeptSpellMods kept;
+    kept.push_back(spent);
+    kept.push_back(noName);
+
+    {
+        SpellModMgr::KeptScope use(&mgr, kSpellMage, kept);
+        float chance = 0.0f;
+        mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, chance);
+        CHECK(chance == 22.0f);
+    }
+
+    float outside = 0.0f;
+    mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, outside);
+    CHECK(outside == 21.0f);
+}
+
+// The scopes nest: an inner keep scope takes the removals while it lives and the outer one takes
+// them again after it; an inner kept scope stands for the outer one while it lives, for the same
+// spell too, and the outer one applies again after it.
+TEST(SpellModMgr_TheScopesNestAndPutTheOuterOneBack)
+{
+    SeedStores();
+    SpellModMgr mgr;
+    Recorder recorder;
+    FakeModifier first(15, kBit1, 1);
+    FakeModifier second(8, kBit1, 2);
+    mgr.Change(first.Named(57531, 0, true, SPELLMOD_CRITICAL_CHANCE), true, recorder.Sink());
+    mgr.Change(second.Named(57529, 0, true, SPELLMOD_CRITICAL_CHANCE), true, recorder.Sink());
+
+    KeptSpellMods outer;
+    KeptSpellMods inner;
+    {
+        SpellModMgr::KeepScope keepOuter(&mgr, kSpellMage, outer);
+        {
+            SpellModMgr::KeepScope keepInner(&mgr, kSpellMage, inner);
+            mgr.Change(first.Named(57531, 0, true, SPELLMOD_CRITICAL_CHANCE), false, recorder.Sink());
+        }
+        mgr.Change(second.Named(57529, 0, true, SPELLMOD_CRITICAL_CHANCE), false, recorder.Sink());
+    }
+    REQUIRE(inner.size() == 1u);
+    REQUIRE(outer.size() == 1u);
+    CHECK_EQ(inner[0].spellId, uint32(57531));
+    CHECK_EQ(outer[0].spellId, uint32(57529));
+
+    KeptSpellMods none;
+    {
+        SpellModMgr::KeptScope useOuter(&mgr, kSpellMage, outer);
+        {
+            SpellModMgr::KeptScope useInner(&mgr, kSpellMage, none);
+            float innerChance = 0.0f;
+            mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, innerChance);
+            CHECK(innerChance == 0.0f);
+        }
+        float outerChance = 0.0f;
+        mgr.ApplySpellMod(kSpellMage, SPELLMOD_CRITICAL_CHANCE, outerChance);
+        CHECK(outerChance == 8.0f);
+    }
 }
 
 // A unit that is not a player holds no spell modifiers, and a pet or a totem whose owner the

@@ -37,6 +37,7 @@ void Player::AddSpellMod(Aura* aura, bool apply)
     Modifier const* mod = aura->GetModifier();
     SpellModEntry entry = { aura, mod->m_auraname == SPELL_AURA_ADD_FLAT_MODIFIER, &aura->ModifierValue(), mod->m_miscvalue,
                             uint32(aura->GetSpellProto()->GetSpellFamilyName()), &aura->GetAuraSpellClassMask(),
-                            aura->GetSpellProto()->HasAttribute(SPELL_ATTR_EX8_MASTERY) };
+                            aura->GetSpellProto()->HasAttribute(SPELL_ATTR_EX8_MASTERY), aura->GetId(),
+                            uint8(aura->GetEffIndex()) };
     m_spellModMgr.Change(entry, apply, m_spellModSink);
 }

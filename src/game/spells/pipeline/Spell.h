@@ -651,6 +651,7 @@ class Spell
         bool m_needSpellLog;                                // need to send spell log?
         uint8 m_applyMultiplierMask;                        // by effect: damage multiplier needed?
         float m_damageMultipliers[3];                       // by effect: damage multiplier
+        KeptSpellMods m_keptSpellMods;                      // the spell modifiers its cast end took off its caster, applied to its own hits
 
         // Current targets, to be used in SpellEffects (MUST BE USED ONLY IN SPELL EFFECTS)
         Unit* unitTarget;
