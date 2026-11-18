@@ -26,9 +26,12 @@
 /// A mastery effect's value and coefficient: Combat::MasteryAmount over plain numbers, and MasteryCoefficient over bare
 /// Spell.dbc and SpellEffect.dbc rows built as the loader builds them, with only the fields it reads written. The
 /// numbers are the 4.3.4 DBC's for the spells named: Flashburn 76595, Potent Afflictions 77215, Executioner 76808,
-/// Razor Claws 77493 and Pyroblast 11366. 179.28 is gtCombatRatings' mastery rating per point at level 85.
+/// Razor Claws 77493 and Pyroblast 11366. 179.28 is gtCombatRatings' mastery rating per point at level 85. Then the
+/// gate on a player's mastery, Combat::MasteryCounts, over the 4.3.4 TalentTab and TalentTreePrimarySpells rows of the
+/// mage's and the warrior's trees.
 
 #include <cmath>
+#include <vector>
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -141,4 +144,25 @@ TEST(MasteryCoefficient_NotAMastery)
     CHECK(MasteryCoefficient(pyroblast.Get(), &zeroPoints) == 0.0f);
     CHECK(MasteryCoefficient(pyroblast.Get(), NULL) == 0.0f);
     CHECK(MasteryCoefficient(NULL, &zeroPoints) == 0.0f);
+}
+
+// A mage's trees hold the masteries Mana Adept 76547, Flashburn 76595 and Frostburn 76613 and the primary spells
+// 44425, 84671, 11366, 84668, 31687 and Frost Specialization 84669 (MASTERY -6). His mastery counts beside the Mastery
+// passive 86473 (MASTERY +8) and not with Frost Specialization's aura alone or with none; the same for a Fury warrior's
+// Precision 29592 (MASTERY -6) and the warrior's passive 86479.
+TEST(MasteryCounts_OnlyBesideTheClassMasteryPassive)
+{
+    std::vector<uint32> const mageTrees = { 76547, 44425, 84671, 76595, 11366, 84668, 76613, 31687, 84669 };
+    CHECK(!Combat::MasteryCounts({}, mageTrees));
+    CHECK(!Combat::MasteryCounts({ 84669 }, mageTrees));
+    CHECK(Combat::MasteryCounts({ 86473 }, mageTrees));
+    CHECK(Combat::MasteryCounts({ 84669, 86473 }, mageTrees));
+    CHECK(Combat::MasteryCounts({ 86473, 84669 }, mageTrees));
+
+    std::vector<uint32> const warriorTrees = { 76838, 12294, 12712, 12296, 76856, 23881, 23588, 29592, 76857, 23922,
+                                               29144, 93098 };
+    CHECK(!Combat::MasteryCounts({ 29592 }, warriorTrees));
+    CHECK(Combat::MasteryCounts({ 29592, 86479 }, warriorTrees));
+
+    CHECK(Combat::MasteryCounts({ 86473 }, {}));
 }

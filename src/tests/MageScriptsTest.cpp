@@ -2140,6 +2140,46 @@ TEST(MageScripts_ArcaneMissilesBuffAndItsAurastateStackWithEachOther)
     CHECK(sSpellStore.LookupEntry(79808) == NULL);
 }
 
+namespace
+{
+    // The class options and the Spell.dbc rows of the Fingers of Frost stacking test: mage spells of icon 2947, a
+    // passive one as the talent's ranks (44543, 44545, 83074) are and one that is not, as the buff (44544) is; the
+    // test rows carry no effects. The test takes the rows out of the spell store again.
+    const uint32 kOptionsFingersOfFrost = 94270;
+    const uint32 kFingersTalentRow = 94271;
+    const uint32 kFingersBuffRow = 94272;
+
+    SpellClassOptionsEntry s_optionsFingersOfFrost;
+    ServerSpell s_fingersTalentRow;
+    ServerSpell s_fingersBuffRow;
+
+    void StoreIcon2947Spell(ServerSpell& spell, uint32 spellId, uint32 attributes)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = kOptionsFingersOfFrost;
+        spell.Entry().SpellIconID = 2947;
+        spell.Entry().Attributes = attributes;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+    }
+}
+
+TEST(MageScripts_FingersOfFrostsTalentAndItsBuffStandTogether)
+{
+    // The mage spells of icon 2947 that are auras: the talent's three ranks, passive, of which a mage holds one, and
+    // the buff, not passive. A passive aura and one that is not stand together before any rule of their icon.
+    s_optionsFingersOfFrost.SpellClassMask = ClassFamilyMask(0, 0);
+    s_optionsFingersOfFrost.SpellClassSet = SPELLFAMILY_MAGE;
+    sSpellClassOptionsStore.SetEntry(kOptionsFingersOfFrost, &s_optionsFingersOfFrost);
+    StoreIcon2947Spell(s_fingersTalentRow, kFingersTalentRow, SPELL_ATTR_PASSIVE);
+    StoreIcon2947Spell(s_fingersBuffRow, kFingersBuffRow, 0);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kFingersTalentRow, kFingersBuffRow));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kFingersBuffRow, kFingersTalentRow));
+
+    sSpellStore.SetEntry(kFingersTalentRow, NULL);
+    sSpellStore.SetEntry(kFingersBuffRow, NULL);
+    CHECK(sSpellStore.LookupEntry(kFingersBuffRow) == NULL);
+}
+
 TEST(MageScripts_ImpactSpreadsPyroblastIgniteAndCombustionAlwaysAndLivingBombToTwoEnemies)
 {
     // Pyroblast, Pyroblast!, Ignite and Combustion always, and the count of Living Bombs stays as it is.
@@ -2887,7 +2927,7 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
 
     // An unfrozen target: Ice Lance and Deep Freeze count it as frozen under Fingers of Frost alone; Frostbolt, a
     // Frostfire Bolt without Brain Freeze's buff and the rest do not, and nothing does without the charge. Deep
-    // Freeze's damage always does.
+    // Freeze's damage does not, with the charge or without.
     for (uint32 spellId : { kIceLance, kDeepFreeze })
     {
         CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
@@ -2903,7 +2943,9 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
                  int(Mage::NOT_FROZEN));
     }
     CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE)),
-             int(Mage::FINGERS));
+             int(Mage::NOT_FROZEN));
+    CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE)),
+             int(Mage::NOT_FROZEN));
 
     // The Frostfire Bolt Brain Freeze makes instant counts it as frozen under Fingers of Frost, and not without it.
     BareCreature brainFreeze;
@@ -2931,7 +2973,7 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
     // A frozen target: every spell counts it as frozen, with the charge or without, and so does a periodic effect.
     Freeze(victim);
     CHECK(victim.IsFrozen());
-    for (uint32 spellId : { kIceLance, kDeepFreeze, kFrostbolt, kFrostfireBoltSpell, 122u })
+    for (uint32 spellId : { kIceLance, kDeepFreeze, kDeepFreezeDamage, kFrostbolt, kFrostfireBoltSpell, 122u })
     {
         CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE)),
                  int(Mage::REALLY_FROZEN));
@@ -3016,6 +3058,27 @@ TEST(MageScripts_ShatterRaisesTheCritChanceOfASpellThatCountsItsTargetAsFrozen)
         CritChanceContext bolt(boltMage, *v.victim, SpellRow(row, kFrostfireBoltSpell), v.type, value);
         CHECK(registry.Dispatch<CritChanceHook>(kFrostfireBoltSpell, bolt).IsContinue());
         CHECK(Near(value, v.expected));
+    }
+
+    // Deep Freeze's damage (71757) takes the factor at a frozen target alone: at an unfrozen one the chance stays as
+    // it is, whether the caster holds a Fingers of Frost charge or not.
+    BareCreature deepFreezeMage;
+    HolderStorage deepFreezeShatter;
+    HolderStorage deepFreezeFingers;
+    deepFreezeMage.HoldAura(kShatterRankTwo, EmptyHolder(deepFreezeShatter));
+    deepFreezeMage.HoldAura(kFingersOfFrost, EmptyHolder(deepFreezeFingers));
+    for (BareCreature* caster : { &rankTwo, &deepFreezeMage })
+    {
+        float unfrozenChance = 20.0f;
+        CritChanceContext atUnfrozen(*caster, unfrozenVictim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE,
+                                     unfrozenChance);
+        CHECK(registry.Dispatch<CritChanceHook>(kDeepFreezeDamage, atUnfrozen).IsContinue());
+        CHECK_EQ(unfrozenChance, 20.0f);
+        float frozenChance = 20.0f;
+        CritChanceContext atFrozen(*caster, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE,
+                                   frozenChance);
+        CHECK(registry.Dispatch<CritChanceHook>(kDeepFreezeDamage, atFrozen).IsContinue());
+        CHECK(Near(frozenChance, 60.0f));
     }
 
     // The engine adds the spell's flat crit-chance modifiers after the hook, and Shatter multiplies them too: a sheet
@@ -3107,6 +3170,18 @@ TEST(MageScripts_FrostburnShatterAndIceLanceMultiplyTheDamageOnceEachForAFrozenT
     CHECK(registry.Dispatch<DamageDoneHook>(kFrostbolt, fingersBolt).IsContinue());
     CHECK_EQ(bolt, 1.0f);
 
+    // Deep Freeze's damage takes Frostburn at an unfrozen target too, and nothing more: no Frostburn, no bonus.
+    float deepFreeze = 1.0f;
+    DamageDoneContext unfrozenDeepFreeze(frostMage, unfrozenVictim, SpellRow(row, kDeepFreezeDamage),
+                                         SPELL_DIRECT_DAMAGE, deepFreeze);
+    CHECK(registry.Dispatch<DamageDoneHook>(kDeepFreezeDamage, unfrozenDeepFreeze).IsContinue());
+    CHECK(Near(deepFreeze, 1.05f));
+    float fingersDeepFreeze = 1.0f;
+    DamageDoneContext noFrostburn(fingersMage, unfrozenVictim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE,
+                                  fingersDeepFreeze);
+    CHECK(registry.Dispatch<DamageDoneHook>(kDeepFreezeDamage, noFrostburn).IsContinue());
+    CHECK_EQ(fingersDeepFreeze, 1.0f);
+
     // A Frostfire Bolt under Fingers of Frost and Brain Freeze's buff: its hit at an unfrozen target takes Frostburn,
     // the amount of its periodic effect does not; at a frozen target the periodic amount takes it too.
     BareCreature boltMage;
@@ -3134,7 +3209,7 @@ TEST(MageScripts_FrostburnShatterAndIceLanceMultiplyTheDamageOnceEachForAFrozenT
         CHECK(Near(value, v.expected));
     }
 
-    // A Frostburn of no amount (before the mastery gate) multiplies nothing.
+    // A Frostburn of no amount (a mage without the Mastery passive) multiplies nothing.
     AuraHandle(*frostburnHolder).SetAmount(EFFECT_INDEX_0, 0);
     float none = 1.0f;
     DamageDoneContext noAmount(frostMage, victim, SpellRow(row, 133), SPELL_DIRECT_DAMAGE, none);
