@@ -50,13 +50,15 @@
  * UseFingersCharge and IceLanceMultiplier) and Brain Freeze's (UsesBrainFreeze). Orb.cpp holds the orb a mage's Flame
  * Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
  * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
- * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
- * SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * and OrbCostShare). Ring.cpp holds the ring a mage's Ring of Frost summons: its creature AI, its scripts and its
+ * leaves (RingSpellsFor, IsRingCreature, RingInBand, RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and
+ * RingMarkerOnRemove). Each file registers its rows through one function of namespace Mage: a table per legacy site
+ * of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
-/// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
-/// and defaults registered; a row whose key was taken does not change the table, so a caller that finds fewer keys
-/// than rows has a duplicate.
+/// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's and the ring's.
+/// Returns the rows and defaults registered; a row whose key was taken does not change the table, so a caller that
+/// finds fewer keys than rows has a duplicate.
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry);
 
 namespace Mage
@@ -92,6 +94,60 @@ namespace Mage
     /// Registers the orb's scripts and its creature AI, whose factory is added to the creature AI registry once.
     /// Returns the rows registered.
     uint32 RegisterOrb(SpellHandlerRegistry& registry);
+    /// Registers the ring's scripts and its creature AI, whose factory is added to the creature AI registry once.
+    /// Returns the rows registered.
+    uint32 RegisterRing(SpellHandlerRegistry& registry);
+
+    /// The spells and the creature a ring is made of, by the mage's spell.
+    struct RingSpells
+    {
+        uint32 castSpell;           ///< the mage's spell (82676): its summon makes the ring, its aura on him ticks it
+        uint32 creature;            ///< the creature the summon makes (44199)
+        uint32 freezeSpell;         ///< the freeze the ring casts at the units in its band (82691)
+        uint32 markerSpell;         ///< the marker a unit whose freeze was dispelled holds while the ring leaves it
+                                    ///< alone (91264); its duration is also the time the ring takes to form
+        float innerRadius;          ///< the band's inner edge, in yards (4.7)
+    };
+
+    /// The ring row of the mage's spell (82676); NULL for any other id. Defined in Ring.cpp.
+    RingSpells const* RingSpellsFor(uint32 spellId);
+
+    /// Whether `creatureEntry` is a ring of the table. Defined in Ring.cpp.
+    bool IsRingCreature(uint32 creatureEntry);
+
+    /// Whether a unit `distance` yards from the ring's centre stands in its band: at or beyond `inner` and within
+    /// `outer`. Defined in Ring.cpp.
+    bool RingInBand(float distance, float inner, float outer);
+
+    /// The time a ring takes to form, in milliseconds: the duration of the row's marker spell (3000); 0 when the spell
+    /// store lacks it. Defined in Ring.cpp.
+    int32 RingFormingMs(RingSpells const& spells);
+
+    /// Whether a ring whose mage's aura has run `elapsedMs` has formed: at or past `formingMs`; never for a forming
+    /// time of 0 or less. Defined in Ring.cpp.
+    bool RingFormed(int32 elapsedMs, int32 formingMs);
+
+    /// The band's outer edge, in yards: the radius of the summon effect of the row's cast spell (8); 0 when the spell
+    /// store lacks it. Defined in Ring.cpp.
+    float RingOuterRadius(RingSpells const& spells);
+
+    /// What a ring does with a unit its freeze's area found.
+    enum RingTake
+    {
+        RING_SKIP,                                  ///< the unit is left out of the freeze
+        RING_FREEZE,                                ///< the freeze is cast at the unit
+        RING_SHOW_IMMUNE                            ///< the freeze is cast at the unit, which is immune to it, so that
+                                                    ///< it shows Immune; the ring then marks it as shown
+    };
+
+    /// What a ring does with a unit: RING_SKIP when it stands outside the band (`inBand` false) or holds the freeze or
+    /// the marker (`held`); for a unit immune to the freeze, RING_SHOW_IMMUNE while the ring has not shown it Immune
+    /// (`shownImmune` false) and RING_SKIP after; RING_FREEZE otherwise. Defined in Ring.cpp.
+    RingTake RingTakeFor(bool inBand, bool held, bool immune, bool shownImmune);
+
+    /// Whether a freeze removed in `mode` leaves the marker on its unit: only a dispel (AURA_REMOVE_BY_DISPEL).
+    /// Defined in Ring.cpp.
+    bool RingMarkerOnRemove(AuraRemoveMode mode);
 
     /// The spells and the creature an orb is made of, by the spell that created it.
     struct OrbSpells
