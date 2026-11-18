@@ -430,7 +430,7 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
         DoneTotalMod *= Spells::LowHealthDamageMultiplier(*this, *pVictim, *spellProto);
     }
 
-    DamageDoneContext damageDoneCtx(*this, *pVictim, *spellProto, DoneTotalMod);
+    DamageDoneContext damageDoneCtx(*this, *pVictim, *spellProto, damagetype, DoneTotalMod);
     SpellHandlerRegistry::Game().Dispatch<DamageDoneHook>(spellProto->ID, damageDoneCtx);
 
     SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
@@ -725,9 +725,11 @@ int32 Unit::SpellBaseDamageBonusTaken(SpellSchoolMask schoolMask)
  * @param spellProto The spell entry.
  * @param schoolMask The spell school mask.
  * @param attackType The associated attack type.
+ * @param damageType SPELL_DIRECT_DAMAGE for a hit, DOT for a periodic tick, HEAL for a heal.
  * @return True if the spell crits; otherwise, false.
  */
-bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolMask schoolMask, WeaponAttackType attackType)
+bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolMask schoolMask,
+                       WeaponAttackType attackType, DamageEffectType damageType)
 {
     // not critting spell
     if (spellProto->HasAttribute(SPELL_ATTR_EX2_CANT_CRIT))
@@ -806,7 +808,7 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
                     }
                 }
 
-                CritChanceContext critChanceCtx(*this, *pVictim, *spellProto, crit_chance);
+                CritChanceContext critChanceCtx(*this, *pVictim, *spellProto, damageType, crit_chance);
                 SpellHandlerRegistry::Game().Dispatch<CritChanceHook>(spellProto->ID, critChanceCtx);
 
                 SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();

@@ -503,15 +503,16 @@ namespace
     }
 }
 
-TEST(SpellScriptHooks_TheFifteenKeysAre100To114AboveEveryLegacySite)
+TEST(SpellScriptHooks_TheSixteenKeysAre100To115AboveEveryLegacySite)
 {
     uint32 const keys[] =
     {
         CheckCastHook::Key, SelectTargetsHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key,
         AuraAmountHook::Key, AuraApplyHook::Key, AuraRemoveHook::Key, PeriodicTickHook::Key, CheckProcHook::Key,
         OnProcHook::Key, DamageDoneHook::Key, CritChanceHook::Key, DummyAuraHook::Key, AfterCastHook::Key,
+        LaunchHook::Key,
     };
-    CHECK_EQ(sizeof(keys) / sizeof(keys[0]), std::size_t(15));
+    CHECK_EQ(sizeof(keys) / sizeof(keys[0]), std::size_t(16));
     for (std::size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
     {
         CHECK_EQ(keys[i], uint32(100 + i));
@@ -519,9 +520,11 @@ TEST(SpellScriptHooks_TheFifteenKeysAre100To114AboveEveryLegacySite)
         CHECK(keys[i] > uint32(SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_DRUID));
     }
     CHECK(AfterCastHook::Key > DummyAuraHook::Key);
+    CHECK(LaunchHook::Key > AfterCastHook::Key);
 
     // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
-    // check-proc, proc, damage-done, crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast and after-hit hooks.
+    // check-proc, proc, damage-done, crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast, launch
+    // and after-hit hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
@@ -531,8 +534,35 @@ TEST(SpellScriptHooks_TheFifteenKeysAre100To114AboveEveryLegacySite)
     CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(CheckProcHook::Key) +
              game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key) + game.CountAt(CritChanceHook::Key) +
              game.CountAt(DummyAuraHook::Key) + game.CountAt(AuraApplyHook::Key) + game.CountAt(AuraRemoveHook::Key) +
-             game.CountAt(DummyEffectHook::Key) + game.CountAt(AfterCastHook::Key) + game.CountAt(AfterHitHook::Key),
+             game.CountAt(DummyEffectHook::Key) + game.CountAt(AfterCastHook::Key) + game.CountAt(LaunchHook::Key) +
+             game.CountAt(AfterHitHook::Key),
              game.Count());
+}
+
+TEST(SpellScriptHooks_TheLaunchHookCarriesTheCasterAndTheSpell)
+{
+    BareCreature caster;
+    SpellEntry const& spell = HookSpell();
+
+    // The body notes the caster it was given and takes nothing else; a fresh registry reaches it for its spell and
+    // misses another.
+    SpellHandlerRegistry registry;
+    CHECK(registry.Register<LaunchHook>(kHookSpell, [](LaunchContext& ctx)
+    {
+        s_seen.castTarget = &ctx.caster;
+        s_seen.amount = ctx.spell.ID;
+        return SpellHandlerOutcome<void>::Continue();
+    }));
+    CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(1));
+
+    Forget();
+    LaunchContext launch(caster, spell);
+    CHECK(registry.Dispatch<LaunchHook>(kHookSpell, launch).IsContinue());
+    CHECK(s_seen.castTarget == &caster);
+    CHECK_EQ(s_seen.amount, kHookSpell);
+    Forget();
+    CHECK(registry.Dispatch<LaunchHook>(kOtherSpell, launch).IsMiss());
+    CHECK(s_seen.castTarget == NULL);
 }
 
 TEST(SpellScriptHooks_TheAfterCastHookCarriesTheCastsCountAndPoint)
@@ -646,27 +676,37 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
     CHECK_EQ(s_seen.absorbed, uint32(300));
     CHECK(s_seen.heal);
 
+    // The damage-done and crit-chance bodies read the damage type their context carries: a periodic effect's amount
+    // or tick (DOT) and a hit (SPELL_DIRECT_DAMAGE) each get their own change.
     CHECK(registry.Register<DamageDoneHook>(kHookSpell, [](DamageDoneContext& ctx)
     {
-        ctx.doneTotalMod *= 2.0f;
+        ctx.doneTotalMod *= ctx.damageType == DOT ? 2.0f : 4.0f;
         return SpellHandlerOutcome<void>::Continue();
     }));
     float doneTotalMod = 1.5f;
-    DamageDoneContext damageDone(caster, target, spell, doneTotalMod);
+    DamageDoneContext damageDone(caster, target, spell, DOT, doneTotalMod);
     CHECK(registry.Dispatch<DamageDoneHook>(kHookSpell, damageDone).IsContinue());
     CHECK(doneTotalMod == 3.0f);
+    float hitMod = 1.0f;
+    DamageDoneContext hitDone(caster, target, spell, SPELL_DIRECT_DAMAGE, hitMod);
+    CHECK(registry.Dispatch<DamageDoneHook>(kHookSpell, hitDone).IsContinue());
+    CHECK(hitMod == 4.0f);
 
     CHECK(registry.Register<CritChanceHook>(kHookSpell, [](CritChanceContext& ctx)
     {
-        ctx.critChance += 50.0f;
+        ctx.critChance += ctx.damageType == DOT ? 50.0f : 10.0f;
         return SpellHandlerOutcome<void>::Continue();
     }));
     float critChance = 5.0f;
-    CritChanceContext critChanceCtx(caster, target, spell, critChance);
+    CritChanceContext critChanceCtx(caster, target, spell, DOT, critChance);
     CHECK(registry.Dispatch<CritChanceHook>(kHookSpell, critChanceCtx).IsContinue());
     CHECK(critChance == 55.0f);
     CHECK(registry.Dispatch<CritChanceHook>(kOtherSpell, critChanceCtx).IsMiss());
     CHECK(critChance == 55.0f);
+    float hitChance = 5.0f;
+    CritChanceContext hitCrit(caster, target, spell, SPELL_DIRECT_DAMAGE, hitChance);
+    CHECK(registry.Dispatch<CritChanceHook>(kHookSpell, hitCrit).IsContinue());
+    CHECK(hitChance == 15.0f);
 }
 
 TEST(SpellScriptHooks_ADummyEffectContextCarriesTheCastsTargetAndItsWord)
@@ -1190,13 +1230,15 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
-    // The check-proc hook holds Impact's two ranks', Clearcasting's and Arcane Blast's buff's, the proc hook the
-    // mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the damage-done hook the 22 spells
+    // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's and Fingers of Frost's
+    // three, the proc hook the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the
+    // damage-done hook the 22 spells
     // Frostburn's class mask covers, the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living
     // Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s and Arcane
     // Missiles', the aura-remove hook Hot Streak's buff's, Mage Ward's, Pyromaniac's ten and Arcane Missiles!'s, the
     // dummy-effect hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, the after-cast hook Blast
-    // Wave's and the after-hit hook Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
+    // Wave's, the launch hook Ice Lance's, Deep Freeze's and Frostfire Bolt's, and the after-hit hook Frostfire Bolt's
+    // (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
@@ -1207,7 +1249,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(4));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(7));
     CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(21));
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(22));
@@ -1217,8 +1259,9 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(13));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(3));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1336));
+    CHECK_EQ(game.Count(), std::size_t(1340));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 

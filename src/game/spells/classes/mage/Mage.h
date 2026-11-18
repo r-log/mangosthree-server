@@ -45,10 +45,13 @@
  * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
  * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance),
  * the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick) and Glyph of Frostfire's
- * (FrostfireGlyphTick). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts and its leaves
- * (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead,
- * OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows through one
- * function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers, ShatterFactor,
+ * ShatterCritChance, ShatterCovers and FrostburnCovers) and Fingers of Frost's (RefusesChillSource,
+ * UseFingersCharge and IceLanceMultiplier). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI,
+ * its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor,
+ * OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file
+ * registers its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h,
+ * and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -332,11 +335,29 @@ namespace Mage
         FINGERS                                     ///< the target does not, and the spell counts it as frozen all the same
     };
 
-    /// How `spell`, cast by `caster` at `target`, counts the target: REALLY_FROZEN when the target holds the frozen aura
-    /// state; else FINGERS for Deep Freeze's damage (71757, cast only at a target a stun cannot hold), and for Ice
-    /// Lance (30455) and Deep Freeze (44572) while the caster holds Fingers of Frost (44544); else NOT_FROZEN. Defined
-    /// in Frost.cpp.
-    FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell);
+    /// How `spell`, cast by `caster` at `target`, counts the target for damage of `damageType`: REALLY_FROZEN when the
+    /// target holds the frozen aura state; else, for a hit, FINGERS for Deep Freeze's damage (71757, cast only at a
+    /// target a stun cannot hold) and for a spell that uses a Fingers of Frost charge (UsesFingers); else NOT_FROZEN,
+    /// and always NOT_FROZEN for a periodic effect (DOT) at a target that is not frozen. Defined in Frost.cpp.
+    FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
+                              DamageEffectType damageType);
+
+    /// Whether `spell`, cast by `caster`, uses a Fingers of Frost charge: the caster holds Fingers of Frost (44544) and
+    /// the spell is Ice Lance (30455), Deep Freeze (44572), or a Frostfire Bolt (44614) cast while Brain Freeze's buff
+    /// (57761) makes it instant. The target's state plays no part. Defined in Frost.cpp.
+    bool UsesFingers(Unit const& caster, SpellEntry const& spell);
+
+    /// Whether Fingers of Frost refuses a proc of `procSpellId` although its class bit passes the talent's rows: Frost
+    /// Armor's Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in Frost.cpp.
+    bool RefusesChillSource(uint32 procSpellId);
+
+    /// Takes one charge of Fingers of Frost off `mage`: one stack fewer, the buff removed at none. Answers whether he
+    /// held the buff. Defined in Frost.cpp.
+    bool UseFingersCharge(Unit& mage);
+
+    /// Ice Lance's done multiplier: its effect-1 percent `doubledPercent` (100: double damage) at a target it counts as
+    /// frozen, times `fingersPercent` more when it uses a Fingers of Frost charge; 1 for neither. Defined in Frost.cpp.
+    float IceLanceMultiplier(bool countsAsFrozen, bool fingersUp, int32 doubledPercent, int32 fingersPercent);
 
     /// Shatter's factor on the crit chance of a spell that counts its target as frozen: 3 for a caster who knows the
     /// second rank, 2 for the first, 1 for neither. Defined in Frost.cpp.

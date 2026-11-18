@@ -70,6 +70,19 @@
 
 #include <vector>
 
+namespace
+{
+    /// The script of a cast as it goes off, when its spell has a row at the launch hook.
+    void DispatchLaunch(Unit& caster, SpellEntry const& spell)
+    {
+        if (SpellHandlerRegistry::Game().Find<LaunchHook>(spell.ID))
+        {
+            LaunchContext launch(caster, spell);
+            SpellHandlerRegistry::Game().Dispatch<LaunchHook>(spell.ID, launch);
+        }
+    }
+}
+
 /**
  * @brief Prepares the spell cast, validates conditions, and starts cast processing.
  *
@@ -424,11 +437,6 @@ void Spell::cast(bool skipCheck)
                     m_caster->RemoveSpellsCausingAura(SPELL_AURA_HASTE_SPELLS);
                 }
             }
-            // Fingers of Frost
-            else if (m_spellInfo->ID == 44544)
-            {
-                AddPrecastSpell(74396);                     // Fingers of Frost
-            }
             break;
         }
         case SPELLFAMILY_WARRIOR:
@@ -667,6 +675,8 @@ void Spell::cast(bool skipCheck)
         m_spellState = SPELL_STATE_DELAYED;
         SetDelayStart(0);
 
+        DispatchLaunch(*m_caster, *m_spellInfo);
+
         // on spell cast end proc,
         // critical hit related part is currently done on hit so proc there,
         // 0 damage since any damage based procs should be on hit
@@ -675,6 +685,8 @@ void Spell::cast(bool skipCheck)
     }
     else
     {
+        DispatchLaunch(*m_caster, *m_spellInfo);
+
         m_caster->ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
 
         // Immediate spell, no big deal

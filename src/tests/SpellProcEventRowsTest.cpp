@@ -23,12 +23,12 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The Fire talents' spell_proc_event rows against the proc gate, with the spells their 4.3.4 texts name and the ones
-/// they leave out. A row is built by hand with the values the world database holds for it. The gate is the two checks
-/// a proc event meets before an aura's effect handles it: SpellMgr::IsSpellProcEventCanTriggeredBy (the proc flags,
-/// the school, the family and the kind of hit) and, for an effect whose row names a family mask, the proc spell's
-/// class mask against that mask (SpellEntry::IsFitToFamilyMask, as Unit::ProcDamageAndSpellFor tests it). The proc
-/// flags are the spell's own from Spell.dbc where the row holds none, as Unit::IsTriggeredAtSpellProcEvent reads
+/// The Fire and Frost talents' spell_proc_event rows against the proc gate, with the spells their 4.3.4 texts name and
+/// the ones they leave out. A row is built by hand with the values the world database holds for it. The gate is the two
+/// checks a proc event meets before an aura's effect handles it: SpellMgr::IsSpellProcEventCanTriggeredBy (the proc
+/// flags, the school, the family and the kind of hit) and, for an effect whose row names a family mask, the proc
+/// spell's class mask against that mask (SpellEntry::IsFitToFamilyMask, as Unit::ProcDamageAndSpellFor tests it). The
+/// proc flags are the spell's own from Spell.dbc where the row holds none, as Unit::IsTriggeredAtSpellProcEvent reads
 /// them.
 ///
 /// The proc spells are Spell.dbc rows with their 4.3.4 school and the class mask of their SpellClassOptions.dbc row,
@@ -45,7 +45,7 @@
 namespace
 {
     /// The proc flag every row below answers: a harmful spell of the aura's owner landed (Spell.dbc's 0x10000 for
-    /// 44445, 11095, 29074, 64343 and 79683).
+    /// 44445, 11095, 29074, 64343, 79683, 44543, 44546, 44561 and 11175).
     uint32 const kHarmfulSpellLanded = PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT;
 
     /// One proc spell: its id, its school mask and its class family and mask, as the 4.3.4 client data holds them.
@@ -71,9 +71,26 @@ namespace
     ProcSpell const kArcaneBarrage = { 44425, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000800000000000), 0 };
     ProcSpell const kStarfire = { 2912, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_DRUID, UI64LIT(0x0000000000000004), 0 };
     ProcSpell const kPolymorph = { 118, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000001000000), 0 };
+    ProcSpell const kFrostbolt = { 116, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000020), 0 };
+    ProcSpell const kConeOfCold = { 120, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000200), 0 };
+    ProcSpell const kBlizzardChill = { 12484, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000100000),
+                                       0 };
+    ProcSpell const kFrostArmorChill = { 7321, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000100000),
+                                         0 };
+    ProcSpell const kOrbHitRankTwo = { 84721, SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0,
+                                       0x00004080 };
+    ProcSpell const kOrbSummon = { 84714, SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0,
+                                   0x00000080 };
+    ProcSpell const kIceLance = { 30455, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000020000), 0 };
+    ProcSpell const kFrostNova = { 122, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000040), 0 };
+    ProcSpell const kWaterbolt = { 31707, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0, 0 };
+    ProcSpell const kBlizzardTick = { 42208, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000080080),
+                                      0 };
 
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
-                                  kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph };
+                                  kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
+                                  kConeOfCold, kBlizzardChill, kFrostArmorChill, kOrbHitRankTwo, kOrbSummon, kIceLance,
+                                  kFrostNova, kWaterbolt, kBlizzardTick };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -114,15 +131,17 @@ namespace
         return NULL;
     }
 
-    /// A spell_proc_event row: school mask, family, the same mask for each of the three effects, proc flags, procEx.
-    SpellProcEventEntry ProcRow(uint32 schoolMask, uint32 family, uint64 maskAB, uint32 procFlags, uint32 procEx)
+    /// A spell_proc_event row: school mask, family, the same mask for each of the three effects (its A and B words,
+    /// then its C word), proc flags, procEx.
+    SpellProcEventEntry ProcRow(uint32 schoolMask, uint32 family, uint64 maskAB, uint32 procFlags, uint32 procEx,
+                                uint32 maskC = 0)
     {
         SpellProcEventEntry row;
         row.schoolMask = schoolMask;
         row.spellFamilyName = family;
         for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
         {
-            row.spellFamilyMask[i] = ClassFamilyMask(maskAB);
+            row.spellFamilyMask[i] = ClassFamilyMask(maskAB, maskC);
         }
         row.procFlags = procFlags;
         row.procEx = procEx;
@@ -144,6 +163,18 @@ namespace
     /// Offensive State 79684 and Impact 11103: family 3, no mask, a hit or a crit with or without damage.
     SpellProcEventEntry const kOffensiveState = ProcRow(0, SPELLFAMILY_MAGE, 0, 0,
                                                         PROC_EX_HIT_WITHOUT_DAMAGE | PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    /// Fingers of Frost 44543 and Brain Freeze 44546: family 3, A 0x100220 (Frostbolt, Cone of Cold, Chilled), B 0x1000
+    /// (Frostfire Bolt, Fingers of Frost only), C 0x4080 (the Frostfire Orb's hits), the end of a cast.
+    SpellProcEventEntry const kFingersOfFrost = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000100000100220), 0,
+                                                        PROC_EX_CAST_END, 0x00004080);
+    SpellProcEventEntry const kBrainFreeze = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000100220), 0,
+                                                     PROC_EX_CAST_END, 0x00004080);
+    /// Enduring Winter 44561: Frostbolt's hit. Permafrost 11175: the hits of the spells its dummy's mask names.
+    SpellProcEventEntry const kEnduringWinter = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000020), 0,
+                                                        PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    SpellProcEventEntry const kPermafrost = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000100000100220), 0,
+                                                    PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+
 
     /// The proc flags the aura answers: the row's, or Spell.dbc's when the row holds none.
     uint32 EventFlags(SpellProcEventEntry const* row, uint32 spellProcFlags)
@@ -171,6 +202,12 @@ namespace
             }
         }
         return fits;
+    }
+
+    /// Whether the row takes `spell` at the hit kind `procEx`: its mask and the gate both.
+    bool Takes(SpellProcEventEntry const& row, ProcSpell const& spell, uint32 procEx)
+    {
+        return FitsMask(row, spell) && PassesGate(row, spell, procEx);
     }
 }
 
@@ -291,4 +328,63 @@ TEST(SpellProcEventRows_OffensiveStatesRowPassesEveryMageHitAndNoMissThroughTheG
     CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_REFLECT));
     CHECK(!PassesGate(kOffensiveState, kFireball, PROC_EX_CAST_END));
     CHECK(!PassesGate(kOffensiveState, kStarfire, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_FingersOfFrostRollsAtTheCastOfItsChillsAndNeverAtTheirHits)
+{
+    ProcSpell const chills[] = { kFrostbolt, kConeOfCold, kBlizzardChill, kFrostfireBolt, kOrbHitRankTwo };
+    for (ProcSpell const& spell : chills)
+    {
+        CHECK(Takes(kFingersOfFrost, spell, PROC_EX_CAST_END));
+        CHECK(!Takes(kFingersOfFrost, spell, PROC_EX_NORMAL_HIT));
+        CHECK(!Takes(kFingersOfFrost, spell, PROC_EX_CRITICAL_HIT));
+    }
+    for (ProcSpell const& spell : { kFireBlast, kIceLance, kFrostNova, kWaterbolt, kArcaneBlast })
+    {
+        CHECK(!Takes(kFingersOfFrost, spell, PROC_EX_CAST_END));
+    }
+
+    // Frost Armor's Chilled shares Blizzard's Chilled's bit, so the row takes it; Fingers of Frost's script refuses it
+    // by id (MageScriptsTest).
+    CHECK(Takes(kFingersOfFrost, kFrostArmorChill, PROC_EX_CAST_END));
+
+    // The Frostfire Orb's summon shares the orb hit's C bit 0x80; its cast is helpful, so its cast end carries the
+    // helpful-spell flag, which the talent's proc flags do not hold.
+    CHECK(FitsMask(kFingersOfFrost, kOrbSummon));
+    uint32 const talentFlags = EventFlags(&kFingersOfFrost, kHarmfulSpellLanded);
+    CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(&kFingersOfFrost, talentFlags, Row(kOrbSummon),
+                                                    PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_CAST_END));
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kFingersOfFrost, talentFlags, Row(kOrbSummon), kHarmfulSpellLanded,
+                                                   PROC_EX_CAST_END));
+}
+
+TEST(SpellProcEventRows_BrainFreezeRollsAtTheCastOfTheSameChillsLessFrostfireBolt)
+{
+    ProcSpell const chills[] = { kFrostbolt, kConeOfCold, kBlizzardChill, kOrbHitRankTwo };
+    for (ProcSpell const& spell : chills)
+    {
+        CHECK(Takes(kBrainFreeze, spell, PROC_EX_CAST_END));
+        CHECK(!Takes(kBrainFreeze, spell, PROC_EX_NORMAL_HIT));
+    }
+    for (ProcSpell const& spell : { kFrostfireBolt, kFireBlast, kIceLance, kFrostNova, kWaterbolt, kArcaneBlast })
+    {
+        CHECK(!Takes(kBrainFreeze, spell, PROC_EX_CAST_END));
+    }
+}
+
+TEST(SpellProcEventRows_EnduringWinterTakesFrostboltsHitAndPermafrostTheHitsOfItsChills)
+{
+    CHECK(Takes(kEnduringWinter, kFrostbolt, PROC_EX_NORMAL_HIT));
+    CHECK(Takes(kEnduringWinter, kFrostbolt, PROC_EX_CRITICAL_HIT));
+    CHECK(!Takes(kEnduringWinter, kFrostbolt, PROC_EX_CAST_END));
+    CHECK(!Takes(kEnduringWinter, kConeOfCold, PROC_EX_NORMAL_HIT));
+    CHECK(!Takes(kEnduringWinter, kIceLance, PROC_EX_NORMAL_HIT));
+
+    for (ProcSpell const& spell : { kFrostbolt, kConeOfCold, kFrostfireBolt })
+    {
+        CHECK(Takes(kPermafrost, spell, PROC_EX_NORMAL_HIT));
+        CHECK(!Takes(kPermafrost, spell, PROC_EX_CAST_END));
+    }
+    CHECK(!Takes(kPermafrost, kBlizzardTick, PROC_EX_NORMAL_HIT));
+    CHECK(!Takes(kPermafrost, kArcaneBlast, PROC_EX_NORMAL_HIT));
 }
