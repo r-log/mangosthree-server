@@ -274,6 +274,15 @@ namespace Mage
     /// without the buff, AURASTATE_KEEP otherwise. Defined in Arcane.cpp.
     AurastateStep ArcaneMissilesAurastateStep(bool holdsBuff, bool holdsAurastate);
 
+    /// Whether an event ends Arcane Blast's buff (36032) on the mage: the end of a cast (`castEnd`) of his own, not a
+    /// triggered one (`ownCast`), of a spell whose school mask `schoolMask` holds Arcane and that deals damage
+    /// (`dealsDamage`), other than Arcane Blast (30451) and Arcane Explosion (1449). Defined in Arcane.cpp.
+    bool ArcaneBlastBuffEnds(uint32 spellId, uint32 schoolMask, bool dealsDamage, bool castEnd, bool ownCast);
+
+    /// Whether `spell` deals damage (Spells::DealsDamage), or a spell one of its effects names as its trigger spell
+    /// does, as Arcane Missiles' missile (7268) does for the channel (5143); one level down. Defined in Arcane.cpp.
+    bool DealsOrTriggersDamage(SpellEntry const& spell);
+
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
     /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.
