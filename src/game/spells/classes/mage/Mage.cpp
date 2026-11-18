@@ -208,11 +208,16 @@ namespace
 
     /// 79684: Offensive State: a mage without Hot Streak (44445) rolls the aura's percent after each spell hit the
     /// proc accepts, and on success casts Arcane Missiles! (79683) on himself; a mage with Hot Streak never does.
+    /// Arcane Missiles and its missiles never roll (Mage::OffensiveStateRefuses).
     ProcOutcome OffensiveStateProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
         {
             return ProcOutcome::Continue();
+        }
+        if (ctx.procSpell && Mage::OffensiveStateRefuses(ctx.procSpell->ID))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
         }
         if (ctx.caster.HasAura(HOT_STREAK_TALENT))
         {
@@ -276,6 +281,13 @@ int32 Mage::InvisibilityThreatPercent(uint32 spellId)
     constexpr uint32 INVISIBILITY_FADE = 66;
     constexpr int32 FADE_TICK_PERCENT = -10;
     return spellId == INVISIBILITY_FADE ? FADE_TICK_PERCENT : 0;
+}
+
+bool Mage::OffensiveStateRefuses(uint32 procSpellId)
+{
+    constexpr uint32 ARCANE_MISSILES = 5143;
+    constexpr uint32 ARCANE_MISSILES_MISSILE = 7268;
+    return procSpellId == ARCANE_MISSILES || procSpellId == ARCANE_MISSILES_MISSILE;
 }
 
 SpellAuraProcResult Mage::CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spellId, int32 const* basePoints)
