@@ -77,13 +77,18 @@ struct SpellEntry;
  *   crit, its absorb and resist), and `Aura::PeriodicDummyTick`, before its family switch. Return() ends the tick with
  *   nothing dealt. A body may change the amount; a body that removes the ticking aura must Return().
  * - CheckProc: `Unit::ProcDamageAndSpellFor`, after the proc event accepted a holder. Return(false) drops the holder
- *   from this proc. A body changes nothing: the owner's holders are being walked, so it must not cast, nor add or
- *   remove an aura. Its units are const.
+ *   from this proc. Return(true) keeps it, and for a holder with no spell_proc_event row its effects then skip
+ *   Aura::CanProcFrom (their class mask and the hit's kind, which refuses a hit that dealt nothing), as the core's
+ *   mastery procs do; a cast end still procs none of them. Continue() keeps it and leaves those checks to run. A body
+ *   changes nothing: the owner's holders are being walked, so it must not cast, nor add or remove an aura. Its units
+ *   are const.
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
  *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges
  *   and set the script words.
- * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch. A body changes only the done multiplier. Its
- *   damage type tells a hit (SPELL_DIRECT_DAMAGE) from the amount of a periodic effect (DOT).
+ * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch: for the spell, then once for each
+ *   SPELL_AURA_DUMMY aura of the caster, keyed by that aura's spell, so a talent's row changes the damage of the
+ *   spells it covers. A body changes only the done multiplier. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from
+ *   the amount of a periodic effect (DOT).
  * - CritChance: `Unit::IsSpellCrit`, for a magic spell with a victim, before its family switch. A body changes only
  *   the crit chance. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from a periodic tick (DOT) and a heal (HEAL).
  * - DummyAura: `Aura::HandleAuraDummy`, after its check for a real apply or un-apply and before its family switches,
@@ -646,7 +651,8 @@ struct PeriodicTickHook
     typedef PeriodicTickContext Context;
 };
 
-/// `Unit::ProcDamageAndSpellFor`, after the event accepted a holder. Return(false) drops the holder from the proc.
+/// `Unit::ProcDamageAndSpellFor`, after the event accepted a holder. Return(false) drops the holder from the proc;
+/// Return(true) keeps it and lets the effects of a holder with no proc row skip their class-mask and hit-kind checks.
 struct CheckProcHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_CHECK_PROC;
@@ -662,7 +668,8 @@ struct OnProcHook
     typedef OnProcContext Context;
 };
 
-/// `Unit::SpellDamageBonusDone`, before its family switch. The outcome is not read.
+/// `Unit::SpellDamageBonusDone`, before its family switch, for the spell and for each dummy aura of the caster. The
+/// outcome is not read.
 struct DamageDoneHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_DAMAGE_DONE;

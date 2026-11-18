@@ -160,12 +160,102 @@ namespace
         return SpellHandlerOutcome<bool>::Return(false);
     }
 
+    uint32 const TORMENT_THE_WEAK[] = { 29447, 55339, 55340 };
+    uint32 const SLOW = 31589;
+
+    /// 29447, 55339, 55340: Torment the Weak, run for the rank the caster holds: his mage spells of the Arcane school
+    /// deal the rank's percent more damage to a target that is snared or slowed (Mage::TormentTheWeakMultiplier,
+    /// Mage::IsSnaredOrSlowed).
+    SpellHandlerOutcome<void> TormentTheWeakDamageDone(DamageDoneContext& ctx)
+    {
+        int32 percent = 0;
+        for (uint32 rank : TORMENT_THE_WEAK)
+        {
+            if (SpellAuraHolder* holder = ctx.caster.GetSpellAuraHolder(rank))
+            {
+                percent = AuraHandle(*holder).Amount(EFFECT_INDEX_0);
+            }
+        }
+        uint32 const family = ctx.spell.GetSpellFamilyName();
+        bool const slowed = Mage::IsSnaredOrSlowed(ctx.victim);
+        ctx.doneTotalMod *= Mage::TormentTheWeakMultiplier(percent, family, ctx.spell.SchoolMask, slowed);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 86181, 86209: Nether Vortex: after the talent's own proc chance, a hit of the mage's Arcane Blast that deals
+    /// damage casts Slow (31589) at its target, triggered, so even beyond Slow's range, while none of his Slow is on
+    /// any unit (Mage::NetherVortexSlows, Mage::HasSlowOut). Every other event casts nothing.
+    ProcOutcome NetherVortexProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        uint32 const procSpellId = ctx.procSpell ? ctx.procSpell->ID : 0;
+        if (!ctx.victim || ctx.victim == &ctx.caster ||
+            !Mage::NetherVortexSlows(procSpellId, ctx.procEx, ctx.damage, Mage::HasSlowOut(ctx.caster)))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
+        }
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, *ctx.victim, SLOW));
+    }
+
+    uint32 const COUNTERSPELL = 2139;
+
+    /// 84722, 84723: Invocation: answers true for a hit of the mage's Counterspell that interrupted a spell its target
+    /// was casting (Mage::InvocationGrants), so the engine's proc casts the buff (87098) at the rank's value though the
+    /// hit dealt no damage; every other event is dropped.
+    SpellHandlerOutcome<bool> InvocationCheckProc(CheckProcContext& ctx)
+    {
+        uint32 const procSpellId = ctx.procSpell ? ctx.procSpell->ID : 0;
+        return SpellHandlerOutcome<bool>::Return(Mage::InvocationGrants(procSpellId, ctx.procEx));
+    }
+
+    uint32 const IMPROVED_POLYMORPH_RANK_ONE = 11210;
+    uint32 const IMPROVED_POLYMORPH_RANK_TWO = 12592;
+    uint32 const IMPROVED_POLYMORPH_STUN_RANK_ONE = 83046;
+    uint32 const IMPROVED_POLYMORPH_STUN_RANK_TWO = 83047;
+    uint32 const IMPROVED_POLYMORPH_MARKER = 87515;
+
+    /// 118, 28271, 28272, 61025, 61305, 61721, 61780: Polymorph, each form a mage casts: when damage broke it and its
+    /// caster knows Improved Polymorph, the target casts the rank's stun and Improved Polymorph Marker (87515) at
+    /// itself for the Polymorph's caster, unless it holds the marker (Mage::ImprovedPolymorphStun). The removal's
+    /// boosts run.
+    SpellHandlerOutcome<void> PolymorphRemove(AuraRemoveContext& ctx)
+    {
+        bool const knowsRankOne = ctx.caster && ctx.caster->HasAura(IMPROVED_POLYMORPH_RANK_ONE);
+        bool const knowsRankTwo = ctx.caster && ctx.caster->HasAura(IMPROVED_POLYMORPH_RANK_TWO);
+        uint32 const stun = Mage::ImprovedPolymorphStun(ctx.mode, knowsRankOne, knowsRankTwo,
+                                                        ctx.target.HasAura(IMPROVED_POLYMORPH_MARKER));
+        if (stun)
+        {
+            ctx.CastTriggered(ctx.target, stun);
+            ctx.CastTriggered(ctx.target, IMPROVED_POLYMORPH_MARKER);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// The aura types whose negative amount slows the unit they are on, for Torment the Weak: its movement, its
+    /// attacks or its casts.
+    AuraType const SLOW_AURA_TYPES[] =
+    {
+        SPELL_AURA_MOD_DECREASE_SPEED,
+        SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE,
+        SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED,
+        SPELL_AURA_MOD_MELEE_ATTACK_SPEED, SPELL_AURA_MOD_RANGED_ATTACK_SPEED,
+        SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_HASTE_SPELLS,
+        SPELL_AURA_HASTE_ALL
+    };
+
     uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
     uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
     uint32 const MANA_SHIELD[] = { 1463 };
     uint32 const ARCANE_MISSILES_BUFFS[] = { ARCANE_MISSILES_BUFF };
     uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
     uint32 const ARCANE_BLAST_BUFF[] = { 36032 };
+    uint32 const NETHER_VORTEX[] = { 86181, 86209 };
+    uint32 const INVOCATION[] = { 84722, 84723 };
+    uint32 const POLYMORPH[] = { 118, 28271, 28272, 61025, 61305, 61721, 61780 };
 }
 
 Mage::AurastateStep Mage::ArcaneMissilesAurastateStep(bool holdsBuff, bool holdsAurastate)
@@ -205,6 +295,81 @@ bool Mage::DealsOrTriggersDamage(SpellEntry const& spell)
     return false;
 }
 
+bool Mage::CountsAsSlow(uint32 auraType, int32 amount)
+{
+    if (amount >= 0)
+    {
+        return false;
+    }
+    for (AuraType type : SLOW_AURA_TYPES)
+    {
+        if (auraType == uint32(type))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Mage::IsSnaredOrSlowed(Unit const& unit)
+{
+    for (AuraType type : SLOW_AURA_TYPES)
+    {
+        if (CountsAsSlow(type, unit.GetMaxNegativeAuraModifier(type)))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+float Mage::TormentTheWeakMultiplier(int32 percent, uint32 spellFamily, uint32 schoolMask, bool targetSlowed)
+{
+    if (percent <= 0 || !targetSlowed || spellFamily != SPELLFAMILY_MAGE ||
+        (schoolMask & SPELL_SCHOOL_MASK_ARCANE) == 0)
+    {
+        return 1.0f;
+    }
+    return (100.0f + percent) / 100.0f;
+}
+
+bool Mage::HasSlowOut(Unit const& mage)
+{
+    Unit::TrackedAuraTargetMap const& tracked = mage.GetTrackedAuraTargets(TRACK_AURA_TYPE_SINGLE_TARGET);
+    for (Unit::TrackedAuraTargetMap::const_iterator i = tracked.begin(); i != tracked.end(); ++i)
+    {
+        if (i->first && i->first->ID == SLOW)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Mage::NetherVortexSlows(uint32 procSpellId, uint32 procEx, uint32 damage, bool slowOut)
+{
+    return procSpellId == ARCANE_BLAST && (procEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT)) != 0 && damage > 0 &&
+           !slowOut;
+}
+
+bool Mage::InvocationGrants(uint32 procSpellId, uint32 procEx)
+{
+    return procSpellId == COUNTERSPELL && SpellMgr::InterruptedACast(procEx);
+}
+
+uint32 Mage::ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo, bool targetMarked)
+{
+    if (mode != AURA_REMOVE_BY_DAMAGE || targetMarked)
+    {
+        return 0;
+    }
+    if (knowsRankTwo)
+    {
+        return IMPROVED_POLYMORPH_STUN_RANK_TWO;
+    }
+    return knowsRankOne ? IMPROVED_POLYMORPH_STUN_RANK_ONE : 0;
+}
+
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
 {
     uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
@@ -214,5 +379,9 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffRemove);
     rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
     rows += RegisterRanks<CheckProcHook>(registry, ARCANE_BLAST_BUFF, &ArcaneBlastBuffCheckProc);
+    rows += RegisterRanks<DamageDoneHook>(registry, TORMENT_THE_WEAK, &TormentTheWeakDamageDone);
+    rows += RegisterRanks<OnProcHook>(registry, NETHER_VORTEX, &NetherVortexProc);
+    rows += RegisterRanks<CheckProcHook>(registry, INVOCATION, &InvocationCheckProc);
+    rows += RegisterRanks<AuraRemoveHook>(registry, POLYMORPH, &PolymorphRemove);
     return rows;
 }

@@ -24,12 +24,13 @@
  */
 
 /// The Fire and Frost talents' spell_proc_event rows against the proc gate, with the spells their 4.3.4 texts name and
-/// the ones they leave out. A row is built by hand with the values the world database holds for it. The gate is the two
-/// checks a proc event meets before an aura's effect handles it: SpellMgr::IsSpellProcEventCanTriggeredBy (the proc
-/// flags, the school, the family and the kind of hit) and, for an effect whose row names a family mask, the proc
-/// spell's class mask against that mask (SpellEntry::IsFitToFamilyMask, as Unit::ProcDamageAndSpellFor tests it). The
-/// proc flags are the spell's own from Spell.dbc where the row holds none, as Unit::IsTriggeredAtSpellProcEvent reads
-/// them.
+/// the ones they leave out; and the interrupt mark a hit's proc event carries when its interrupt effect stopped a cast,
+/// against Improved Counterspell's row, an aura with no row and a row that asks for the mark. A row is built by hand
+/// with the values the world database holds for it. The gate is the two checks a proc event meets before an aura's
+/// effect handles it: SpellMgr::IsSpellProcEventCanTriggeredBy (the proc flags, the school, the family and the kind of
+/// hit) and, for an effect whose row names a family mask, the proc spell's class mask against that mask
+/// (SpellEntry::IsFitToFamilyMask, as Unit::ProcDamageAndSpellFor tests it). The proc flags are the spell's own from
+/// Spell.dbc where the row holds none, as Unit::IsTriggeredAtSpellProcEvent reads them.
 ///
 /// The proc spells are Spell.dbc rows with their 4.3.4 school and the class mask of their SpellClassOptions.dbc row,
 /// built as SpellHitResultTest.cpp builds a row and seeded as SpellModMgrTest.cpp seeds class options; they are not
@@ -87,10 +88,13 @@ namespace
     ProcSpell const kBlizzardTick = { 42208, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000080080),
                                       0 };
 
+    ProcSpell const kCounterspell = { 2139, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000004000),
+                                      0 };
+
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
                                   kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
                                   kConeOfCold, kBlizzardChill, kFrostArmorChill, kOrbHitRankTwo, kOrbSummon, kIceLance,
-                                  kFrostNova, kWaterbolt, kBlizzardTick };
+                                  kFrostNova, kWaterbolt, kBlizzardTick, kCounterspell };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -160,6 +164,9 @@ namespace
                                                 PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
     SpellProcEventEntry const kArcaneMissilesProc = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000200800), 0,
                                                             PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    /// Improved Counterspell 11255: family 3, Counterspell's class mask, no extra requirement.
+    SpellProcEventEntry const kImprovedCounterspell = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000004000), 0,
+                                                              PROC_EX_NONE);
     /// Offensive State 79684 and Impact 11103: family 3, no mask, a hit or a crit with or without damage.
     SpellProcEventEntry const kOffensiveState = ProcRow(0, SPELLFAMILY_MAGE, 0, 0,
                                                         PROC_EX_HIT_WITHOUT_DAMAGE | PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
@@ -387,4 +394,46 @@ TEST(SpellProcEventRows_EnduringWinterTakesFrostboltsHitAndPermafrostTheHitsOfIt
     }
     CHECK(!Takes(kPermafrost, kBlizzardTick, PROC_EX_NORMAL_HIT));
     CHECK(!Takes(kPermafrost, kArcaneBlast, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_TheInterruptMarkChangesNothingForARowThatDoesNotAskForIt)
+{
+    // A Counterspell hit that interrupted a cast carries PROC_EX_INTERRUPT beside its hit kind; Improved Counterspell's
+    // row, which asks for no hit kind, takes it as it takes one that interrupted nothing.
+    uint32 const interrupted = PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT;
+    CHECK(PassesGate(kImprovedCounterspell, kCounterspell, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kImprovedCounterspell, kCounterspell, interrupted));
+    CHECK(FitsMask(kImprovedCounterspell, kCounterspell));
+    CHECK(!FitsMask(kImprovedCounterspell, kFireball));
+
+    // An aura with no row (Invocation 84722) passes the gate with either, and a row that asks for hits with either.
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kHarmfulSpellLanded, Row(kCounterspell), kHarmfulSpellLanded,
+                                                   PROC_EX_NORMAL_HIT));
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kHarmfulSpellLanded, Row(kCounterspell), kHarmfulSpellLanded,
+                                                   interrupted));
+    CHECK(PassesGate(kImpact, kFireBlast, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
+
+    // The hit-kind check of an effect with no class mask reads the mark as no hit kind: a hit that dealt nothing is
+    // refused with it as without it.
+    for (bool active : { false, true })
+    {
+        CHECK_EQ(SpellMgr::HitKindAccepted(PROC_EX_NONE, interrupted, active),
+                 SpellMgr::HitKindAccepted(PROC_EX_NONE, PROC_EX_NORMAL_HIT, active));
+        uint32 const hits = PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT;
+        CHECK_EQ(SpellMgr::HitKindAccepted(hits, interrupted, active),
+                 SpellMgr::HitKindAccepted(hits, PROC_EX_NORMAL_HIT, active));
+    }
+}
+
+TEST(SpellProcEventRows_ARowThatAsksForTheInterruptMarkTakesOnlyAHitThatInterruptedACast)
+{
+    // The row another class's interrupt talent can hold: its spell's class mask and PROC_EX_INTERRUPT.
+    SpellProcEventEntry const interruptRow =
+        ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000004000), 0, PROC_EX_INTERRUPT);
+    CHECK(PassesGate(interruptRow, kCounterspell, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
+    CHECK(!PassesGate(interruptRow, kCounterspell, PROC_EX_NORMAL_HIT));
+    CHECK(!PassesGate(interruptRow, kCounterspell, PROC_EX_CAST_END));
+    CHECK(!PassesGate(interruptRow, kCounterspell, PROC_EX_MISS));
+    CHECK(SpellMgr::InterruptedACast(PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
+    CHECK(!SpellMgr::InterruptedACast(PROC_EX_NORMAL_HIT));
 }

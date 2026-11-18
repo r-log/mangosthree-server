@@ -100,7 +100,8 @@ void Spell::EffectHealMaxHealth(SpellEffectEntry const* /*effect*/)
 }
 
 /**
- * @brief Interrupts interruptible non-melee spells on the unit target.
+ * @brief Interrupts interruptible non-melee spells on the unit target. When one of them was being cast or channelled,
+ *        the hit's proc event carries PROC_EX_INTERRUPT (SpellMgr::InterruptedACast).
  *
  * @param effect Unused effect index.
  */
@@ -125,8 +126,11 @@ void Spell::EffectInterruptCast(SpellEffectEntry const* /*effect*/)
             // check if we can interrupt spell
             if ((curSpellInfo->GetInterruptFlags() & SPELL_INTERRUPT_FLAG_INTERRUPT) && curSpellInfo->GetPreventionType() == SPELL_PREVENTION_TYPE_SILENCE )
             {
+                bool const inProgress =
+                    spell->getState() == SPELL_STATE_PREPARING || spell->getState() == SPELL_STATE_CASTING;
                 unitTarget->ProhibitSpellSchool(GetSpellSchoolMask(curSpellInfo), GetSpellDuration(m_spellInfo));
                 unitTarget->InterruptSpell(CurrentSpellTypes(i), false);
+                m_hitInterruptedCast = m_hitInterruptedCast || inProgress;
             }
         }
     }
