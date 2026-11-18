@@ -3693,12 +3693,22 @@ DiminishingReturnsType GetDiminishingReturnsGroupType(DiminishingGroup group)
         case DIMINISHING_FREEZE_SLEEP:
         case DIMINISHING_BANISH:
         case DIMINISHING_CHEAPSHOT_POUNCE:
+        case DIMINISHING_SHARED:
             return DRTYPE_PLAYER;
         default:
             break;
     }
 
     return DRTYPE_NONE;
+}
+
+DiminishingGroup GetSharedDiminishingGroup(SpellEntry const* spellproto, DiminishingGroup own, bool targetIsPlayer)
+{
+    if (!spellproto || own == DIMINISHING_NONE || !targetIsPlayer || !SharesDiminishingReturns(spellproto->ID))
+    {
+        return DIMINISHING_NONE;
+    }
+    return DIMINISHING_SHARED;
 }
 
 SpellEntry const* GetSpellEntryByDifficulty(uint32 id, Difficulty difficulty, bool isRaid)

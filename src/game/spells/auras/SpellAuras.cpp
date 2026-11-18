@@ -2918,6 +2918,12 @@ void SpellAuraHolder::_AddSpellAuraHolder()
         if (getDiminishGroup() != DIMINISHING_NONE)
         {
             m_target->ApplyDiminishingAura(getDiminishGroup(), true);
+            DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                      m_target->GetTypeId() == TYPEID_PLAYER);
+            if (shared != DIMINISHING_NONE)
+            {
+                m_target->ApplyDiminishingAura(shared, true);
+            }
         }
 
         // Update Seals information
@@ -3020,6 +3026,12 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
     if (getDiminishGroup() != DIMINISHING_NONE)
     {
         m_target->ApplyDiminishingAura(getDiminishGroup(), false);
+        DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                  m_target->GetTypeId() == TYPEID_PLAYER);
+        if (shared != DIMINISHING_NONE)
+        {
+            m_target->ApplyDiminishingAura(shared, false);
+        }
     }
 
     SetAuraFlags(AFLAG_NONE);

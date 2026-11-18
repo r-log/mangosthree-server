@@ -66,6 +66,10 @@ bool IsOverloadIgnoringCastTime(uint32 spellId);
 /// Whether a spell may target a player on a taxi flight.
 bool MayTargetTaxiFlyer(uint32 spellId);
 
+/// Whether the control effect of a spell also counts in the one shared diminishing-returns group besides its own group:
+/// Deep Freeze (44572) and Ring of Frost's freeze (82691).
+bool SharesDiminishingReturns(uint32 spellId);
+
 /// How many targets may carry `spellId` from one caster at a time; 0 when the spell has no such limit.
 uint32 AuraTargetLimit(uint32 spellId);
 

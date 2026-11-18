@@ -3686,7 +3686,9 @@ enum DiminishingGroup
     DIMINISHING_BANISH,
     // Other
     // Don't Diminish, but limit duration to 10s
-    DIMINISHING_LIMITONLY
+    DIMINISHING_LIMITONLY,
+    // The group the spells of SharesDiminishingReturns count in besides their own, on players
+    DIMINISHING_SHARED
 };
 
 enum InstanceResetMethod
