@@ -14234,8 +14234,10 @@ namespace Harness
      *  14. a Frostfire Bolt;
      *  15. a Frostfire Bolt cast in full, at whose act, right after the cast starts, Fingers of Frost's talent aura
      *      (83074) is taken off him, so the bolt's cast-end proc gives no charge, and he casts a Fingers of Frost
-     *      charge (44544) and the buff at himself, triggered; at its read the charge is taken off him and the talent
-     *      aura cast at him again, triggered;
+     *      charge (44544) and the buff at himself, triggered; then, with Shatter's second rank (12982) cast at him,
+     *      triggered, and the crit aura at kRollCritPoints, the scenario rolls Unit::IsSpellCrit for Frostfire Bolt at
+     *      the unfrozen Camel kRolls times while his bolt is cast, after which Shatter is taken off him and the crit
+     *      aura set back; at its read the charge is taken off him and the talent aura cast at him again, triggered;
      *  16. a wait at whose act he casts the buff at himself, triggered, and Wily Wits (75533, 100 less chance for a
      *      spell to hit its holder) is put on the Camel as PutReadyAura puts it;
      *  17. a Frostfire Bolt the buff makes instant, cast with Precision taken off him, which misses; the Camel's aura
@@ -14249,15 +14251,18 @@ namespace Harness
      * missed=<1 when step 17's SPELL_GO listed the Camel as missed>,hard=<steps 12 and 15: 1 when the cast's SPELL_GO
      * came after its first window, the cast was under way when the buff came and its mana was gone at its read>,
      * kept=<the same steps: 1 when the buff was on him at the read>,fingers=<the stack of 44544 he held right after
-     * step 15's act>:<at its read>,after=<the mana gone at step 14's read>,missiles=<the reads, right after each step's
-     * act and at its read, at which he held Arcane Missiles! (79683)>,procs=<the Frostbolts at whose read he held the
-     * buff he did not hold right after their act>,chill=,frostArmor=<the by-call procs of Frostbolt and of Frost
-     * Armor's Chilled that left him holding the buff, of kCalls each>`. OK at `instant=1,1,1`, `used=1,1,1`,
-     * `missed=1`, `hard=1,1`, `kept=1,1`, `fingers` the same stack, 1 or more, at both, `after` above 0, `missiles=0`,
-     * `chill` at 1 or more and `frostArmor=0`: the buff is taken off as the Fireball or Frostfire Bolt it made instant
-     * is cast, one that misses too, and the bolt after it costs mana; a Fireball and a Frostfire Bolt that took their
-     * cast time keep the buff that came during the cast, and the bolt the Fingers of Frost charge; a Brain Freeze mage
-     * gets no Arcane Missiles!, and Frost Armor's Chilled gives no Brain Freeze. `procs` is recorded, not judged.
+     * step 15's act>:<at its read>,crit=<his crit chance for the bolt's first school at step 15's rolls>:<the share of
+     * the rolls that crit>,after=<the mana gone at step 14's read>,missiles=<the reads, right after each step's act and
+     * at its read, at which he held Arcane Missiles! (79683)>,procs=<the Frostbolts at whose read he held the buff he
+     * did not hold right after their act>,chill=,frostArmor=<the by-call procs of Frostbolt and of Frost Armor's
+     * Chilled that left him holding the buff, of kCalls each>`, the crit values in hundredths of a percent. OK at
+     * `instant=1,1,1`, `used=1,1,1`, `missed=1`, `hard=1,1`, `kept=1,1`, `fingers` the same stack, 1 or more, at both,
+     * `crit` with the share within kRollTolerance of the chance, `after` above 0, `missiles=0`, `chill` at 1 or more
+     * and `frostArmor=0`: the buff is taken off as the Fireball or Frostfire Bolt it made instant is cast, one that
+     * misses too, and the bolt after it costs mana; a Fireball and a Frostfire Bolt that took their cast time keep the
+     * buff that came during the cast, and the bolt the Fingers of Frost charge, and that bolt does not count the Camel
+     * as frozen, so Shatter leaves its crit chance as it is; a Brain Freeze mage gets no Arcane Missiles!, and Frost
+     * Armor's Chilled gives no Brain Freeze. `procs` is recorded, not judged.
      */
     class MageFrostBrainFreeze : public MageProcScenario
     {
@@ -14346,17 +14351,20 @@ namespace Harness
                 { 12489, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 512 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 13843: 49 fields, fnv c66a1548
                 { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
             };
         }
 
         /// At a step's act: a wait that names a spell casts it at him, triggered; at the act of the Fireball and of
         /// the Frostfire Bolt cast in full, the buff cast at him, triggered, with whether his cast was under way, and
         /// at the bolt's, before the buff, Fingers of Frost's talent aura taken off him and a charge cast at him,
-        /// triggered, with its stack; at the act of the buff before the missed bolt, Wily Wits put on the Camel; at the
-        /// last wait's, the by-call procs (GrantsByCall). Then whether he holds the buff and Arcane Missiles!, and the
-        /// mana gone from his maximum. At each read: the same three; at the read of the bolt cast in full the charge's
-        /// stack, then the charge taken off him and the talent aura cast at him, triggered; Wily Wits taken off the
-        /// Camel at the missed bolt's read, and the Camel's health set back to its maximum.
+        /// triggered, with its stack, and after the buff the rolls (RollAtFullCast); at the act of the buff before the
+        /// missed bolt, Wily Wits put on the Camel; at the last wait's, the by-call procs (GrantsByCall). Then whether
+        /// he holds the buff and Arcane Missiles!, and the mana gone from his maximum. At each read: the same three; at
+        /// the read of the bolt cast in full the charge's stack, then the charge taken off him and the talent aura cast
+        /// at him, triggered; Wily Wits taken off the Camel at the missed bolt's read, and the Camel's health set back
+        /// to its maximum.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -14383,6 +14391,10 @@ namespace Harness
                     p->CastSpell(p, kBrainFreeze, true);
                     m_rec.Note(std::string("his cast under way: ") + (seen.reads["castingAtBuff"] ? "yes" : "no") +
                                "; Brain Freeze's buff cast on him, triggered, during the cast");
+                    if (k == kHardBoltStep)
+                    {
+                        RollAtFullCast(seen, p, target);
+                    }
                 }
                 else if (k == kMissedBoltStep - 1)
                 {
@@ -14465,21 +14477,26 @@ namespace Harness
             const int64 fingersAct = Kept(st, kHardBoltStep, "fingersAfterAct");
             const int64 fingersRead = Kept(st, kHardBoltStep, "fingersAtRead");
             const bool fingers = fingersAct >= 1 && fingersRead == fingersAct;
+            const int64 sheet = Kept(st, kHardBoltStep, "sheet");
+            const int64 hitShare = Kept(st, kHardBoltStep, "hitShare");
+            const bool crit = Kept(st, kHardBoltStep, "rollHeld") == 1 && sheet > 0 && hitShare >= 0 &&
+                              (hitShare > sheet ? hitShare - sheet : sheet - hitShare) <= kRollTolerance;
             const int64 after = Kept(st, kAfterStep, "manaAtRead");
             const int64 chill = Kept(st, kByCallStep, "chill");
             const int64 frostArmor = Kept(st, kByCallStep, "frostArmor");
             auto shown = [](int64 v) { return v == kNone ? std::string("none") : std::to_string(v); };
             const std::string value = "instant=" + instant + ",used=" + used + ",missed=" + (missed ? "1" : "0") +
                                       ",hard=" + hard + ",kept=" + kept + ",fingers=" + shown(fingersAct) + ":" +
-                                      shown(fingersRead) + ",after=" + shown(after) + ",missiles=" + U(missiles) +
-                                      ",procs=" + U(procs) + ",chill=" + shown(chill) + ",frostArmor=" +
-                                      shown(frostArmor);
-            const bool ok = instantOk && usedOk && missed && hardOk && keptOk && fingers && after > 0 &&
+                                      shown(fingersRead) + ",crit=" + shown(sheet) + ":" + shown(hitShare) +
+                                      ",after=" + shown(after) + ",missiles=" + U(missiles) + ",procs=" + U(procs) +
+                                      ",chill=" + shown(chill) + ",frostArmor=" + shown(frostArmor);
+            const bool ok = instantOk && usedOk && missed && hardOk && keptOk && fingers && crit && after > 0 &&
                             missiles == 0 && chill >= 1 && frostArmor == 0;
             const std::string detail = "the instant Fireball and Frostfire Bolts, the missed one too, free and taking "
                                        "Brain Freeze's buff as they are cast, the bolt after them paying; the Fireball "
                                        "and the Frostfire Bolt cast in full keeping the buff that came during their "
-                                       "cast, and the bolt the Fingers of Frost charge; no Arcane Missiles! in " +
+                                       "cast, and the bolt the Fingers of Frost charge, its crit chance not raised "
+                                       "by Shatter, within " + U(uint32(kRollTolerance)) + "; no Arcane Missiles! in " +
                                        U(uint32(st.steps.size())) + " steps; by call, the buff from Frostbolt and none "
                                        "from Frost Armor's Chilled)";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
@@ -14496,9 +14513,13 @@ namespace Harness
         static constexpr uint32 kPrecision = 13843;
         static constexpr uint32 kFingersOfFrost = 44544;
         static constexpr uint32 kFingersTalent = 83074;
+        static constexpr uint32 kShatter = 12982;
         static constexpr int32 kWilyWitsMs = 5000;
         static constexpr uint32 kBolts = 8;
         static constexpr uint32 kCalls = 40;
+        static constexpr uint32 kRolls = 2000;
+        static constexpr int32 kRollCritPoints = 20;
+        static constexpr int64 kRollTolerance = 350;
         static constexpr uint32 kInstantBoltStep = 9;
         static constexpr uint32 kHardFireballStep = 11;
         static constexpr uint32 kInstantFireballStep = 12;
@@ -14513,6 +14534,50 @@ namespace Harness
         {
             SpellAuraHolder* holder = p->GetSpellAuraHolder(kFingersOfFrost);
             return holder ? int64(holder->GetStackAmount()) : 0;
+        }
+
+        /// With Shatter's second rank cast at him, triggered, and the crit aura at kRollCritPoints: his crit chance
+        /// for Frostfire Bolt's first school, and kRolls rolls of Unit::IsSpellCrit for the bolt at the Camel, while
+        /// his own bolt is cast; then Shatter taken off him and the crit aura set back to its points.
+        void RollAtFullCast(Seen& seen, Player* p, Creature* target)
+        {
+            SpellEntry const* bolt = sSpellStore.LookupEntry(kFrostfireBolt);
+            if (!bolt)
+            {
+                return;
+            }
+            p->CastSpell(p, kShatter, true);
+            Aura const* critAura = p->GetAura(kCritAura, EFFECT_INDEX_0);
+            int32 points = critAura ? critAura->GetModifier()->m_amount : 0;
+            if (critAura)
+            {
+                p->RemoveAurasDueToSpell(kCritAura);
+            }
+            int32 rollPoints = kRollCritPoints;
+            p->CastCustomSpell(p, kCritAura, &rollPoints, NULL, NULL, true);
+            SpellSchoolMask const mask = GetSpellSchoolMask(bolt);
+            float const sheet = p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + GetFirstSchoolInMask(mask));
+            seen.reads["rollHeld"] = p->HasAura(kFingersOfFrost) && p->HasAura(kBrainFreeze) && p->HasAura(kShatter) &&
+                                     p->IsNonMeleeSpellCasted(false) ? 1 : 0;
+            uint32 hits = 0;
+            for (uint32 roll = 0; roll < kRolls; ++roll)
+            {
+                hits += p->IsSpellCrit(target, bolt, mask) ? 1 : 0;
+            }
+            p->RemoveAurasDueToSpell(kCritAura);
+            if (points)
+            {
+                p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
+            }
+            p->RemoveAurasDueToSpell(kShatter);
+            seen.reads["sheet"] = int64(std::lround(sheet * 100.0f));
+            seen.reads["hitShare"] = int64(hits) * 10000 / kRolls;
+            m_rec.Note(std::string("Fingers of Frost, Brain Freeze's buff and Shatter on him, his bolt under way: ") +
+                       (seen.reads["rollHeld"] ? "yes" : "no") + "; the Camel " +
+                       (target->IsFrozen() ? "frozen" : "not frozen") + "; his crit chance for the bolt " +
+                       U(uint64(seen.reads["sheet"])) + " hundredths of a percent with the crit aura at " +
+                       std::to_string(kRollCritPoints) + "; of " + U(kRolls) + " IsSpellCrit rolls " + U(hits) +
+                       " crit; Shatter on him after: " + (p->HasAura(kShatter) ? "yes" : "no"));
         }
 
         /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
