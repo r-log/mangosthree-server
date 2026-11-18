@@ -28,6 +28,8 @@
 
 #include "Platform/Define.h"
 
+#include <vector>
+
 namespace Combat
 {
     /**
@@ -186,6 +188,11 @@ namespace Combat
     /// The value a mastery effect holds: its bonus coefficient times the player's mastery points, the fraction kept
     /// (8 points at 2.8 a point give 22.4).
     float MasteryAmount(float coefficient, float masteryPoints);
+
+    /// Whether a player's mastery counts: one of the spells whose MASTERY auras he holds (`masteryAuraSpells`) is none
+    /// of his class's talent trees' mastery or primary spells (`treeSpells`), so it is his class's Mastery passive. A
+    /// tree's own MASTERY aura (a specialization's -6) counts only beside it.
+    bool MasteryCounts(std::vector<uint32> const& masteryAuraSpells, std::vector<uint32> const& treeSpells);
 
     /// The damage one tick of a DoT deals when `percent` of `amount` is spread over `ticks` ticks: the share as an
     /// integer, then divided by the ticks. 0 when the share is below the tick count.
