@@ -14193,8 +14193,9 @@ namespace Harness
 
     /**
      * S1027 `mage-fire-ignite-munching`: two Ignite crits that land in the same server update feed Ignite once, the
-     * later share in place of the earlier; two that land a few updates apart both feed it; and Pyroblast! (92315)
-     * leaves Clearcasting (12536) on. A Fire mage staged as MageFireProofScenario stages him, but with Burning Soul 3,
+     * later share in place of the earlier; two that land a few updates apart both feed it; a pair that lands on a
+     * running Ignite rolls over what that Ignite had left and the later share; and Pyroblast! (92315) leaves
+     * Clearcasting (12536) on. A Fire mage staged as MageFireProofScenario stages him, but with Burning Soul 3,
      * Improved Fire Blast 2 and Ignite 3 (12846), and Pyroblast! learned. The Mastery passive is not learned, so his
      * mastery is 0 and Flashburn adds nothing to Ignite. Each Fireball crit casts 12654 on the Camel with 40% of the
      * crit's damage, as an integer, over the DoT's two ticks; a crit before the next tick of his Ignite replaces it,
@@ -14203,18 +14204,23 @@ namespace Harness
      *     by call, triggered, one after the other: both fly the same ten yards and land in one later update;
      *  2. a wait of kGapMs: one Fireball cast the same way;
      *  3. a wait: one more Fireball, which lands kGapMs after the one of step 2, before that one's Ignite ticks;
-     *  4. Hot Streak (48108) cast at himself, then Precision again and the crit aura at -100, both before
+     *  4. a wait of kGapMs: one Fireball cast the same way;
+     *  5. a wait: two more Fireballs cast as in step 1, which land in one update kGapMs after the one of step 4, before
+     *     that one's Ignite ticks;
+     *  6. Hot Streak (48108) cast at himself, then Precision again and the crit aura at -100, both before
      *     Clearcasting is on him;
-     *  5. Clearcasting cast at himself: one charge;
-     *  6. Pyroblast! through the handler's calls with Hot Streak and Clearcasting on him; it must not crit.
-     * Steps 1 and 3 wait kSettleMs, so each Ignite ticks out inside its step's windows.
+     *  7. Clearcasting cast at himself: one charge;
+     *  8. Pyroblast! through the handler's calls with Hot Streak and Clearcasting on him; it must not crit.
+     * Steps 1, 3 and 5 wait kSettleMs, so each Ignite ticks out inside its step's windows.
      *
      * `munching`: `pair=<tick(D1)>+<tick(D2)>:<the 12654 ticks after them>,spaced=<tick(DA)>+<tick(DB)>:<the 12654
-     * ticks after them>,clearcasting=<kept or gone>`, with tick(D) = int(D x 40 / 100) / 2 for a crit of D, the crits
-     * in the order their damage logs came. OK when every Fireball crit; the pair's Ignite ticks three times for
-     * (2 x tick(D2)) / 3, the later share alone; the spaced crits' Ignite ticks three times for
-     * (2 x tick(DB) + 2 x tick(DA)) / 3, both shares; and Clearcasting is on him when step 6 runs, right after the
-     * cast and at the read.
+     * ticks after them>,over=<tick(DR)>+<tick(D3)>+<tick(D4)>:<the 12654 ticks after them>,clearcasting=<kept or
+     * gone>`, with tick(D) = int(D x 40 / 100) / 2 for a crit of D, the crits in the order their damage logs came. OK
+     * when every Fireball crit; the pair's Ignite ticks three times for (2 x tick(D2)) / 3, the later share alone; the
+     * spaced crits' Ignite ticks three times for (2 x tick(DB) + 2 x tick(DA)) / 3, both shares; the pair on the
+     * running Ignite of step 4 ticks three times for (2 x tick(D4) + 3 x ((2 x tick(DR)) / 3)) / 3, the later share
+     * and what the running Ignite had left over three ticks; and Clearcasting is on him when step 8 runs, right after
+     * the cast and at the read.
      */
     class MageFireIgniteMunching : public MageFireProofScenario
     {
@@ -14231,8 +14237,9 @@ namespace Harness
 
         std::vector<Step> Steps() const override
         {
-            return { Wait(kSettleMs), Wait(kGapMs), Wait(kSettleMs), SelfAura(kHotStreak, kAuraEveryMs),
-                     SelfAura(kClearcasting, kAuraEveryMs), Cast(kPyroblastInstant, false) };
+            return { Wait(kSettleMs), Wait(kGapMs), Wait(kSettleMs), Wait(kGapMs), Wait(kSettleMs),
+                     SelfAura(kHotStreak, kAuraEveryMs), SelfAura(kClearcasting, kAuraEveryMs),
+                     Cast(kPyroblastInstant, false) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -14269,9 +14276,9 @@ namespace Harness
                 int32 points = kCritAuraPoints;
                 p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
             }
-            if (k == kPairStep || k == kSpacedStep || k == kSpacedStep + 1)
+            if (k == kPairStep || k == kSpacedStep || k == kSpacedStep + 1 || k == kOverStep || k == kOverStep + 1)
             {
-                const uint32 casts = k == kPairStep ? 2 : 1;
+                const uint32 casts = k == kPairStep || k == kOverStep + 1 ? 2 : 1;
                 for (uint32 i = 0; i < casts; ++i)
                 {
                     p->CastSpell(target, kFireball, true);
@@ -14316,6 +14323,17 @@ namespace Harness
             const bool pairOk = pairCrit && AllAre(pairTicks, laterAlone);
             const bool spacedOk = spacedCrit && AllAre(spacedTicks, spacedBoth);
 
+            // the pair on a running Ignite: the later share and what the running one had left, spread over three ticks
+            const std::vector<std::pair<uint32, bool> > over = Hits(kOverStep, kOverStep + 1);
+            const std::vector<uint32> overTicks = IgniteTicks(kOverStep, kOverStep + 1);
+            const bool overCrit = over.size() == 3 && over[0].second && over[1].second && over[2].second;
+            const uint32 running = over.size() == 3 ? Share(over[0].first) : 0;
+            const uint32 overFirst = over.size() == 3 ? Share(over[1].first) : 0;
+            const uint32 overSecond = over.size() == 3 ? Share(over[2].first) : 0;
+            const uint32 runningLeft = kRefreshedTicks * (kShareTicks * running / kRefreshedTicks);
+            const uint32 overWanted = (kShareTicks * overSecond + runningLeft) / kRefreshedTicks;
+            const bool overOk = overCrit && AllAre(overTicks, overWanted);
+
             Seen const& cast = st.seen[kPyroblastStep];
             const bool heldBefore = !cast.watchedBefore.empty() && cast.watchedBefore != "none";
             const bool keptAtCast = Kept(st, kPyroblastStep, "clearcasting") == 1;
@@ -14324,19 +14342,24 @@ namespace Harness
             const std::string clearcasting = !cast.ran ? "unread" : keptAtCast && keptAtRead ? "kept" : "gone";
 
             const std::string value = "pair=" + U(first) + "+" + U(second) + ":" + TickText(pairTicks) + ",spaced=" +
-                                      U(spacedFirst) + "+" + U(spacedSecond) + ":" + TickText(spacedTicks) +
-                                      ",clearcasting=" + clearcasting;
-            char buf[640];
+                                      U(spacedFirst) + "+" + U(spacedSecond) + ":" + TickText(spacedTicks) + ",over=" +
+                                      U(running) + "+" + U(overFirst) + "+" + U(overSecond) + ":" +
+                                      TickText(overTicks) + ",clearcasting=" + clearcasting;
+            char buf[896];
             snprintf(buf, sizeof(buf),
                      "the pair: Fireball %s, its Ignite's ticks [%s], wanted three of (2 x %u) / 3 = %u, the later "
                      "share alone (both shares would give %u); the spaced crits: Fireball %s, ticks [%s], wanted three "
-                     "of (2 x %u + 2 x %u) / 3 = %u; 12536 on him when the Pyroblast! step ran: %s, right after its "
-                     "cast: %s, at its read: %s; the Pyroblast! spell go %s",
+                     "of (2 x %u + 2 x %u) / 3 = %u; the pair on a running Ignite: Fireball %s, ticks [%s], wanted "
+                     "three of (2 x %u + %u) / 3 = %u, the later share and the running Ignite's %u left; 12536 on him "
+                     "when the Pyroblast! step ran: %s, right after its cast: %s, at its read: %s; the Pyroblast! "
+                     "spell go %s",
                      HitsText(pair).c_str(), TickText(pairTicks).c_str(), second, laterAlone, pairBoth,
                      HitsText(spaced).c_str(), TickText(spacedTicks).c_str(), spacedSecond, spacedFirst, spacedBoth,
-                     cast.watchedBefore.empty() ? "unread" : cast.watchedBefore.c_str(), keptAtCast ? "held" : "gone",
-                     cast.holder.empty() ? "unread" : cast.holder.c_str(), cast.goSeen ? "seen" : "not seen");
-            const bool ok = pairOk && spacedOk && clearcastingOk;
+                     HitsText(over).c_str(), TickText(overTicks).c_str(), overSecond, runningLeft, overWanted,
+                     runningLeft, cast.watchedBefore.empty() ? "unread" : cast.watchedBefore.c_str(),
+                     keptAtCast ? "held" : "gone", cast.holder.empty() ? "unread" : cast.holder.c_str(),
+                     cast.goSeen ? "seen" : "not seen");
+            const bool ok = pairOk && spacedOk && overOk && clearcastingOk;
             return ok ? value + "(OK: " + buf + ")" : "BUG(" + value + ": " + buf + ")";
         }
 
@@ -14353,8 +14376,9 @@ namespace Harness
         static constexpr uint32 kAuraEveryMs = 500;
         static constexpr uint32 kPairStep = 0;
         static constexpr uint32 kSpacedStep = 1;
-        static constexpr uint32 kHotStreakStep = 3;
-        static constexpr uint32 kPyroblastStep = 5;
+        static constexpr uint32 kOverStep = 3;
+        static constexpr uint32 kHotStreakStep = 5;
+        static constexpr uint32 kPyroblastStep = 7;
 
         /// Ignite's share a tick of a crit of `amount`: 40% of it as an integer, over the DoT's two ticks.
         static uint32 Share(uint32 amount)
@@ -14479,12 +14503,12 @@ namespace Harness
      *  1. a wait of kAuraEveryMs: Precision (13843) and the crit aura at -100 cast at him, before any Clearcasting;
      *  2. a wait: Blood Fury (33702, an orc mage's racial, a spell with no class options) cast at himself;
      *  3. a wait: the free Flamestrike (88148, no mana cost) cast at the Camel's point, as Blast Wave casts it;
-     *  4. a wait of kChannelMs: Blizzard (10) cast at the Camel's point, then Clearcasting: the channel's damage
-     *     (42208, no mana cost) comes every second;
-     *  5. a wait: the channel ended by call once Clearcasting is read, then Clearcasting cast again;
+     *  4. a wait of kChannelMs: Blizzard (10) cast at the Camel's point, then Clearcasting: a Blizzard cast by call
+     *     runs no channel, and its damage (42208, no mana cost) comes every second from the aura it puts on him;
+     *  5. a wait: Clearcasting read, then cast again;
      *  6. Fireball (133) through the handler's calls, which costs mana; it must not crit.
-     * Steps 2, 3 and 5 read Clearcasting on him right after the act (step 5 before it ends the channel), step 6 at
-     * its read.
+     * Steps 2, 3 and 5 read Clearcasting on him right after the act (step 5 before it casts Clearcasting again), step 6
+     * at its read.
      *
      * `clearcasting`: `racial=<kept or gone>,flamestrike=<kept or gone>/<its hits on the Camel in step 3's
      * windows>,blizzard=<kept or gone>/<42208's hits in steps 4 and 5>,fireball=<kept or gone>`. OK when Clearcasting
@@ -14575,9 +14599,7 @@ namespace Harness
             else if (k == kBlizzardReadStep)
             {
                 seen.reads["clearcasting"] = Holds(p);
-                m_rec.Note("12536 on him after Blizzard's damage: " + HolderOf(p, kClearcasting) +
-                           "; the channel ended");
-                p->InterruptSpell(CURRENT_CHANNELED_SPELL);
+                m_rec.Note("12536 on him after Blizzard's damage: " + HolderOf(p, kClearcasting));
                 PutClearcasting(p);
             }
         }
