@@ -141,8 +141,11 @@
 // Replenishment and his Fire Blasts no charge; by call, Blizzard's Chilled and a Frostfire Bolt, bare or glyphed, give
 // charges and Frost Armor's Chilled none; Ice Block's glyph resets Frost Nova. 994 Fingers of Frost's two charges:
 // each Ice Lance, Deep Freeze and Brain Freeze Frostfire Bolt takes one as it is cast, a missed Ice Lance too, a copy
-// cast while the first Ice Lance flies finds none, a bolt keeps a charge it gets after its launch, Ice Lance deals a
-// quarter more with one at an unfrozen and at a frozen Camel, and the bolt's tick takes no Shatter under the buffs.
+// cast while the first Ice Lance flies finds none, a bolt keeps a charge it gets after its launch, the glyphed bolt's
+// periodic damage put on the Camel after it too, Ice Lance deals a quarter more with one at an unfrozen and at a frozen
+// Camel, and the bolt's tick takes no Shatter under the buffs. 995 a staged Frost mage with Brain Freeze: the instant
+// Fireball and Frostfire Bolts take Brain Freeze's buff as they are cast, a missed one too, a Fireball cast in full
+// keeps the buff that came during its cast, he gets no Arcane Missiles!, and Frost Armor's Chilled gives him no buff.
 // 1025 Polymorph and Wyvern Sting on the Camel break on a direct hit and on a periodic tick, not on Molten Armor's
 // hit, a heal or a hit a shield takes whole, and Hex breaks on a chance per hit.
 // 1026 a root, a fear and Hex on the Camel count the damage a shield absorbed and the damage its damage-reduction
@@ -157,7 +160,7 @@
 // 1101 a staged Arcane mage's Arcane Blast stacks its buff four times, each stack adding to the next Arcane Blast's
 // cost, taking from its cast time and adding to its damage and to Arcane Explosion's, more with Glyph of Arcane Blast;
 // Arcane Explosion keeps the stacks, and Arcane Barrage and Arcane Missiles take them off at their cast.
-// The guard of 931-938, 941-978, 980-994, 1025-1028 and 1100-1101 (Qualify) fingerprints every spell a scenario reaches
+// The guard of 931-938, 941-978, 980-995, 1025-1028 and 1100-1101 (Qualify) fingerprints every spell a scenario reaches
 // and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -3994,7 +3997,7 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-994,
+     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-995,
      * 1025-1028, 1100-1101): a human mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings
      * and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then the
      * pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario
@@ -13859,11 +13862,12 @@ namespace Harness
      * first flies, as a Dragonwrath copy is cast; a charge, with Wily Wits (75533, 100 less chance for a spell to hit
      * its holder) put on the Camel after it as PutReadyAura puts it, an Ice Lance that misses (the aura taken off at
      * its read) and one that lands; a charge, a Frostfire Bolt cast in full and a wait for it to land; Brain Freeze's
-     * buff and a Frostfire Bolt it makes instant; the buff again and a second instant bolt, at whose act, after its
-     * launch and before it lands, he casts a charge at himself; a wait at whose act the scenario rolls
-     * Unit::IsSpellCrit for Frostfire Bolt at the unfrozen Camel kRolls times as a hit and kRolls times as a periodic
-     * tick (DOT), with the crit aura at kRollCritPoints for the rolls, while he holds Fingers of Frost and Brain
-     * Freeze's buff.
+     * buff and a Frostfire Bolt it makes instant; the buff again, with Glyph of Frostfire (61205) cast on him after it,
+     * triggered, as a staged glyph is, and a second instant bolt, whose periodic damage the glyph keeps, at whose act,
+     * after its launch and before it lands, he casts a charge at himself; Brain Freeze's buff a third time, at whose
+     * act the scenario rolls Unit::IsSpellCrit for Frostfire Bolt at the unfrozen Camel kRolls times as a hit and
+     * kRolls times as a periodic tick (DOT), with the crit aura at kRollCritPoints for the rolls, while he holds
+     * Fingers of Frost and Brain Freeze's buff.
      *
      * `fingers`: `lance=<each Ice Lance's damage over the third one's, in hundredths, or miss; the two of the copy's
      * step, the larger first>,stacks=<the stack of 44544 at the read of each step that may use a charge, and at the
@@ -13875,8 +13879,8 @@ namespace Harness
      * `sheet` and `hit` of three times it: a charge adds a quarter to the double damage at an unfrozen and at a frozen
      * Camel and is taken as the spell is cast, so a miss takes it and the copy cast while the first Ice Lance flies
      * finds none; a Frostfire Bolt takes one only when Brain Freeze made it instant, and a charge he gets after its
-     * launch stays; under the two buffs the bolt's hit takes Shatter's factor and its tick does not. `brainFreezeLeft`
-     * is recorded, not judged.
+     * launch stays, the glyphed bolt's periodic damage put on the Camel after it too; under the two buffs the bolt's
+     * hit takes Shatter's factor and its tick does not. `brainFreezeLeft` is recorded, not judged.
      */
     class MageFrostFingers : public MageProcScenario
     {
@@ -13909,7 +13913,7 @@ namespace Harness
                      charge, missed, lance,
                      charge, AuraCast(kFrostfireBolt, 4500), Wait(300),
                      brainFreeze, Cast(kFrostfireBolt, false),
-                     brainFreeze, Cast(kFrostfireBolt, false), Wait(300) };
+                     brainFreeze, Cast(kFrostfireBolt, false), brainFreeze };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -13927,6 +13931,8 @@ namespace Harness
                 { 57761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 14 }, { "eff0.EffectSpellClassMask.Flags", 17592186044417 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", -100000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 10 }, { "eff1.EffectSpellClassMask.Flags", 17592186044417 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 75533: 26 fields, fnv 5234ff32
                 { 75533, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 186 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 61205: 72 fields, fnv a41173db
+                { 61205, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 17592186044416 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 3000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 1 }, { "eff1.EffectSpellClassMask.Flags", 17592186044416 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 4 }, { "eff2.EffectBasePoints", 3 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
                 // 12953: 26 fields, fnv 5ddaf0d2
                 { 12953, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 17592186175520 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 12982: 49 fields, fnv 78c33ea5
@@ -13946,10 +13952,11 @@ namespace Harness
 
         /// At a step's act: a wait that names a spell casts it at him, triggered; then the Camel's frozen state and
         /// whether he holds Brain Freeze's buff. At the act of the copy's step, a copy of Ice Lance cast at the Camel,
-        /// triggered; at the second instant bolt's, a charge cast at him, triggered; at the act of the charge before
-        /// the missed Ice Lance, Wily Wits put on the Camel, taken off at that Ice Lance's read; at the last wait's,
-        /// the rolls (RollBolt). At each read: the stack of 44544 he holds, and the Camel's health set back to its
-        /// maximum.
+        /// triggered; at the act of Brain Freeze's buff before the second instant bolt, Glyph of Frostfire cast at
+        /// him, triggered; at the second instant bolt's, a charge cast at him, triggered; at the act of the charge
+        /// before the missed Ice Lance, Wily Wits put on the Camel, taken off at that Ice Lance's read; at the last
+        /// step's, the rolls (RollBolt). At each read: the stack of 44544 he holds, and the Camel's health set back to
+        /// its maximum.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -13970,6 +13977,12 @@ namespace Harness
                 {
                     m_rec.Note(std::string("Brain Freeze's buff on him after the bolt's launch: ") +
                                (seen.reads["brainFreezeAfter"] ? "yes" : "no"));
+                }
+                else if (k == kKeptBoltStep - 1)
+                {
+                    p->CastSpell(p, kGlyphOfFrostfire, true);
+                    m_rec.Note(std::string("Glyph of Frostfire on him: ") +
+                               (p->HasAura(kGlyphOfFrostfire) ? "yes" : "no"));
                 }
                 else if (k == kKeptBoltStep)
                 {
@@ -14087,6 +14100,7 @@ namespace Harness
         static constexpr uint32 kFingersOfFrost = 44544;
         static constexpr uint32 kBrainFreeze = 57761;
         static constexpr uint32 kWilyWits = 75533;
+        static constexpr uint32 kGlyphOfFrostfire = 61205;
         static constexpr int32 kWilyWitsMs = 5000;
         static constexpr int32 kSpellPower = 2000;
         static constexpr float kDistance = 25.0f;
@@ -14185,6 +14199,296 @@ namespace Harness
                        U(uint64(seen.reads["sheet"])) + " hundredths of a percent with the crit aura at " +
                        std::to_string(kRollCritPoints) + "; of " + U(kRolls) + " IsSpellCrit rolls " + U(hits) +
                        " crit as a hit and " + U(ticks) + " as a periodic tick");
+        }
+    };
+
+    /**
+     * S995 `mage-frost-brain-freeze`: Brain Freeze's buff (57761) and Arcane Missiles! for a staged Frost mage with
+     * Brain Freeze: Early Frost 2, Piercing Ice 3, Ice Floes 3 and Improved Cone of Cold 2, then Fingers of Frost 3,
+     * Ice Shards 2 and Brain Freeze 3 (44549); Frostbolt (116), Fireball (133) and Frostfire Bolt (44614) learned, and
+     * the crit aura at -100, so no cast crits. His mana is set to its maximum before each cast, and each read sets the
+     * Camel's health back to its maximum. Steps:
+     *  1-8. eight Frostbolts, each a chance for Brain Freeze, and for Arcane Missiles! but for the talent;
+     *  9. a wait at whose act he casts the buff at himself, triggered;
+     *  10. a Frostfire Bolt the buff makes instant;
+     *  11. the buff on him cancelled as the client's right-click does, so the next cast starts without it;
+     *  12. a Fireball cast in full, at whose act, right after the cast starts, he casts the buff at himself, triggered;
+     *  13. a Fireball the buff of step 12 makes instant;
+     *  14. a Frostfire Bolt;
+     *  15. a wait at whose act he casts the buff at himself, triggered, and Wily Wits (75533, 100 less chance for a
+     *      spell to hit its holder) is put on the Camel as PutReadyAura puts it;
+     *  16. a Frostfire Bolt the buff makes instant, which misses; the Camel's aura is taken off at its read;
+     *  17. a wait at whose act the scenario makes kCalls cast-end procs on him by call, as Spell::cast makes one at a
+     *      launch (Unit::ProcDamageAndSpell with the harmful-spell flag and PROC_EX_CAST_END), each with the buff taken
+     *      off him first, for Frostbolt and for Frost Armor's Chilled (7321).
+     *
+     * `brainFreeze`: `instant=<steps 10, 13 and 16: 1 when the cast's SPELL_GO came in the step's first window and no
+     * mana was gone right after its act>,used=<the same steps: 1 when the buff was gone right after the cast's act>,
+     * missed=<1 when step 16's SPELL_GO listed the Camel as missed>,hard=<1 when step 12's SPELL_GO came after its
+     * first window, its cast was under way when the buff came and its mana was gone at its read>,kept=<1 when the buff
+     * was on him at step 12's read>,after=<the mana gone at step 14's read>,missiles=<79683 casts in every step's
+     * windows>,procs=<57761 casts in the Frostbolts' windows>,chill=,frostArmor=<the by-call procs of Frostbolt and of
+     * Frost Armor's Chilled that left him holding the buff, of kCalls each>`. OK at `instant=1,1,1`, `used=1,1,1`,
+     * `missed=1`, `hard=1`, `kept=1`, `after` above 0, `missiles=0`, `chill` at 1 or more and `frostArmor=0`: the
+     * buff is taken off as the Fireball or Frostfire Bolt it made instant is cast, one that misses too, and the bolt
+     * after it costs mana; a Fireball that took its cast time keeps the buff that came during the cast; a Brain Freeze
+     * mage gets no Arcane Missiles!, and Frost Armor's Chilled gives no Brain Freeze. `procs` is recorded, not judged.
+     */
+    class MageFrostBrainFreeze : public MageProcScenario
+    {
+    public:
+        MageFrostBrainFreeze() : MageProcScenario("mage-frost-brain-freeze", 995, "brainFreeze") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 9862, 1 }, { 11157, 2 }, { 9846, 2 }, { 11325, 1 }, { 9876, 2 }, { 9860, 1 }, { 9890, 2 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFrostbolt, kFireball, kFrostfireBolt }; }
+        uint32 Watched() const override { return kBrainFreeze; }
+        bool NotesBeforeStep() const override { return true; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 CastEveryMs() const override { return 3800; }
+        uint32 CastReadMs() const override { return 3500; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step buff = Wait(300);
+            buff.spell = kBrainFreeze;
+            Step missed = Cast(kFrostfireBolt, false);
+            missed.refusal = true;
+            std::vector<Step> steps;
+            for (uint32 i = 0; i < kBolts; ++i)
+            {
+                steps.push_back(Cast(kFrostbolt, false));
+            }
+            steps.push_back(buff);
+            steps.push_back(Cast(kFrostfireBolt, false));
+            steps.push_back(SelfRemoval(kBrainFreeze, 300));
+            steps.push_back(Cast(kFireball, false));
+            steps.push_back(Cast(kFireball, false));
+            steps.push_back(Cast(kFrostfireBolt, false));
+            steps.push_back(buff);
+            steps.push_back(missed);
+            steps.push_back(Wait(300));
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 116: 72 fields, fnv e7ba11a7
+                { 116, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 17 }, { "eff1.EffectBonusCoefficient", 1064396915 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 3 }, { "eff1.EffectRealPointsPerLevel", 1056964608 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44614: 72 fields, fnv 0aade896
+                { 44614, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 628 }, { "eff1.EffectBonusCoefficient", 1064967340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 103 }, { "eff1.EffectRealPointsPerLevel", 1081711002 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 3 }, { "eff2.EffectAuraPeriod", 3000 }, { "eff2.EffectBasePoints", 1 }, { "eff2.EffectBonusCoefficient", 1005596799 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 83074: 26 fields, fnv ab3597ca
+                { 83074, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 20 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 44544 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44544: 26 fields, fnv 65bc81c5
+                { 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44549: 26 fields, fnv 1f60c47d
+                { 44549, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 23 }, { "eff0.EffectSpellClassMask.Flags", 2199023255616 }, { "eff0.EffectTriggerSpell", 57761 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 57761: 49 fields, fnv 704e7b99
+                { 57761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 14 }, { "eff0.EffectSpellClassMask.Flags", 17592186044417 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", -100000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 10 }, { "eff1.EffectSpellClassMask.Flags", 17592186044417 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12487: 49 fields, fnv 1f5c0d29
+                { 12487, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 988 }, { "eff0.EffectSpellClassMask.Flags", 128 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 5 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 5 }, { "eff1.EffectSpellClassMask.Flags", 131072 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 7321: 72 fields, fnv 80d7371c
+                { 7321, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 342 }, { "eff1.EffectBasePoints", -20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 8 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 75533: 26 fields, fnv 5234ff32
+                { 75533, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 186 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83050: 49 fields, fnv 59d245f9
+                { 83050, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", -600 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", -600 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 21 }, { "eff1.EffectSpellClassMask.Flags", 32 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12953: 26 fields, fnv 5ddaf0d2
+                { 12953, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 17592186175520 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 55094: 26 fields, fnv 74d9d345
+                { 55094, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -20 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 11 }, { "eff0.EffectSpellClassMask.Flags", 70939974828608 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12489: 26 fields, fnv 24d98121
+                { 12489, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 512 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At a step's act: a wait that names a spell casts it at him, triggered; at the act of the Fireball cast in
+        /// full, the buff cast at him, triggered, with whether his cast was under way; at the act of the buff before
+        /// the missed bolt, Wily Wits put on the Camel; at the last wait's, the by-call procs (GrantsByCall). Then
+        /// whether he holds the buff and the mana gone from his maximum. At each read: the same two, Wily Wits taken
+        /// off the Camel at the missed bolt's read, and the Camel's health set back to its maximum.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            Step const& step = st.steps[k];
+            const int64 manaGone = int64(p->GetMaxPower(POWER_MANA)) - int64(p->GetPower(POWER_MANA));
+            if (!atRead)
+            {
+                if (step.wait && step.spell)
+                {
+                    p->CastSpell(p, step.spell, true);
+                }
+                if (k == kHardFireballStep)
+                {
+                    seen.reads["castingAtBuff"] = p->IsNonMeleeSpellCasted(false) ? 1 : 0;
+                    p->CastSpell(p, kBrainFreeze, true);
+                    m_rec.Note(std::string("his cast under way: ") + (seen.reads["castingAtBuff"] ? "yes" : "no") +
+                               "; Brain Freeze's buff cast on him, triggered, during the cast");
+                }
+                else if (k == kMissedBoltStep - 1)
+                {
+                    PutReadyAura(target, kWilyWits, kWilyWitsMs);
+                    m_rec.Note(std::string("Wily Wits on the Camel: ") + (target->HasAura(kWilyWits) ? "yes" : "no"));
+                }
+                else if (k == kByCallStep)
+                {
+                    seen.reads["chill"] = GrantsByCall(p, target, kFrostbolt);
+                    seen.reads["frostArmor"] = GrantsByCall(p, target, kFrostArmorChill);
+                    m_rec.Note("cast-end procs by call, " + U(kCalls) + " each: Frostbolt " +
+                               U(uint64(seen.reads["chill"])) + ", Frost Armor's Chilled " +
+                               U(uint64(seen.reads["frostArmor"])));
+                }
+                seen.reads["buffAfterAct"] = p->HasAura(kBrainFreeze) ? 1 : 0;
+                seen.reads["manaAfterAct"] = manaGone;
+                m_rec.Note(std::string("right after the act: Brain Freeze's buff on him ") +
+                           (seen.reads["buffAfterAct"] ? "yes" : "no") + ", mana gone " + std::to_string(manaGone));
+                return;
+            }
+            seen.reads["buffAtRead"] = p->HasAura(kBrainFreeze) ? 1 : 0;
+            seen.reads["manaAtRead"] = manaGone;
+            if (k == kMissedBoltStep)
+            {
+                target->RemoveAurasDueToSpell(kWilyWits);
+            }
+            target->SetHealth(target->GetMaxHealth());
+        }
+
+        std::string Own(St const& st) const override
+        {
+            uint32 missiles = 0, procs = 0;
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                missiles += Count(st.seen[k].triggered, kArcaneMissilesBuff);
+                if (st.steps[k].spell == kFrostbolt && IsCast(st.steps[k]))
+                {
+                    procs += Count(st.seen[k].triggered, kBrainFreeze);
+                }
+            }
+            std::string instant, used;
+            bool instantOk = true, usedOk = true;
+            for (uint32 k : { kInstantBoltStep, kInstantFireballStep, kMissedBoltStep })
+            {
+                const bool fast = k < st.seen.size() && st.seen[k].goSeen && GoInFirstWindow(st, k) &&
+                                  Kept(st, k, "manaAfterAct") == 0;
+                const bool gone = Kept(st, k, "buffAfterAct") == 0;
+                instant += (instant.empty() ? "" : ",") + std::string(fast ? "1" : "0");
+                used += (used.empty() ? "" : ",") + std::string(gone ? "1" : "0");
+                instantOk = instantOk && fast;
+                usedOk = usedOk && gone;
+            }
+            const bool missed = st.seen.size() > kMissedBoltStep && st.seen[kMissedBoltStep].missed;
+            const bool hard = st.seen.size() > kHardFireballStep && st.seen[kHardFireballStep].goSeen &&
+                              !GoInFirstWindow(st, kHardFireballStep) &&
+                              Kept(st, kHardFireballStep, "castingAtBuff") == 1 &&
+                              Kept(st, kHardFireballStep, "manaAtRead") > 0;
+            const int64 kept = Kept(st, kHardFireballStep, "buffAtRead");
+            const int64 after = Kept(st, kAfterStep, "manaAtRead");
+            const int64 chill = Kept(st, kByCallStep, "chill");
+            const int64 frostArmor = Kept(st, kByCallStep, "frostArmor");
+            auto shown = [](int64 v) { return v == kNone ? std::string("none") : std::to_string(v); };
+            const std::string value = "instant=" + instant + ",used=" + used + ",missed=" + (missed ? "1" : "0") +
+                                      ",hard=" + (hard ? "1" : "0") + ",kept=" + shown(kept) + ",after=" +
+                                      shown(after) + ",missiles=" + U(missiles) + ",procs=" + U(procs) + ",chill=" +
+                                      shown(chill) + ",frostArmor=" + shown(frostArmor);
+            const bool ok = instantOk && usedOk && missed && hard && kept == 1 && after > 0 && missiles == 0 &&
+                            chill >= 1 && frostArmor == 0;
+            const std::string detail = "the instant Fireball and Frostfire Bolts, the missed one too, free and taking "
+                                       "Brain Freeze's buff as they are cast, the bolt after them paying; the Fireball "
+                                       "cast in full keeping the buff that came during its cast; no Arcane Missiles! "
+                                       "in " + U(uint32(st.steps.size())) + " steps; by call, the buff from Frostbolt "
+                                       "and none from Frost Armor's Chilled)";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kFrostbolt = 116;
+        static constexpr uint32 kFireball = 133;
+        static constexpr uint32 kFrostfireBolt = 44614;
+        static constexpr uint32 kBrainFreeze = 57761;
+        static constexpr uint32 kArcaneMissilesBuff = 79683;
+        static constexpr uint32 kFrostArmorChill = 7321;
+        static constexpr uint32 kWilyWits = 75533;
+        static constexpr int32 kWilyWitsMs = 5000;
+        static constexpr uint32 kBolts = 8;
+        static constexpr uint32 kCalls = 40;
+        static constexpr uint32 kInstantBoltStep = 9;
+        static constexpr uint32 kHardFireballStep = 11;
+        static constexpr uint32 kInstantFireballStep = 12;
+        static constexpr uint32 kAfterStep = 13;
+        static constexpr uint32 kMissedBoltStep = 15;
+        static constexpr uint32 kByCallStep = 16;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+
+        /// How many of `spells` are `spellId`.
+        static uint32 Count(std::vector<uint32> const& spells, uint32 spellId)
+        {
+            return uint32(std::count(spells.begin(), spells.end(), spellId));
+        }
+
+        /// Whether the SPELL_GO of step k's own spell came in the step's first window, the one its act opens.
+        bool GoInFirstWindow(St const& st, uint32 k) const
+        {
+            const Trace::Roles roles = RolesAt(st, st.steps[k].target);
+            for (Recorder::Seen const* go : m_rec.SeenIn("step" + U(k + 1), SMSG_SPELL_GO))
+            {
+                std::string text;
+                uint32 spell = 0;
+                if (!go->payload.empty() &&
+                    Trace::DecodeSpellCast(true, &go->payload[0], go->payload.size(), roles, text) &&
+                    sscanf(text.c_str(), "spell=%u", &spell) == 1 && spell == st.steps[k].spell)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// Of kCalls cast-end procs of `spellId` on him by call, each made with Brain Freeze's buff taken off him
+        /// first, the ones that left him holding it; it is taken off at the end.
+        int64 GrantsByCall(Player* p, Creature* target, uint32 spellId)
+        {
+            SpellEntry const* info = sSpellStore.LookupEntry(spellId);
+            if (!info)
+            {
+                return kNone;
+            }
+            int64 grants = 0;
+            for (uint32 call = 0; call < kCalls; ++call)
+            {
+                p->RemoveAurasDueToSpell(kBrainFreeze);
+                p->ProcDamageAndSpell(target, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, PROC_FLAG_NONE, PROC_EX_CAST_END,
+                                      0, BASE_ATTACK, info);
+                grants += p->HasAura(kBrainFreeze) ? 1 : 0;
+            }
+            p->RemoveAurasDueToSpell(kBrainFreeze);
+            return grants;
         }
     };
 
@@ -15395,6 +15699,7 @@ namespace Harness
         r.Register(new MageThresholdPreventedDamage());
         r.Register(new MageFrostProcRows());
         r.Register(new MageFrostFingers());
+        r.Register(new MageFrostBrainFreeze());
         r.Register(new MageFireIgniteMunching());
         r.Register(new MageFireClearcasting());
         r.Register(new MageArcaneMissiles());
