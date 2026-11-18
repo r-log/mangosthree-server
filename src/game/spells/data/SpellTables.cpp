@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
+#include <limits>
 
 namespace
 {
@@ -797,6 +798,21 @@ bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ow
         default:
             return false;
     }
+}
+
+bool CountsPreventedDamage(uint32 auraType)
+{
+    return auraType == SPELL_AURA_MOD_FEAR || auraType == SPELL_AURA_MOD_ROOT ||
+           auraType == SPELL_AURA_MOD_PACIFY_SILENCE;
+}
+
+uint32 ThresholdDamage(uint32 damage, uint32 absorbed, float reductionMultiplier)
+{
+    double const taken = double(damage) + double(absorbed);
+    double const counted = reductionMultiplier > 0.0f && reductionMultiplier < 1.0f
+                           ? taken / reductionMultiplier + 0.5 : taken;
+    uint32 const most = std::numeric_limits<uint32>::max();
+    return counted >= double(most) ? most : uint32(counted);
 }
 
 uint32 AuraTargetLimit(uint32 spellId)

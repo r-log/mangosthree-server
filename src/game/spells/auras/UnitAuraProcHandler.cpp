@@ -452,6 +452,90 @@ namespace
 
         return false;
     }
+
+    /// Which auras of a damage-taken type apply to a hit: any of them, those whose misc value is a school of the hit,
+    /// or those whose misc value is a mechanic of the hit.
+    enum class TakenMatch
+    {
+        Any,
+        School,
+        Mechanic
+    };
+
+    /// The product of (100 + amount) / 100 over the auras of `auras` with an amount below 0 that apply to a hit of
+    /// school mask or mechanic mask `mask`, matched as Unit::GetTotalAuraMultiplierByMiscMask (School) and
+    /// Unit::GetTotalAuraMultiplierByMiscValueForMask (Mechanic) match them; 1.0 when none does.
+    float ReductionsOf(Unit::AuraList const& auras, uint32 mask, TakenMatch match)
+    {
+        float multiplier = 1.0f;
+        for (Unit::AuraList::const_iterator i = auras.begin(); i != auras.end(); ++i)
+        {
+            Modifier const* mod = (*i)->GetModifier();
+            if (mod->m_amount >= 0)
+            {
+                continue;
+            }
+
+            bool applies = true;
+            if (match == TakenMatch::School)
+            {
+                applies = (mod->m_miscvalue & mask) != 0;
+            }
+            else if (match == TakenMatch::Mechanic)
+            {
+                applies = mod->m_miscvalue > 0 && (mask & (1 << (mod->m_miscvalue - 1))) != 0;
+            }
+
+            if (applies)
+            {
+                multiplier *= (100.0f + mod->m_amount) / 100.0f;
+            }
+        }
+        return multiplier;
+    }
+
+    /**
+     * The product of the damage-reduction effects on `victim` that the damage-taken code puts on a hit of `procSpell`,
+     * or of a melee swing with attack type `attType` when it is NULL, whose school mask is `schoolMask`: the percent
+     * damage-taken auras with an amount below 0 for that school; for a spell, the mechanic ones for its mechanics and,
+     * for an area spell, the area-of-effect ones (and a pet's own); for a swing or a spell of the melee or ranged
+     * damage class, the melee or ranged ones. 1.0 when the victim has none.
+     */
+    float ReductionEffectsMultiplier(Unit const& victim, SpellEntry const* procSpell, WeaponAttackType attType,
+                                     uint32 schoolMask)
+    {
+        float multiplier = ReductionsOf(victim.GetAurasByType(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN), schoolMask,
+                                        TakenMatch::School);
+
+        bool weaponHit = true;
+        if (procSpell)
+        {
+            multiplier *= ReductionsOf(victim.GetAurasByType(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT),
+                                       GetAllSpellMechanicMask(procSpell), TakenMatch::Mechanic);
+            if (IsAreaOfEffectSpell(procSpell))
+            {
+                multiplier *= ReductionsOf(victim.GetAurasByType(SPELL_AURA_MOD_AOE_DAMAGE_AVOIDANCE), schoolMask,
+                                           TakenMatch::School);
+                if (victim.IsPet())
+                {
+                    multiplier *= ReductionsOf(victim.GetAurasByType(SPELL_AURA_MOD_PET_AOE_DAMAGE_AVOIDANCE),
+                                               schoolMask, TakenMatch::School);
+                }
+            }
+
+            uint32 const damageClass = procSpell->GetDmgClass();
+            weaponHit = damageClass == SPELL_DAMAGE_CLASS_MELEE || damageClass == SPELL_DAMAGE_CLASS_RANGED;
+            attType = GetWeaponAttackType(procSpell);
+        }
+
+        if (weaponHit)
+        {
+            AuraType const weaponTaken = attType == RANGED_ATTACK ? SPELL_AURA_MOD_RANGED_DAMAGE_TAKEN_PCT
+                                                                  : SPELL_AURA_MOD_MELEE_DAMAGE_TAKEN_PCT;
+            multiplier *= ReductionsOf(victim.GetAurasByType(weaponTaken), 0, TakenMatch::Any);
+        }
+        return multiplier;
+    }
 }
 
 /**
@@ -2741,8 +2825,8 @@ SpellAuraProcResult Unit::HandleModResistanceAuraProc(Unit* /*pVictim*/, uint32 
 
 /**
  * @brief Handles procs that remove an aura on incoming damage. A confuse or a stun is removed by each hit
- *        BreaksOnDamageProc accepts (Polymorph, Wyvern Sting); a fear, a root or a pacify-silence by a chance that grows
- *        with the damage.
+ *        BreaksOnDamageProc accepts (Polymorph, Wyvern Sting); a fear, a root or a pacify-silence by a chance that
+ *        grows with `damage`, which for them is the ThresholdDamage the proc loop counts.
  *
  * @return SpellAuraProcResult The proc handling result. A confuse or a stun that stays answers OK, as an aura type with
  *         no proc handler does, so a holder with charges still spends one.
@@ -2806,19 +2890,21 @@ SpellAuraProcResult Unit::HandleInvisibilityAuraProc(Unit* /*pVictim*/, uint32 /
  * @param amount The event amount.
  * @param attType The attack type.
  * @param procSpell The spell responsible for the event, if any.
+ * @param absorb The part of the hit's damage the victim's absorbs took.
  */
-void Unit::ProcDamageAndSpell(Unit* pVictim, uint32 procAttacker, uint32 procVictim, uint32 procExtra, uint32 amount, WeaponAttackType attType, SpellEntry const* procSpell)
+void Unit::ProcDamageAndSpell(Unit* pVictim, uint32 procAttacker, uint32 procVictim, uint32 procExtra, uint32 amount,
+                              WeaponAttackType attType, SpellEntry const* procSpell, uint32 absorb)
 {
     // Not much to do if no flags are set.
     if (procAttacker)
     {
-        ProcDamageAndSpellFor(false, pVictim, procAttacker, procExtra, attType, procSpell, amount);
+        ProcDamageAndSpellFor(false, pVictim, procAttacker, procExtra, attType, procSpell, amount, 0);
     }
     // Now go on with a victim's events'n'auras
     // Not much to do if no flags are set or there is no victim
     if (pVictim && pVictim->IsAlive() && procVictim)
     {
-        pVictim->ProcDamageAndSpellFor(true, this, procVictim, procExtra, attType, procSpell, amount);
+        pVictim->ProcDamageAndSpellFor(true, this, procVictim, procExtra, attType, procSpell, amount, absorb);
     }
 }
 
@@ -2935,8 +3021,10 @@ uint32 createProcExtendMask(SpellNonMeleeDamage* damageInfo, SpellMissInfo missC
  * @param attType The attack type.
  * @param procSpell The spell responsible for the event, if any.
  * @param damage The event damage amount.
+ * @param absorb The part of the hit's damage the absorbs took.
  */
-void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, SpellEntry const* procSpell, uint32 damage)
+void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra,
+                                 WeaponAttackType attType, SpellEntry const* procSpell, uint32 damage, uint32 absorb)
 {
     // For melee/ranged based attack need update skills and set some Aura states
     if (!(procExtra & PROC_EX_CAST_END) && procFlag & MELEE_BASED_TRIGGER_MASK)
@@ -3050,6 +3138,13 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
 
     if (!procTriggered.empty())
     {
+        // the damage a victim's fear, root or pacify-silence counts: the hit's before its absorbs and before the
+        // victim's damage-reduction effects, for the school the damage-taken code reads
+        uint32 const schoolMask = procSpell ? procSpell->SchoolMask : uint32(GetMeleeDamageSchoolMask());
+        uint32 const thresholdDamage = isVictim
+            ? ThresholdDamage(damage, absorb, ReductionEffectsMultiplier(*this, procSpell, attType, schoolMask))
+            : damage;
+
         // Handle effects proceed this time
         for (ProcTriggeredList::const_iterator itr = procTriggered.begin(); itr != procTriggered.end(); ++itr)
         {
@@ -3086,6 +3181,8 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                     continue;
                 }
 
+                uint32 const effectDamage = CountsPreventedDamage(spellEffect->EffectAura) ? thresholdDamage : damage;
+
                 if (procSpell)
                 {
                     if (spellProcEvent)
@@ -3112,7 +3209,8 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                             }
                         }
                         // don't check dbc FamilyFlags if schoolMask exists
-                        else if (!triggeredByAura->CanProcFrom(procSpell, procFlag, spellProcEvent->procEx, procExtra, damage != 0, !spellProcEvent->schoolMask))
+                        else if (!triggeredByAura->CanProcFrom(procSpell, procFlag, spellProcEvent->procEx, procExtra,
+                                                               effectDamage != 0, !spellProcEvent->schoolMask))
                         {
                             continue;
                         }
@@ -3125,7 +3223,8 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                         // and that case decides.
                         bool isCoreHandledMasteryProc = IsCoreHandledMasteryProc(triggeredByHolder->GetId());
                         if (!isCoreHandledMasteryProc
-                            && !triggeredByAura->CanProcFrom(procSpell, procFlag, PROC_EX_NONE, procExtra, damage != 0, true))
+                            && !triggeredByAura->CanProcFrom(procSpell, procFlag, PROC_EX_NONE, procExtra,
+                                                             effectDamage != 0, true))
                         {
                             continue;
                         }
@@ -3166,7 +3265,8 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                                         cooldown, triggeredByAura, m_spellCooldownMgr);
                 SpellHandlerOutcome<SpellAuraProcResult> onProc = SpellHandlerRegistry::Game().Dispatch<OnProcHook>(triggeredByHolder->GetId(), onProcCtx);
                 SpellAuraProcResult procResult = onProc.IsReturn() ? onProc.GetValue()
-                    : (*this.*AuraProcHandler[spellEffect->EffectAura])(pTarget, damage, triggeredByAura, procSpell, procFlag, procExtra, cooldown);
+                    : (*this.*AuraProcHandler[spellEffect->EffectAura])(pTarget, effectDamage, triggeredByAura,
+                                                                         procSpell, procFlag, procExtra, cooldown);
                 switch (procResult)
                 {
                     case SPELL_AURA_PROC_CANT_TRIGGER:
