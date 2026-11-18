@@ -353,6 +353,7 @@ Spell::Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid or
     }
     // Set health leech amount to zero
     m_healthLeech = 0;
+    m_hitInterruptedCast = false;
 
     m_originalCasterGUID = originalCasterGUID ? originalCasterGUID : m_caster->GetObjectGuid();
 

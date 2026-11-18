@@ -317,6 +317,18 @@ namespace Mage
     /// (`slowOut` false). Defined in Arcane.cpp.
     bool NetherVortexSlows(uint32 procSpellId, uint32 procEx, uint32 damage, bool slowOut);
 
+    /// Whether Invocation gives its buff for an event: a hit of the mage's Counterspell (2139, `procSpellId`) that
+    /// interrupted a spell its target was casting or channelling (SpellMgr::InterruptedACast of `procEx`). Defined in
+    /// Arcane.cpp.
+    bool InvocationGrants(uint32 procSpellId, uint32 procEx);
+
+    /// The stun Improved Polymorph puts on the target of a mage's Polymorph removed in `mode`: the second rank's
+    /// (83047, 3 s) for a caster who knows that rank (`knowsRankTwo`), else the first rank's (83046, 1.5 s) for one who
+    /// knows that (`knowsRankOne`); 0 unless damage broke the Polymorph (AURA_REMOVE_BY_DAMAGE), 0 for a caster who
+    /// knows neither, and 0 while the target holds Improved Polymorph Marker (87515, `targetMarked`). Defined in
+    /// Arcane.cpp.
+    uint32 ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo, bool targetMarked);
+
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
     /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.

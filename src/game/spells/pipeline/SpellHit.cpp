@@ -99,6 +99,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
 
     // Reset damage/healing counter
     ResetEffectDamageAndHeal();
+    m_hitInterruptedCast = false;
 
     // Fill base trigger info
     uint32 procAttacker = m_procAttacker;
@@ -163,6 +164,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         }
     }
 
+    // a hit whose interrupt effect stopped a spell its target was casting tells the procs so
+    uint32 const interruptEx = m_hitInterruptedCast ? uint32(PROC_EX_INTERRUPT) : uint32(PROC_EX_NONE);
+
     // All calculated do it!
     // Do healing and triggers
     if (m_healing)
@@ -179,6 +183,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         {
             procEx |= PROC_EX_NORMAL_HIT;
         }
+        procEx |= interruptEx;
 
         uint32 absorb = 0;
         unitTarget->CalculateHealAbsorb(addhealth, &absorb);
@@ -224,7 +229,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // Send log damage message to client
         caster->SendSpellNonMeleeDamageLog(&damageInfo);
 
-        procEx = createProcExtendMask(&damageInfo, missInfo);
+        procEx = createProcExtendMask(&damageInfo, missInfo) | interruptEx;
         procVictim |= PROC_FLAG_TAKEN_ANY_DAMAGE;
 
         // Do triggers for unit (reflect triggers passed on hit phase for correct drop charge)
@@ -287,7 +292,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     {
         // Fill base damage struct (unitTarget - is real spell target)
         SpellNonMeleeDamage damageInfo(caster, unitTarget, m_spellInfo->ID, m_spellSchoolMask);
-        procEx = createProcExtendMask(&damageInfo, missInfo);
+        procEx = createProcExtendMask(&damageInfo, missInfo) | interruptEx;
         // Do triggers for unit (reflect triggers passed on hit phase for correct drop charge)
         if (m_canTrigger && missInfo != SPELL_MISS_REFLECT)
         {

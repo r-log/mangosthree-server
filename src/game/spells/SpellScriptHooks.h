@@ -75,8 +75,11 @@ struct SpellEntry;
  *   crit, its absorb and resist), and `Aura::PeriodicDummyTick`, before its family switch. Return() ends the tick with
  *   nothing dealt. A body may change the amount; a body that removes the ticking aura must Return().
  * - CheckProc: `Unit::ProcDamageAndSpellFor`, after the proc event accepted a holder. Return(false) drops the holder
- *   from this proc. A body changes nothing: the owner's holders are being walked, so it must not cast, nor add or
- *   remove an aura. Its units are const.
+ *   from this proc. Return(true) keeps it, and for a holder with no spell_proc_event row its effects then skip
+ *   Aura::CanProcFrom (their class mask and the hit's kind, which refuses a hit that dealt nothing), as the core's
+ *   mastery procs do; a cast end still procs none of them. Continue() keeps it and leaves those checks to run. A body
+ *   changes nothing: the owner's holders are being walked, so it must not cast, nor add or remove an aura. Its units
+ *   are const.
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
  *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges
  *   and set the script words.
@@ -639,7 +642,8 @@ struct PeriodicTickHook
     typedef PeriodicTickContext Context;
 };
 
-/// `Unit::ProcDamageAndSpellFor`, after the event accepted a holder. Return(false) drops the holder from the proc.
+/// `Unit::ProcDamageAndSpellFor`, after the event accepted a holder. Return(false) drops the holder from the proc;
+/// Return(true) keeps it and lets the effects of a holder with no proc row skip their class-mask and hit-kind checks.
 struct CheckProcHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_CHECK_PROC;
