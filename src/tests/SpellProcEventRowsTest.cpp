@@ -23,14 +23,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The Fire and Frost talents' spell_proc_event rows against the proc gate, with the spells their 4.3.4 texts name and
-/// the ones they leave out; and the interrupt mark a hit's proc event carries when its interrupt effect stopped a cast,
-/// against Improved Counterspell's row, an aura with no row and a row that asks for the mark. A row is built by hand
-/// with the values the world database holds for it. The gate is the two checks a proc event meets before an aura's
-/// effect handles it: SpellMgr::IsSpellProcEventCanTriggeredBy (the proc flags, the school, the family and the kind of
-/// hit) and, for an effect whose row names a family mask, the proc spell's class mask against that mask
-/// (SpellEntry::IsFitToFamilyMask, as Unit::ProcDamageAndSpellFor tests it). The proc flags are the spell's own from
-/// Spell.dbc where the row holds none, as Unit::IsTriggeredAtSpellProcEvent reads them.
+/// The Fire, Frost and Arcane talents' spell_proc_event rows against the proc gate, with the spells their 4.3.4 texts
+/// name and the ones they leave out; and the interrupt mark a hit's proc event carries when its interrupt effect
+/// stopped a cast, against Improved Counterspell's row, an aura with no row and a row that asks for the mark. A row is
+/// built by hand with the values the world database holds for it. The gate is the two checks a proc event meets
+/// before an aura's effect handles it: SpellMgr::IsSpellProcEventCanTriggeredBy (the proc flags, the school, the
+/// family and the kind of hit) and, for an effect whose row names a family mask, the proc spell's class mask against
+/// that mask (SpellEntry::IsFitToFamilyMask, as Unit::ProcDamageAndSpellFor tests it). The proc flags are the
+/// spell's own from Spell.dbc where the row holds none, as Unit::IsTriggeredAtSpellProcEvent reads them.
 ///
 /// The proc spells are Spell.dbc rows with their 4.3.4 school and the class mask of their SpellClassOptions.dbc row,
 /// built as SpellHitResultTest.cpp builds a row and seeded as SpellModMgrTest.cpp seeds class options; they are not
@@ -87,6 +87,20 @@ namespace
     ProcSpell const kWaterbolt = { 31707, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0, 0 };
     ProcSpell const kBlizzardTick = { 42208, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000080080),
                                       0 };
+    ProcSpell const kArcaneExplosion = { 1449, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000001000), 0 };
+    ProcSpell const kArcaneBrilliance = { 1459, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000400),
+                                          0x00000008 };
+    ProcSpell const kMageArmor = { 6117, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000010000000), 0 };
+    ProcSpell const kManaShield = { 1463, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000008000),
+                                    0x00000008 };
+    ProcSpell const kBlink = { 1953, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000010000), 0 };
+    ProcSpell const kClearcasting = { 12536, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000200000000),
+                                      0x00000008 };
+    ProcSpell const kPresenceOfMind = { 12043, SPELL_SCHOOL_MASK_NORMAL, SPELLFAMILY_MAGE, UI64LIT(0x0000002000000000),
+                                        0x00000008 };
+    ProcSpell const kArcanePower = { 12042, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0008000000000000),
+                                     0x00000008 };
+    ProcSpell const kLightningBolt = { 403, SPELL_SCHOOL_MASK_NATURE, SPELLFAMILY_SHAMAN, UI64LIT(0x0000000000000001), 0 };
 
     ProcSpell const kCounterspell = { 2139, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000004000),
                                       0 };
@@ -94,7 +108,9 @@ namespace
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
                                   kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
                                   kConeOfCold, kBlizzardChill, kFrostArmorChill, kOrbHitRankTwo, kOrbSummon, kIceLance,
-                                  kFrostNova, kWaterbolt, kBlizzardTick, kCounterspell };
+                                  kFrostNova, kWaterbolt, kBlizzardTick, kCounterspell, kArcaneExplosion,
+                                  kArcaneBrilliance, kMageArmor, kManaShield, kBlink, kClearcasting, kPresenceOfMind,
+                                  kArcanePower, kLightningBolt };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -162,7 +178,8 @@ namespace
     SpellProcEventEntry const kMasterOfElements = ProcRow(SPELL_SCHOOL_MASK_MAGIC, SPELLFAMILY_MAGE, 0, 0, PROC_EX_CRITICAL_HIT);
     SpellProcEventEntry const kImpact = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000002), 0,
                                                 PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
-    SpellProcEventEntry const kArcaneMissilesProc = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000200800), 0,
+    /// Arcane Missiles! 79683: the Arcane Missiles channel (A 0x800), a hit or a crit.
+    SpellProcEventEntry const kArcaneMissilesProc = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000800), 0,
                                                             PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
     /// Improved Counterspell 11255: family 3, Counterspell's class mask, no extra requirement.
     SpellProcEventEntry const kImprovedCounterspell = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000004000), 0,
@@ -182,6 +199,33 @@ namespace
     SpellProcEventEntry const kPermafrost = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000100000100220), 0,
                                                     PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
 
+    /// `row` with a cooldown of `seconds` and a custom chance of `chance`.
+    SpellProcEventEntry WithCooldownAndChance(SpellProcEventEntry row, uint32 seconds, float chance)
+    {
+        row.cooldown = seconds;
+        row.customChance = chance;
+        return row;
+    }
+
+    /// `row` with no family mask on effects 1 and 2.
+    SpellProcEventEntry OnEffectZeroOnly(SpellProcEventEntry row)
+    {
+        row.spellFamilyMask[1] = ClassFamilyMask();
+        row.spellFamilyMask[2] = ClassFamilyMask();
+        return row;
+    }
+
+    /// Arcane Concentration 11213: family 3, no mask, a hit or a crit, a cooldown of 15 seconds.
+    SpellProcEventEntry const kArcaneConcentration = WithCooldownAndChance(
+        ProcRow(0, SPELLFAMILY_MAGE, 0, 0, PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT), 15, 0.0f);
+    /// Arcane Potency 31571: family 3, effect 0's B 0x22 (Clearcasting, Presence of Mind), the helpful-spell flag, no
+    /// hit kind, a chance of 100.
+    SpellProcEventEntry const kArcanePotency = WithCooldownAndChance(
+        OnEffectZeroOnly(ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000002200000000), PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                                 PROC_EX_NONE)), 0, 100.0f);
+    /// Improved Blink 31569: family 3, Blink (A 0x10000) on every effect, no hit kind.
+    SpellProcEventEntry const kImprovedBlink = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000010000), 0, PROC_EX_NONE);
+
 
     /// The proc flags the aura answers: the row's, or Spell.dbc's when the row holds none.
     uint32 EventFlags(SpellProcEventEntry const* row, uint32 spellProcFlags)
@@ -194,6 +238,13 @@ namespace
     bool PassesGate(SpellProcEventEntry const& row, ProcSpell const& spell, uint32 procEx)
     {
         return SpellMgr::IsSpellProcEventCanTriggeredBy(&row, EventFlags(&row, kHarmfulSpellLanded), Row(spell), kHarmfulSpellLanded, procEx);
+    }
+
+    /// SpellMgr::IsSpellProcEventCanTriggeredBy for an aura whose Spell.dbc proc flags are `spellProcFlags`, at an
+    /// event of the flag `procFlag` and the hit kind `procEx` of `spell`.
+    bool Gate(SpellProcEventEntry const& row, uint32 spellProcFlags, ProcSpell const& spell, uint32 procFlag, uint32 procEx)
+    {
+        return SpellMgr::IsSpellProcEventCanTriggeredBy(&row, EventFlags(&row, spellProcFlags), Row(spell), procFlag, procEx);
     }
 
     /// The proc spell's class mask against the row's family mask of each of the three effects; false when they
@@ -265,12 +316,12 @@ TEST(SpellProcEventRows_ImpactsChargeTakesFireBlastAlone)
     CHECK(!FitsMask(kImpact, kScorch));
 }
 
-TEST(SpellProcEventRows_ArcaneMissilesProcIsUsedUpByArcaneMissilesAlone)
+TEST(SpellProcEventRows_ArcaneMissilesProcIsUsedUpByTheChannelAndNotByAMissile)
 {
-    CHECK(FitsMask(kArcaneMissilesProc, kArcaneMissile));
     CHECK(FitsMask(kArcaneMissilesProc, kArcaneMissiles));
-    CHECK(PassesGate(kArcaneMissilesProc, kArcaneMissile, PROC_EX_NORMAL_HIT));
-    CHECK(PassesGate(kArcaneMissilesProc, kArcaneMissile, PROC_EX_CRITICAL_HIT));
+    CHECK(PassesGate(kArcaneMissilesProc, kArcaneMissiles, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kArcaneMissilesProc, kArcaneMissiles, PROC_EX_CRITICAL_HIT));
+    CHECK(!FitsMask(kArcaneMissilesProc, kArcaneMissile));
     CHECK(!FitsMask(kArcaneMissilesProc, kFireball));
     CHECK(!FitsMask(kArcaneMissilesProc, kArcaneBlast));
     CHECK(!FitsMask(kArcaneMissilesProc, kArcaneBarrage));
@@ -436,4 +487,79 @@ TEST(SpellProcEventRows_ARowThatAsksForTheInterruptMarkTakesOnlyAHitThatInterrup
     CHECK(!PassesGate(interruptRow, kCounterspell, PROC_EX_MISS));
     CHECK(SpellMgr::InterruptedACast(PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
     CHECK(!SpellMgr::InterruptedACast(PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_ArcaneConcentrationTakesTheHitsOfMageSpellsAndHoldsAFifteenSecondCooldown)
+{
+    // 11213: Spell.dbc proc flags 0x15550, helpful spells among them; the row names no class mask, so each effect then
+    // takes the hit kind through SpellMgr::HitKindAccepted with whether the hit dealt damage.
+    uint32 const kConcentrationFlags = 0x15550;
+    CHECK_EQ(EventFlags(&kArcaneConcentration, kConcentrationFlags), kConcentrationFlags);
+    CHECK_EQ(kArcaneConcentration.cooldown, uint32(15));
+    CHECK(kArcaneConcentration.customChance == 0.0f);
+    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        CHECK(!kArcaneConcentration.spellFamilyMask[i]);
+    }
+
+    for (ProcSpell const& spell : { kArcaneBlast, kArcaneMissile, kArcaneExplosion, kArcaneBarrage, kFireball, kFrostbolt })
+    {
+        CHECK(Gate(kArcaneConcentration, kConcentrationFlags, spell, kHarmfulSpellLanded, PROC_EX_NORMAL_HIT));
+        CHECK(Gate(kArcaneConcentration, kConcentrationFlags, spell, kHarmfulSpellLanded, PROC_EX_CRITICAL_HIT));
+        CHECK(!Gate(kArcaneConcentration, kConcentrationFlags, spell, kHarmfulSpellLanded, PROC_EX_CAST_END));
+        CHECK(!Gate(kArcaneConcentration, kConcentrationFlags, spell, kHarmfulSpellLanded, PROC_EX_MISS));
+        CHECK(!Gate(kArcaneConcentration, kConcentrationFlags, spell, kHarmfulSpellLanded, PROC_EX_RESIST));
+    }
+
+    // Another class's spell is not the row's family.
+    CHECK(!Gate(kArcaneConcentration, kConcentrationFlags, kLightningBolt, kHarmfulSpellLanded, PROC_EX_NORMAL_HIT));
+    CHECK(!Gate(kArcaneConcentration, kConcentrationFlags, kStarfire, kHarmfulSpellLanded, PROC_EX_CRITICAL_HIT));
+
+    // A helpful mage spell's hit passes the flags and the family; its hit kind is refused for want of damage, as is a
+    // harmful hit that dealt none.
+    for (ProcSpell const& spell : { kMageArmor, kArcaneBrilliance, kPresenceOfMind, kManaShield })
+    {
+        CHECK(Gate(kArcaneConcentration, kConcentrationFlags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_NORMAL_HIT));
+    }
+    CHECK(!SpellMgr::HitKindAccepted(kArcaneConcentration.procEx, PROC_EX_NORMAL_HIT, false));
+    CHECK(!SpellMgr::HitKindAccepted(kArcaneConcentration.procEx, PROC_EX_CRITICAL_HIT, false));
+    CHECK(SpellMgr::HitKindAccepted(kArcaneConcentration.procEx, PROC_EX_NORMAL_HIT, true));
+    CHECK(SpellMgr::HitKindAccepted(kArcaneConcentration.procEx, PROC_EX_CRITICAL_HIT, true));
+}
+
+TEST(SpellProcEventRows_ArcanePotencyTakesTheHelpfulHitsOfClearcastingAndPresenceOfMindAtAChanceOf100)
+{
+    // 31571: Spell.dbc gives it no proc flags and no chance; the row gives the helpful-spell flag and 100. Its effect 0,
+    // the talent's only effect, names Clearcasting's B 0x2 and Presence of Mind's B 0x20.
+    CHECK_EQ(kArcanePotency.procFlags, uint32(PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL));
+    CHECK_EQ(kArcanePotency.procEx, uint32(PROC_EX_NONE));
+    CHECK(kArcanePotency.customChance == 100.0f);
+    CHECK(!kArcanePotency.spellFamilyMask[1]);
+    CHECK(!kArcanePotency.spellFamilyMask[2]);
+
+    for (ProcSpell const& spell : { kClearcasting, kPresenceOfMind })
+    {
+        CHECK(Row(spell)->IsFitToFamilyMask(kArcanePotency.spellFamilyMask[0]));
+        CHECK(Gate(kArcanePotency, 0, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_NORMAL_HIT));
+        CHECK(!Gate(kArcanePotency, 0, spell, kHarmfulSpellLanded, PROC_EX_NORMAL_HIT));
+    }
+    for (ProcSpell const& spell : { kArcanePower, kMageArmor, kArcaneBrilliance, kManaShield, kBlink, kArcaneBlast,
+                                    kArcaneExplosion, kArcaneMissiles })
+    {
+        CHECK(!Row(spell)->IsFitToFamilyMask(kArcanePotency.spellFamilyMask[0]));
+    }
+}
+
+TEST(SpellProcEventRows_ImprovedBlinkTakesBlinkAlone)
+{
+    // 31569: Spell.dbc proc flags 0x4000, a helpful spell landed; the row names Blink on every effect.
+    uint32 const kImprovedBlinkFlags = PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL;
+    CHECK(FitsMask(kImprovedBlink, kBlink));
+    CHECK(Gate(kImprovedBlink, kImprovedBlinkFlags, kBlink, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_NORMAL_HIT));
+    for (ProcSpell const& spell : { kArcaneBrilliance, kMageArmor, kManaShield, kPresenceOfMind, kArcanePower,
+                                    kClearcasting })
+    {
+        CHECK(!FitsMask(kImprovedBlink, spell));
+    }
+    CHECK(!Gate(kImprovedBlink, kImprovedBlinkFlags, kArcaneBlast, kHarmfulSpellLanded, PROC_EX_NORMAL_HIT));
 }
