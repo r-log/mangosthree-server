@@ -143,6 +143,9 @@
 // each Ice Lance, Deep Freeze and Brain Freeze Frostfire Bolt takes one as it is cast, a missed Ice Lance too, a copy
 // cast while the first Ice Lance flies finds none, a bolt keeps a charge it gets after its launch, Ice Lance deals a
 // quarter more with one at an unfrozen and at a frozen Camel, and the bolt's tick takes no Shatter under the buffs.
+// 998 a second mage's glyphed Frostfire Bolt on a Camel a first mage's unglyphed bolt slows: the first mage's slow
+// stays, and the second mage's holder is sent from the start with its periodic damage alone. 999 a mage's second
+// unglyphed Frostfire Bolt on a Camel his first one slows refreshes his slow in one aura update, at one stack.
 // 1025 Polymorph and Wyvern Sting on the Camel break on a direct hit and on a periodic tick, not on Molten Armor's
 // hit, a heal or a hit a shield takes whole, and Hex breaks on a chance per hit.
 // 1026 a root, a fear and Hex on the Camel count the damage a shield absorbed and the damage its damage-reduction
@@ -157,8 +160,8 @@
 // 1101 a staged Arcane mage's Arcane Blast stacks its buff four times, each stack adding to the next Arcane Blast's
 // cost, taking from its cast time and adding to its damage and to Arcane Explosion's, more with Glyph of Arcane Blast;
 // Arcane Explosion keeps the stacks, and Arcane Barrage and Arcane Missiles take them off at their cast.
-// The guard of 931-938, 941-978, 980-994, 1025-1028 and 1100-1101 (Qualify) fingerprints every spell a scenario reaches
-// and refuses the random-pick labels, the random chain targets and any script binding.
+// The guard of 931-938, 941-978, 980-994, 998-999, 1025-1028 and 1100-1101 (Qualify) fingerprints every spell a
+// scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -3995,9 +3998,9 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-994,
-     * 1025-1028, 1100-1101): a human mage staged to level 85 with the scenario's talents, glyphs, spell power, ratings
-     * and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then the
-     * pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario
+     * 998-999, 1025-1028, 1100-1101): a human mage staged to level 85 with the scenario's talents, glyphs, spell power,
+     * ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged (AfterStage), then
+     * the pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85 unless the scenario
      * sets its own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps,
      * in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
@@ -15329,6 +15332,363 @@ namespace Harness
         }
     };
 
+    /**
+     * The staging, the fingerprints and the reads 998 and 999 share: 977's Fire mage, with Frostfire Bolt (44614)
+     * learned and no glyph, against a Camel that holds nothing. Before each cast step he takes Precision (13843), so
+     * no cast misses a level-85 Camel, and the crit aura at -100, so no hit crits. His bolts are cast through the
+     * handler's calls, kBoltEveryMs apart; a bolt's 2.5 s cast and its flight land it before its read, kBoltReadMs
+     * after the step.
+     */
+    class MageFrostfireHolderScenario : public MageProcScenario
+    {
+    public:
+        MageFrostfireHolderScenario(char const* name, int order, char const* ownCategory)
+            : MageProcScenario(name, order, ownCategory) {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 11434, 2 }, { 10555, 1 }, { 10551, 0 }, { 10547, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFrostfireBolt }; }
+        int32 SpellPower() const override { return kSpellPower; }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 44614: 72 fields, fnv 0aade896
+                { 44614, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 628 }, { "eff1.EffectBonusCoefficient", 1064967340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 103 }, { "eff1.EffectRealPointsPerLevel", 1081711002 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 3 }, { "eff2.EffectAuraPeriod", 3000 }, { "eff2.EffectBasePoints", 1 }, { "eff2.EffectBonusCoefficient", 1005596799 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 61205: 72 fields, fnv a41173db
+                { 61205, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 17592186044416 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 3000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 1 }, { "eff1.EffectSpellClassMask.Flags", 17592186044416 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 4 }, { "eff2.EffectBasePoints", 3 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11367: 26 fields, fnv 5d9994de
+                { 11367, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 14 }, { "eff0.EffectSpellClassMask.Flags", 16 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        uint32 Watched() const override { return kFrostfireBolt; }
+        bool WatchedOnTarget() const override { return true; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 CastReadMs() const override { return kBoltReadMs; }
+
+        static constexpr uint32 kFrostfireBolt = 44614;
+        static constexpr uint32 kGlyphOfFrostfire = 61205;
+        static constexpr uint32 kGlyphOfFrostfireSlot = 591;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kBoltEveryMs = 3300;
+        static constexpr uint32 kBoltReadMs = 3100;
+        static constexpr uint32 kEffectBits = 0x7;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+
+        /// Which effects `holder` holds an aura at, as a mask of the effect indexes.
+        static uint32 EffectMask(SpellAuraHolder const& holder)
+        {
+            uint32 mask = 0;
+            for (uint32 e = 0; e < MAX_EFFECT_INDEX; ++e)
+            {
+                mask |= holder.GetAuraByEffectIndex(SpellEffectIndex(e)) ? 1u << e : 0u;
+            }
+            return mask;
+        }
+
+        /// `caster`'s 44614 holder on `unit` as "eff 0x<mask> stack <n> slow <amount or absent>", or "none".
+        static std::string BoltOf(Unit* unit, ObjectGuid const& caster)
+        {
+            SpellAuraHolder* holder = NULL;
+            if (unit && !caster.IsEmpty())
+            {
+                holder = unit->GetSpellAuraHolder(kFrostfireBolt, caster);
+            }
+            if (!holder)
+            {
+                return "none";
+            }
+            Aura* slow = holder->GetAuraByEffectIndex(EFFECT_INDEX_0);
+            char buf[96];
+            snprintf(buf, sizeof(buf), "eff 0x%x stack %u slow ", EffectMask(*holder),
+                     uint32(holder->GetStackAmount()));
+            return buf + (slow ? std::to_string(slow->GetModifier()->m_amount) : std::string("absent"));
+        }
+
+        /// The SMSG_AURA_UPDATE packets of 44614 on the Camel in step k's windows whose text holds `caster`
+        /// (" caster=self" or " caster=other"), in order: each one's effect bits and its stack.
+        std::vector<std::pair<uint32, uint32> > BoltUpdates(uint32 k, char const* caster) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::vector<std::pair<uint32, uint32> > updates;
+            for (std::string const& window : StepWindows(k))
+            {
+                std::vector<Recorder::Seen const*> seen = m_rec.SeenIn(window, SMSG_AURA_UPDATE);
+                for (size_t i = 0; i < seen.size(); ++i)
+                {
+                    std::string text;
+                    uint32 slot = 0, spell = 0, flags = 0, level = 0, stack = 0;
+                    if (seen[i]->payload.empty() ||
+                        !Trace::DecodeAuraUpdate(&seen[i]->payload[0], seen[i]->payload.size(), roles, text) ||
+                        sscanf(text.c_str(), "target=target slot=%u spell=%u flags=0x%x level=%u stack=%u", &slot,
+                               &spell, &flags, &level, &stack) != 5 ||
+                        spell != kFrostfireBolt || text.find(caster) == std::string::npos)
+                    {
+                        continue;
+                    }
+                    updates.push_back(std::make_pair(flags & kEffectBits, stack));
+                }
+            }
+            return updates;
+        }
+    };
+
+    /**
+     * S998 `mage-frost-frostfire-two-mages`: two mages' Frostfire Bolts (44614) on one Camel. Mage A is staged as
+     * MageFrostfireHolderScenario stages him, without Glyph of Frostfire. Once he is staged, mage B is spawned
+     * kSecondMageOffset yards to his side, facing as he does, and staged as a human mage of level 85 with Glyph of
+     * Frostfire (591, its aura 61205) and 44614 learned (Scenario::StagePlayer). Steps:
+     *  1. A's bolt at the Camel; it must not crit, and its slow lands;
+     *  2. a wait of kSecondBoltMs: B takes Precision and the crit aura at -100, then casts his bolt at the Camel
+     *     through the handler's calls; it lands while A's slow is on;
+     *  3. a wait of kEndMs, read after B's bolt landed.
+     * Step 1's read notes A's slow; step 3's read notes A's and B's holders of 44614 on the Camel, the Camel's
+     * strongest slow (Unit::GetMaxNegativeAuraModifier of SPELL_AURA_MOD_DECREASE_SPEED) and whether the stacking check
+     * answers that 44614 does not stack with itself (SpellMgr::IsNoStackSpellDueToSpell).
+     *
+     * `twoMages`: `heldA=<1 when the Camel holds A's 44614 at step 3's read>,slowA=<its slow then, or absent>,
+     * maskB=<the effects B's holder holds then, or none>,firstB=<the effect bits of the first SMSG_AURA_UPDATE of B's
+     * 44614 in step 2's windows, or none>,slowed=<the Camel's strongest slow at step 3's read>,noStackSelf=<1 or 0>`;
+     * OK when A's holder keeps the slow it had at step 1's read, B's holds only its periodic damage (0x4) and was sent
+     * so from its first update, and the Camel is slowed by A's slow. BUG with the value otherwise.
+     */
+    class MageFrostFrostfireTwoMages : public MageFrostfireHolderScenario
+    {
+    public:
+        MageFrostFrostfireTwoMages() : MageFrostfireHolderScenario("mage-frost-frostfire-two-mages", 998, "twoMages") {}
+
+    protected:
+        std::vector<Step> Steps() const override
+        {
+            Step bolt = Cast(kFrostfireBolt, false);
+            bolt.everyMs = kBoltEveryMs;
+            return { bolt, Wait(kSecondBoltMs), Wait(kEndMs) };
+        }
+
+        void AfterStage(Player& /*p*/) override
+        {
+            m_second = ObjectGuid();
+            m_secondStaged = false;
+            const float y = P0.y + kSecondMageOffset;
+            Player* second = SpawnPlayer(P0.x, y, Ground(P0.x, y, P0.z) + PlayerLift(), PlayerFacing(), CLASS_MAGE);
+            if (!second)
+            {
+                m_rec.Note("the second mage did not spawn");
+                return;
+            }
+            m_second = second->GetObjectGuid();
+            StagePlan plan;
+            plan.level = kLevel;
+            plan.glyphs = { kGlyphOfFrostfireSlot };
+            plan.spells = { kFrostfireBolt };
+            m_secondStaged = StagePlayer(*second, plan) && second->HasAura(kGlyphOfFrostfire);
+            m_rec.Note(std::string("the second mage: level ") + U(second->getLevel()) + ", " + U(kGlyphOfFrostfire) +
+                       (second->HasAura(kGlyphOfFrostfire) ? " on him" : " not on him") + ", 44614 " +
+                       (second->HasSpell(kFrostfireBolt) ? "known" : "not known") +
+                       (m_secondStaged ? "; staged" : "; not staged"));
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            if (k == kFirstStep && atRead)
+            {
+                SpellAuraHolder* own = target->GetSpellAuraHolder(kFrostfireBolt, p->GetObjectGuid());
+                Aura* slow = own ? own->GetAuraByEffectIndex(EFFECT_INDEX_0) : NULL;
+                if (slow)
+                {
+                    seen.reads["slowA"] = slow->GetModifier()->m_amount;
+                }
+                m_rec.Note("A's 44614 on the Camel: " + BoltOf(target, p->GetObjectGuid()));
+            }
+            else if (k == kSecondStep && !atRead)
+            {
+                Player* second = m_secondStaged ? sPlayerRegistry.Find(m_second) : NULL;
+                if (!second)
+                {
+                    m_rec.Note("the second mage is not there; his bolt is not cast");
+                    return;
+                }
+                second->CastSpell(second, kPrecision, true);
+                int32 points = NonCritAuraPoints();
+                second->CastCustomSpell(second, kCritAura, &points, NULL, NULL, true);
+                second->SetPower(POWER_MANA, second->GetMaxPower(POWER_MANA));
+                m_rec.Note("A's 44614 on the Camel before B's cast: " + BoltOf(target, p->GetObjectGuid()) +
+                           "; B casts 44614 at the Camel");
+                seen.reads["castB"] = CastAsHandler(second, kFrostfireBolt, target, uint8(k + 1));
+            }
+            else if (k == kReadStep && atRead)
+            {
+                SpellAuraHolder* own = target->GetSpellAuraHolder(kFrostfireBolt, p->GetObjectGuid());
+                SpellAuraHolder* other = NULL;
+                if (!m_second.IsEmpty())
+                {
+                    other = target->GetSpellAuraHolder(kFrostfireBolt, m_second);
+                }
+                Aura* slow = own ? own->GetAuraByEffectIndex(EFFECT_INDEX_0) : NULL;
+                seen.reads["heldA"] = own ? 1 : 0;
+                if (slow)
+                {
+                    seen.reads["slowA"] = slow->GetModifier()->m_amount;
+                }
+                if (other)
+                {
+                    seen.reads["maskB"] = EffectMask(*other);
+                }
+                seen.reads["slowed"] = target->GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED);
+                seen.reads["noStackSelf"] = sSpellMgr.IsNoStackSpellDueToSpell(kFrostfireBolt, kFrostfireBolt) ? 1 : 0;
+                m_rec.Note("44614 on the Camel: A's " + BoltOf(target, p->GetObjectGuid()) + "; B's " +
+                           BoltOf(target, m_second) + "; the Camel's strongest slow " +
+                           std::to_string(target->GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED)));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            const std::vector<std::pair<uint32, uint32> > updatesB = BoltUpdates(kSecondStep, " caster=other");
+            const int64 firstB = updatesB.empty() ? kNone : int64(updatesB[0].first);
+            const int64 slowBefore = Kept(st, kFirstStep, "slowA");
+            const int64 heldA = Kept(st, kReadStep, "heldA");
+            const int64 slowA = Kept(st, kReadStep, "slowA");
+            const int64 maskB = Kept(st, kReadStep, "maskB");
+            const int64 slowed = Kept(st, kReadStep, "slowed");
+            const int64 noStackSelf = Kept(st, kReadStep, "noStackSelf");
+            const int64 periodicOnly = int64(1u << EFFECT_INDEX_2);
+            const bool ok = m_secondStaged && Kept(st, kSecondStep, "castB") == int64(kFrostfireBolt) &&
+                            slowBefore != kNone && slowBefore < 0 && heldA == 1 && slowA == slowBefore &&
+                            maskB == periodicOnly && firstB == periodicOnly && slowed == slowBefore;
+
+            char maskText[16];
+            snprintf(maskText, sizeof(maskText), "0x%llx", (unsigned long long)(maskB < 0 ? 0 : maskB));
+            char firstText[16];
+            snprintf(firstText, sizeof(firstText), "0x%llx", (unsigned long long)(firstB < 0 ? 0 : firstB));
+            const std::string value = "heldA=" + std::to_string(heldA) + ",slowA=" +
+                                      (slowA == kNone ? std::string("absent") : std::to_string(slowA)) + ",maskB=" +
+                                      (maskB == kNone ? std::string("none") : std::string(maskText)) + ",firstB=" +
+                                      (firstB == kNone ? std::string("none") : std::string(firstText)) + ",slowed=" +
+                                      std::to_string(slowed) + ",noStackSelf=" + std::to_string(noStackSelf);
+            const std::string detail = std::string("B ") + (m_secondStaged ? "staged" : "not staged") + ", his cast " +
+                                       std::to_string(Kept(st, kSecondStep, "castB")) + "; A's slow at step 1's read " +
+                                       (slowBefore == kNone ? std::string("absent") : std::to_string(slowBefore)) +
+                                       "; B's updates in step 2's windows " + U(updatesB.size()) + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kLevel = 85;
+        static constexpr float kSecondMageOffset = 4.0f;
+        static constexpr uint32 kSecondBoltMs = 3300;
+        static constexpr uint32 kEndMs = 600;
+        static constexpr uint32 kFirstStep = 0;
+        static constexpr uint32 kSecondStep = 1;
+        static constexpr uint32 kReadStep = 2;
+
+        ObjectGuid m_second;
+        bool m_secondStaged = false;
+    };
+
+    /**
+     * S999 `mage-frost-frostfire-one-update`: one mage's two Frostfire Bolts (44614) on one Camel. He is staged as
+     * MageFrostfireHolderScenario stages him, without Glyph of Frostfire; the second bolt lands while the first one's
+     * slow is on the Camel. Each read notes his holder's stack and slow.
+     *
+     * `oneUpdate`: `updates=<the SMSG_AURA_UPDATE packets of his 44614 on the Camel in step 2's windows>,stacks=<the
+     * stack each carried, joined by +, or none>,stack=<the holder's stack at step 2's read>,slow=<its slow then, or
+     * absent>`; OK when one update came, at stack 1, and the holder is at stack 1 with the slow it had at step 1's
+     * read. BUG with the value otherwise.
+     */
+    class MageFrostFrostfireOneUpdate : public MageFrostfireHolderScenario
+    {
+    public:
+        MageFrostFrostfireOneUpdate()
+            : MageFrostfireHolderScenario("mage-frost-frostfire-one-update", 999, "oneUpdate") {}
+
+    protected:
+        std::vector<Step> Steps() const override
+        {
+            Step bolt = Cast(kFrostfireBolt, false);
+            bolt.everyMs = kBoltEveryMs;
+            return { bolt, bolt };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            if (!atRead)
+            {
+                return;
+            }
+            Seen& seen = st.seen[k];
+            SpellAuraHolder* own = target->GetSpellAuraHolder(kFrostfireBolt, p->GetObjectGuid());
+            Aura* slow = own ? own->GetAuraByEffectIndex(EFFECT_INDEX_0) : NULL;
+            seen.reads["stack"] = own ? own->GetStackAmount() : 0;
+            if (slow)
+            {
+                seen.reads["slow"] = slow->GetModifier()->m_amount;
+            }
+            m_rec.Note("his 44614 on the Camel: " + BoltOf(target, p->GetObjectGuid()));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            const std::vector<std::pair<uint32, uint32> > updates = BoltUpdates(kSecondStep, " caster=self");
+            std::string stacks;
+            for (size_t i = 0; i < updates.size(); ++i)
+            {
+                stacks += (i ? "+" : "") + U(updates[i].second);
+            }
+            const int64 slowBefore = Kept(st, kFirstStep, "slow");
+            const int64 stack = Kept(st, kSecondStep, "stack");
+            const int64 slow = Kept(st, kSecondStep, "slow");
+            const bool ok = updates.size() == 1 && updates[0].second == 1 && stack == 1 && slowBefore < 0 &&
+                            slowBefore != kNone && slow == slowBefore && st.seen[kSecondStep].logRead;
+            const std::string value = "updates=" + U(updates.size()) + ",stacks=" +
+                                      (stacks.empty() ? std::string("none") : stacks) + ",stack=" +
+                                      std::to_string(stack) + ",slow=" +
+                                      (slow == kNone ? std::string("absent") : std::to_string(slow));
+            const std::string detail = "his slow at step 1's read " +
+                                       (slowBefore == kNone ? std::string("absent") : std::to_string(slowBefore)) +
+                                       "; the second bolt's damage log " +
+                                       (st.seen[kSecondStep].logRead ? "read" : "not read") + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kFirstStep = 0;
+        static constexpr uint32 kSecondStep = 1;
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -15399,5 +15759,7 @@ namespace Harness
         r.Register(new MageFireClearcasting());
         r.Register(new MageArcaneMissiles());
         r.Register(new MageArcaneBlastStacks());
+        r.Register(new MageFrostFrostfireTwoMages());
+        r.Register(new MageFrostFrostfireOneUpdate());
     }
 }
