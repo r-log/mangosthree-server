@@ -13610,7 +13610,8 @@ namespace Harness
      * kOffensiveStatePoints, so every hit its proc accepts would cast Arcane Missiles!. Before each cast at the Camel he
      * takes Precision (13843, +6% spell hit), so no missile misses a level-85 Camel, and the crit aura at -100, so none
      * crits. Steps, kShortMs apart unless named:
-     *  1. Arcane Missiles at the Camel without Arcane Missiles!: refused;
+     *  1. Arcane Missiles at the Camel without Arcane Missiles!: refused; then he selects the Camel, as a client does
+     *     before it casts at it, since the channel sends its missiles at his selection;
      *  2. Arcane Missiles! cast by him at himself, triggered;
      *  3. Arcane Missiles at the Camel, kCastEveryMs before the next step: three missiles, 0.75 s apart over 2.25 s;
      *  4. a wait, at whose start he learns Improved Arcane Missiles 2 (83515) and Missile Barrage 2 (54486) through
@@ -13702,11 +13703,16 @@ namespace Harness
             };
         }
 
-        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             std::map<std::string, int64>& reads = st.seen[k].reads;
             if (!atRead)
             {
+                if (k == 0)
+                {
+                    p->SetSelectionGuid(target->GetObjectGuid());
+                    m_rec.Note("he selects the Camel, as a client does before it casts at it");
+                }
                 if (k == kLearnStep)
                 {
                     std::string known;
