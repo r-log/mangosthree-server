@@ -80,9 +80,10 @@ struct SpellEntry;
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
  *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges
  *   and set the script words.
- * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch. A body changes only the done multiplier.
+ * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch. A body changes only the done multiplier. Its
+ *   damage type tells a hit (SPELL_DIRECT_DAMAGE) from the amount of a periodic effect (DOT).
  * - CritChance: `Unit::IsSpellCrit`, for a magic spell with a victim, before its family switch. A body changes only
- *   the crit chance.
+ *   the crit chance. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from a periodic tick (DOT) and a heal (HEAL).
  * - DummyAura: `Aura::HandleAuraDummy`, after its check for a real apply or un-apply and before its family switches,
  *   for every real apply and every real un-apply of a SPELL_AURA_DUMMY effect; so never when a unit's modifiers are
  *   only taken off and put back (`Real` false), and never for AURA_REMOVE_BY_DELETE, which skips the un-apply. At a
@@ -101,8 +102,13 @@ struct SpellEntry;
  *   that the caster is not friendly to (the units a player's area spell takes, neutral ones among them; never a pet
  *   or a friend); its point is the cast's destination when it carries one, else its explicit unit target's position,
  *   else the caster's. Return() is the same as Continue(): nothing after the hook depends on it. A body may cast.
+ * - Launch: `Spell::cast`, once per cast that goes off, only for a spell with a row: after its costs are taken and
+ *   its go is sent, and, for a delayed spell, after the damage and crit of each target its hit roll let through are
+ *   reckoned; before the caster's cast-end proc, and for an immediate spell before its effects. It runs whatever the
+ *   cast's targets did with it: a miss, an immunity or a reflect at the launch, or none of them yet for a delayed
+ *   spell. Return() is the same as Continue(). A body may remove the caster's auras and stacks.
  *
- * EffectValue, AfterHit, AuraAmount, DamageDone, CritChance and AfterCast read no outcome: a body changes the
+ * EffectValue, AfterHit, AuraAmount, DamageDone, CritChance, AfterCast and Launch read no outcome: a body changes the
  * context's values or casts, and answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it
  * as they are.
  *
@@ -127,7 +133,8 @@ enum SpellScriptHook
     SPELL_SCRIPT_HOOK_DAMAGE_DONE       = 111,
     SPELL_SCRIPT_HOOK_CRIT_CHANCE       = 112,
     SPELL_SCRIPT_HOOK_DUMMY_AURA        = 113,
-    SPELL_SCRIPT_HOOK_AFTER_CAST        = 114
+    SPELL_SCRIPT_HOOK_AFTER_CAST        = 114,
+    SPELL_SCRIPT_HOOK_LAUNCH            = 115
 };
 
 /// What a script may ask of the aura holder it runs for, without the aura headers.
@@ -442,8 +449,9 @@ struct OnProcContext
 /// DamageDone's context. Value: void.
 struct DamageDoneContext
 {
-    DamageDoneContext(Unit& casterUnit, Unit& victimUnit, SpellEntry const& spellEntry, float& doneMultiplier)
-        : caster(casterUnit), victim(victimUnit), spell(spellEntry), doneTotalMod(doneMultiplier)
+    DamageDoneContext(Unit& casterUnit, Unit& victimUnit, SpellEntry const& spellEntry, DamageEffectType type,
+                      float& doneMultiplier)
+        : caster(casterUnit), victim(victimUnit), spell(spellEntry), damageType(type), doneTotalMod(doneMultiplier)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -451,14 +459,17 @@ struct DamageDoneContext
     Unit& caster;                                   ///< the unit that deals the damage
     Unit& victim;                                   ///< the unit it is dealt to
     SpellEntry const& spell;                        ///< the spell
+    DamageEffectType damageType;                    ///< SPELL_DIRECT_DAMAGE for a hit, DOT for a periodic effect's
+                                                    ///< amount
     float& doneTotalMod;                            ///< the done multiplier, which a body may change
 };
 
 /// CritChance's context, for a magic spell with a victim. Value: void.
 struct CritChanceContext
 {
-    CritChanceContext(Unit& casterUnit, Unit& victimUnit, SpellEntry const& spellEntry, float& chance)
-        : caster(casterUnit), victim(victimUnit), spell(spellEntry), critChance(chance)
+    CritChanceContext(Unit& casterUnit, Unit& victimUnit, SpellEntry const& spellEntry, DamageEffectType type,
+                      float& chance)
+        : caster(casterUnit), victim(victimUnit), spell(spellEntry), damageType(type), critChance(chance)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -466,6 +477,8 @@ struct CritChanceContext
     Unit& caster;                                   ///< the unit that casts
     Unit& victim;                                   ///< the spell's victim
     SpellEntry const& spell;                        ///< the spell
+    DamageEffectType damageType;                    ///< SPELL_DIRECT_DAMAGE for a hit, DOT for a periodic tick, HEAL
+                                                    ///< for a heal
     float& critChance;                              ///< the crit chance in percent, which a body may change
 };
 
@@ -531,6 +544,18 @@ struct AfterCastContext
     bool hasDestination;                            ///< whether the cast carried a destination
     float destX, destY, destZ;                      ///< the destination when hasDestination; the explicit target's
                                                     ///< position otherwise; else the caster's
+};
+
+/// Launch's context: the cast that goes off. Value: void.
+struct LaunchContext
+{
+    LaunchContext(Unit& casterUnit, SpellEntry const& spellEntry) : caster(casterUnit), spell(spellEntry)
+    {
+        caster.AssertSpellSeamOwner();
+    }
+
+    Unit& caster;                                   ///< the caster
+    SpellEntry const& spell;                        ///< the spell cast
 };
 
 /// `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast unless the result
@@ -655,6 +680,15 @@ struct AfterCastHook
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_AFTER_CAST;
     typedef void Value;
     typedef AfterCastContext Context;
+};
+
+/// `Spell::cast`, once per cast that goes off, before the caster's cast-end proc. The outcome is not read: Return() is
+/// the same as Continue().
+struct LaunchHook
+{
+    static constexpr uint32 Key = SPELL_SCRIPT_HOOK_LAUNCH;
+    typedef void Value;
+    typedef LaunchContext Context;
 };
 
 /// Registers `f` for `spellId` on `Hook`; false, and nothing changes, when the key is taken or `f` is NULL. A legacy
