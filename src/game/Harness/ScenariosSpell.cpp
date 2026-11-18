@@ -14228,8 +14228,9 @@ namespace Harness
      * mana was gone right after its act>,used=<the same steps: 1 when the buff was gone right after the cast's act>,
      * missed=<1 when step 16's SPELL_GO listed the Camel as missed>,hard=<1 when step 12's SPELL_GO came after its
      * first window, its cast was under way when the buff came and its mana was gone at its read>,kept=<1 when the buff
-     * was on him at step 12's read>,after=<the mana gone at step 14's read>,missiles=<79683 casts in every step's
-     * windows>,procs=<57761 casts in the Frostbolts' windows>,chill=,frostArmor=<the by-call procs of Frostbolt and of
+     * was on him at step 12's read>,after=<the mana gone at step 14's read>,missiles=<the reads, right after each
+     * step's act and at its read, at which he held Arcane Missiles! (79683)>,procs=<the Frostbolts at whose read he
+     * held the buff he did not hold right after their act>,chill=,frostArmor=<the by-call procs of Frostbolt and of
      * Frost Armor's Chilled that left him holding the buff, of kCalls each>`. OK at `instant=1,1,1`, `used=1,1,1`,
      * `missed=1`, `hard=1`, `kept=1`, `after` above 0, `missiles=0`, `chill` at 1 or more and `frostArmor=0`: the
      * buff is taken off as the Fireball or Frostfire Bolt it made instant is cast, one that misses too, and the bolt
@@ -14328,8 +14329,9 @@ namespace Harness
         /// At a step's act: a wait that names a spell casts it at him, triggered; at the act of the Fireball cast in
         /// full, the buff cast at him, triggered, with whether his cast was under way; at the act of the buff before
         /// the missed bolt, Wily Wits put on the Camel; at the last wait's, the by-call procs (GrantsByCall). Then
-        /// whether he holds the buff and the mana gone from his maximum. At each read: the same two, Wily Wits taken
-        /// off the Camel at the missed bolt's read, and the Camel's health set back to its maximum.
+        /// whether he holds the buff and Arcane Missiles!, and the mana gone from his maximum. At each read: the same
+        /// three, Wily Wits taken off the Camel at the missed bolt's read, and the Camel's health set back to its
+        /// maximum.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -14362,12 +14364,15 @@ namespace Harness
                                U(uint64(seen.reads["frostArmor"])));
                 }
                 seen.reads["buffAfterAct"] = p->HasAura(kBrainFreeze) ? 1 : 0;
+                seen.reads["missilesAfterAct"] = p->HasAura(kArcaneMissilesBuff) ? 1 : 0;
                 seen.reads["manaAfterAct"] = manaGone;
                 m_rec.Note(std::string("right after the act: Brain Freeze's buff on him ") +
-                           (seen.reads["buffAfterAct"] ? "yes" : "no") + ", mana gone " + std::to_string(manaGone));
+                           (seen.reads["buffAfterAct"] ? "yes" : "no") + ", Arcane Missiles! " +
+                           (seen.reads["missilesAfterAct"] ? "yes" : "no") + ", mana gone " + std::to_string(manaGone));
                 return;
             }
             seen.reads["buffAtRead"] = p->HasAura(kBrainFreeze) ? 1 : 0;
+            seen.reads["missilesAtRead"] = p->HasAura(kArcaneMissilesBuff) ? 1 : 0;
             seen.reads["manaAtRead"] = manaGone;
             if (k == kMissedBoltStep)
             {
@@ -14381,10 +14386,12 @@ namespace Harness
             uint32 missiles = 0, procs = 0;
             for (uint32 k = 0; k < st.steps.size(); ++k)
             {
-                missiles += Count(st.seen[k].triggered, kArcaneMissilesBuff);
-                if (st.steps[k].spell == kFrostbolt && IsCast(st.steps[k]))
+                missiles += (Kept(st, k, "missilesAfterAct") == 1 ? 1 : 0) +
+                            (Kept(st, k, "missilesAtRead") == 1 ? 1 : 0);
+                if (st.steps[k].spell == kFrostbolt && IsCast(st.steps[k]) && Kept(st, k, "buffAfterAct") == 0 &&
+                    Kept(st, k, "buffAtRead") == 1)
                 {
-                    procs += Count(st.seen[k].triggered, kBrainFreeze);
+                    ++procs;
                 }
             }
             std::string instant, used;
@@ -14452,12 +14459,6 @@ namespace Harness
             }
             std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
             return i == st.seen[k].reads.end() ? kNone : i->second;
-        }
-
-        /// How many of `spells` are `spellId`.
-        static uint32 Count(std::vector<uint32> const& spells, uint32 spellId)
-        {
-            return uint32(std::count(spells.begin(), spells.end(), spellId));
         }
 
         /// Whether the SPELL_GO of step k's own spell came in the step's first window, the one its act opens.
