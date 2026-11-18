@@ -25,7 +25,8 @@
 
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
-/// refusals of the proc scripts, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
+/// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles, the pairing of Arcane Missiles Aurastate
+/// with Arcane Missiles! and the channel's use of the buff, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
 /// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
@@ -125,6 +126,12 @@ namespace
 
     // The id the after-cast script holds: Blast Wave, which calls the free Flamestrike for Improved Flamestrike.
     uint32 const BLAST_WAVE_IDS[] = { 11113 };
+
+    // The id Arcane Missiles' pairing holds at the aura-apply and aura-remove hooks: Arcane Missiles!, which Arcane
+    // Missiles Aurastate (79808) follows; and the id the channel's script holds at the aura-apply hook: Arcane
+    // Missiles, whose cast uses Arcane Missiles! up.
+    uint32 const ARCANE_MISSILES_BUFF_IDS[] = { 79683 };
+    uint32 const ARCANE_MISSILES_IDS[] = { 5143 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -492,12 +499,13 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 74396 boost and proc labels; the 22 spells
     // Frostburn's mask covers at the damage-done hook and the 26 Shatter's covers at the crit-chance hook. At the proc
     // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State
-    // and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. The orb: Flame Orb at the
+    // and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. Arcane also: Arcane Missiles! at
+    // the aura-apply and aura-remove hooks and Arcane Missiles at the aura-apply hook. The orb: Flame Orb at the
     // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact also at the check-proc hook.
-    // 116 rows, 113 keys and 3 defaults, none twice.
+    // 119 rows, 116 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(116));
-    CHECK_EQ(registry.Count(), std::size_t(113));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(119));
+    CHECK_EQ(registry.Count(), std::size_t(116));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -511,8 +519,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(22));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(10));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(12));
+    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(12));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(13));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(1));
@@ -535,7 +543,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 39, 39, 0 },
         { &Mage::RegisterFrost, 54, 54, 0 },
-        { &Mage::RegisterArcane, 5, 5, 0 },
+        { &Mage::RegisterArcane, 8, 8, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
     };
     for (PerFile const& file : files)
@@ -547,8 +555,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(116));
-    CHECK_EQ(registry.Count(), std::size_t(113));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(119));
+    CHECK_EQ(registry.Count(), std::size_t(116));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -559,7 +567,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(113));
+    CHECK_EQ(mine.size(), std::size_t(116));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -843,6 +851,115 @@ TEST(MageScripts_TheProcScriptsKeepTheirEarlyRefusals)
     }
 }
 
+TEST(MageScripts_OffensiveStateNeverRollsForArcaneMissiles)
+{
+    // The decision: Arcane Missiles (5143) and its missiles (7268) are refused by id; Arcane Blast, Fireball, Arcane
+    // Missiles! itself and an event with no spell id are not.
+    CHECK(Mage::OffensiveStateRefuses(5143));
+    CHECK(Mage::OffensiveStateRefuses(7268));
+    for (uint32 spellId : { 30451u, 133u, 79683u, 0u })
+    {
+        CHECK(!Mage::OffensiveStateRefuses(spellId));
+    }
+
+    // The proc script: at an amount of 100 the channel's cast and its missiles cannot trigger it, so no charge or
+    // cooldown follows; Arcane Blast at the same amount passes the roll and goes on to the cast of the trigger spell,
+    // which the test's effect row does not name, so the proc fails there.
+    AddProcEffectRows();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    BareCreature owner;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    for (uint32 spellId : { 5143u, 7268u })
+    {
+        SpellRowStorage eventRow;
+        SpellHandlerOutcome<SpellAuraProcResult> refused =
+            Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, &SpellRow(eventRow, spellId), PROC_EX_NORMAL_HIT, 100);
+        CHECK(refused.IsReturn());
+        CHECK_EQ(int(refused.GetValue()), int(SPELL_AURA_PROC_CANT_TRIGGER));
+    }
+    SpellRowStorage arcaneBlastRow;
+    SpellHandlerOutcome<SpellAuraProcResult> rolled =
+        Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, &SpellRow(arcaneBlastRow, 30451), PROC_EX_NORMAL_HIT, 100);
+    CHECK(rolled.IsReturn());
+    CHECK_EQ(int(rolled.GetValue()), int(SPELL_AURA_PROC_FAILED));
+}
+
+TEST(MageScripts_ArcaneMissilesAurastateFollowsArcaneMissilesBuff)
+{
+    // The decision: the aurastate (79808) is cast on a mage who holds Arcane Missiles! (79683) without it, taken off a
+    // mage who holds it without the buff, and left as it is when he holds both or neither.
+    CHECK_EQ(int(Mage::ArcaneMissilesAurastateStep(true, false)), int(Mage::AURASTATE_APPLY));
+    CHECK_EQ(int(Mage::ArcaneMissilesAurastateStep(false, true)), int(Mage::AURASTATE_REMOVE));
+    CHECK_EQ(int(Mage::ArcaneMissilesAurastateStep(true, true)), int(Mage::AURASTATE_KEEP));
+    CHECK_EQ(int(Mage::ArcaneMissilesAurastateStep(false, false)), int(Mage::AURASTATE_KEEP));
+
+    // The rows: the buff at the aura-apply and aura-remove hooks and the channel at the aura-apply hook, the buff's
+    // apply and the channel's each a body of its own, the same in the game's table. The aurastate and the missiles
+    // hold no row.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<AuraApplyHook>(registry, ARCANE_MISSILES_BUFF_IDS);
+    CheckRowsInTheGame<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFF_IDS);
+    CheckRowsInTheGame<AuraApplyHook>(registry, ARCANE_MISSILES_IDS);
+    CHECK(registry.Find<AuraApplyHook>(79683) != registry.Find<AuraApplyHook>(5143));
+    CHECK(registry.Find<AuraRemoveHook>(5143) == NULL);
+    for (uint32 spellId : { 79808u, 7268u })
+    {
+        CHECK(SpellHandlerRegistry::Game().Find<AuraApplyHook>(spellId) == NULL);
+        CHECK(SpellHandlerRegistry::Game().Find<AuraRemoveHook>(spellId) == NULL);
+    }
+
+    // The buff's hooks leave a mage alone when he holds both or neither, whatever the removal's mode, and let the
+    // holder's boosts run. A mage who holds the buff without the aurastate goes on to its cast, which the test's
+    // spell store lacks, so nothing is cast.
+    BareCreature mage;
+    SpellRowStorage buffRow;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    AuraRemoveMode const modes[] =
+    {
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
+        AURA_REMOVE_BY_STACK,
+    };
+    for (AuraRemoveMode mode : modes)
+    {
+        AuraRemoveContext neither(mage, &mage, SpellRow(buffRow, 79683), AuraHandle(holder), mode);
+        CHECK(registry.Dispatch<AuraRemoveHook>(79683, neither).IsContinue());
+    }
+    CHECK(!mage.HasAura(79808));
+    HolderStorage buffStorage;
+    HolderStorage aurastateStorage;
+    mage.HoldAura(79683, EmptyHolder(buffStorage));
+    CHECK(sSpellStore.LookupEntry(79808) == NULL);
+    AuraApplyContext withoutAurastate(mage, &mage, SpellRow(buffRow, 79683), AuraHandle(holder), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(79683, withoutAurastate).IsContinue());
+    CHECK(!mage.HasAura(79808));
+    mage.HoldAura(79808, EmptyHolder(aurastateStorage));
+    AuraApplyContext both(mage, &mage, SpellRow(buffRow, 79683), AuraHandle(holder), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(79683, both).IsContinue());
+    for (AuraRemoveMode mode : modes)
+    {
+        AuraRemoveContext stillHeld(mage, &mage, SpellRow(buffRow, 79683), AuraHandle(holder), mode);
+        CHECK(registry.Dispatch<AuraRemoveHook>(79683, stillHeld).IsContinue());
+    }
+    CHECK(mage.HasAura(79683));
+    CHECK(mage.HasAura(79808));
+
+    // The channel's script acts only for its holder on the mage himself: its holder on the target, or one whose caster
+    // cannot be found, takes nothing off the unit it is on.
+    BareCreature target;
+    HolderStorage targetBuffStorage;
+    target.HoldAura(79683, EmptyHolder(targetBuffStorage));
+    SpellRowStorage channelRow;
+    AuraApplyContext onTarget(target, &mage, SpellRow(channelRow, 5143), AuraHandle(holder), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(5143, onTarget).IsContinue());
+    AuraApplyContext noCaster(target, NULL, SpellRow(channelRow, 5143), AuraHandle(holder), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(5143, noCaster).IsContinue());
+    CHECK(target.HasAura(79683));
+}
+
 TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
 {
     AddProcEffectRows();
@@ -951,7 +1068,8 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), sizeof(HOT_STREAK_BUFF_IDS) / sizeof(uint32) +
                                                 sizeof(MAGE_WARD_IDS) / sizeof(uint32) +
                                                 sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
-                                                sizeof(PYROMANIAC_IDS) / sizeof(uint32));
+                                                sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
+                                                sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
@@ -1278,7 +1396,8 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
         CHECK(game.Find<AuraRemoveHook>(spellId) == talentRemove);
     }
     CHECK_EQ(game.CountAt(AuraApplyHook::Key),
-             sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32));
+             sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
+             sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32));
 
     // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
     // and a removal by re-application or with no caster, change nothing and let the holder's boosts run.
@@ -1555,6 +1674,51 @@ TEST(MageScripts_CombustionsDoTStacksWithTheOtherAurasOfItsIcon)
     // The rule itself stands for the other auras of the icon.
     CHECK(sSpellMgr.IsNoStackSpellDueToSpell(19891, kOtherIconSpell));
     CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIconSpell, 19891));
+}
+
+namespace
+{
+    // The class options and the Spell.dbc rows of the Arcane Missiles stacking test: mage spells of class mask 0 and
+    // icon 1952 with no effect rows, as Arcane Missiles! (79683) and Arcane Missiles Aurastate (79808) are. The test
+    // takes the rows out of the spell store again.
+    const uint32 kOptionsArcaneMissilesAuras = 94210;
+    const uint32 kOtherIcon1952Spell = 94211;
+
+    SpellClassOptionsEntry s_optionsArcaneMissilesAuras;
+    ServerSpell s_arcaneMissilesBuff;
+    ServerSpell s_arcaneMissilesAurastate;
+    ServerSpell s_otherIcon1952Spell;
+
+    void StoreIcon1952Spell(ServerSpell& spell, uint32 spellId)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = kOptionsArcaneMissilesAuras;
+        spell.Entry().SpellIconID = 1952;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+    }
+}
+
+TEST(MageScripts_ArcaneMissilesBuffAndItsAurastateStackWithEachOther)
+{
+    // The two share icon 1952 and hold no spell modifier effect, so the generic same-icon rule would have a new holder
+    // of either remove the other's from the mage. They are exempt from it, both ways.
+    s_optionsArcaneMissilesAuras.SpellClassMask = ClassFamilyMask(0, 0);
+    s_optionsArcaneMissilesAuras.SpellClassSet = SPELLFAMILY_MAGE;
+    sSpellClassOptionsStore.SetEntry(kOptionsArcaneMissilesAuras, &s_optionsArcaneMissilesAuras);
+    StoreIcon1952Spell(s_arcaneMissilesBuff, 79683);
+    StoreIcon1952Spell(s_arcaneMissilesAurastate, 79808);
+    StoreIcon1952Spell(s_otherIcon1952Spell, kOtherIcon1952Spell);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(79683, 79808));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(79808, 79683));
+
+    // The rule itself stands for another aura of the icon.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(79808, kOtherIcon1952Spell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIcon1952Spell, 79683));
+
+    sSpellStore.SetEntry(79683, NULL);
+    sSpellStore.SetEntry(79808, NULL);
+    sSpellStore.SetEntry(kOtherIcon1952Spell, NULL);
+    CHECK(sSpellStore.LookupEntry(79808) == NULL);
 }
 
 TEST(MageScripts_ImpactSpreadsPyroblastIgniteAndCombustionAlwaysAndLivingBombToTwoEnemies)
