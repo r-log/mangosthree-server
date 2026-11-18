@@ -13968,10 +13968,9 @@ namespace Harness
         /// whether he holds Brain Freeze's buff. At the act of the copy's step, a copy of Ice Lance cast at the Camel,
         /// triggered; at the act of Brain Freeze's buff before the second instant bolt, Glyph of Frostfire cast at
         /// him, triggered, and his Frostfire Bolt taken off the Camel by call; at the second instant bolt's, a charge
-        /// cast at him, triggered; at the act of the charge
-        /// before the missed Ice Lance, Wily Wits put on the Camel, taken off at that Ice Lance's read; at the last
-        /// step's, the rolls (RollBolt). At each read: the stack of 44544 he holds, and the Camel's health set back to
-        /// its maximum.
+        /// cast at him, triggered; at the act of the charge before the missed Ice Lance, Wily Wits put on the Camel,
+        /// taken off at that Ice Lance's read; at the last step's, the rolls (RollBolt). At each read: the stack of
+        /// 44544 he holds, and the Camel's health set back to its maximum.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -14233,26 +14232,32 @@ namespace Harness
      *  12. a Fireball cast in full, at whose act, right after the cast starts, he casts the buff at himself, triggered;
      *  13. a Fireball the buff of step 12 makes instant;
      *  14. a Frostfire Bolt;
-     *  15. a wait at whose act he casts the buff at himself, triggered, and Wily Wits (75533, 100 less chance for a
+     *  15. a Frostfire Bolt cast in full, at whose act, right after the cast starts, Fingers of Frost's talent aura
+     *      (83074) is taken off him, so the bolt's cast-end proc gives no charge, and he casts a Fingers of Frost
+     *      charge (44544) and the buff at himself, triggered; at its read the charge is taken off him and the talent
+     *      aura cast at him again, triggered;
+     *  16. a wait at whose act he casts the buff at himself, triggered, and Wily Wits (75533, 100 less chance for a
      *      spell to hit its holder) is put on the Camel as PutReadyAura puts it;
-     *  16. a Frostfire Bolt the buff makes instant, cast with Precision taken off him, which misses; the Camel's aura
+     *  17. a Frostfire Bolt the buff makes instant, cast with Precision taken off him, which misses; the Camel's aura
      *      is taken off at its read;
-     *  17. a wait at whose act the scenario makes kCalls cast-end procs on him by call, as Spell::cast makes one at a
+     *  18. a wait at whose act the scenario makes kCalls cast-end procs on him by call, as Spell::cast makes one at a
      *      launch (Unit::ProcDamageAndSpell with the harmful-spell flag and PROC_EX_CAST_END), each with the buff taken
      *      off him first, for Frostbolt and for Frost Armor's Chilled (7321).
      *
-     * `brainFreeze`: `instant=<steps 10, 13 and 16: 1 when the cast's SPELL_GO came in the step's first window and no
+     * `brainFreeze`: `instant=<steps 10, 13 and 17: 1 when the cast's SPELL_GO came in the step's first window and no
      * mana was gone right after its act>,used=<the same steps: 1 when the buff was gone right after the cast's act>,
-     * missed=<1 when step 16's SPELL_GO listed the Camel as missed>,hard=<1 when step 12's SPELL_GO came after its
-     * first window, its cast was under way when the buff came and its mana was gone at its read>,kept=<1 when the buff
-     * was on him at step 12's read>,after=<the mana gone at step 14's read>,missiles=<the reads, right after each
-     * step's act and at its read, at which he held Arcane Missiles! (79683)>,procs=<the Frostbolts at whose read he
-     * held the buff he did not hold right after their act>,chill=,frostArmor=<the by-call procs of Frostbolt and of
-     * Frost Armor's Chilled that left him holding the buff, of kCalls each>`. OK at `instant=1,1,1`, `used=1,1,1`,
-     * `missed=1`, `hard=1`, `kept=1`, `after` above 0, `missiles=0`, `chill` at 1 or more and `frostArmor=0`: the
-     * buff is taken off as the Fireball or Frostfire Bolt it made instant is cast, one that misses too, and the bolt
-     * after it costs mana; a Fireball that took its cast time keeps the buff that came during the cast; a Brain Freeze
-     * mage gets no Arcane Missiles!, and Frost Armor's Chilled gives no Brain Freeze. `procs` is recorded, not judged.
+     * missed=<1 when step 17's SPELL_GO listed the Camel as missed>,hard=<steps 12 and 15: 1 when the cast's SPELL_GO
+     * came after its first window, the cast was under way when the buff came and its mana was gone at its read>,
+     * kept=<the same steps: 1 when the buff was on him at the read>,fingers=<the stack of 44544 he held right after
+     * step 15's act>:<at its read>,after=<the mana gone at step 14's read>,missiles=<the reads, right after each step's
+     * act and at its read, at which he held Arcane Missiles! (79683)>,procs=<the Frostbolts at whose read he held the
+     * buff he did not hold right after their act>,chill=,frostArmor=<the by-call procs of Frostbolt and of Frost
+     * Armor's Chilled that left him holding the buff, of kCalls each>`. OK at `instant=1,1,1`, `used=1,1,1`,
+     * `missed=1`, `hard=1,1`, `kept=1,1`, `fingers` the same stack, 1 or more, at both, `after` above 0, `missiles=0`,
+     * `chill` at 1 or more and `frostArmor=0`: the buff is taken off as the Fireball or Frostfire Bolt it made instant
+     * is cast, one that misses too, and the bolt after it costs mana; a Fireball and a Frostfire Bolt that took their
+     * cast time keep the buff that came during the cast, and the bolt the Fingers of Frost charge; a Brain Freeze mage
+     * gets no Arcane Missiles!, and Frost Armor's Chilled gives no Brain Freeze. `procs` is recorded, not judged.
      */
     class MageFrostBrainFreeze : public MageProcScenario
     {
@@ -14290,6 +14295,7 @@ namespace Harness
             steps.push_back(SelfRemoval(kBrainFreeze, 300));
             steps.push_back(Cast(kFireball, false));
             steps.push_back(Cast(kFireball, false));
+            steps.push_back(Cast(kFrostfireBolt, false));
             steps.push_back(Cast(kFrostfireBolt, false));
             steps.push_back(buff);
             steps.push_back(missed);
@@ -14343,12 +14349,14 @@ namespace Harness
             };
         }
 
-        /// At a step's act: a wait that names a spell casts it at him, triggered; at the act of the Fireball cast in
-        /// full, the buff cast at him, triggered, with whether his cast was under way; at the act of the buff before
-        /// the missed bolt, Wily Wits put on the Camel; at the last wait's, the by-call procs (GrantsByCall). Then
-        /// whether he holds the buff and Arcane Missiles!, and the mana gone from his maximum. At each read: the same
-        /// three, Wily Wits taken off the Camel at the missed bolt's read, and the Camel's health set back to its
-        /// maximum.
+        /// At a step's act: a wait that names a spell casts it at him, triggered; at the act of the Fireball and of
+        /// the Frostfire Bolt cast in full, the buff cast at him, triggered, with whether his cast was under way, and
+        /// at the bolt's, before the buff, Fingers of Frost's talent aura taken off him and a charge cast at him,
+        /// triggered, with its stack; at the act of the buff before the missed bolt, Wily Wits put on the Camel; at the
+        /// last wait's, the by-call procs (GrantsByCall). Then whether he holds the buff and Arcane Missiles!, and the
+        /// mana gone from his maximum. At each read: the same three; at the read of the bolt cast in full the charge's
+        /// stack, then the charge taken off him and the talent aura cast at him, triggered; Wily Wits taken off the
+        /// Camel at the missed bolt's read, and the Camel's health set back to its maximum.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -14360,9 +14368,18 @@ namespace Harness
                 {
                     p->CastSpell(p, step.spell, true);
                 }
-                if (k == kHardFireballStep)
+                if (k == kHardFireballStep || k == kHardBoltStep)
                 {
                     seen.reads["castingAtBuff"] = p->IsNonMeleeSpellCasted(false) ? 1 : 0;
+                    if (k == kHardBoltStep)
+                    {
+                        p->RemoveAurasDueToSpell(kFingersTalent);
+                        p->CastSpell(p, kFingersOfFrost, true);
+                        seen.reads["fingersAfterAct"] = FingersStack(p);
+                        m_rec.Note(std::string("Fingers of Frost's talent aura on him: ") +
+                                   (p->HasAura(kFingersTalent) ? "yes" : "no") + "; a charge cast on him, triggered, "
+                                   "during the cast: stack " + std::to_string(seen.reads["fingersAfterAct"]));
+                    }
                     p->CastSpell(p, kBrainFreeze, true);
                     m_rec.Note(std::string("his cast under way: ") + (seen.reads["castingAtBuff"] ? "yes" : "no") +
                                "; Brain Freeze's buff cast on him, triggered, during the cast");
@@ -14391,6 +14408,15 @@ namespace Harness
             seen.reads["buffAtRead"] = p->HasAura(kBrainFreeze) ? 1 : 0;
             seen.reads["missilesAtRead"] = p->HasAura(kArcaneMissilesBuff) ? 1 : 0;
             seen.reads["manaAtRead"] = manaGone;
+            if (k == kHardBoltStep)
+            {
+                seen.reads["fingersAtRead"] = FingersStack(p);
+                p->RemoveAurasDueToSpell(kFingersOfFrost);
+                p->CastSpell(p, kFingersTalent, true);
+                m_rec.Note("Fingers of Frost's stack at the read " + std::to_string(seen.reads["fingersAtRead"]) +
+                           "; the charge taken off him; the talent aura on him again: " +
+                           (p->HasAura(kFingersTalent) ? "yes" : "no"));
+            }
             if (k == kMissedBoltStep)
             {
                 target->RemoveAurasDueToSpell(kWilyWits);
@@ -14424,26 +14450,38 @@ namespace Harness
                 usedOk = usedOk && gone;
             }
             const bool missed = st.seen.size() > kMissedBoltStep && st.seen[kMissedBoltStep].missed;
-            const bool hard = st.seen.size() > kHardFireballStep && st.seen[kHardFireballStep].goSeen &&
-                              !GoInFirstWindow(st, kHardFireballStep) &&
-                              Kept(st, kHardFireballStep, "castingAtBuff") == 1 &&
-                              Kept(st, kHardFireballStep, "manaAtRead") > 0;
-            const int64 kept = Kept(st, kHardFireballStep, "buffAtRead");
+            std::string hard, kept;
+            bool hardOk = true, keptOk = true;
+            for (uint32 k : { kHardFireballStep, kHardBoltStep })
+            {
+                const bool slow = st.seen.size() > k && st.seen[k].goSeen && !GoInFirstWindow(st, k) &&
+                                  Kept(st, k, "castingAtBuff") == 1 && Kept(st, k, "manaAtRead") > 0;
+                const bool held = Kept(st, k, "buffAtRead") == 1;
+                hard += (hard.empty() ? "" : ",") + std::string(slow ? "1" : "0");
+                kept += (kept.empty() ? "" : ",") + std::string(held ? "1" : "0");
+                hardOk = hardOk && slow;
+                keptOk = keptOk && held;
+            }
+            const int64 fingersAct = Kept(st, kHardBoltStep, "fingersAfterAct");
+            const int64 fingersRead = Kept(st, kHardBoltStep, "fingersAtRead");
+            const bool fingers = fingersAct >= 1 && fingersRead == fingersAct;
             const int64 after = Kept(st, kAfterStep, "manaAtRead");
             const int64 chill = Kept(st, kByCallStep, "chill");
             const int64 frostArmor = Kept(st, kByCallStep, "frostArmor");
             auto shown = [](int64 v) { return v == kNone ? std::string("none") : std::to_string(v); };
             const std::string value = "instant=" + instant + ",used=" + used + ",missed=" + (missed ? "1" : "0") +
-                                      ",hard=" + (hard ? "1" : "0") + ",kept=" + shown(kept) + ",after=" +
-                                      shown(after) + ",missiles=" + U(missiles) + ",procs=" + U(procs) + ",chill=" +
-                                      shown(chill) + ",frostArmor=" + shown(frostArmor);
-            const bool ok = instantOk && usedOk && missed && hard && kept == 1 && after > 0 && missiles == 0 &&
-                            chill >= 1 && frostArmor == 0;
+                                      ",hard=" + hard + ",kept=" + kept + ",fingers=" + shown(fingersAct) + ":" +
+                                      shown(fingersRead) + ",after=" + shown(after) + ",missiles=" + U(missiles) +
+                                      ",procs=" + U(procs) + ",chill=" + shown(chill) + ",frostArmor=" +
+                                      shown(frostArmor);
+            const bool ok = instantOk && usedOk && missed && hardOk && keptOk && fingers && after > 0 &&
+                            missiles == 0 && chill >= 1 && frostArmor == 0;
             const std::string detail = "the instant Fireball and Frostfire Bolts, the missed one too, free and taking "
                                        "Brain Freeze's buff as they are cast, the bolt after them paying; the Fireball "
-                                       "cast in full keeping the buff that came during its cast; no Arcane Missiles! "
-                                       "in " + U(uint32(st.steps.size())) + " steps; by call, the buff from Frostbolt "
-                                       "and none from Frost Armor's Chilled)";
+                                       "and the Frostfire Bolt cast in full keeping the buff that came during their "
+                                       "cast, and the bolt the Fingers of Frost charge; no Arcane Missiles! in " +
+                                       U(uint32(st.steps.size())) + " steps; by call, the buff from Frostbolt and none "
+                                       "from Frost Armor's Chilled)";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
@@ -14456,6 +14494,8 @@ namespace Harness
         static constexpr uint32 kFrostArmorChill = 7321;
         static constexpr uint32 kWilyWits = 75533;
         static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kFingersOfFrost = 44544;
+        static constexpr uint32 kFingersTalent = 83074;
         static constexpr int32 kWilyWitsMs = 5000;
         static constexpr uint32 kBolts = 8;
         static constexpr uint32 kCalls = 40;
@@ -14463,9 +14503,17 @@ namespace Harness
         static constexpr uint32 kHardFireballStep = 11;
         static constexpr uint32 kInstantFireballStep = 12;
         static constexpr uint32 kAfterStep = 13;
-        static constexpr uint32 kMissedBoltStep = 15;
-        static constexpr uint32 kByCallStep = 16;
+        static constexpr uint32 kHardBoltStep = 14;
+        static constexpr uint32 kMissedBoltStep = 16;
+        static constexpr uint32 kByCallStep = 17;
         static constexpr int64 kNone = -1;
+
+        /// The stack of Fingers of Frost (44544) he holds; 0 for none.
+        static int64 FingersStack(Player* p)
+        {
+            SpellAuraHolder* holder = p->GetSpellAuraHolder(kFingersOfFrost);
+            return holder ? int64(holder->GetStackAmount()) : 0;
+        }
 
         /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
         static int64 Kept(St const& st, uint32 k, char const* name)
