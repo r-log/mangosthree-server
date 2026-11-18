@@ -27,7 +27,8 @@
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles, the pairing of Arcane Missiles Aurastate
 /// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
-/// Arcane damage spell, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
+/// Arcane damage spell, Ignite's munching leaves against the roll-over, Clearcasting used up only by a spell its cost
+/// modifier makes cheaper, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
 /// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
@@ -54,6 +55,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/SpellScriptQueries.h"
+#include "spells/PeriodicTiming.h"
 #include "Creature.h"
 #include "Player.h"
 #include "WorldSession.h"
@@ -118,6 +120,9 @@ namespace
 
     // Impact's ids at the proc hook: the talent's two ranks.
     uint32 const IMPACT_IDS[] = { 11103, 12357 };
+
+    // The id Clearcasting's script holds at the check-proc hook: the buff, whose charge Pyroblast! does not take.
+    uint32 const CLEARCASTING_IDS[] = { 12536 };
 
     // The id Impact's spread holds at the dummy-effect hook: the spell the Impact buff casts at its Fire Blast's victim.
     uint32 const IMPACT_SPREAD_IDS[] = { 12355 };
@@ -575,11 +580,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield.
     // Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks and Arcane Missiles at the aura-apply hook.
     // The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact,
-    // Arcane Blast's buff and Fingers of Frost also at the check-proc hook. 124 rows, 121 keys and 3 defaults, none
-    // twice.
+    // Clearcasting, Arcane Blast's buff and Fingers of Frost also at the check-proc hook. 125 rows, 122 keys and 3
+    // defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(124));
-    CHECK_EQ(registry.Count(), std::size_t(121));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(125));
+    CHECK_EQ(registry.Count(), std::size_t(122));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -588,7 +593,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
-    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(6));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(7));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(22));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
@@ -616,7 +621,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     PerFile const files[] =
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
-        { &Mage::RegisterFire, 39, 39, 0 },
+        { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 58, 58, 0 },
         { &Mage::RegisterArcane, 9, 9, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
@@ -630,8 +635,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(124));
-    CHECK_EQ(registry.Count(), std::size_t(121));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(125));
+    CHECK_EQ(registry.Count(), std::size_t(122));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -642,7 +647,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(121));
+    CHECK_EQ(mine.size(), std::size_t(122));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -799,7 +804,8 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
-             (sizeof(IMPACT_IDS) + sizeof(ARCANE_BLAST_BUFF_IDS) + sizeof(FINGERS_OF_FROST_IDS)) / sizeof(uint32));
+             (sizeof(IMPACT_IDS) + sizeof(CLEARCASTING_IDS) + sizeof(ARCANE_BLAST_BUFF_IDS) +
+              sizeof(FINGERS_OF_FROST_IDS)) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data). Arcane Blast's buff (36032) holds no proc script: its
@@ -1188,6 +1194,215 @@ TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
 
     // Nothing was cast: the victim holds no Ignite.
     CHECK(victim.GetSpellAuraHolder(12654) == NULL);
+}
+
+TEST(MageScripts_IgniteMunchesACritOfTheUpdateOfItsLastBankBeforeItTicks)
+{
+    // An Ignite banked in update 5000 with two ticks: a crit of that update, while both ticks are left, replaces the
+    // banked share.
+    CHECK(Mage::IgniteMunches(5000, 2, 5000, 2));
+
+    // A crit of the next update adds to it, and so does one of the same update after the Ignite has ticked.
+    CHECK(!Mage::IgniteMunches(5000, 2, 5050, 2));
+    CHECK(!Mage::IgniteMunches(5000, 3, 5000, 2));
+
+    // An Ignite no crit banked in (a copy Impact spread) never munches.
+    CHECK(!Mage::IgniteMunches(0, 0, 0, 0));
+    CHECK(!Mage::IgniteMunches(5000, 0, 5000, 0));
+}
+
+TEST(MageScripts_AMunchedIgniteRollsOverTheLaterShareAndOnlyWhatTheIgniteBeforeTheEarlierHadLeft)
+{
+    // Ignite's two ticks, and the three of an Ignite that replaces one before its next tick and carries that tick's
+    // time.
+    uint32 const shareTicks = 2;
+    uint32 const refreshed = 3;
+
+    // On a target with no Ignite the earlier crit banks 1000 a tick. A later crit of 1500 a tick in another update
+    // rolls both over: (2 x 1500 + 2 x 1000) / 3 = 1666 a tick.
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, 1000, shareTicks, refreshed), int32(1666));
+
+    // In the same update the earlier Ignite first carries what was left before it, nothing, so the later one ticks for
+    // (2 x 1500) / 3 = 1000: the later share alone.
+    int32 const nothingLeft = Mage::IgniteMunchedTick(0, shareTicks);
+    CHECK_EQ(nothingLeft, int32(0));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, nothingLeft, shareTicks, refreshed), int32(1000));
+
+    // On a target whose Ignite has one tick of 600 left, the earlier crit's Ignite rolls it over, (2 x 1000 + 600) / 3
+    // = 866 a tick, and banks 600 as the leftover. A later crit of 1500 a tick in another update carries all of it:
+    // (2 x 1500 + 3 x 866) / 3 = 1866.
+    int32 const leftover = 600;
+    int32 const earlier = Spells::RolledOverTick(1000, shareTicks, 600, 1, refreshed);
+    CHECK_EQ(earlier, int32(866));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, earlier, refreshed, refreshed), int32(1866));
+
+    // In the same update the earlier Ignite first carries 600 / 3 = 200 a tick, so the later one ticks for
+    // (2 x 1500 + 3 x 200) / 3 = 1200, what the later crit alone gives on the 600 left.
+    int32 const munched = Mage::IgniteMunchedTick(leftover, refreshed);
+    CHECK_EQ(munched, int32(200));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, munched, refreshed, refreshed), int32(1200));
+    CHECK_EQ(Spells::RolledOverTick(1500, shareTicks, 600, 1, refreshed), int32(1200));
+
+    // A leftover its ticks do not divide drops the remainder: 601 over three is 200. No tick left carries nothing.
+    CHECK_EQ(Mage::IgniteMunchedTick(601, refreshed), int32(200));
+    CHECK_EQ(Mage::IgniteMunchedTick(600, 0), int32(0));
+}
+
+namespace
+{
+    // The ids of the Clearcasting test's own rows: two modifiers on Clearcasting's class mask, spells of the client's
+    // kinds that no 4.3.4 id stands for, and the first of its class options and power rows.
+    const uint32 kRaisingCostModifier = 94520;
+    const uint32 kCastTimeModifier = 94521;
+    const uint32 kFlatCostSpell = 94522;
+    const uint32 kGenericCostSpell = 94523;
+    const uint32 kPriestCostSpell = 94524;
+    const uint32 kRageCostSpell = 94525;
+    const uint32 kFirstClearcastingOptions = 94530;
+    const uint32 kFirstClearcastingPower = 94545;
+
+    // A spell the Clearcasting test casts: its class options (family 0: none), its power and mana cost, and whether
+    // Clearcasting makes it cheaper.
+    struct ClearcastingEvent
+    {
+        uint32 spellId;
+        uint32 family;
+        uint32 maskA;
+        uint32 maskB;
+        uint32 maskC;
+        uint32 powerType;
+        uint32 manaCost;
+        uint32 manaCostPct;
+        bool reduced;
+    };
+
+    // As the client's data holds them: Fireball (133), Pyroblast (11366) and Flame Orb (82731), each a percent of base
+    // mana; a mage spell of a flat mana cost; Pyroblast! (92315), the free Flamestrike (88148) and Blizzard's damage
+    // (42208), none with a cost; Mage Ward (543), outside Clearcasting's mask; a spell with no class options and a
+    // cost, as an item's spell is; a priest spell and a mage spell of a rage cost, on Fireball's mask bit.
+    ClearcastingEvent const CLEARCASTING_EVENTS[] =
+    {
+        { 133, SPELLFAMILY_MAGE, 0x00000001, 0, 0, POWER_MANA, 0, 9, true },
+        { 11366, SPELLFAMILY_MAGE, 0x00400000, 0, 0x00001008, POWER_MANA, 0, 17, true },
+        { 82731, SPELLFAMILY_MAGE, 0, 0, 0x00000880, POWER_MANA, 0, 6, true },
+        { kFlatCostSpell, SPELLFAMILY_MAGE, 0x00000001, 0, 0, POWER_MANA, 100, 0, true },
+        { 92315, SPELLFAMILY_MAGE, 0x00400000, 0, 0x00000008, POWER_MANA, 0, 0, false },
+        { 88148, SPELLFAMILY_MAGE, 0x00000004, 0, 0, POWER_MANA, 0, 0, false },
+        { 42208, SPELLFAMILY_MAGE, 0x00080080, 0, 0, POWER_MANA, 0, 0, false },
+        { 543, SPELLFAMILY_MAGE, 0x00000008, 0, 0x00000008, POWER_MANA, 0, 16, false },
+        { kGenericCostSpell, 0, 0, 0, 0, POWER_MANA, 0, 5, false },
+        { kPriestCostSpell, SPELLFAMILY_PRIEST, 0x00000001, 0, 0, POWER_MANA, 0, 9, false },
+        { kRageCostSpell, SPELLFAMILY_MAGE, 0x00000001, 0, 0, POWER_RAGE, 100, 0, false },
+    };
+    std::size_t const CLEARCASTING_EVENT_COUNT = sizeof(CLEARCASTING_EVENTS) / sizeof(CLEARCASTING_EVENTS[0]);
+
+    ServerSpell s_clearcasting;
+    ServerSpell s_raisingCostModifier;
+    ServerSpell s_castTimeModifier;
+    ServerSpell s_clearcastingEvents[CLEARCASTING_EVENT_COUNT];
+    SpellClassOptionsEntry s_clearcastingOptions[CLEARCASTING_EVENT_COUNT + 1];
+    SpellPowerEntry s_clearcastingPower[CLEARCASTING_EVENT_COUNT];
+
+    // `spell` as a mage spell whose effect 0 is a percent modifier of `op` by `amount` on Clearcasting's class mask
+    // (A 0x20C212F7, B 0x00029040, C 0x00000800), its effect put into the effect store.
+    void StoreClearcastingModifier(ServerSpell& spell, uint32 spellId, int32 op, int32 amount)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = kFirstClearcastingOptions;
+        spell.effect.SpellID = spellId;
+        spell.effect.EffectIndex = EFFECT_INDEX_0;
+        spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        spell.effect.EffectAura = SPELL_AURA_ADD_PCT_MODIFIER;
+        spell.effect.EffectMiscValue_0 = op;
+        spell.effect.EffectBasePoints = amount;
+        spell.effect.EffectSpellClassMask = ClassFamilyMask(0x20C212F7 | (uint64(0x00029040) << 32), 0x00000800);
+        AddSpellEffectEntry(&spell.effect);
+    }
+
+    // Clearcasting (12536, a cost modifier of -1000), a cost modifier of +150 and a cast-time modifier of -100 on its
+    // mask, and the spells of CLEARCASTING_EVENTS with their class options and power rows, put into the stores once.
+    void StoreClearcastingSpells()
+    {
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        s_clearcastingOptions[0].SpellClassMask = ClassFamilyMask(uint64(0x00000002) << 32, 0x00000008);
+        s_clearcastingOptions[0].SpellClassSet = SPELLFAMILY_MAGE;
+        sSpellClassOptionsStore.SetEntry(kFirstClearcastingOptions, &s_clearcastingOptions[0]);
+        StoreClearcastingModifier(s_clearcasting, 12536, SPELLMOD_COST, -1000);
+        StoreClearcastingModifier(s_raisingCostModifier, kRaisingCostModifier, SPELLMOD_COST, 150);
+        StoreClearcastingModifier(s_castTimeModifier, kCastTimeModifier, SPELLMOD_CASTING_TIME, -100);
+        for (std::size_t i = 0; i < CLEARCASTING_EVENT_COUNT; ++i)
+        {
+            ClearcastingEvent const& event = CLEARCASTING_EVENTS[i];
+            SpellEntry& row = s_clearcastingEvents[i].Entry();
+            row.ID = event.spellId;
+            row.PowerType = event.powerType;
+            if (event.family)
+            {
+                uint32 const optionsId = kFirstClearcastingOptions + 1 + uint32(i);
+                s_clearcastingOptions[i + 1].SpellClassMask =
+                    ClassFamilyMask(event.maskA | (uint64(event.maskB) << 32), event.maskC);
+                s_clearcastingOptions[i + 1].SpellClassSet = event.family;
+                sSpellClassOptionsStore.SetEntry(optionsId, &s_clearcastingOptions[i + 1]);
+                row.ClassOptionsID = optionsId;
+            }
+            if (event.manaCost || event.manaCostPct)
+            {
+                uint32 const powerId = kFirstClearcastingPower + uint32(i);
+                s_clearcastingPower[i] = SpellPowerEntry();
+                s_clearcastingPower[i].ManaCost = event.manaCost;
+                s_clearcastingPower[i].PowerCost = event.manaCostPct;
+                sSpellPowerStore.SetEntry(powerId, &s_clearcastingPower[i]);
+                row.PowerDisplayID = powerId;
+            }
+        }
+    }
+}
+
+TEST(MageScripts_ClearcastingIsTakenOnlyByASpellItMakesCheaper)
+{
+    StoreClearcastingSpells();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<CheckProcHook>(registry, CLEARCASTING_IDS);
+
+    BareCreature owner;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellEntry const& clearcasting = s_clearcasting.Entry();
+
+    // A spell of the modifier's family and class mask with a mana cost, flat or a percent of base mana, is made
+    // cheaper, and the check-proc row lets its cast's end go on to the other checks. Every other spell's is refused,
+    // so the charge stays: Pyroblast!, the free Flamestrike and Blizzard's damage cost nothing, Mage Ward is outside
+    // the mask, and a spell with no class options, a priest spell and a rage cost are not Clearcasting's.
+    for (std::size_t i = 0; i < CLEARCASTING_EVENT_COUNT; ++i)
+    {
+        ClearcastingEvent const& event = CLEARCASTING_EVENTS[i];
+        SpellEntry const* const spell = &s_clearcastingEvents[i].Entry();
+        CHECK(IsCostReducedByModifier(&clearcasting, EFFECT_INDEX_0, spell) == event.reduced);
+        CheckProcContext ctx(owner, NULL, clearcasting, AuraHandle(holder), spell, 0x10000, PROC_EX_CAST_END, 0);
+        SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(12536, ctx);
+        CHECK(outcome.IsContinue() == event.reduced);
+        CHECK(outcome.IsReturn() == !event.reduced);
+        CHECK(!outcome.IsReturn() || !outcome.GetValue());
+    }
+
+    // An event with no spell is refused.
+    CheckProcContext melee(owner, NULL, clearcasting, AuraHandle(holder), NULL, 0x10000, PROC_EX_CAST_END, 0);
+    SpellHandlerOutcome<bool> const noSpell = registry.Dispatch<CheckProcHook>(12536, melee);
+    CHECK(noSpell.IsReturn());
+    CHECK(!noSpell.GetValue());
+
+    // Only a cost modifier below 0 makes a spell cheaper: a cost modifier above 0, a cast-time modifier and an effect
+    // the modifier does not have make even Fireball no cheaper.
+    SpellEntry const* const fireball = &s_clearcastingEvents[0].Entry();
+    CHECK(!IsCostReducedByModifier(&s_raisingCostModifier.Entry(), EFFECT_INDEX_0, fireball));
+    CHECK(!IsCostReducedByModifier(&s_castTimeModifier.Entry(), EFFECT_INDEX_0, fireball));
+    CHECK(!IsCostReducedByModifier(&clearcasting, EFFECT_INDEX_1, fireball));
 }
 
 TEST(MageScripts_BlinkKeepsOneTarget)

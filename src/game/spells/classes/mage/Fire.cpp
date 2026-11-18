@@ -34,6 +34,7 @@
 #include "combat/ThreatManager.h"
 #include "entities/Unit.h"
 #include "DBCStores.h"
+#include "GameTime.h"
 #include "Log.h"
 #include "Utilities/Util.h"
 
@@ -66,10 +67,36 @@ namespace
         return uint32(duration) / effect->EffectAuraPeriod;
     }
 
+    /// The script words of an Ignite (12654) holder that hold what IgniteProc banked in it last: the server update the
+    /// share was banked in (GameTime::GetGameTimeMS), the damage before its caster's bonus that the Ignite it replaced
+    /// had left, and the ticks the holder had right after the bank. A holder no crit banked in holds 0 in all three.
+    SpellEffectIndex const IGNITE_BANK_UPDATE = EFFECT_INDEX_0;
+    SpellEffectIndex const IGNITE_BANK_LEFTOVER = EFFECT_INDEX_1;
+    SpellEffectIndex const IGNITE_BANK_TICKS = EFFECT_INDEX_2;
+
+    /// The caster's Ignite (12654) on `victim`, its periodic damage read into `view`; NULL when the victim holds none
+    /// of his.
+    SpellAuraHolder* CastersIgnite(Unit& victim, ObjectGuid const& caster, PeriodicDamageView& view)
+    {
+        uint32 const dot[] = { IGNITE_DOT };
+        std::vector<PeriodicDamageView> found;
+        if (!FindPeriodicDamage(victim, caster, dot, 1, found))
+        {
+            return NULL;
+        }
+        view = found[0];
+        return victim.GetSpellAuraHolder(IGNITE_DOT, caster);
+    }
+
     /// 11119, 11120, 12846: Ignite: a critical strike of one of the mage's direct Fire spells puts the aura's percent of
-    /// its damage on the victim as Ignite (12654), two ticks over its duration. The hit of Molten Armor (34913), the
-    /// explosion of Living Bomb (44461), Flame Orb's hits (82739) and Fire Power's explosion (83619) do not ignite. A
-    /// share below one point per tick banks nothing, so a running Ignite is left as it is.
+    /// its damage on the victim as Ignite (12654), two ticks over its duration; the caster's Ignite it replaces rolls
+    /// what it had left into it. The hit of Molten Armor (34913), the explosion of Living Bomb (44461), Flame Orb's
+    /// hits (82739) and Fire Power's explosion (83619) do not ignite. A share below one point per tick banks nothing,
+    /// so a running Ignite is left as it is.
+    /// A crit that lands in the same server update as the crit whose share the caster's Ignite took last, before that
+    /// Ignite ticked (Mage::IgniteMunches), replaces that share: the Ignite is first set to carry only what the Ignite
+    /// before it had left (Mage::IgniteMunchedTick), so the new one rolls over that leftover and this share. When the
+    /// cast puts no new Ignite on, the Ignite keeps its amount. The new holder keeps the bank in its script words.
     ProcOutcome IgniteProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
@@ -100,7 +127,47 @@ namespace
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
         }
         int32 const basePoints[MAX_EFFECT_INDEX] = { tick, 0, 0 };
-        return ProcOutcome::Return(Mage::CastProcSpell(ctx, *ctx.victim, IGNITE_DOT, basePoints));
+        ObjectGuid const caster = ctx.caster.GetObjectGuid();
+        uint32 const now = GameTime::GetGameTimeMS();
+
+        // what the caster's Ignite on the victim has left before his bonus: the new Ignite rolls it over
+        PeriodicDamageView earlier = PeriodicDamageView();
+        SpellAuraHolder* const held = CastersIgnite(*ctx.victim, caster, earlier);
+        int32 leftover = held ? earlier.amountBeforeDone * int32(earlier.remainingTicks) : 0;
+        bool munched = false;
+        if (held)
+        {
+            AuraHandle bank(*held);
+            uint32 const bankUpdate = uint32(bank.ScriptWord(IGNITE_BANK_UPDATE));
+            uint32 const bankTicks = uint32(bank.ScriptWord(IGNITE_BANK_TICKS));
+            if (Mage::IgniteMunches(bankUpdate, bankTicks, now, earlier.remainingTicks))
+            {
+                leftover = bank.ScriptWord(IGNITE_BANK_LEFTOVER);
+                bank.SetAmountBeforeDone(earlier.effIndex, Mage::IgniteMunchedTick(leftover, earlier.remainingTicks));
+                munched = true;
+            }
+        }
+
+        SpellAuraProcResult const result = Mage::CastProcSpell(ctx, *ctx.victim, IGNITE_DOT, basePoints);
+
+        // a holder with no bank takes this one: the holder the cast put on, or an earlier one no crit banked in, whose
+        // leftover is then its own; a holder with a bank is the earlier Ignite, which the cast did not replace
+        PeriodicDamageView current = PeriodicDamageView();
+        if (SpellAuraHolder* const after = CastersIgnite(*ctx.victim, caster, current))
+        {
+            AuraHandle bank(*after);
+            if (!bank.ScriptWord(IGNITE_BANK_TICKS))
+            {
+                bank.ScriptWord(IGNITE_BANK_UPDATE) = int32(now);
+                bank.ScriptWord(IGNITE_BANK_LEFTOVER) = leftover;
+                bank.ScriptWord(IGNITE_BANK_TICKS) = int32(current.remainingTicks);
+            }
+            else if (munched)
+            {
+                bank.SetAmountBeforeDone(current.effIndex, earlier.amountBeforeDone);
+            }
+        }
+        return ProcOutcome::Return(result);
     }
 
     /// 29074, 29075: Master of Elements: after a spell the proc accepts, gives back the aura's percent of the
@@ -170,6 +237,19 @@ namespace
             return ProcOutcome::Return(SPELL_AURA_PROC_OK);
         }
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, HOT_STREAK_BUFF));
+    }
+
+    /// 12536: Clearcasting: the proc that takes its charge goes on to the other checks only for a spell its cost
+    /// modifier makes cheaper (IsCostReducedByModifier: a mage spell of its class mask with a mana cost above 0).
+    /// Every other event is refused, so Pyroblast! (92315), the free Flamestrike (88148), Blizzard's damage (42208), a
+    /// spell with no class options (an item's use among them) and an event with no spell leave Clearcasting on.
+    SpellHandlerOutcome<bool> ClearcastingCheckProc(CheckProcContext& ctx)
+    {
+        if (!ctx.procSpell || !IsCostReducedByModifier(&ctx.spell, EFFECT_INDEX_0, ctx.procSpell))
+        {
+            return SpellHandlerOutcome<bool>::Return(false);
+        }
+        return SpellHandlerOutcome<bool>::Continue();
     }
 
     uint32 const ITEM_MAGE_T10_2P_BONUS = 70752;
@@ -594,6 +674,7 @@ namespace
     uint32 const MASTER_OF_ELEMENTS[] = { 29074, 29075 };
     uint32 const HOT_STREAK[] = { 44445 };
     uint32 const HOT_STREAK_BUFFS[] = { HOT_STREAK_BUFF };
+    uint32 const CLEARCASTING[] = { 12536 };
     uint32 const BLAZING_SPEED[] = { 31641, 31642 };
     uint32 const MAGE_WARD[] = { 543 };
     uint32 const LIVING_BOMB[] = { 44457 };
@@ -757,6 +838,20 @@ uint32 Mage::ShareBase(uint32 dealt, float multiplier)
     return uint32(float(dealt) / multiplier + 0.5f);
 }
 
+bool Mage::IgniteMunches(uint32 bankUpdate, uint32 bankTicks, uint32 now, uint32 ticksLeft)
+{
+    return bankTicks != 0 && bankUpdate == now && ticksLeft == bankTicks;
+}
+
+int32 Mage::IgniteMunchedTick(int32 leftover, uint32 ticksLeft)
+{
+    if (!ticksLeft)
+    {
+        return 0;
+    }
+    return leftover / int32(ticksLeft);
+}
+
 int32 Mage::FrostfireGlyphTick(uint32 hit, uint32 percent, uint32 ticks, uint32 stacks, float masteryMultiplier)
 {
     return int32(float(int32(stacks) * Combat::DotShareTick(float(hit), percent, ticks)) * masteryMultiplier);
@@ -787,6 +882,7 @@ uint32 Mage::RegisterFire(SpellHandlerRegistry& registry)
     rows += RegisterRanks<OnProcHook>(registry, MASTER_OF_ELEMENTS, &MasterOfElementsProc);
     rows += RegisterRanks<OnProcHook>(registry, HOT_STREAK, &HotStreakProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, HOT_STREAK_BUFFS, &HotStreakBuffRemove);
+    rows += RegisterRanks<CheckProcHook>(registry, CLEARCASTING, &ClearcastingCheckProc);
     rows += RegisterRanks<OnProcHook>(registry, BLAZING_SPEED, &BlazingSpeedProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, MAGE_WARD, &MageWardAuraRemove);
     rows += RegisterRanks<DummyAuraHook>(registry, LIVING_BOMB, &LivingBombDummyAura);

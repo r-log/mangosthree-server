@@ -1230,8 +1230,9 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
-    // The check-proc hook holds Impact's two ranks', Arcane Blast's buff's and Fingers of Frost's three, the proc hook
-    // the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the damage-done hook the 22 spells
+    // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's and Fingers of Frost's
+    // three, the proc hook the mage's 21 proc scripts, the target hook Blink's and the orb's scan's, the
+    // damage-done hook the 22 spells
     // Frostburn's class mask covers, the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living
     // Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s and Arcane
     // Missiles', the aura-remove hook Hot Streak's buff's, Mage Ward's, Pyromaniac's ten and Arcane Missiles!'s, the
@@ -1248,7 +1249,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(6));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(7));
     CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(21));
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(22));
@@ -1260,7 +1261,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(3));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1339));
+    CHECK_EQ(game.Count(), std::size_t(1340));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 

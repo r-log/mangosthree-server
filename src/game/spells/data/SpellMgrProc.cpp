@@ -424,3 +424,22 @@ bool IsCastEndProcModifierAura(SpellEntry const* spellInfo, SpellEffectIndex eff
             return false;
     }
 }
+
+bool IsCostReducedByModifier(SpellEntry const* modifier, SpellEffectIndex effIndex, SpellEntry const* spell)
+{
+    SpellEffectEntry const* effect = modifier->GetSpellEffect(effIndex);
+    if (!effect || effect->EffectMiscValue_0 != SPELLMOD_COST || effect->EffectBasePoints >= 0)
+    {
+        return false;
+    }
+    AuraType const aura = AuraType(effect->EffectAura);
+    if (aura != SPELL_AURA_ADD_FLAT_MODIFIER && aura != SPELL_AURA_ADD_PCT_MODIFIER)
+    {
+        return false;
+    }
+    if (!spell->IsFitToFamily(modifier->GetSpellFamilyName(), effect->EffectSpellClassMask))
+    {
+        return false;
+    }
+    return spell->PowerType == POWER_MANA && (spell->GetManaCost() > 0 || spell->GetManaCostPercentage() > 0);
+}

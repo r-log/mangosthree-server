@@ -43,14 +43,15 @@
  * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
  * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacBurns, PyromaniacActive,
  * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
- * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance) and
- * the shares' (ShareBase) and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's
- * (CountsAsFrozen, UsesFingers, ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers) and Fingers of
- * Frost's (RefusesChillSource, UseFingersCharge and IceLanceMultiplier). Orb.cpp holds the orb a mage's Flame Orb
- * summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
- * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
- * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
- * SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance),
+ * the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick) and Glyph of Frostfire's
+ * (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers, ShatterFactor,
+ * ShatterCritChance, ShatterCovers and FrostburnCovers) and Fingers of Frost's (RefusesChillSource,
+ * UseFingersCharge and IceLanceMultiplier). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI,
+ * its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor,
+ * OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file
+ * registers its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h,
+ * and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -308,6 +309,18 @@ namespace Mage
     /// caster's bonus at the target's low health, Spells::LowHealthDamageMultiplier), rounded to the nearest; `dealt`
     /// as it is for a multiplier of 0 or below. Defined in Fire.cpp.
     uint32 ShareBase(uint32 dealt, float multiplier);
+
+    /// Whether an Ignite crit in the server update `now` replaces the share of an earlier crit instead of adding to it:
+    /// the victim's Ignite took its last share in that same update (`bankUpdate`, the update GameTime::GetGameTimeMS
+    /// read then) and has not ticked since (`ticksLeft` is still the `bankTicks` it had then). Never for an Ignite no
+    /// crit banked in (`bankTicks` 0). Defined in Fire.cpp.
+    bool IgniteMunches(uint32 bankUpdate, uint32 bankTicks, uint32 now, uint32 ticksLeft);
+
+    /// The tick, before its caster's bonus, an Ignite whose share is replaced takes before the later crit's Ignite
+    /// rolls it over: `leftover`, the damage the Ignite before that share had left, over the `ticksLeft` it has,
+    /// truncated; 0 when it has no tick left. The later Ignite then carries that leftover and not the replaced share.
+    /// Defined in Fire.cpp.
+    int32 IgniteMunchedTick(int32 leftover, uint32 ticksLeft);
 
     /// The tick of the Frostfire Bolt DoT under Glyph of Frostfire: `stacks` times the share of one bolt's hit
     /// (Combat::DotShareTick(hit, percent, ticks)), then the caster's mastery modifier on the spell, truncated. Defined
