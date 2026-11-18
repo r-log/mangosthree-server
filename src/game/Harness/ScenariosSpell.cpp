@@ -13866,11 +13866,12 @@ namespace Harness
      * its holder) put on the Camel after it as PutReadyAura puts it, an Ice Lance that misses (the aura taken off at
      * its read) and one that lands; a charge, a Frostfire Bolt cast in full and a wait for it to land; Brain Freeze's
      * buff and a Frostfire Bolt it makes instant; the buff again, with Glyph of Frostfire (61205) cast on him after it,
-     * triggered, as a staged glyph is, and a second instant bolt, whose periodic damage the glyph keeps, at whose act,
-     * after its launch and before it lands, he casts a charge at himself; Brain Freeze's buff a third time, at whose
-     * act the scenario rolls Unit::IsSpellCrit for Frostfire Bolt at the unfrozen Camel kRolls times as a hit and
-     * kRolls times as a periodic tick (DOT), with the crit aura at kRollCritPoints for the rolls, while he holds
-     * Fingers of Frost and Brain Freeze's buff.
+     * triggered, as a staged glyph is, and the earlier bolts' holder taken off the Camel, and a second instant bolt,
+     * whose new holder keeps the periodic damage the glyph keeps, at whose act, after its launch and before it lands,
+     * he casts a charge at himself; Brain Freeze's buff a third time, at whose act the scenario rolls
+     * Unit::IsSpellCrit for Frostfire Bolt at the unfrozen Camel kRolls times as a hit and kRolls times as a periodic
+     * tick (DOT), with the crit aura at kRollCritPoints for the rolls, while he holds Fingers of Frost and Brain
+     * Freeze's buff.
      *
      * `fingers`: `lance=<each Ice Lance's damage over the third one's, in hundredths, or miss; the two of the copy's
      * step, the larger first>,stacks=<the stack of 44544 at the read of each step that may use a charge, and at the
@@ -13956,7 +13957,8 @@ namespace Harness
         /// At a step's act: a wait that names a spell casts it at him, triggered; then the Camel's frozen state and
         /// whether he holds Brain Freeze's buff. At the act of the copy's step, a copy of Ice Lance cast at the Camel,
         /// triggered; at the act of Brain Freeze's buff before the second instant bolt, Glyph of Frostfire cast at
-        /// him, triggered; at the second instant bolt's, a charge cast at him, triggered; at the act of the charge
+        /// him, triggered, and his Frostfire Bolt taken off the Camel by call; at the second instant bolt's, a charge
+        /// cast at him, triggered; at the act of the charge
         /// before the missed Ice Lance, Wily Wits put on the Camel, taken off at that Ice Lance's read; at the last
         /// step's, the rolls (RollBolt). At each read: the stack of 44544 he holds, and the Camel's health set back to
         /// its maximum.
@@ -13984,8 +13986,10 @@ namespace Harness
                 else if (k == kKeptBoltStep - 1)
                 {
                     p->CastSpell(p, kGlyphOfFrostfire, true);
+                    target->RemoveAurasDueToSpell(kFrostfireBolt);
                     m_rec.Note(std::string("Glyph of Frostfire on him: ") +
-                               (p->HasAura(kGlyphOfFrostfire) ? "yes" : "no"));
+                               (p->HasAura(kGlyphOfFrostfire) ? "yes" : "no") + "; Frostfire Bolt on the Camel: " +
+                               (target->HasAura(kFrostfireBolt) ? "yes" : "no"));
                 }
                 else if (k == kKeptBoltStep)
                 {
