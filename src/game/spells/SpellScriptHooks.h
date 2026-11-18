@@ -113,7 +113,8 @@ struct SpellEntry;
  *   its go is sent, and, for a delayed spell, after the damage and crit of each target its hit roll let through are
  *   reckoned; before the caster's cast-end proc, and for an immediate spell before its effects. It runs whatever the
  *   cast's targets did with it: a miss, an immunity or a reflect at the launch, or none of them yet for a delayed
- *   spell. Return() is the same as Continue(). A body may remove the caster's auras and stacks.
+ *   spell. Its cast time is the one the cast's timer started at, 0 for a cast that went off as it started. Return()
+ *   is the same as Continue(). A body may remove the caster's auras and stacks.
  *
  * EffectValue, AfterHit, AuraAmount, DamageDone, CritChance, AfterCast and Launch read no outcome: a body changes the
  * context's values or casts, and answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it
@@ -566,13 +567,16 @@ struct AfterCastContext
 /// Launch's context: the cast that goes off. Value: void.
 struct LaunchContext
 {
-    LaunchContext(Unit& casterUnit, SpellEntry const& spellEntry) : caster(casterUnit), spell(spellEntry)
+    LaunchContext(Unit& casterUnit, SpellEntry const& spellEntry, uint32 castTimeMs)
+        : caster(casterUnit), spell(spellEntry), castTime(castTimeMs)
     {
         caster.AssertSpellSeamOwner();
     }
 
     Unit& caster;                                   ///< the caster
     SpellEntry const& spell;                        ///< the spell cast
+    uint32 castTime;                                ///< the cast time in ms the cast's timer started at, with the
+                                                    ///< caster's modifiers; 0 for a cast that went off as it started
 };
 
 /// `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast unless the result

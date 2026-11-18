@@ -72,12 +72,14 @@
 
 namespace
 {
-    /// The script of a cast as it goes off, when its spell has a row at the launch hook.
-    void DispatchLaunch(Unit& caster, SpellEntry const& spell)
+    /// The script of a cast as it goes off, when its spell has a row at the launch hook. `castTime` is the cast's
+    /// Spell::GetCastTime; the context takes the time its timer started at, as Spell::ReSetTimer sets it: 0 when that
+    /// is not above 0.
+    void DispatchLaunch(Unit& caster, SpellEntry const& spell, int32 castTime)
     {
         if (SpellHandlerRegistry::Game().Find<LaunchHook>(spell.ID))
         {
-            LaunchContext launch(caster, spell);
+            LaunchContext launch(caster, spell, castTime > 0 ? uint32(castTime) : 0);
             SpellHandlerRegistry::Game().Dispatch<LaunchHook>(spell.ID, launch);
         }
     }
@@ -675,7 +677,7 @@ void Spell::cast(bool skipCheck)
         m_spellState = SPELL_STATE_DELAYED;
         SetDelayStart(0);
 
-        DispatchLaunch(*m_caster, *m_spellInfo);
+        DispatchLaunch(*m_caster, *m_spellInfo, m_casttime);
 
         // on spell cast end proc,
         // critical hit related part is currently done on hit so proc there,
@@ -685,7 +687,7 @@ void Spell::cast(bool skipCheck)
     }
     else
     {
-        DispatchLaunch(*m_caster, *m_spellInfo);
+        DispatchLaunch(*m_caster, *m_spellInfo, m_casttime);
 
         m_caster->ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
 

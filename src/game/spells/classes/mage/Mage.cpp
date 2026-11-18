@@ -204,11 +204,10 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 26470, ctx.victim, basePoints));
     }
 
-    uint32 const HOT_STREAK_TALENT = 44445;
-
-    /// 79684: Offensive State: a mage without Hot Streak (44445) rolls the aura's percent after each spell hit the
-    /// proc accepts, and on success casts Arcane Missiles! (79683) on himself; a mage with Hot Streak never does.
-    /// Arcane Missiles and its missiles never roll (Mage::OffensiveStateRefuses).
+    /// 79684: Offensive State: a mage whose talents do not stop Arcane Missiles! (Mage::SuppressesArcaneMissiles:
+    /// Hot Streak or Brain Freeze) rolls the aura's percent after each spell hit the proc accepts, and on success casts
+    /// Arcane Missiles! (79683) on himself; a mage with one of them never does. Arcane Missiles and its missiles never
+    /// roll (Mage::OffensiveStateRefuses).
     ProcOutcome OffensiveStateProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
@@ -219,7 +218,7 @@ namespace
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
         }
-        if (ctx.caster.HasAura(HOT_STREAK_TALENT))
+        if (Mage::SuppressesArcaneMissiles(ctx.caster))
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
         }
@@ -288,6 +287,24 @@ bool Mage::OffensiveStateRefuses(uint32 procSpellId)
     constexpr uint32 ARCANE_MISSILES = 5143;
     constexpr uint32 ARCANE_MISSILES_MISSILE = 7268;
     return procSpellId == ARCANE_MISSILES || procSpellId == ARCANE_MISSILES_MISSILE;
+}
+
+bool Mage::SuppressesArcaneMissiles(Unit const& mage)
+{
+    constexpr uint32 HOT_STREAK_TALENT = 44445;
+    constexpr uint32 BRAIN_FREEZE_RANKS[] = { 44546, 44548, 44549 };
+    if (mage.HasAura(HOT_STREAK_TALENT))
+    {
+        return true;
+    }
+    for (uint32 rank : BRAIN_FREEZE_RANKS)
+    {
+        if (mage.HasAura(rank))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 SpellAuraProcResult Mage::CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spellId, int32 const* basePoints)
