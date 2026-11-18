@@ -26,7 +26,8 @@
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles, the pairing of Arcane Missiles Aurastate
-/// with Arcane Missiles! and the channel's use of the buff, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
+/// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
+/// Arcane damage spell, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
 /// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
 /// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
 /// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
@@ -132,6 +133,10 @@ namespace
     // Missiles, whose cast uses Arcane Missiles! up.
     uint32 const ARCANE_MISSILES_BUFF_IDS[] = { 79683 };
     uint32 const ARCANE_MISSILES_IDS[] = { 5143 };
+
+    // The id the check-proc script of Arcane Blast's buff holds: the buff, which only the end of the mage's own cast of
+    // an Arcane damage spell other than Arcane Blast and Arcane Explosion spends.
+    uint32 const ARCANE_BLAST_BUFF_IDS[] = { 36032 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -474,6 +479,72 @@ namespace
         }
     }
 
+    // Spells shaped as the client's data holds the ones a check one level down reads, under test-only ids: a channel
+    // whose effect 0 is a dummy aura and whose effect 1 a periodic trigger of a missile that deals direct damage
+    // (Arcane Missiles, 5143, and its missile, 7268), a spell that triggers one that only stuns, and one that triggers
+    // an id the spell store lacks. The two triggered spells are put into the spell and effect stores, the three that
+    // trigger them into the effect store, once for the rest of the run; no other test uses these ids.
+    uint32 const ROW_MISSILE_CHANNEL = 9420011;
+    uint32 const ROW_MISSILE = 9420012;
+    uint32 const ROW_TRIGGERS_STUN = 9420013;
+    uint32 const ROW_STUN_ONLY = 9420014;
+    uint32 const ROW_TRIGGERS_ABSENT = 9420015;
+    uint32 const ROW_ABSENT = 9420016;
+
+    void AddTriggerCheckRows()
+    {
+        static ServerSpell triggered[2];
+        static SpellEffectEntry effects[4];
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        uint32 const triggeredIds[2] = { ROW_MISSILE, ROW_STUN_ONLY };
+        for (std::size_t i = 0; i < 2; ++i)
+        {
+            triggered[i].Entry().ID = triggeredIds[i];
+            triggered[i].effect.SpellID = triggeredIds[i];
+            triggered[i].effect.EffectIndex = EFFECT_INDEX_0;
+            triggered[i].effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+        }
+        triggered[0].effect.Effect = SPELL_EFFECT_SCHOOL_DAMAGE;
+        triggered[1].effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        triggered[1].effect.EffectAura = SPELL_AURA_MOD_STUN;
+        for (ServerSpell& spell : triggered)
+        {
+            sSpellStore.SetEntry(spell.Entry().ID, &spell.Entry());
+            AddSpellEffectEntry(&spell.effect);
+        }
+
+        struct Row
+        {
+            uint32 spellId;
+            uint32 effectIndex;
+            uint32 effect;
+            uint32 aura;
+            uint32 triggerSpell;
+        };
+        static Row const rows[] =
+        {
+            { ROW_MISSILE_CHANNEL, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_DUMMY, 0 },
+            { ROW_MISSILE_CHANNEL, 1, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_PERIODIC_TRIGGER_SPELL, ROW_MISSILE },
+            { ROW_TRIGGERS_STUN, 0, SPELL_EFFECT_TRIGGER_SPELL, 0, ROW_STUN_ONLY },
+            { ROW_TRIGGERS_ABSENT, 0, SPELL_EFFECT_TRIGGER_SPELL, 0, ROW_ABSENT },
+        };
+        for (std::size_t i = 0; i < sizeof(rows) / sizeof(rows[0]); ++i)
+        {
+            effects[i] = SpellEffectEntry();
+            effects[i].SpellID = rows[i].spellId;
+            effects[i].EffectIndex = rows[i].effectIndex;
+            effects[i].Effect = rows[i].effect;
+            effects[i].EffectAura = rows[i].aura;
+            effects[i].EffectTriggerSpell = rows[i].triggerSpell;
+            AddSpellEffectEntry(&effects[i]);
+        }
+    }
+
     // A proc of `spellId`'s effect `effIndex` on `owner`, with the event's spell, flags and the aura's amount given;
     // the event's other unit and its damage too, when given.
     SpellHandlerOutcome<SpellAuraProcResult> Proc(SpellHandlerRegistry const& registry, Unit& owner, uint32 spellId,
@@ -501,11 +572,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State
     // and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency and Mana Shield. Arcane also: Arcane Missiles! at
     // the aura-apply and aura-remove hooks and Arcane Missiles at the aura-apply hook. The orb: Flame Orb at the
-    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact also at the check-proc hook.
-    // 119 rows, 116 keys and 3 defaults, none twice.
+    // dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. Impact and Arcane Blast's buff also
+    // at the check-proc hook. 120 rows, 117 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(119));
-    CHECK_EQ(registry.Count(), std::size_t(116));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(120));
+    CHECK_EQ(registry.Count(), std::size_t(117));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -514,7 +585,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(21));
-    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(22));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
@@ -543,7 +614,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 39, 39, 0 },
         { &Mage::RegisterFrost, 54, 54, 0 },
-        { &Mage::RegisterArcane, 8, 8, 0 },
+        { &Mage::RegisterArcane, 9, 9, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
     };
     for (PerFile const& file : files)
@@ -555,8 +626,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(119));
-    CHECK_EQ(registry.Count(), std::size_t(116));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(120));
+    CHECK_EQ(registry.Count(), std::size_t(117));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -567,7 +638,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(116));
+    CHECK_EQ(mine.size(), std::size_t(117));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<AuraBoostMageSite>(registry, BOOST_IDS);
@@ -725,15 +796,18 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     CHECK_EQ(ids, std::size_t(21));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), sizeof(IMPACT_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key),
+             sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(ARCANE_BLAST_BUFF_IDS) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
-    // no aura) and 28682 (absent from the client's data), and Arcane Blast's buff (36032 holds no damage-done aura).
-    for (uint32 spellId : { 44449u, 44469u, 44470u, 44471u, 44472u, 11129u, 28682u, 36032u })
+    // no aura) and 28682 (absent from the client's data). Arcane Blast's buff (36032) holds no proc script: its
+    // check-proc script lets the engine's own handling spend its charge.
+    for (uint32 spellId : { 44449u, 44469u, 44470u, 44471u, 44472u, 11129u, 28682u })
     {
         CHECK(game.Find<OnProcHook>(spellId) == NULL);
         CHECK(game.Find<CheckProcHook>(spellId) == NULL);
     }
+    CHECK(game.Find<OnProcHook>(36032) == NULL);
 
     // Improved Hot Streak (44446, 44448) holds no script: its procs reach the mage dummy proc site, which has no row
     // for them and casts nothing; Hot Streak's script reads its rank from the caster's auras by id.
@@ -958,6 +1032,100 @@ TEST(MageScripts_ArcaneMissilesAurastateFollowsArcaneMissilesBuff)
     AuraApplyContext noCaster(target, NULL, SpellRow(channelRow, 5143), AuraHandle(holder), true);
     CHECK(registry.Dispatch<AuraApplyHook>(5143, noCaster).IsContinue());
     CHECK(target.HasAura(79683));
+}
+
+TEST(MageScripts_ArcaneBlastBuffEndsOnlyAtTheCastOfAnotherArcaneDamageSpell)
+{
+    // The end of the mage's own cast of an Arcane damage spell ends the buff: Arcane Missiles (5143), Arcane Barrage
+    // (44425), and by its school any other, one of several schools Arcane among them.
+    for (uint32 spellId : { 5143u, 44425u, ROW_DIRECT_DAMAGE })
+    {
+        CHECK(Mage::ArcaneBlastBuffEnds(spellId, SPELL_SCHOOL_MASK_ARCANE, true, true, true));
+    }
+    CHECK(Mage::ArcaneBlastBuffEnds(ROW_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_ARCANE | SPELL_SCHOOL_MASK_FIRE, true, true,
+                                    true));
+
+    // Arcane Blast (30451) and Arcane Explosion (1449) never end it.
+    for (uint32 spellId : { 30451u, 1449u })
+    {
+        CHECK(!Mage::ArcaneBlastBuffEnds(spellId, SPELL_SCHOOL_MASK_ARCANE, true, true, true));
+    }
+
+    // Nor does a hit, a triggered cast (Arcane Missiles' missile, 7268), a spell of other schools (Fireball, 133;
+    // Frostfire Bolt, 44614), or an Arcane spell that deals no damage (Slow, 31589; Polymorph, 118; Counterspell,
+    // 2139).
+    CHECK(!Mage::ArcaneBlastBuffEnds(44425, SPELL_SCHOOL_MASK_ARCANE, true, false, true));
+    CHECK(!Mage::ArcaneBlastBuffEnds(7268, SPELL_SCHOOL_MASK_ARCANE, true, true, false));
+    CHECK(!Mage::ArcaneBlastBuffEnds(133, SPELL_SCHOOL_MASK_FIRE, true, true, true));
+    CHECK(!Mage::ArcaneBlastBuffEnds(44614, SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, true, true, true));
+    for (uint32 spellId : { 31589u, 118u, 2139u })
+    {
+        CHECK(!Mage::ArcaneBlastBuffEnds(spellId, SPELL_SCHOOL_MASK_ARCANE, false, true, true));
+    }
+}
+
+TEST(MageScripts_DealsOrTriggersDamageReadsOneTriggerDown)
+{
+    AddDamageCheckRows();
+    AddTriggerCheckRows();
+    SpellRowStorage row;
+
+    // A spell's own damage rows count, as Spells::DealsDamage reads them.
+    for (uint32 spellId : { ROW_DIRECT_DAMAGE, ROW_PERIODIC_DAMAGE_WITH_DUMMY, ROW_PERIODIC_PERCENT, ROW_PERIODIC_LEECH,
+                            ROW_WEAPON_DAMAGE })
+    {
+        CHECK(Mage::DealsOrTriggersDamage(SpellRow(row, spellId)));
+    }
+
+    // A channel whose periodic trigger casts a damaging missile counts through it.
+    CHECK(!Spells::DealsDamage(SpellRow(row, ROW_MISSILE_CHANNEL)));
+    CHECK(Mage::DealsOrTriggersDamage(SpellRow(row, ROW_MISSILE_CHANNEL)));
+
+    // A spell that deals none and triggers none that does is not counted: Slow's auras, a confuse, an interrupt, a
+    // stun, a trigger with no spell named, a trigger of a stun alone and a trigger of a spell the store lacks.
+    CHECK(sSpellStore.LookupEntry(ROW_ABSENT) == NULL);
+    for (uint32 spellId : { ROW_SLOW_AURAS, ROW_CONFUSE, ROW_INTERRUPT, ROW_STUN, ROW_TRIGGERS_DAMAGE,
+                            ROW_TRIGGERS_STUN, ROW_TRIGGERS_ABSENT, 0u })
+    {
+        CHECK(!Mage::DealsOrTriggersDamage(SpellRow(row, spellId)));
+    }
+}
+
+TEST(MageScripts_ArcaneBlastBuffDropsEveryEventButAnOwnCastsEnd)
+{
+    // The row: the buff at the check-proc hook, a body of its own, the same in the game's table; no proc script.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<CheckProcHook>(registry, ARCANE_BLAST_BUFF_IDS);
+    CHECK(registry.Find<OnProcHook>(36032) == NULL);
+    CHECK(registry.Find<CheckProcHook>(36032) != registry.Find<CheckProcHook>(11103));
+
+    // On a mage with no cast in his current spell slots, as when the event's spell is a triggered one, every event of
+    // an Arcane damage spell is dropped: the end of its cast, a hit and a crit; and so is an event with no spell.
+    AddDamageCheckRows();
+    BareCreature mage;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage buffRow;
+    SpellRowStorage eventRow;
+    SpellRow(eventRow, ROW_DIRECT_DAMAGE);
+    reinterpret_cast<SpellEntry*>(eventRow.bytes)->SchoolMask = SPELL_SCHOOL_MASK_ARCANE;
+    SpellEntry const& arcaneDamage = *reinterpret_cast<SpellEntry const*>(eventRow.bytes);
+    CHECK(Mage::DealsOrTriggersDamage(arcaneDamage));
+    CHECK(mage.FindCurrentSpellBySpellId(ROW_DIRECT_DAMAGE) == NULL);
+    for (uint32 procEx : { uint32(PROC_EX_CAST_END), uint32(PROC_EX_NORMAL_HIT), uint32(PROC_EX_CRITICAL_HIT) })
+    {
+        CheckProcContext ctx(mage, NULL, SpellRow(buffRow, 36032), AuraHandle(holder), &arcaneDamage, 0x10000, procEx,
+                             0);
+        SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(36032, ctx);
+        CHECK(outcome.IsReturn());
+        CHECK(!outcome.GetValue());
+    }
+    CheckProcContext noSpell(mage, NULL, SpellRow(buffRow, 36032), AuraHandle(holder), NULL, 0x10000, PROC_EX_CAST_END,
+                             0);
+    SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(36032, noSpell);
+    CHECK(outcome.IsReturn());
+    CHECK(!outcome.GetValue());
 }
 
 TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)

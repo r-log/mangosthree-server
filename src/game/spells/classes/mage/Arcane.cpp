@@ -24,8 +24,11 @@
  */
 
 #include "spells/classes/mage/Mage.h"
+#include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
+#include "spells/SpellScriptQueries.h"
 #include "entities/Unit.h"
+#include "DBCStores.h"
 #include "Log.h"
 
 namespace
@@ -133,11 +136,32 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    uint32 const ARCANE_BLAST = 30451;
+    uint32 const ARCANE_EXPLOSION = 1449;
+
+    /// 36032: Arcane Blast's buff: the engine's proc handling, which spends the buff's one charge and so removes it, is
+    /// reached only at the end of the mage's own cast of an Arcane damage spell other than Arcane Blast and Arcane
+    /// Explosion (Mage::ArcaneBlastBuffEnds). Every other event is dropped: the end of an Arcane Blast or Arcane
+    /// Explosion cast, where the engine lets a modifier aura with charges spend one, a triggered spell's and any hit.
+    /// A cast is his own when it stands in one of his current spell slots, where no triggered cast goes.
+    SpellHandlerOutcome<bool> ArcaneBlastBuffCheckProc(CheckProcContext& ctx)
+    {
+        SpellEntry const* const spell = ctx.procSpell;
+        if (spell && Mage::ArcaneBlastBuffEnds(spell->ID, spell->SchoolMask, Mage::DealsOrTriggersDamage(*spell),
+                                               (ctx.procEx & PROC_EX_CAST_END) != 0,
+                                               ctx.owner.FindCurrentSpellBySpellId(spell->ID) != NULL))
+        {
+            return SpellHandlerOutcome<bool>::Continue();
+        }
+        return SpellHandlerOutcome<bool>::Return(false);
+    }
+
     uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
     uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
     uint32 const MANA_SHIELD[] = { 1463 };
     uint32 const ARCANE_MISSILES_BUFFS[] = { ARCANE_MISSILES_BUFF };
     uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
+    uint32 const ARCANE_BLAST_BUFF[] = { 36032 };
 }
 
 Mage::AurastateStep Mage::ArcaneMissilesAurastateStep(bool holdsBuff, bool holdsAurastate)
@@ -149,6 +173,34 @@ Mage::AurastateStep Mage::ArcaneMissilesAurastateStep(bool holdsBuff, bool holds
     return holdsBuff ? AURASTATE_APPLY : AURASTATE_REMOVE;
 }
 
+bool Mage::ArcaneBlastBuffEnds(uint32 spellId, uint32 schoolMask, bool dealsDamage, bool castEnd, bool ownCast)
+{
+    return castEnd && ownCast && dealsDamage && (schoolMask & SPELL_SCHOOL_MASK_ARCANE) != 0 &&
+           spellId != ARCANE_BLAST && spellId != ARCANE_EXPLOSION;
+}
+
+bool Mage::DealsOrTriggersDamage(SpellEntry const& spell)
+{
+    if (Spells::DealsDamage(spell))
+    {
+        return true;
+    }
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* const effect = spell.GetSpellEffect(SpellEffectIndex(i));
+        if (!effect || !effect->EffectTriggerSpell)
+        {
+            continue;
+        }
+        SpellEntry const* const triggered = sSpellStore.LookupEntry(effect->EffectTriggerSpell);
+        if (triggered && Spells::DealsDamage(*triggered))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
 {
     uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
@@ -157,5 +209,6 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffApply);
     rows += RegisterRanks<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffRemove);
     rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
+    rows += RegisterRanks<CheckProcHook>(registry, ARCANE_BLAST_BUFF, &ArcaneBlastBuffCheckProc);
     return rows;
 }
