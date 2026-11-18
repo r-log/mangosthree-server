@@ -38,20 +38,20 @@
  * @file Mage.h
  * @brief The mage's spell scripts, registered by spell id in the spell handler registry.
  *
- * Mage.cpp holds the class-wide bodies, the mage sites' defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell
- * and CastProcTriggerSpell, which the proc scripts of all four files share; Fire.cpp, Frost.cpp and Arcane.cpp hold the
- * bodies of the three specializations, and Fire.cpp also Hot Streak's leaves (CountCritInARow, HotStreakChance,
- * HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts, PyromaniacBurns, PyromaniacActive,
- * PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living Bomb's (LivingBombExplodes), Impact's
- * (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved Flamestrike's (ImprovedFlamestrikeChance),
- * the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick) and Glyph of Frostfire's
- * (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers, ShatterFactor,
- * ShatterCritChance, ShatterCovers and FrostburnCovers) and Fingers of Frost's (RefusesChillSource,
- * UseFingersCharge and IceLanceMultiplier). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI,
- * its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor,
- * OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file
- * registers its rows through one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h,
- * and RegisterRanks per script hook.
+ * Mage.cpp holds the class-wide bodies, the mage sites' defaults, ProcEffectIs, CastProcSpell, EffectTriggerSpell and
+ * CastProcTriggerSpell, which the proc scripts of all four files share, and SuppressesArcaneMissiles; Fire.cpp,
+ * Frost.cpp and Arcane.cpp hold the bodies of the three specializations, and Fire.cpp also Hot Streak's leaves
+ * (CountCritInARow, HotStreakChance, HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts,
+ * PyromaniacBurns, PyromaniacActive, PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living
+ * Bomb's (LivingBombExplodes), Impact's (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved
+ * Flamestrike's (ImprovedFlamestrikeChance), the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick)
+ * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
+ * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
+ * UseFingersCharge and IceLanceMultiplier) and Brain Freeze's (UsesBrainFreeze). Orb.cpp holds the orb a mage's Flame
+ * Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
+ * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
+ * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
+ * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -263,6 +263,11 @@ namespace Mage
     /// missiles (7268), so the channel never brings Arcane Missiles! (79683) back. Defined in Mage.cpp.
     bool OffensiveStateRefuses(uint32 procSpellId);
 
+    /// Whether a mage's talents stop Arcane Missiles! (79683) from coming: he holds Hot Streak (44445) or a rank of
+    /// Brain Freeze (44546, 44548, 44549), whose texts say "Your spells no longer trigger Arcane Missiles". Defined in
+    /// Mage.cpp.
+    bool SuppressesArcaneMissiles(Unit const& mage);
+
     /// What keeps Arcane Missiles Aurastate (79808), the aura Arcane Missiles (5143) asks for on its caster, on a mage
     /// exactly while he holds Arcane Missiles! (79683).
     enum AurastateStep
@@ -373,20 +378,30 @@ namespace Mage
         FINGERS                                     ///< the target does not, and the spell counts it as frozen all the same
     };
 
-    /// How `spell`, cast by `caster` at `target`, counts the target for damage of `damageType`: REALLY_FROZEN when the
-    /// target holds the frozen aura state; else, for a hit, FINGERS for Deep Freeze's damage (71757, cast only at a
-    /// target a stun cannot hold) and for a spell that uses a Fingers of Frost charge (UsesFingers); else NOT_FROZEN,
-    /// and always NOT_FROZEN for a periodic effect (DOT) at a target that is not frozen. Defined in Frost.cpp.
+    /// How `spell`, cast by `caster` at `target` with the cast time `castTime` its timer started at, counts the target
+    /// for damage of `damageType`: REALLY_FROZEN when the target holds the frozen aura state; else, for a hit, FINGERS
+    /// for Deep Freeze's damage (71757, cast only at a target a stun cannot hold) and for a spell that uses a Fingers
+    /// of Frost charge (UsesFingers); else NOT_FROZEN, and always NOT_FROZEN for a periodic effect (DOT) at a target
+    /// that is not frozen. Defined in Frost.cpp.
     FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
-                              DamageEffectType damageType);
+                              DamageEffectType damageType, uint32 castTime);
 
-    /// Whether `spell`, cast by `caster`, uses a Fingers of Frost charge: the caster holds Fingers of Frost (44544) and
-    /// the spell is Ice Lance (30455), Deep Freeze (44572), or a Frostfire Bolt (44614) cast while Brain Freeze's buff
-    /// (57761) makes it instant. The target's state plays no part. Defined in Frost.cpp.
-    bool UsesFingers(Unit const& caster, SpellEntry const& spell);
+    /// Whether `spell`, cast by `caster` with the cast time `castTime` its timer started at, uses a Fingers of Frost
+    /// charge: the caster holds Fingers of Frost (44544) and the spell is Ice Lance (30455), Deep Freeze (44572), or a
+    /// Frostfire Bolt (44614) that uses Brain Freeze's buff (UsesBrainFreeze: it went off as it started while he held
+    /// the buff). A bolt cast in full uses no charge, under a buff that came during the cast too. The target's state
+    /// plays no part. Defined in Frost.cpp.
+    bool UsesFingers(Unit const& caster, SpellEntry const& spell, uint32 castTime);
 
-    /// Whether Fingers of Frost refuses a proc of `procSpellId` although its class bit passes the talent's rows: Frost
-    /// Armor's Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in Frost.cpp.
+    /// Whether `spell`, cast by `caster` with the cast time `castTime` its timer started at, uses Brain Freeze's buff
+    /// (57761): a Fireball (133) or a Frostfire Bolt (44614) that went off as it started (`castTime` 0) while the
+    /// caster holds the buff, so the buff made it instant. A cast that took its time keeps the buff, one that came
+    /// during the cast too. Defined in Frost.cpp.
+    bool UsesBrainFreeze(Unit const& caster, SpellEntry const& spell, uint32 castTime);
+
+    /// Whether Fingers of Frost and Brain Freeze refuse a proc of `procSpellId` although its class bit passes the
+    /// talents' rows: Frost Armor's Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in
+    /// Frost.cpp.
     bool RefusesChillSource(uint32 procSpellId);
 
     /// Takes one charge of Fingers of Frost off `mage`: one stack fewer, the buff removed at none. Answers whether he

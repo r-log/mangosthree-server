@@ -2334,37 +2334,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggere
         return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
     }
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
-// Brain Freeze
-}
-
-/// 57761: Brain Freeze: fails without a proc spell, or after a mage proc spell of class mask 0x80 when the unit has no
-/// override script aura 836, 988 or 989
-static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered57761(ProcTriggerSpellAuraProcContext& ctx)
-{
-    if (!ctx.procSpell)
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-    // For trigger from Blizzard need exist Improved Blizzard
-    if (ctx.procClassOptions && ctx.procClassOptions->SpellClassSet==SPELLFAMILY_MAGE && (ctx.procClassOptions->SpellClassMask & UI64LIT(0x0000000000000080)))
-    {
-        bool found = false;
-        AuraList const& mOverrideClassScript = ctx.unit->GetAurasByType(SPELL_AURA_OVERRIDE_CLASS_SCRIPTS);
-        for (AuraList::const_iterator i = mOverrideClassScript.begin(); i != mOverrideClassScript.end(); ++i)
-        {
-            int32 script = (*i)->GetModifier()->m_miscvalue;
-            if (script == 836 || script == 988 || script == 989)
-            {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-        {
-            return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-        }
-    }
-    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 // Astral Shift
 }
 
@@ -2635,7 +2604,6 @@ uint32 RegisterUnitAuraProcHandlerHandlers(SpellHandlerRegistry& registry)
         { 48090, &ProcTriggerSpellAuraProcTriggered48090 },
         { 50227, &ProcTriggerSpellAuraProcTriggered50227 },
         { 53817, &ProcTriggerSpellAuraProcTriggered53817 },
-        { 57761, &ProcTriggerSpellAuraProcTriggered57761 },
         { 52179, &ProcTriggerSpellAuraProcTriggered52179 },
         { 54748, &ProcTriggerSpellAuraProcTriggered54748 },
         { 56453, &ProcTriggerSpellAuraProcTriggered56453 },
