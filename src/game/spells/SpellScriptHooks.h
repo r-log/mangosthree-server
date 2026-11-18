@@ -65,9 +65,11 @@ struct SpellEntry;
  *   cast and remove auras, and set the stacks and amounts of a holder through AuraHandle.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
  *   body changes only the amount: the aura is not built yet.
- * - AuraApply: `Unit::AddSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(true)` runs. Return()
- *   skips the boosts. A body may cast, remove other auras, take an effect off its own holder (AuraHandle::RemoveEffect,
- *   which never takes the last) and set the script words.
+ * - AuraApply: `Unit::AddSpellAuraHolder`, twice. First before the stacking checks, with `real` false: the target
+ *   does not hold the holder yet, and a body may only take an effect off it (AuraHandle::RemoveEffect, which never
+ *   takes the last) or cap its stack (AuraHandle::CapStacks); the outcome is not read. Then where
+ *   `SpellAuraHolder::HandleSpellSpecificBoosts(true)` runs, with `real` true: Return() skips the boosts. A body may
+ *   cast, remove other auras, take an effect off its own holder and set the script words.
  * - AuraRemove: `Unit::RemoveSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(false)` runs, so
  *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras. It is the
  *   boosts' moment; a dummy effect's own body runs on DummyAura.
@@ -167,9 +169,14 @@ class AuraHandle
         void SetStacks(uint32 stacks);
         /// Takes the holder's aura at `eff` off its target and out of the holder, then tells the clients the effects the
         /// holder keeps. Nothing when the holder has no aura there, or when that aura is the holder's last: a holder is
-        /// removed whole, by the unit's own removal. Safe at the aura-apply hook; not at the dummy-aura hook, which
-        /// runs inside the holder's apply loop, where it would un-apply an aura the loop has not applied yet.
+        /// removed whole, by the unit's own removal. A holder its target does not hold yet (the aura-apply hook's call
+        /// before the add) loses the aura from the holder alone: nothing is un-applied and nothing is sent. Safe at the
+        /// aura-apply hook; not at the dummy-aura hook, which runs inside the holder's apply loop, where it would
+        /// un-apply an aura the loop has not applied yet.
         void RemoveEffect(SpellEffectIndex eff);
+        /// Holds the holder's stack to `stacks` in place of its spell's limit, so a re-application by its caster at
+        /// that count refreshes the holder instead of adding a stack; 0 gives the spell's limit back. Nothing is sent.
+        void CapStacks(uint32 stacks);
         /// Sets the time the holder has left to 0: the unit removes it as expired at its next update, after any tick
         /// due in that update; a permanent or passive holder is never removed this way. Nothing is removed here, so
         /// it is safe wherever the holder is kept alive.
@@ -335,7 +342,12 @@ struct AuraApplyContext
     Unit* caster;                                   ///< the aura's caster; NULL when it cannot be found
     SpellEntry const& spell;                        ///< the aura's spell
     AuraHandle aura;                                ///< the aura's holder
-    bool real;                                      ///< always true: the hook runs once, when the holder is added
+    bool real;                                      ///< true at the call after the holder is added and its auras
+                                                    ///< applied; false at the call before the stacking checks, when
+                                                    ///< the target does not hold the holder yet and none of its auras
+                                                    ///< is applied: a body may then take an effect off the holder
+                                                    ///< (AuraHandle::RemoveEffect) or cap its stack
+                                                    ///< (AuraHandle::CapStacks)
 };
 
 /// AuraRemove's context. Value: void. The holder's auras are already removed when the hook runs, so `aura.Amount` is 0
@@ -608,7 +620,8 @@ struct AuraAmountHook
     typedef AuraAmountContext Context;
 };
 
-/// `Unit::AddSpellAuraHolder`, at the holder's boosts. Return() skips the boosts.
+/// `Unit::AddSpellAuraHolder`, before the stacking checks (`real` false, the outcome not read) and at the holder's
+/// boosts (`real` true, Return() skips the boosts).
 struct AuraApplyHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_AURA_APPLY;

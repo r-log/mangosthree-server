@@ -455,11 +455,14 @@ namespace
     }
 
     /// 2120, 11366, 12654, 44457, 83853, 88148, 92315: the DoTs Pyromaniac counts, when their holder is added:
-    /// the caster's burning enemies are counted again with the new holder on its target (PyromaniacRecount). The
-    /// holder's boosts still run.
+    /// the caster's burning enemies are counted again with the new holder on its target (PyromaniacRecount). The call
+    /// before the holder is added counts nothing. The holder's boosts still run.
     SpellHandlerOutcome<void> PyromaniacDotApply(AuraApplyContext& ctx)
     {
-        PyromaniacRecount(ctx.caster, ctx.target);
+        if (ctx.real)
+        {
+            PyromaniacRecount(ctx.caster, ctx.target);
+        }
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -569,11 +572,14 @@ namespace
     }
 
     /// 34293, 34295: Pyromaniac: when the talent's holder is added (a login, a respec, a new rank), Pyromaniac's haste
-    /// (83582) is taken off the mage; the next DoT it counts puts the haste back when it is due. The holder's boosts
-    /// still run.
+    /// (83582) is taken off the mage; the next DoT it counts puts the haste back when it is due. The call before the
+    /// holder is added takes nothing off. The holder's boosts still run.
     SpellHandlerOutcome<void> PyromaniacTalentApply(AuraApplyContext& ctx)
     {
-        ctx.RemoveAura(ctx.target, PYROMANIAC_HASTE);
+        if (ctx.real)
+        {
+            ctx.RemoveAura(ctx.target, PYROMANIAC_HASTE);
+        }
         return SpellHandlerOutcome<void>::Continue();
     }
 
