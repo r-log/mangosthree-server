@@ -24,8 +24,11 @@
  */
 
 #include "spells/classes/mage/Mage.h"
+#include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
+#include "spells/SpellScriptQueries.h"
 #include "entities/Unit.h"
+#include "DBCStores.h"
 #include "Log.h"
 
 namespace
@@ -84,9 +87,118 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 37436));
     }
 
+    uint32 const ARCANE_MISSILES_BUFF = 79683;
+    uint32 const ARCANE_MISSILES_AURASTATE = 79808;
+
+    /// Casts Arcane Missiles Aurastate (79808) on the unit the context's aura is on, or takes it off him, as
+    /// Mage::ArcaneMissilesAurastateStep answers for what he holds of it and of Arcane Missiles! (79683).
+    template <class Context>
+    void PairArcaneMissilesAurastate(Context& ctx)
+    {
+        switch (Mage::ArcaneMissilesAurastateStep(ctx.target.HasAura(ARCANE_MISSILES_BUFF),
+                                                  ctx.target.HasAura(ARCANE_MISSILES_AURASTATE)))
+        {
+            case Mage::AURASTATE_APPLY:
+                ctx.CastTriggered(ctx.target, ARCANE_MISSILES_AURASTATE);
+                break;
+            case Mage::AURASTATE_REMOVE:
+                ctx.RemoveAura(ctx.target, ARCANE_MISSILES_AURASTATE);
+                break;
+            case Mage::AURASTATE_KEEP:
+                break;
+        }
+    }
+
+    /// 79683: Arcane Missiles!: at its apply the mage gets Arcane Missiles Aurastate (79808), which Arcane Missiles
+    /// (5143) asks for on its caster.
+    SpellHandlerOutcome<void> ArcaneMissilesBuffApply(AuraApplyContext& ctx)
+    {
+        PairArcaneMissilesAurastate(ctx);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 79683: Arcane Missiles!: at its removal (used up, run out, cancelled or at death) Arcane Missiles
+    /// Aurastate (79808) is taken off the mage.
+    SpellHandlerOutcome<void> ArcaneMissilesBuffRemove(AuraRemoveContext& ctx)
+    {
+        PairArcaneMissilesAurastate(ctx);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 5143: Arcane Missiles: the channel's holder on the mage himself, applied at the cast, takes Arcane Missiles!
+    /// (79683) off him: the cast uses it up. The channel's holder on its target does nothing here.
+    SpellHandlerOutcome<void> ArcaneMissilesChannelApply(AuraApplyContext& ctx)
+    {
+        if (ctx.caster == &ctx.target)
+        {
+            ctx.RemoveAura(ctx.target, ARCANE_MISSILES_BUFF);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    uint32 const ARCANE_BLAST = 30451;
+    uint32 const ARCANE_EXPLOSION = 1449;
+
+    /// 36032: Arcane Blast's buff: the engine's proc handling, which spends the buff's one charge and so removes it, is
+    /// reached only at the end of the mage's own cast of an Arcane damage spell other than Arcane Blast and Arcane
+    /// Explosion (Mage::ArcaneBlastBuffEnds). Every other event is dropped: the end of an Arcane Blast or Arcane
+    /// Explosion cast, where the engine lets a modifier aura with charges spend one, a triggered spell's and any hit.
+    /// A cast is his own when it stands in one of his current spell slots, where no triggered cast goes.
+    SpellHandlerOutcome<bool> ArcaneBlastBuffCheckProc(CheckProcContext& ctx)
+    {
+        SpellEntry const* const spell = ctx.procSpell;
+        if (spell && Mage::ArcaneBlastBuffEnds(spell->ID, spell->SchoolMask, Mage::DealsOrTriggersDamage(*spell),
+                                               (ctx.procEx & PROC_EX_CAST_END) != 0,
+                                               ctx.owner.FindCurrentSpellBySpellId(spell->ID) != NULL))
+        {
+            return SpellHandlerOutcome<bool>::Continue();
+        }
+        return SpellHandlerOutcome<bool>::Return(false);
+    }
+
     uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
     uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
     uint32 const MANA_SHIELD[] = { 1463 };
+    uint32 const ARCANE_MISSILES_BUFFS[] = { ARCANE_MISSILES_BUFF };
+    uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
+    uint32 const ARCANE_BLAST_BUFF[] = { 36032 };
+}
+
+Mage::AurastateStep Mage::ArcaneMissilesAurastateStep(bool holdsBuff, bool holdsAurastate)
+{
+    if (holdsBuff == holdsAurastate)
+    {
+        return AURASTATE_KEEP;
+    }
+    return holdsBuff ? AURASTATE_APPLY : AURASTATE_REMOVE;
+}
+
+bool Mage::ArcaneBlastBuffEnds(uint32 spellId, uint32 schoolMask, bool dealsDamage, bool castEnd, bool ownCast)
+{
+    return castEnd && ownCast && dealsDamage && (schoolMask & SPELL_SCHOOL_MASK_ARCANE) != 0 &&
+           spellId != ARCANE_BLAST && spellId != ARCANE_EXPLOSION;
+}
+
+bool Mage::DealsOrTriggersDamage(SpellEntry const& spell)
+{
+    if (Spells::DealsDamage(spell))
+    {
+        return true;
+    }
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* const effect = spell.GetSpellEffect(SpellEffectIndex(i));
+        if (!effect || !effect->EffectTriggerSpell)
+        {
+            continue;
+        }
+        SpellEntry const* const triggered = sSpellStore.LookupEntry(effect->EffectTriggerSpell);
+        if (triggered && Spells::DealsDamage(*triggered))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
@@ -94,5 +206,9 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
     rows += RegisterRanks<OnProcHook>(registry, ARCANE_POTENCY, &ArcanePotencyProc);
     rows += RegisterRanks<OnProcHook>(registry, MANA_SHIELD, &ManaShieldProc);
+    rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffApply);
+    rows += RegisterRanks<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffRemove);
+    rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
+    rows += RegisterRanks<CheckProcHook>(registry, ARCANE_BLAST_BUFF, &ArcaneBlastBuffCheckProc);
     return rows;
 }
