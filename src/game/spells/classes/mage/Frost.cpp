@@ -25,8 +25,6 @@
 
 #include "spells/classes/mage/Mage.h"
 #include "spells/SpellModMgr.h"
-#include "spells/handlers/AurasHandlers.h"
-#include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "entities/Unit.h"
 #include "entities/Creature.h"
 #include "DBCStores.h"
@@ -34,28 +32,6 @@
 
 #include <algorithm>
 #include <iterator>
-
-/// 74396: absent from the client's spell data
-static SpellHandlerOutcome<void> AuraBoostMage74396(AuraBoostContext& ctx)
-{
-    if (!ctx.apply)
-    {
-        ctx.spellId1 = 44544;
-    }
-    else
-    {
-        return SpellHandlerOutcome<void>::Return();
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// 74396: absent from the client's spell data: removes one stack of 74396
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage74396(DummyAuraProcContext& ctx)
-{
-    // Remove only single aura from stack and remove holder if its last stack
-    ctx.unit->RemoveAuraHolderFromStack(74396);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-}
 
 namespace
 {
@@ -69,6 +45,13 @@ namespace
     uint32 const ICE_LANCE_SPELL = 30455;
     uint32 const DEEP_FREEZE = 44572;
     uint32 const DEEP_FREEZE_DAMAGE = 71757;
+    uint32 const FROSTFIRE_BOLT = 44614;
+    uint32 const BRAIN_FREEZE_BUFF = 57761;
+    uint32 const FROST_ARMOR_CHILL = 7321;
+    uint32 const FROSTFIRE_ORB_RANK_ONE_HIT = 95969;
+
+    /// Fingers of Frost's text: "Ice Lance deals 25% more damage" while a charge is up. No field of the data holds it.
+    int32 const ICE_LANCE_FINGERS_PERCENT = 25;
 
     /// Every mage spell with a damage effect that Shatter's class mask covers (the data's mask over the mage's spells
     /// and the spells they cast).
@@ -93,11 +76,12 @@ namespace
     }
 
     /// Every spell of SHATTER_SPELLS: Shatter multiplies the whole crit chance by its factor when the spell counts its
-    /// target as frozen. The caster's flat crit-chance modifiers for the spell are added after this hook, so the chance
-    /// is raised to the factor times the chance with them, less them.
+    /// target as frozen, a periodic tick by the target's own state alone. The caster's flat crit-chance modifiers for
+    /// the spell are added after this hook, so the chance is raised to the factor times the chance with them, less
+    /// them.
     SpellHandlerOutcome<void> FrostCritChance(CritChanceContext& ctx)
     {
-        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell) != Mage::NOT_FROZEN)
+        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType) != Mage::NOT_FROZEN)
         {
             float flatMods = 0.0f;
             if (SpellModMgr* mods = ctx.caster.GetSpellMods())
@@ -112,11 +96,14 @@ namespace
 
     /// Every spell of FROSTBURN_SPELLS, when it counts its target as frozen: Frostburn's mastery amount (when above 0)
     /// raises the damage done; Frostbolt also takes Shatter's effect-1 percent for the rank the caster knows, and Ice
-    /// Lance its own effect-1 percent (100: double damage). Deep Freeze's damage (71757) is cast only at a target no
-    /// stun holds, so it counts as frozen whenever it is cast.
+    /// Lance its own effect-1 percent (100: double damage) and ICE_LANCE_FINGERS_PERCENT more while it uses a Fingers
+    /// of Frost charge. Deep Freeze's damage (71757) is cast only at a target no stun holds, so it counts as frozen
+    /// whenever it is cast. A periodic effect's amount counts the target by its own state alone. Ice Lance and
+    /// Frostfire Bolt travel to their target, and their hit is reckoned at the launch, before FingersUse takes the
+    /// charge.
     SpellHandlerOutcome<void> FrostDamageDone(DamageDoneContext& ctx)
     {
-        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell) == Mage::NOT_FROZEN)
+        if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType) == Mage::NOT_FROZEN)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
@@ -139,9 +126,33 @@ namespace
         }
         else if (ctx.spell.ID == ICE_LANCE_SPELL)
         {
-            ctx.doneTotalMod *= (100.0f + EffectValue(ICE_LANCE_SPELL, EFFECT_INDEX_1)) / 100.0f;
+            ctx.doneTotalMod *= Mage::IceLanceMultiplier(true, Mage::UsesFingers(ctx.caster, ctx.spell),
+                                                         EffectValue(ICE_LANCE_SPELL, EFFECT_INDEX_1),
+                                                         ICE_LANCE_FINGERS_PERCENT);
         }
         return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 30455, 44572, 44614: as the cast goes off, before its cast-end proc, takes the Fingers of Frost charge it uses
+    /// (UsesFingers), whatever then becomes of it: one that misses, meets an immunity or finds its target dead takes it
+    /// all the same.
+    SpellHandlerOutcome<void> FingersUse(LaunchContext& ctx)
+    {
+        if (Mage::UsesFingers(ctx.caster, ctx.spell))
+        {
+            Mage::UseFingersCharge(ctx.caster);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 44543, 44545, 83074: Fingers of Frost refuses the procs of the sources RefusesChillSource names.
+    SpellHandlerOutcome<bool> FingersCheckProc(CheckProcContext& ctx)
+    {
+        if (ctx.procSpell && Mage::RefusesChillSource(ctx.procSpell->ID))
+        {
+            return SpellHandlerOutcome<bool>::Return(false);
+        }
+        return SpellHandlerOutcome<bool>::Continue();
     }
 
     /// 71761: Deep Freeze Immunity State, which every mage holds: its proc casts its trigger spell (71757, Deep Freeze's
@@ -177,44 +188,67 @@ namespace
 
     uint32 const DEEP_FREEZE_IMMUNITY[] = { 71761 };
     uint32 const FINGERS_OF_FROST[] = { 44543, 44545, 83074 };
+    uint32 const FINGERS_OF_FROST_USERS[] = { 30455, 44572, 44614 };
 }
 
 uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
 {
-    static Row<AuraBoostMageSite> const boostMage[] =
-    {
-        { 74396, &AuraBoostMage74396 },
-    };
-
-    static Row<DummyAuraProcMageSite> const dummyAuraProcMage[] =
-    {
-        { 74396, &DummyAuraProcMage74396 },
-    };
-
-    uint32 rows = RegisterRows(registry, boostMage);
-    rows += RegisterRows(registry, dummyAuraProcMage);
-    rows += RegisterRanks<DamageDoneHook>(registry, FROSTBURN_SPELLS, &FrostDamageDone);
+    uint32 rows = RegisterRanks<DamageDoneHook>(registry, FROSTBURN_SPELLS, &FrostDamageDone);
     rows += RegisterRanks<CritChanceHook>(registry, SHATTER_SPELLS, &FrostCritChance);
     rows += RegisterRanks<OnProcHook>(registry, DEEP_FREEZE_IMMUNITY, &DeepFreezeImmunityProc);
     rows += RegisterRanks<OnProcHook>(registry, FINGERS_OF_FROST, &FingersOfFrostProc);
+    rows += RegisterRanks<CheckProcHook>(registry, FINGERS_OF_FROST, &FingersCheckProc);
+    rows += RegisterRanks<LaunchHook>(registry, FINGERS_OF_FROST_USERS, &FingersUse);
     return rows;
 }
 
-Mage::FrozenKind Mage::CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell)
+Mage::FrozenKind Mage::CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
+                                      DamageEffectType damageType)
 {
     if (target.IsFrozen())
     {
         return REALLY_FROZEN;
     }
-    if (spell.ID == DEEP_FREEZE_DAMAGE)
+    if (damageType == DOT)
     {
-        return FINGERS;
+        return NOT_FROZEN;
     }
-    if ((spell.ID == ICE_LANCE_SPELL || spell.ID == DEEP_FREEZE) && caster.HasAura(FINGERS_OF_FROST_BUFF))
+    if (spell.ID == DEEP_FREEZE_DAMAGE || UsesFingers(caster, spell))
     {
         return FINGERS;
     }
     return NOT_FROZEN;
+}
+
+bool Mage::UsesFingers(Unit const& caster, SpellEntry const& spell)
+{
+    if (!caster.HasAura(FINGERS_OF_FROST_BUFF))
+    {
+        return false;
+    }
+    return spell.ID == ICE_LANCE_SPELL || spell.ID == DEEP_FREEZE ||
+           (spell.ID == FROSTFIRE_BOLT && caster.HasAura(BRAIN_FREEZE_BUFF));
+}
+
+bool Mage::RefusesChillSource(uint32 procSpellId)
+{
+    return procSpellId == FROST_ARMOR_CHILL || procSpellId == FROSTFIRE_ORB_RANK_ONE_HIT;
+}
+
+bool Mage::UseFingersCharge(Unit& mage)
+{
+    if (!mage.HasAura(FINGERS_OF_FROST_BUFF))
+    {
+        return false;
+    }
+    mage.RemoveAuraHolderFromStack(FINGERS_OF_FROST_BUFF);
+    return true;
+}
+
+float Mage::IceLanceMultiplier(bool countsAsFrozen, bool fingersUp, int32 doubledPercent, int32 fingersPercent)
+{
+    float const frozen = countsAsFrozen ? (100.0f + doubledPercent) / 100.0f : 1.0f;
+    return fingersUp ? frozen * (100.0f + fingersPercent) / 100.0f : frozen;
 }
 
 float Mage::ShatterFactor(bool knowsRankOne, bool knowsRankTwo)
