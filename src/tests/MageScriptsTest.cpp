@@ -39,13 +39,13 @@
 /// stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of
 /// its spread at the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook,
 /// Glyph of Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's
-/// apply and its after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a
-/// level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update
-/// fields allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the
-/// client's data holds them, and a holder put in the creature's holder map where a script asks whether it holds an
-/// aura. The cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown
-/// sinks the test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of
-/// three auras whose apply and removal change nothing on the unit.
+/// apply and its after-hit exits; the orb's rows are counted here and tested in MageOrbTest, the ring's in
+/// MageRingTest. A body that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts'
+/// refusals run on bare Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts
+/// read added to the effect store as the client's data holds them, and a holder put in the creature's holder map where
+/// a script asks whether it holds an aura. The cooldown Impact clears is a player's: a player on a session with no
+/// socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs on a holder made through
+/// its constructor on a bare creature, of three auras whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -138,6 +138,9 @@ namespace
     // (MageOrbTest tests their bodies).
     uint32 const ORB_DUMMY_EFFECT_IDS[] = { 82731, 82734 };
     uint32 const ORB_TARGET_IDS[] = { 82734 };
+
+    // The ring's freeze, whose targets and removal the ring's scripts hold.
+    uint32 const RING_FREEZE_IDS[] = { 82691 };
 
     // The id the after-cast script holds: Blast Wave, which calls the free Flamestrike for Improved Flamestrike.
     uint32 const BLAST_WAVE_IDS[] = { 11113 };
@@ -613,11 +616,12 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane Missiles
     // at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven forms of Polymorph
     // at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and
-    // dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Fingers of Frost, Brain Freeze and Invocation's
-    // two ranks also at the check-proc hook. 143 rows, 140 keys and 3 defaults, none twice.
+    // dummy-effect hooks. The ring: Ring of Frost at the periodic-tick hook, and the ring's freeze at the target and
+    // aura-remove hooks. Impact, Clearcasting, Arcane Blast's buff, Fingers of Frost, Brain Freeze and Invocation's two
+    // ranks also at the check-proc hook. 146 rows, 143 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(143));
-    CHECK_EQ(registry.Count(), std::size_t(140));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
+    CHECK_EQ(registry.Count(), std::size_t(143));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -627,12 +631,13 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(23));
     CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(12));
-    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(12));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(20));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(21));
+    CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(4));
@@ -658,6 +663,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterFrost, 62, 62, 0 },
         { &Mage::RegisterArcane, 23, 23, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
+        { &Mage::RegisterRing, 3, 3, 0 },
     };
     for (PerFile const& file : files)
     {
@@ -668,8 +674,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(143));
-    CHECK_EQ(registry.Count(), std::size_t(140));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
+    CHECK_EQ(registry.Count(), std::size_t(143));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -680,7 +686,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(140));
+    CHECK_EQ(mine.size(), std::size_t(143));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -1449,8 +1455,9 @@ TEST(MageScripts_BlinkKeepsOneTarget)
         CHECK(registry.Find<SelectTargetsHook>(spellId) != NULL);
         CHECK(game.Find<SelectTargetsHook>(spellId) == registry.Find<SelectTargetsHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key),
-             sizeof(BLINK_IDS) / sizeof(uint32) + sizeof(ORB_TARGET_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), sizeof(BLINK_IDS) / sizeof(uint32) +
+                                                   sizeof(ORB_TARGET_IDS) / sizeof(uint32) +
+                                                   sizeof(RING_FREEZE_IDS) / sizeof(uint32));
 
     // Blink sets the count the cut after the hook keeps to one and continues, so the cut runs; the list is untouched.
     BareCreature caster;
@@ -1489,7 +1496,8 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
                                                 sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
                                                 sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
                                                 sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) +
-                                                sizeof(POLYMORPH_IDS) / sizeof(uint32));
+                                                sizeof(POLYMORPH_IDS) / sizeof(uint32) +
+                                                sizeof(RING_FREEZE_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
