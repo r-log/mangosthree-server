@@ -15622,9 +15622,9 @@ namespace Harness
                             slowBefore != kNone && slowBefore < 0 && heldA == 1 && slowA == slowBefore &&
                             maskB == periodicOnly && firstB == periodicOnly && slowed == slowBefore;
 
-            char maskText[16];
+            char maskText[20];
             snprintf(maskText, sizeof(maskText), "0x%llx", (unsigned long long)(maskB < 0 ? 0 : maskB));
-            char firstText[16];
+            char firstText[20];
             snprintf(firstText, sizeof(firstText), "0x%llx", (unsigned long long)(firstB < 0 ? 0 : firstB));
             const std::string value = "heldA=" + std::to_string(heldA) + ",slowA=" +
                                       (slowA == kNone ? std::string("absent") : std::to_string(slowA)) + ",maskB=" +
