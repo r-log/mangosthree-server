@@ -80,8 +80,10 @@ struct SpellEntry;
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
  *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges
  *   and set the script words.
- * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch. A body changes only the done multiplier. Its
- *   damage type tells a hit (SPELL_DIRECT_DAMAGE) from the amount of a periodic effect (DOT).
+ * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch: for the spell, then once for each
+ *   SPELL_AURA_DUMMY aura of the caster, keyed by that aura's spell, so a talent's row changes the damage of the
+ *   spells it covers. A body changes only the done multiplier. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from
+ *   the amount of a periodic effect (DOT).
  * - CritChance: `Unit::IsSpellCrit`, for a magic spell with a victim, before its family switch. A body changes only
  *   the crit chance. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from a periodic tick (DOT) and a heal (HEAL).
  * - DummyAura: `Aura::HandleAuraDummy`, after its check for a real apply or un-apply and before its family switches,
@@ -653,7 +655,8 @@ struct OnProcHook
     typedef OnProcContext Context;
 };
 
-/// `Unit::SpellDamageBonusDone`, before its family switch. The outcome is not read.
+/// `Unit::SpellDamageBonusDone`, before its family switch, for the spell and for each dummy aura of the caster. The
+/// outcome is not read.
 struct DamageDoneHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_DAMAGE_DONE;
