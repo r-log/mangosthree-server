@@ -905,14 +905,14 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // and two teleport sites' 73, 7, 3 and 3 rows, the generic dummy-effect site's 216 rows, the seven dummy-effect
     // family sites' 6, 11, 4, 4, 4, 2 and 1 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and
     // five defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the five periodic dummy
-    // tick sites' 44, 1, 2, 1 and 2 rows and five defaults, the five boost sites' 7, 2, 2, 6 and 4 rows and four
+    // tick sites' 44, 1, 2, 1 and 2 rows and five defaults, the five boost sites' 7, 1, 2, 6 and 4 rows and four
     // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
     // script-effect site's 283 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
-    // the eight dummy proc sites' 37, 4, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
-    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 102 rows on the check-proc, proc, target, damage-done,
+    // the eight dummy proc sites' 37, 3, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
+    // proc-trigger sites' 2, 1, 16 and 20 rows, and the mage scripts' 108 rows on the check-proc, proc, target, damage-done,
     // crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast and after-hit hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1331));
+    CHECK_EQ(game.Count(), std::size_t(1335));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(34));
 }
@@ -2021,9 +2021,9 @@ namespace
     // Kill Command, at the cast-check site and the hunter aura dummy apply site; Conflagration, at the generic
     // dummy-effect site and the max-targets site; Unstable Power and Restless Strength, at the generic dummy proc site and
     // the generic aura dummy apply-and-remove site; 58914, at the generic dummy proc site and the generic boost site;
-    // 74396, at the mage dummy proc site and the mage boost site; Tricks of the Trade, at the rogue dummy proc site
-    // and the rogue aura dummy site; Brain Freeze, at the triggered-spell proc site and the mage boost site. An entry
-    // lists an id at two to four sites; a listed id held at a site its entry does not list fails HeldByAnotherSite.
+    // Tricks of the Trade, at the rogue dummy proc site and the rogue aura dummy site; Brain Freeze, at the
+    // triggered-spell proc site and the mage boost site. An entry lists an id at two to four sites; a listed id held at
+    // a site its entry does not list fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -2059,7 +2059,6 @@ namespace
         { 24658, { DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key } },
         { 24661, { DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key } },
         { 58914, { DummyAuraProcGenericSite::Key, AuraBoostGenericSite::Key } },
-        { 74396, { DummyAuraProcMageSite::Key, AuraBoostMageSite::Key } },
         { 57934, { DummyAuraProcRogueSite::Key, AuraDummyRogueSite::Key } },
         { 57761, { ProcTriggerSpellAuraProcTriggeredSite::Key, AuraBoostMageSite::Key } },
         { 34026, { SpellCheckCastAuraDummySite::Key, AuraDummyApplyHunterSite::Key } },
@@ -4883,9 +4882,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(147));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
 
-    // The game's table holds these with the other files' 1184 rows and 17 defaults.
+    // The game's table holds these with the other files' 1188 rows and 17 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1331));
+    CHECK_EQ(game.Count(), std::size_t(1335));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5420,7 +5419,7 @@ namespace
 {
     // The labels of the five boost sites, each in its switch's order.
     uint32 const BOOST_GENERIC_IDS[] = { 29865, 55053, 50720, 57350, 58914, 62692, 71905 };
-    uint32 const BOOST_MAGE_IDS[] = { 57761, 74396 };
+    uint32 const BOOST_MAGE_IDS[] = { 57761 };
     uint32 const BOOST_PRIEST_IDS[] = { 552, 47585 };
     uint32 const BOOST_HUNTER_IDS[] = { 34074, 19574, 34471, 34027, 35029, 35030 };
     uint32 const BOOST_DEATH_KNIGHT_IDS[] = { 49039, 48263, 48265, 48266 };
@@ -5455,9 +5454,9 @@ TEST(AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults)
     RegisterAurasHandlers(registry);
     RegisterMageScripts(registry);                              // the mage sites' other rows and their defaults
 
-    // The generic, mage, priest, hunter and death knight switches: 7, 2, 2, 6 and 4 labels in 7, 2, 2, 5 and 2 bodies.
+    // The generic, mage, priest, hunter and death knight switches: 7, 1, 2, 6 and 4 labels in 7, 1, 2, 5 and 2 bodies.
     CheckSiteLabels<AuraBoostGenericSite>(registry, BOOST_GENERIC_IDS, 7);
-    CheckSiteLabels<AuraBoostMageSite>(registry, BOOST_MAGE_IDS, 2);
+    CheckSiteLabels<AuraBoostMageSite>(registry, BOOST_MAGE_IDS, 1);
     CheckSiteLabels<AuraBoostPriestSite>(registry, BOOST_PRIEST_IDS, 2);
     CheckSiteLabels<AuraBoostHunterSite>(registry, BOOST_HUNTER_IDS, 5);
     CheckSiteLabels<AuraBoostDeathKnightSite>(registry, BOOST_DEATH_KNIGHT_IDS, 2);
@@ -5766,9 +5765,9 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(302));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 1029 rows and 27 defaults.
+    // The game's table holds these with the other files' 1033 rows and 27 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1331));
+    CHECK_EQ(game.Count(), std::size_t(1335));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(283));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
@@ -6457,9 +6456,9 @@ TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(20));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1311 rows and 29 defaults.
+    // The game's table holds these with the other files' 1315 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1331));
+    CHECK_EQ(game.Count(), std::size_t(1335));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
 }
@@ -6736,9 +6735,9 @@ TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(11));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1320 rows and 29 defaults.
+    // The game's table holds these with the other files' 1324 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1331));
+    CHECK_EQ(game.Count(), std::size_t(1335));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
@@ -6946,7 +6945,7 @@ namespace
                                               31871, 31872, 33493, 38196, 39446, 45481, 45482, 45483, 45484, 46569,
                                               48504, 52723, 60501, 57989, 58914, 63305, 63320, 65932, 66063, 66725,
                                               68161, 66808, 68160, 69739, 69755, 71903, 72178 };
-    uint32 const DUMMY_PROC_MAGE_IDS[] = { 56372, 56375, 64411, 74396 };
+    uint32 const DUMMY_PROC_MAGE_IDS[] = { 56372, 56375, 64411 };
     uint32 const DUMMY_PROC_WARLOCK_IDS[] = { 18094, 18095, 56218, 30293, 30295, 30296, 37377, 37381, 39437, 63108 };
     uint32 const DUMMY_PROC_PRIEST_IDS[] = { 15286, 40438, 26169, 39372, 28809, 55677, 55680, 70770 };
     uint32 const DUMMY_PROC_DRUID_IDS[] = { 24932, 28719, 28847, 37288, 37295, 40442, 44835, 54754, 54821, 70664,
@@ -7077,7 +7076,7 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     // and two proc-trigger sites, and no default: 146 rows and 146 keys, none twice. The mage dummy proc site's 4
     // rows are RegisterMageScripts'.
     std::size_t const perSite[] = { 37, 0, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
-    std::size_t const inGame[] = { 37, 4, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
+    std::size_t const inGame[] = { 37, 3, 10, 8, 11, 5, 26, 10, 2, 1, 16, 20 };
     uint32 const siteKeys[] = { DummyAuraProcGenericSite::Key, DummyAuraProcMageSite::Key,
                                 DummyAuraProcWarlockSite::Key, DummyAuraProcPriestSite::Key,
                                 DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
@@ -7098,9 +7097,9 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(146));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1185 rows and 29 defaults.
+    // The game's table holds these with the other files' 1189 rows and 29 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1331));
+    CHECK_EQ(game.Count(), std::size_t(1335));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
     for (std::size_t k = 0; k < 12; ++k)
     {
@@ -7114,9 +7113,9 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     RegisterUnitAuraProcHandlerHandlers(registry);
     RegisterMageScripts(registry);                              // the mage dummy proc site's rows
 
-    // The generic site's 37 labels in 31 bodies, the mage site's 4 in 4, the warlock site's 10 in 6; no default.
+    // The generic site's 37 labels in 31 bodies, the mage site's 3 in 3, the warlock site's 10 in 6; no default.
     CheckSiteLabels<DummyAuraProcGenericSite>(registry, DUMMY_PROC_GENERIC_IDS, 31);
-    CheckSiteLabels<DummyAuraProcMageSite>(registry, DUMMY_PROC_MAGE_IDS, 4);
+    CheckSiteLabels<DummyAuraProcMageSite>(registry, DUMMY_PROC_MAGE_IDS, 3);
     CheckSiteLabels<DummyAuraProcWarlockSite>(registry, DUMMY_PROC_WARLOCK_IDS, 6);
     CHECK(registry.FindDefault<DummyAuraProcGenericSite>() == NULL);
     CHECK(registry.FindDefault<DummyAuraProcMageSite>() == NULL);
@@ -7135,9 +7134,8 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     CHECK(registry.Find<DummyAuraProcWarlockSite>(30295) == registry.Find<DummyAuraProcWarlockSite>(30293));
     CHECK(registry.Find<DummyAuraProcWarlockSite>(30296) == registry.Find<DummyAuraProcWarlockSite>(30293));
 
-    // The four ids another registered site holds too are keys at those two and no other: Unstable Power and Restless
-    // Strength at the generic aura dummy apply-and-remove site, 58914 at the generic boost site, 74396 at the mage
-    // boost site.
+    // The three ids another registered site holds too are keys at those two and no other: Unstable Power and Restless
+    // Strength at the generic aura dummy apply-and-remove site, 58914 at the generic boost site.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     struct Shared { uint32 spellId; uint32 site; uint32 other; };
     Shared const shared[] =
@@ -7145,7 +7143,6 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
         { 24658, DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key },
         { 24661, DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key },
         { 58914, DummyAuraProcGenericSite::Key, AuraBoostGenericSite::Key },
-        { 74396, DummyAuraProcMageSite::Key, AuraBoostMageSite::Key },
     };
     for (Shared const& id : shared)
     {
@@ -7159,7 +7156,8 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(24658) != NULL);
     CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(24661) != NULL);
     CHECK(game.Find<AuraBoostGenericSite>(58914) != NULL);
-    CHECK(game.Find<AuraBoostMageSite>(74396) != NULL);
+    CHECK(game.Find<AuraBoostMageSite>(74396) == NULL);
+    CHECK(game.Find<DummyAuraProcMageSite>(74396) == NULL);
 
     // An id the switch never held answers Miss and leaves the locals: 12345, the other two sites' labels, and a priest
     // label (15286, Vampiric Embrace).
