@@ -483,6 +483,7 @@ namespace
         uint32 enemies;
         bool destination;
         float x, y, z;
+        uint32 itemEntry;
     };
 
     Seen s_seen;
@@ -632,13 +633,15 @@ TEST(SpellScriptHooks_TheAfterCastHookCarriesTheCastsCountAndPoint)
         s_seen.x = ctx.destX;
         s_seen.y = ctx.destY;
         s_seen.z = ctx.destZ;
+        s_seen.itemEntry = ctx.castItemEntry;
         return SpellHandlerOutcome<void>::Continue();
     }));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
 
-    // A cast with two enemies hit and a destination carries the count, the three floats and the flag.
+    // A cast from an item, with two enemies hit and a destination, carries the count, the three floats, the flag and
+    // the item's entry.
     Forget();
-    AfterCastContext aimed(caster, spell, 2, &target, true, 12.5f, -40.25f, 7.0f);
+    AfterCastContext aimed(caster, spell, 2, &target, true, 12.5f, -40.25f, 7.0f, 36799);
     CHECK(registry.Dispatch<AfterCastHook>(kHookSpell, aimed).IsContinue());
     CHECK_EQ(s_seen.enemies, uint32(2));
     CHECK(s_seen.castTarget == &target);
@@ -646,14 +649,16 @@ TEST(SpellScriptHooks_TheAfterCastHookCarriesTheCastsCountAndPoint)
     CHECK(s_seen.x == 12.5f);
     CHECK(s_seen.y == -40.25f);
     CHECK(s_seen.z == 7.0f);
+    CHECK_EQ(s_seen.itemEntry, uint32(36799));
 
-    // A cast with no destination and no unit target says so; another spell's cast reaches no body.
+    // A cast from no item, with no destination and no unit target, says so; another spell's cast reaches no body.
     Forget();
-    AfterCastContext unaimed(caster, spell, 0, NULL, false, 1.0f, 2.0f, 3.0f);
+    AfterCastContext unaimed(caster, spell, 0, NULL, false, 1.0f, 2.0f, 3.0f, 0);
     CHECK(registry.Dispatch<AfterCastHook>(kHookSpell, unaimed).IsContinue());
     CHECK_EQ(s_seen.enemies, uint32(0));
     CHECK(s_seen.castTarget == NULL);
     CHECK(!s_seen.destination);
+    CHECK_EQ(s_seen.itemEntry, uint32(0));
     CHECK(registry.Dispatch<AfterCastHook>(kOtherSpell, unaimed).IsMiss());
 }
 
@@ -1352,16 +1357,16 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's, Arcane Potency's two
-    // buffs', Fingers of Frost's three, Brain Freeze's three and Invocation's two ranks', the proc hook the mage's 26
+    // buffs', Fingers of Frost's three, Brain Freeze's three and Invocation's two ranks', the proc hook the mage's 24
     // proc scripts, the target hook Blink's, the orb's scan's, the ring's freeze's and Piercing Chill's chill's, the
     // damage-done hook the 22 spells Frostburn's class mask covers and Torment the Weak's three ranks, the crit-chance
-    // hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten
-    // (its eight DoTs and two ranks), Arcane Missiles!'s and Arcane Missiles', the aura-remove hook Hot Streak's
-    // buff's, Mage Ward's, Pyromaniac's ten, Arcane Missiles!'s and the seven forms of Polymorph's and the ring's
-    // freeze's, the periodic-tick hook Ring of Frost's, the dummy-effect hook Combustion's, Impact's spread, Flame
-    // Orb's and the orb's scan's, the after-cast hook Blast Wave's, the launch hook Ice Lance's, Deep Freeze's,
-    // Frostfire Bolt's and Fireball's, the cast-start hook Frostbolt's, and the after-hit hook Frostbolt's, Cone of
-    // Cold's and Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
+    // hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its
+    // eight DoTs and two ranks), Arcane Missiles!'s and Arcane Missiles', the aura-remove hook Hot Streak's buff's,
+    // Mage Ward's, Mana Shield's, Pyromaniac's ten, Arcane Missiles!'s and the seven forms of Polymorph's and the
+    // ring's freeze's, the periodic-tick hook Ring of Frost's, the dummy-effect hook Combustion's, Impact's spread,
+    // Flame Orb's and the orb's scan's, the after-cast hook Blast Wave's and Replenish Mana's, the launch hook Ice
+    // Lance's, Deep Freeze's, Frostfire Bolt's and Fireball's, the cast-start hook Frostbolt's, and the after-hit hook
+    // Frostbolt's, Cone of Cold's and Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
@@ -1372,16 +1377,16 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
     CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(14));
-    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(26));
+    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(24));
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(game.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(12));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(21));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(22));
     CHECK_EQ(game.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
-    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(2));
     CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(3));

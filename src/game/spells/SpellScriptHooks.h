@@ -564,13 +564,14 @@ struct DummyAuraContext
         Aura* m_aura;                               ///< this aura effect, the trigger of CastTriggeredByAura
 };
 
-/// AfterCast's context: the cast that just finished, what it hit and where it was aimed. Value: void.
+/// AfterCast's context: the cast that just finished, what it hit, where it was aimed and the item it was cast from.
+/// Value: void.
 struct AfterCastContext
 {
     AfterCastContext(Unit& casterUnit, SpellEntry const& spellEntry, uint32 enemies, Unit* explicitTarget,
-                     bool destinationSet, float x, float y, float z)
+                     bool destinationSet, float x, float y, float z, uint32 itemEntry)
         : caster(casterUnit), spell(spellEntry), enemiesHit(enemies), target(explicitTarget),
-          hasDestination(destinationSet), destX(x), destY(y), destZ(z)
+          hasDestination(destinationSet), destX(x), destY(y), destZ(z), castItemEntry(itemEntry)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -578,6 +579,9 @@ struct AfterCastContext
     /// The caster casts `spellId` at the point, triggered, with this cast's spell as the trigger and no triggering
     /// aura.
     void CastTriggeredAt(float x, float y, float z, uint32 spellId);
+    /// The caster casts `spellId` at `to`, triggered, with this cast's spell as the trigger and no triggering aura.
+    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
 
     Unit& caster;                                   ///< the caster
     SpellEntry const& spell;                        ///< the spell cast
@@ -588,6 +592,8 @@ struct AfterCastContext
     bool hasDestination;                            ///< whether the cast carried a destination
     float destX, destY, destZ;                      ///< the destination when hasDestination; the explicit target's
                                                     ///< position otherwise; else the caster's
+    uint32 castItemEntry;                           ///< the entry of the item the cast started from, kept when a
+                                                    ///< spent last charge destroyed it; 0 for a cast from no item
 };
 
 /// Launch's context: the cast that goes off. Value: void.

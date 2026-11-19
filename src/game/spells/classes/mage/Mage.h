@@ -353,7 +353,8 @@ namespace Mage
     /// (SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE,
     /// SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED, SPELL_AURA_MOD_MELEE_ATTACK_SPEED and
     /// SPELL_AURA_MOD_RANGED_ATTACK_SPEED), of a cast-speed aura (SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK and
-    /// SPELL_AURA_HASTE_SPELLS) or of SPELL_AURA_HASTE_ALL. Defined in Arcane.cpp.
+    /// SPELL_AURA_HASTE_SPELLS) or of an aura of all speeds (SPELL_AURA_HASTE_ALL and SPELL_AURA_SLOW_ALL). Defined in
+    /// Arcane.cpp.
     bool CountsAsSlow(uint32 auraType, int32 amount);
 
     /// Whether `unit` holds an aura that CountsAsSlow: the most negative amount of each of those aura types on it.
@@ -385,6 +386,22 @@ namespace Mage
     /// knows neither, and 0 while the target holds Improved Polymorph Marker (87515, `targetMarked`). Defined in
     /// Arcane.cpp.
     uint32 ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo, bool targetMarked);
+
+    /// Whether a mage whose Mana Shield is removed in `mode` knocks back the enemies around him for Incanter's
+    /// Absorption: only when damage used up the shield's last point (AURA_REMOVE_BY_SHIELD_BREAK) and he knows a rank
+    /// of the talent (`knowsTalent`); never for a shield that is cancelled, runs out or is dispelled. Defined in
+    /// Arcane.cpp.
+    bool IncantersAbsorptionKnocksBack(AuraRemoveMode mode, bool knowsTalent);
+
+    /// The amount of each of Improved Mana Gem's two effects for one use of the Mana Gem: `percent` percent of
+    /// `maxMana`, truncated; 0 for a percent of 0 or less. Defined in Arcane.cpp.
+    int32 ImprovedManaGemAmount(uint32 maxMana, int32 percent);
+
+    /// Whether `itemEntry` is a mage's Mana Gem, the only item whose Replenish Mana (5405) gives Improved Mana Gem's
+    /// buff: the Mana Gem (36799) and the older conjured gems that share its cooldown category (Mana Agate 5514, Mana
+    /// Jade 5513, Mana Citrine 8007, Mana Ruby 8008, Mana Emerald 22044, Mana Sapphire 33312); never Energy Cloak
+    /// (9397), the other item that casts 5405, and never 0, a cast from no item. Defined in Arcane.cpp.
+    bool IsManaGem(uint32 itemEntry);
 
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
