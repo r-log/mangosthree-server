@@ -746,6 +746,73 @@ namespace Harness
         }
 
         /**
+         * A new item of entry `itemEntry` for him: equipped when the item can be equipped (Player::CanEquipNewItem, then
+         * EquipNewItem), in his bags otherwise (CanStoreNewItem, then StoreNewItem). Returns the item, or NULL when there
+         * is no such item or no room takes it, the refusal noted.
+         */
+        Item* GiveItem(Player* p, uint32 itemEntry)
+        {
+            ItemPrototype const* proto = ObjectMgr::GetItemPrototype(itemEntry);
+            if (!proto)
+            {
+                m_rec.Note("no item " + U(itemEntry));
+                return NULL;
+            }
+            Item* item = NULL;
+            InventoryResult result = EQUIP_ERR_OK;
+            if (proto->InventoryType != INVTYPE_NON_EQUIP)
+            {
+                uint16 dest = 0;
+                result = p->CanEquipNewItem(NULL_SLOT, dest, itemEntry, false);
+                item = result == EQUIP_ERR_OK ? p->EquipNewItem(dest, itemEntry, true) : NULL;
+            }
+            else
+            {
+                ItemPosCountVec dest;
+                result = p->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemEntry, 1);
+                item = result == EQUIP_ERR_OK ? p->StoreNewItem(dest, itemEntry, true) : NULL;
+            }
+            m_rec.Note(item ? "he is given his " + U(itemEntry) + (item->IsEquipped() ? ", equipped" : ", in his bags") + " at bag " +
+                                  U(item->GetBagSlot()) + " slot " + U(item->GetSlot())
+                            : "no room takes his " + U(itemEntry) + ": inventory result " + U(uint32(result)));
+            return item;
+        }
+
+        /**
+         * The use of his item of entry `itemEntry` as the 4.3.4 client sends it (Spell_C.cpp, the CMSG_USE_ITEM branch of
+         * the cast packet's writer, then SpellPutCastTargets in SpellCast.cpp): the item's bag (uint8, the bag's slot, or
+         * INVENTORY_SLOT_BAG_0 for an item he wears or holds in his backpack), its slot (uint8), the cast count (uint8),
+         * the spell id (uint32), the item's guid (uint64), the glyph index (uint32, 0), the cast flags (uint8, 0), then
+         * the targets as WriteCastTargets writes them, here none: the spell's own target, himself. The packet goes to the
+         * use-item handler itself (SpellHandlers::HandleUseItem), which runs its own checks before it casts the item's
+         * spells. Returns the spell id sent, or 0 when he holds no such item.
+         */
+        uint32 UseItemAsClient(Player* p, uint32 itemEntry, uint32 spellId, uint8 castCount)
+        {
+            Item* item = p->GetInventoryMgr().GetItemByEntry(itemEntry);
+            if (!item)
+            {
+                m_rec.Note("he holds no " + U(itemEntry));
+                return 0;
+            }
+            SpellCastTargets targets;
+            WorldPacket packet(CMSG_USE_ITEM, 1 + 1 + 1 + 4 + 8 + 4 + 1 + 4);
+            packet << uint8(item->GetBagSlot());
+            packet << uint8(item->GetSlot());
+            packet << uint8(castCount);
+            packet << uint32(spellId);
+            packet << item->GetObjectGuid();
+            packet << uint32(0);
+            packet << uint8(0);
+            WriteCastTargets(packet, targets);
+            m_rec.Note("the client's use-item packet: bag " + U(item->GetBagSlot()) + ", slot " + U(item->GetSlot()) + ", cast count " +
+                       U(castCount) + ", spell " + U(spellId) + ", his " + U(itemEntry) + ", glyph index 0, cast flags 0, no target; " +
+                       "handed to the use-item handler");
+            SpellHandlers::HandleUseItem(*SessionOf(*p), packet);
+            return spellId;
+        }
+
+        /**
          * The guard of scenarios 931-938, before any server call and before the spawn: every spell
          * the scenario reaches -- cast, triggered by an effect, or cast by a handler's case body it
          * reaches -- passes CheckReachedSpell against its fingerprint, and every creature it spawns
@@ -4128,6 +4195,10 @@ namespace Harness
                 {
                     ++plan.kills[TargetEntry()];
                 }
+                if (steps[i].item)
+                {
+                    ++plan.items[steps[i].item];
+                }
             }
             for (size_t i = 0; i < prints.size(); ++i)
             {
@@ -4285,9 +4356,10 @@ namespace Harness
         static constexpr float kPetOffset = 4.0f;
 
         /// One step of a scenario: the Camel's swing at the mage, the mage's cast of `spell` at the Camel or at himself,
-        /// the removal of `spell`'s holder from the Camel, the Camel's blow of `amount` damage of `school` at the mage,
-        /// the mage's health set to its maximum, the Camel's health set, the mage's kill of the Camel, a wait that only
-        /// marks a moment for its reads, or the cancel of `spell`'s holder on the mage.
+        /// the use of an item of his that casts `spell`, the removal of `spell`'s holder from the Camel, the Camel's blow
+        /// of `amount` damage of `school` at the mage, the mage's health set to its maximum, the Camel's health set, the
+        /// mage's kill of the Camel, a wait that only marks a moment for its reads, or the cancel of `spell`'s holder on
+        /// the mage.
         struct Step
         {
             bool swing = false;
@@ -4315,6 +4387,7 @@ namespace Harness
             bool noCasterAura = false;          ///< a cast that takes the scenario's caster aura off him instead of putting it on
             bool asClient = false;              ///< a cast sent as the client's CMSG_CAST_SPELL to the cast handler (CastAsClient)
             bool petCast = false;               ///< a cast by his pet at the Camel; its own category judges it
+            uint32 item = 0;                    ///< an aura cast at himself as the use of his item of this entry (UseItemAsClient)
         };
         /// The aura of `spell` put on `unit` as the GM aura command puts it: a holder and one aura per aura effect,
         /// with no cast. `caster` is the holder's caster; `unit` itself when NULL.
@@ -4434,6 +4507,14 @@ namespace Harness
             s.aura = true;
             s.self = true;
             s.everyMs = everyMs;
+            return s;
+        }
+        /// The use of his item `item`, whose use casts `spell`, an aura, at himself, as his client asks it; the scenario
+        /// gives him the item before the step (GiveItem). `everyMs` the time to the next step, 0 for a cast step's own.
+        static Step ItemUse(uint32 item, uint32 spell, uint32 everyMs = 0)
+        {
+            Step s = SelfAura(spell, everyMs);
+            s.item = item;
             return s;
         }
         /// The Camel's health set to `pct` percent of its maximum.
@@ -5118,6 +5199,25 @@ namespace Harness
                 m_rec.Note(buf);
                 pet->CastSpell(target, step.spell, false);
                 seen.castId = step.spell;
+            }
+            else if (step.item)
+            {
+                seen.healthBefore = target->GetHealth();
+                m_rec.Note("he uses his " + U(step.item) + ", whose use casts " + U(step.spell) + "; mana " + U(p->GetPower(POWER_MANA)) +
+                           " of " + U(p->GetMaxPower(POWER_MANA)));
+                if (step.clearCooldown)
+                {
+                    p->RemoveSpellCooldown(step.spell, true);
+                    m_rec.Note("his cooldown of " + U(step.spell) + " taken off by call; stored keys [" + CooldownKeys(p) + "]");
+                }
+                seen.castId = UseItemAsClient(p, step.item, step.spell, uint8(k + 1));
+                if (!seen.castId)
+                {
+                    seen.refused = true;
+                    m_rec.Note("the step is not run");
+                    m_rec.Open(name + "+tick");
+                    return;
+                }
             }
             else if (step.self)
             {
@@ -18490,16 +18590,20 @@ namespace Harness
      * the old buff's amount times the time it has left over its full duration, for another 10 s; what any other shield
      * absorbs, Ice Barrier (11426) among them, gives nothing; and when damage uses his Mana Shield up he casts 86261,
      * which knocks back every enemy within 6 yards of him, while a Mana Shield he cancels knocks back nothing. Improved
-     * Mana Gem: the Mana Gem's spell, Replenish Mana (5405), gives him 83098 for 15 s, both of its effects (spell
-     * damage and healing done) at 2% of his maximum mana. Staged with Improved Counterspell (11255, rank 1 of 2, an
-     * Arcane talent that touches none of these spells), so the stage learns the Arcane tree's spells; Incanter's
-     * Absorption 2, Improved Mana Gem 2, Mana Shield and Mage Ward learned through Player::learnSpell, as the stage
-     * learns its spells (the two talents stand on rows that ask for points this stage does not spend). Once staged, his
-     * Offensive State (79684) and Mana Adept (76547) are taken off. Camel A stands kNearYards ahead of him, Camel B
-     * kSideYards to A's side (5 yards from him) and Camel C kFarYards beyond A (10 yards from him). Each shield is his
-     * triggered self-cast; each blow is Camel A's, of kHit damage (kBreak for the last), physical at Mana Shield and
-     * Ice Barrier and fire at Mage Ward, which takes fire, frost and arcane damage alone. Steps, kEveryMs apart unless
-     * named:
+     * Mana Gem: the use of his Mana Gem (36799), whose Replenish Mana (5405) restores his mana, gives him 83098 for
+     * 15 s, both of its effects (spell damage and healing done) at 2% of his maximum mana, also when the use spends the
+     * gem's last charge and so destroys it before the cast ends; the use of Energy Cloak (9397), whose use casts 5405
+     * too, gives him nothing. Staged with Improved Counterspell (11255, rank 1 of 2, an Arcane talent that touches none
+     * of these spells), so the stage learns the Arcane tree's spells; Incanter's Absorption 2, Improved Mana Gem 2, Mana
+     * Shield and Mage Ward learned through Player::learnSpell, as the stage learns its spells (the two talents stand on
+     * rows that ask for points this stage does not spend). Once staged, his Offensive State (79684) and Mana Adept
+     * (76547) are taken off, and he is given a Mana Gem, in his bags, its charges set to its last one, and Energy
+     * Cloak, equipped (GiveItem), before any blow puts him in combat, where no cloak can be put on. Camel A stands
+     * kNearYards ahead of him, Camel B kSideYards to A's side (5 yards from him) and Camel C kFarYards beyond A
+     * (10 yards from him). Each shield is his triggered self-cast; each blow is Camel A's, of kHit damage (kBreak for
+     * the last), physical at Mana Shield and Ice Barrier and fire at Mage Ward, which takes fire, frost and arcane
+     * damage alone; each item use is his client's (UseItemAsClient), which the server refuses at full mana. Steps,
+     * kEveryMs apart unless named:
      *  1. Mana Shield;  2. a blow, which the shield absorbs whole;
      *  3. Mana Shield cancelled as the client's right-click does; right after it, 44413 taken off him by call;
      *  4. Mage Ward;  5. a blow, which the ward absorbs whole, kComboGapMs before the next step;
@@ -18509,20 +18613,25 @@ namespace Harness
      * 10. Mana Shield, its cooldown taken off by call first; right after it, Ice Barrier and 44413 taken off by call;
      * 11. a blow of kBreak, which uses the shield up;
      * 12. a wait, kSettleMs long: right after it, his mana set to half his maximum by call;
-     * 13. Replenish Mana.
+     * 13. the Mana Gem used, its last charge, 5405's cooldown taken off him by call first: putting the cloak on
+     *     started it for 30 s (Player::ApplyEquipCooldown);
+     * 14. a wait: right after it, 83098 taken off him and his mana set to half his maximum by call;
+     * 15. Energy Cloak used, 5405's cooldown, which the gem's use started, taken off him by call first.
      * Right after each step acts and at its read, the scenario keeps the distance from him to each Camel; at each read,
      * the amount of 44413, the time it has left, its full duration, the amounts of 83098's two effects and his maximum
-     * mana.
+     * mana; at step 13's read, whether he still holds a Mana Gem.
      *
      * `absorbs`: `shield=<44413 at step 2's read>,ward=<at step 5's read>,again=<at step 6's read>/<the combination
      * wanted>,barrier=<at step 9's read, 0 for none>,cancel=<A><B><C>,break=<A><B><C>,gem=<83098 effect 0>/<effect
-     * 1>@<2% of his maximum mana>`, each Camel's digit 1 when its distance from him moved by more than a yard: for
-     * `cancel` from step 3's act to step 4's read, for `break` from step 11's act to step 12's read. 86261 is a
-     * triggered spell with no visual, which sends no SMSG_SPELL_GO, so its knockback is read from the distances alone.
-     * The combination wanted is kShare plus int(step 5's buff amount x the time it had left at step 6's blow / its full
-     * duration), that time being the time left at step 5's read less the time from that read to the blow. OK at
-     * shield=kShare, ward=kShare, again within kComboSlack of the combination wanted and above kShare, barrier=0,
-     * cancel=000, break=110 and both of 83098's effects at 2% of his maximum mana.
+     * 1>@<2% of his maximum mana>,gone=<1 when he holds no Mana Gem at step 13's read>,cloak=<83098 effect 0>/<effect
+     * 1> at step 15's read,energized=<1 when 5405 restored his mana in step 15>`, each Camel's digit 1 when its
+     * distance from him moved by more than a yard: for `cancel` from step 3's act to step 4's read, for `break` from
+     * step 11's act to step 12's read. 86261 is a triggered spell with no visual, which sends no SMSG_SPELL_GO, so its
+     * knockback is read from the distances alone. The combination wanted is kShare plus int(step 5's buff amount x the
+     * time it had left at step 6's blow / its full duration), that time being the time left at step 5's read less the
+     * time from that read to the blow. OK at shield=kShare, ward=kShare, again within kComboSlack of the combination
+     * wanted and above kShare, barrier=0, cancel=000, break=110, both of 83098's effects at 2% of his maximum mana after
+     * the gem, gone=1, cloak=0/0 and energized=1.
      */
     class MageArcaneAbsorbs : public MageProcScenario
     {
@@ -18550,6 +18659,19 @@ namespace Harness
                 p.RemoveAurasDueToSpell(spell);
                 m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
             }
+            if (Item* gem = GiveItem(&p, kManaGem))
+            {
+                for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+                {
+                    if (gem->GetProto()->Spells[i].SpellId == kReplenishMana)
+                    {
+                        gem->SetSpellCharges(uint8(i), -1);
+                        m_rec.Note("his " + U(kManaGem) + "'s charges of " + U(kReplenishMana) + " set to its last one: " +
+                                   std::to_string(gem->GetSpellCharges(uint8(i))));
+                    }
+                }
+            }
+            GiveItem(&p, kEnergyCloak);
             m_rec.Note("his " + U(kIncanters) + (p.HasAura(kIncanters) ? " on him" : " not on him") + ", " + U(kImprovedManaGem) +
                        (p.HasAura(kImprovedManaGem) ? " on him" : " not on him") + "; maximum mana " + U(p.GetMaxPower(POWER_MANA)));
         }
@@ -18558,10 +18680,15 @@ namespace Harness
         {
             Step shieldAgain = SelfAura(kManaShield);
             shieldAgain.clearCooldown = true;
+            Step gem = ItemUse(kManaGem, kReplenishMana);
+            gem.clearCooldown = true;
+            Step cloak = ItemUse(kEnergyCloak, kReplenishMana);
+            cloak.clearCooldown = true;
             return { SelfAura(kManaShield), Blow(kHit, SPELL_SCHOOL_MASK_NORMAL, kEveryMs), SelfRemoval(kManaShield, kEveryMs),
                      SelfAura(kMageWard), Blow(kHit, SPELL_SCHOOL_MASK_FIRE, kComboGapMs), Blow(kHit, SPELL_SCHOOL_MASK_FIRE, kEveryMs),
                      Wait(kEveryMs), SelfAura(kIceBarrier), Blow(kHit, SPELL_SCHOOL_MASK_NORMAL, kEveryMs), shieldAgain,
-                     Blow(kBreak, SPELL_SCHOOL_MASK_NORMAL, kEveryMs), Wait(kSettleMs), SelfAura(kReplenishMana) };
+                     Blow(kBreak, SPELL_SCHOOL_MASK_NORMAL, kEveryMs), Wait(kSettleMs), gem,
+                     Wait(kEveryMs), cloak };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -18644,6 +18771,11 @@ namespace Harness
                        HolderOf(p, kMageWard) + ", " + U(kIceBarrier) + " " + HolderOf(p, kIceBarrier) + "; mana " +
                        U(p->GetPower(POWER_MANA)) + " of " + U(p->GetMaxPower(POWER_MANA)) + "; energized by " + U(kReplenishMana) +
                        ": " + EnergizeAmounts(k, kReplenishMana));
+            if (k == kGemStep)
+            {
+                reads["gemHeld"] = p->GetInventoryMgr().GetItemByEntry(kManaGem) ? 1 : 0;
+                m_rec.Note("his " + U(kManaGem) + (reads["gemHeld"] ? " still in his bags" : " gone from his bags"));
+            }
         }
 
         std::string Own(St const& st) const override
@@ -18668,18 +18800,27 @@ namespace Harness
             const int64 gemWanted = maxMana > 0 ? maxMana * kGemPercent / 100 : -1;
             const int64 gemDamage = Kept(st, kGemStep, "gem0");
             const int64 gemHealing = Kept(st, kGemStep, "gem1");
+            const int64 gemHeld = Kept(st, kGemStep, "gemHeld");
+            const std::string gone = gemHeld == 0 ? "1" : gemHeld == 1 ? "0" : "?";
+            const int64 cloakDamage = Kept(st, kCloakStep, "gem0");
+            const int64 cloakHealing = Kept(st, kCloakStep, "gem1");
+            const bool energized = !EnergizeAmounts(kCloakStep, kReplenishMana).empty();
             const std::string value = "shield=" + std::to_string(shield) + ",ward=" + std::to_string(ward) + ",again=" +
                                       std::to_string(again) + "/" + std::to_string(combined) + ",barrier=" +
                                       std::to_string(barrier) + ",cancel=" + cancel + ",break=" + knock + ",gem=" +
                                       std::to_string(gemDamage) + "/" + std::to_string(gemHealing) + "@" +
-                                      std::to_string(gemWanted);
+                                      std::to_string(gemWanted) + ",gone=" + gone + ",cloak=" + std::to_string(cloakDamage) +
+                                      "/" + std::to_string(cloakHealing) + ",energized=" + (energized ? "1" : "0");
             const bool ok = shield == kShare && ward == kShare && againOk && barrier == 0 && cancel == "000" &&
-                            knock == "110" && gemWanted > 0 && gemDamage == gemWanted && gemHealing == gemWanted;
+                            knock == "110" && gemWanted > 0 && gemDamage == gemWanted && gemHealing == gemWanted &&
+                            gone == "1" && cloakDamage == 0 && cloakHealing == 0 && energized;
             return (ok ? "OK(" : "BUG(") + value + "; 44413's amount at the reads of steps 2, 5, 6 and 9, the combination " +
                    "wanted from step 5's read (" + std::to_string(left) + " of " + std::to_string(full) + " ms left there, " +
                    std::to_string(leftAtBlow) + " at step 6's blow), the Camels A, B and C moved by more than a yard " +
                    "after the cancel and after the break, " + U(kKnockBack) + "'s knockback with no SMSG_SPELL_GO of its " +
-                   "own, and 83098's two effects against 2% of his maximum mana)";
+                   "own, 83098's two effects against 2% of his maximum mana after his " + U(kManaGem) + "'s last charge, " +
+                   "which takes it from his bags, and after " + U(kEnergyCloak) + "'s use, whose " + U(kReplenishMana) +
+                   " restored his mana)";
         }
 
     private:
@@ -18689,6 +18830,8 @@ namespace Harness
         static constexpr uint32 kMageWard = 543;
         static constexpr uint32 kIceBarrier = 11426;
         static constexpr uint32 kReplenishMana = 5405;
+        static constexpr uint32 kManaGem = 36799;
+        static constexpr uint32 kEnergyCloak = 9397;
         static constexpr uint32 kBuff = 44413;
         static constexpr uint32 kKnockBack = 86261;
         static constexpr uint32 kGemBuff = 83098;
@@ -18719,7 +18862,9 @@ namespace Harness
         static constexpr uint32 kBreakHit = 10;
         static constexpr uint32 kSettleStep = 11;
         static constexpr uint32 kGemStep = 12;
-        static constexpr size_t kSteps = 13;
+        static constexpr uint32 kCloakWait = 13;
+        static constexpr uint32 kCloakStep = 14;
+        static constexpr size_t kSteps = 15;
         static constexpr char const* kCamelNames[kCamels] = { "A", "B", "C" };
 
         /// A read ReadOwn kept for step k; -1 when it kept none of that name.
@@ -18768,11 +18913,11 @@ namespace Harness
                 case kShieldAgain:
                     off = { kIceBarrier, kBuff };
                     break;
+                case kCloakWait:
+                    off = { kGemBuff };
+                    break;
                 case kSettleStep:
-                    p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA) / 2);
-                    m_rec.Note("his mana set to half his maximum by call: " + U(p->GetPower(POWER_MANA)) + " of " +
-                               U(p->GetMaxPower(POWER_MANA)));
-                    return;
+                    break;
                 default:
                     return;
             }
@@ -18781,6 +18926,12 @@ namespace Harness
                 const bool held = p->HasAura(spell);
                 p->RemoveAurasDueToSpell(spell);
                 m_rec.Note("his " + U(spell) + (held ? " taken off by call" : " was not on him"));
+            }
+            if (k == kSettleStep || k == kCloakWait)
+            {
+                p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA) / 2);
+                m_rec.Note("his mana set to half his maximum by call: " + U(p->GetPower(POWER_MANA)) + " of " +
+                           U(p->GetMaxPower(POWER_MANA)));
             }
             if (k == kBarrierLearn)
             {
