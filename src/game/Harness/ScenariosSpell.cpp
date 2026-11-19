@@ -186,8 +186,11 @@
 // Arcane Blasts that take one hit with its crit chance; Presence of Mind makes an Arcane Blast instant and refuses
 // Arcane Power and is refused by it; Arcane Missiles! cast during the channel stays through its missiles.
 // 1107 a staged Arcane mage with Improved Blink gets its speed from Blink and not from Arcane Brilliance or Mage Armor.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1011, 1025-1028, 1100-1105 and 1107 (Qualify) fingerprints every
-// spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
+// 1109 a staged Arcane mage's Arcane Missiles fly at the Camel the channel started on: a switch of his selection to
+// another Camel during the channel moves no missile, and a cast at a Camel he has not selected fires all its missiles.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1011, 1025-1028, 1100-1105, 1107 and 1109 (Qualify)
+// fingerprints every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any
+// script binding.
 namespace Harness
 {
     namespace
@@ -4024,7 +4027,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1011, 1025-1028, 1100-1105, 1107): a human mage staged to level 85 with the scenario's talents, glyphs,
+     * 998-1000, 1011, 1025-1028, 1100-1105, 1107, 1109): a human mage staged to level 85 with the scenario's talents, glyphs,
      * spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged
      * (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249, or the creature TargetEntry names)
      * staged to level TargetLevel() (85 unless the scenario sets its own) ten yards in front of him
@@ -18477,6 +18480,207 @@ namespace Harness
         }
     };
 
+    /**
+     * S1109 `mage-arcane-missiles-channel-target`: Arcane Missiles (5143) on a staged Arcane mage with two Camels, A and
+     * B, in a line across his front. Each missile (7268) aims at implicit target 77, the unit the channel started on
+     * (his channel object), not at his selection. Staged with Improved Counterspell (11255, rank 1 of 2, an Arcane
+     * talent that touches neither spell), so the stage learns the Arcane tree's spells; Arcane Missiles learned. Before
+     * each cast at a Camel he takes Precision (13843, +6% spell hit), so no missile misses a level-85 Camel, and the crit
+     * aura at -100, so none crits. Steps:
+     *  1. Arcane Missiles! (79683) cast by him at himself, triggered; then he selects Camel A, as a client does before
+     *     it casts at it;
+     *  2. Arcane Missiles at Camel A as the client sends it (CastAsClient), kCastEveryMs before the next step, read
+     *     kReadMs after it, between the channel's first missile and its second; at the read he selects Camel B;
+     *  3. Arcane Missiles! again; then he clears his selection;
+     *  4. Arcane Missiles at Camel A as the client sends it, the cast packet alone naming the Camel, as a focus macro's
+     *     cast does;
+     *  5. a wait.
+     *
+     * `channel`: `switch=<the Camels step 2's missiles were launched at before its read>|<from its read on>,
+     * selected=<his selection right after step 2's cast>><at its read, after the switch>,cleared=<step 4's missiles, as
+     * for step 2>,clearedSelected=<his selection right after step 4's cast>`. A missile's Camel is the one its
+     * SMSG_SPELL_GO names in its hit list: `A`, `B`, or `-` for neither; missiles are joined by `+`, `none` for none. A
+     * selection is `A`, `B`, `none` or `other`. OK at `switch=A|A+A,selected=A>B,cleared=A|A+A,clearedSelected=none`.
+     */
+    class MageArcaneChannelTarget : public MageProcScenario
+    {
+    public:
+        MageArcaneChannelTarget() : MageProcScenario("mage-arcane-missiles-channel-target", 1109, "channel") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kArcaneMissiles }; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 TargetCount() const override { return 2; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step switched = AuraCastAt(kArcaneMissiles, kCamelA, 0);
+            switched.asClient = true;
+            Step cleared = AuraCastAt(kArcaneMissiles, kCamelA, 0);
+            cleared.asClient = true;
+            return { SelfAura(kBuff, kShortMs), switched, SelfAura(kBuff, kShortMs), cleared, Wait(kShortMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 5143: 72 fields, fnv e5fc61f3
+                { 5143, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 750 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 7268 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 108 }, { "eff2.EffectBasePoints", 100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 9 }, { "eff2.EffectSpellClassMask.Flags", 2048 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 7268: 26 fields, fnv ac6e503b
+                { 7268, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 24 }, { "eff0.EffectBonusCoefficient", 1049515524 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRealPointsPerLevel", 1050253722 }, { "eff0.ImplicitTarget_0", 77 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (st.targets.size() <= kCamelB)
+            {
+                return;
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            if (!atRead && k == kSelectStep)
+            {
+                p->SetSelectionGuid(st.targets[kCamelA]);
+                m_rec.Note("he selects Camel A, as a client does before it casts at it");
+            }
+            else if (atRead && k == kSwitchCast)
+            {
+                p->SetSelectionGuid(st.targets[kCamelB]);
+                m_rec.Note("he selects Camel B, between the channel's first missile and its second");
+            }
+            else if (!atRead && k == kClearStep)
+            {
+                p->SetSelectionGuid(ObjectGuid());
+                m_rec.Note("he clears his selection, so the next cast names its Camel in the cast packet alone");
+            }
+            if (k == kSwitchCast || k == kClearCast)
+            {
+                const int64 selected = Selected(st, p);
+                reads[atRead ? "selectedAtRead" : "selectedAtCast"] = selected;
+                m_rec.Note(std::string(atRead ? "at the read" : "right after the cast") + ": his selection " + SelectionName(selected));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const std::string switched = Launches(st, kSwitchCast, false) + "|" + Launches(st, kSwitchCast, true);
+            const std::string selected = SelectionName(Kept(st, kSwitchCast, "selectedAtCast")) + ">" +
+                                         SelectionName(Kept(st, kSwitchCast, "selectedAtRead"));
+            const std::string cleared = Launches(st, kClearCast, false) + "|" + Launches(st, kClearCast, true);
+            const std::string clearedSelected = SelectionName(Kept(st, kClearCast, "selectedAtCast"));
+            const std::string value = "switch=" + switched + ",selected=" + selected + ",cleared=" + cleared +
+                                      ",clearedSelected=" + clearedSelected;
+            const bool ok = switched == "A|A+A" && selected == "A>B" && cleared == "A|A+A" && clearedSelected == "none";
+            return (ok ? "OK(" : "BUG(") + value + "; a run is the Camels its 7268 missiles were launched at, before " +
+                   "the cast's read | from it on)";
+        }
+
+    private:
+        static constexpr uint32 kArcaneMissiles = 5143;
+        static constexpr uint32 kMissile = 7268;
+        static constexpr uint32 kBuff = 79683;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kReadMs = 1000;
+        static constexpr uint32 kShortMs = 1000;
+        static constexpr uint32 kCamelA = 0;
+        static constexpr uint32 kCamelB = 1;
+        static constexpr uint32 kSelectStep = 0;
+        static constexpr uint32 kSwitchCast = 1;
+        static constexpr uint32 kClearStep = 2;
+        static constexpr uint32 kClearCast = 3;
+        static constexpr size_t kSteps = 5;
+
+        /// A read ReadOwn kept for step k; -2 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -2 : i->second;
+        }
+
+        /// His selection as a Camel's index plus one: 1 for Camel A, 2 for Camel B, 0 for none, -1 for another unit.
+        static int64 Selected(St const& st, Player const* p)
+        {
+            const ObjectGuid selection = p->GetSelectionGuid();
+            for (uint32 camel = 0; camel < st.targets.size(); ++camel)
+            {
+                if (st.targets[camel] == selection)
+                {
+                    return int64(camel) + 1;
+                }
+            }
+            return selection.IsEmpty() ? 0 : -1;
+        }
+
+        /// A selection Selected read: `A`, `B`, `none`, `other`, or `-` when it was not read.
+        static std::string SelectionName(int64 selected)
+        {
+            switch (selected)
+            {
+                case 0:     return "none";
+                case 1:     return "A";
+                case 2:     return "B";
+                case -1:    return "other";
+                default:    return "-";
+            }
+        }
+
+        /// The Camels step k's missiles (7268) were launched at, in order, each as its SMSG_SPELL_GO names it in its
+        /// hit list: `A`, `B`, or `-` for neither, joined by `+`; `none` for none. `fromRead` reads the step's windows
+        /// from its read on, else those before it.
+        std::string Launches(St const& st, uint32 k, bool fromRead) const
+        {
+            const std::string missile = "spell=" + U(kMissile) + " ";
+            const std::vector<std::string> windows = StepWindows(k);
+            const size_t first = fromRead ? 2 : 0;
+            const size_t last = fromRead ? windows.size() : 2;
+            std::string out;
+            for (size_t w = first; w < last; ++w)
+            {
+                std::vector<Recorder::Seen const*> gos = m_rec.SeenIn(windows[w], SMSG_SPELL_GO);
+                for (size_t i = 0; i < gos.size(); ++i)
+                {
+                    std::string atA, atB;
+                    if (gos[i]->payload.empty() ||
+                        !Trace::DecodeSpellCast(true, &gos[i]->payload[0], gos[i]->payload.size(), RolesAt(st, kCamelA), atA) ||
+                        atA.compare(0, missile.size(), missile) != 0)
+                    {
+                        continue;
+                    }
+                    Trace::DecodeSpellCast(true, &gos[i]->payload[0], gos[i]->payload.size(), RolesAt(st, kCamelB), atB);
+                    const char* camel = atA.find(" hit=[target]") != std::string::npos ? "A" :
+                                        atB.find(" hit=[target]") != std::string::npos ? "B" : "-";
+                    out += (out.empty() ? "" : "+") + std::string(camel);
+                }
+            }
+            return out.empty() ? std::string("none") : out;
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -18558,5 +18762,6 @@ namespace Harness
         r.Register(new MageArcaneImprovedPolymorph());
         r.Register(new MageArcaneClearcasting());
         r.Register(new MageArcaneBlink());
+        r.Register(new MageArcaneChannelTarget());
     }
 }
