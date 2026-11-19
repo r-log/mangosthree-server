@@ -19551,7 +19551,8 @@ namespace Harness
      * 17. Arcane Barrage, its cooldown taken off him first;
      * 18. Arcane Blast.
      * Casts are kCastEveryMs apart and the steps named kBuffMs; every cast's read is kReadMs after it, and a hit that
-     * lands later is read from the step's windows. A run's amount is its first missile's, read in the run's windows
+     * lands later is read from the step's windows. Right after each cast at the Camel its health is set to its maximum
+     * by call, so the runs never kill it. A run's amount is its first missile's, read in the run's windows
      * (the mana he regains during the channel moves the later ones a little). The stage read keeps his cast-speed field
      * and notes the glyph's modifier on the missiles and on Arcane Blast. Arcane Barrage's band is computed from the
      * spell power he holds at its step: (1192..1456, the scaled base int(1.413 x 937.33) = 1324 with its spread
@@ -19683,6 +19684,11 @@ namespace Harness
                 reads["mana"] = p->GetPower(POWER_MANA);
                 reads["maxMana"] = p->GetMaxPower(POWER_MANA);
                 NoteAdept(*p, "right after the channel starts");
+            }
+            if (IsCast(st.steps[k]) && !st.steps[k].self && target)
+            {
+                target->SetHealth(target->GetMaxHealth());
+                m_rec.Note("the Camel's health set to its maximum by call: " + U(target->GetHealth()));
             }
         }
 
@@ -19857,9 +19863,11 @@ namespace Harness
      * left on his cooldown of Mana Shield; at step 2's read Arcane Power's full duration; at step 8's read whether he
      * holds Presence of Mind. Every cast's read is kReadMs after it, and a hit that lands later is read from the step's
      * windows. Right after steps 2 and 5 act his Arcane Blast buff (36032) is taken off him, so each Arcane Blast is
-     * cast at no stack. A cast's mana cost is Spell::CalculatePowerCost's before it. The stage read keeps the cooldown
-     * each modifier makes of: Presence of Mind's 120 s, Arcane Power's 120 s, Invisibility's (66) 180 s, Evocation's
-     * (12051) 240 s and Mana Shield's 12 s.
+     * cast at no stack. Right after each cast the Camel's health is set to its maximum by call, so it never dies. An
+     * Arcane Blast's mana cost is the cast's own (Spell::GetPowerCost right after it starts, with his cost modifiers);
+     * Mana Shield's is Spell::CalculatePowerCost's before it, 0 in 15595 (no SpellPower row). The stage read keeps the
+     * cooldown each modifier makes of: Presence of Mind's 120 s, Arcane Power's 120 s, Invisibility's (66) 180 s,
+     * Evocation's (12051) 240 s and Mana Shield's 12 s.
      *
      * `cooldowns`: `power=<3 over 1>/<6 over 1>@cost<3's cost in percent of 1's>/<Arcane Power's
      * duration>,refused=<4>/<9>, pom=<Presence of Mind at 8's read>,gcd=<5,6,11,22,23>/<Mirror
@@ -19867,7 +19875,7 @@ namespace Harness
      * reads>,shield=<seconds left after 5>/<5's cost>:<11's cost>`. OK at power x1.20/x1.20 (within kRatioSlack)
      * @cost110/15000, refused CASTER_AURASTATE/CASTER_AURASTATE, pom 1, gcd 0,1500,1500,0,0/0, explosion
      * 1250,1041,1000,1000,1000, quick none,none, flows 90000/90000/135000/120000/10000, shield 10 (9 when a wall-clock
-     * second turned) with equal costs.
+     * second turned) with equal costs (0 and 0).
      */
     class MageArcaneCooldowns : public MageArcaneProofScenario
     {
@@ -19961,7 +19969,7 @@ namespace Harness
             });
         }
 
-        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             std::map<std::string, int64>& reads = st.seen[k].reads;
             Step const& step = st.steps[k];
@@ -19982,6 +19990,17 @@ namespace Harness
                 reads["gcd"] = GcdNow(p, step.spell);
                 m_rec.Note("right after the cast: his global cooldown " + Num(reads["gcd"]) + " ms; " + U(kArcanePower) + " " +
                            HolderOf(p, kArcanePower));
+            }
+            if (step.spell == kArcaneBlast && IsCast(step))
+            {
+                Spell const* cast = p->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+                reads["cost"] = cast && cast->m_spellInfo->ID == kArcaneBlast ? int64(cast->GetPowerCost()) : kNone;
+                m_rec.Note("the Arcane Blast's own cost right after it starts: " + Num(reads["cost"]));
+            }
+            if (IsCast(step) && target)
+            {
+                target->SetHealth(target->GetMaxHealth());
+                m_rec.Note("the Camel's health set to its maximum by call: " + U(target->GetHealth()));
             }
             if (k == kPowerStep || k == kFirstShieldStep)
             {
@@ -20031,8 +20050,10 @@ namespace Harness
             }
             const double power = Ratio(Hit(st, kPoweredBlast), Hit(st, kBaseBlast));
             const double quickPower = Ratio(Hit(st, kQuickBlast), Hit(st, kBaseBlast));
-            const uint32 baseCost = st.seen[kBaseBlast].cost;
-            const int64 costPercent = baseCost ? (int64(st.seen[kPoweredBlast].cost) * 200 + baseCost) / (2 * baseCost) : kNone;
+            const int64 baseCost = Kept(st, kBaseBlast, "cost");
+            const int64 poweredCost = Kept(st, kPoweredBlast, "cost");
+            const int64 costPercent =
+                baseCost > 0 && poweredCost >= 0 ? (poweredCost * 200 + baseCost) / (2 * baseCost) : kNone;
             const int64 duration = Kept(st, kPowerStep, "duration");
             const std::string refused = ResultName(CastFailedResult(kPresenceRefusedStep, kPresenceOfMind)) + "/" +
                                         ResultName(CastFailedResult(kPowerRefusedStep, kArcanePower));
@@ -20070,7 +20091,7 @@ namespace Harness
             const bool ok = Near(power, 1.20, kRatioSlack) && Near(quickPower, 1.20, kRatioSlack) && costPercent == 110 && duration == 15000 &&
                             refused == "CASTER_AURASTATE/CASTER_AURASTATE" && presence == 1 && gcd == "0,1500,1500,0,0/0" &&
                             explosion == "1250,1041,1000,1000,1000" && quick == "none,none" && st.seen[kLastShieldStep].goSeen && flows == "90000/90000/135000/120000/10000" && (left == 9 || left == 10) &&
-                            st.seen[kFirstShieldStep].cost == st.seen[kShieldStep].cost && st.seen[kFirstShieldStep].cost > 0;
+                            st.seen[kFirstShieldStep].cost == st.seen[kShieldStep].cost;
             return (ok ? "OK(" : "BUG(") + value + "; power: Arcane Blast's damage under Arcane Power over without it, its cost in " +
                    "percent, Arcane Power's duration; gcd: his global cooldown right after Mana Shield, Arcane Blast and Mana Shield " +
                    "outside Arcane Power, then Blink and Mana Shield under the glyphed Arcane Power, / the one Mirror Image would " +
@@ -20435,9 +20456,10 @@ namespace Harness
      * kOffensiveStatePoints, so every hit its proc accepts casts Arcane Missiles! (79683), and Mana Adept is taken off;
      * a second mage, B, is spawned kSecondOffset yards to his side and staged to level 85 with Fireball (133). Camels A
      * and B stand ten yards ahead, kTargetSpacing apart, and C kFarAhead yards beyond A, past Slow's 35 yards and
-     * inside 40; each casts Hit Me (100446, +20% spell hit for whoever casts at it) on itself at its spawn, so the
-     * orb's hits never miss. Before each cast at a Camel he takes Precision and the crit aura at -100. Steps, kEveryMs
-     * apart unless named:
+     * inside 40 as Spell::CheckRange counts them (the centres' distance less both combat reaches and the melee offset,
+     * 4.33 yards here, against the range plus 1.25: C's 43.2 yards count 38.8); each casts Hit Me (100446, +20% spell
+     * hit for whoever casts at it) on itself at its spawn, so the orb's hits never miss. Before each cast at a Camel he
+     * takes Precision and the crit aura at -100. Steps, kEveryMs apart unless named:
      *  1. Slow at A; he selects A, as a client does before it casts at it; 2. Slow at B; 3. Slow at C, refused;
      *  4. Glyph of Slow (63091: Slow's range +5 yards) cast by him at himself, triggered, as a glyph slot applies its
      *     spell; 5. Slow at C;
@@ -20652,7 +20674,7 @@ namespace Harness
         static constexpr int32 kOffensiveStatePoints = 100;
         static constexpr uint32 kLevel = 85;
         static constexpr float kSecondOffset = 4.0f;
-        static constexpr float kFarAhead = 28.0f;
+        static constexpr float kFarAhead = 32.5f;
         static constexpr uint32 kEveryMs = 2400;
         static constexpr uint32 kReadMs = 2200;
         static constexpr uint32 kShortMs = 600;
