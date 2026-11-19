@@ -1784,16 +1784,18 @@ static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericDefault(AuraPeriodi
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 55342: Mirror Image
+/// 55342: Mirror Image: on the aura's first tick its caster casts the effect's trigger spell, Initialize Images (58836)
 static SpellHandlerOutcome<void> AuraPeriodicDummyTickMage55342(AuraPeriodicDummyTickContext& ctx)
 {
     if (ctx.aura->GetAuraTicks() != 1)
     {
         return SpellHandlerOutcome<void>::Return();
     }
-    if (Unit* pCaster = ctx.aura->GetCaster())
+    SpellEffectEntry const* effect = ctx.aura->GetSpellProto()->GetSpellEffect(ctx.aura->GetEffIndex());
+    Unit* pCaster = ctx.aura->GetCaster();
+    if (pCaster && effect && effect->EffectTriggerSpell)
     {
-        pCaster->CastSpell(pCaster, ctx.aura->GetSpellProto()->CalculateSimpleValue(ctx.aura->GetEffIndex()), true, NULL, ctx.aura);
+        pCaster->CastSpell(pCaster, effect->EffectTriggerSpell, true, NULL, ctx.aura);
     }
     return SpellHandlerOutcome<void>::Return();
 }
