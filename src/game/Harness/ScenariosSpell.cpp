@@ -19457,12 +19457,6 @@ namespace Harness
             return out.empty() ? std::string("none") : out;
         }
 
-        /// How many of `spells` are `spellId`.
-        static uint32 CountOf(std::vector<uint32> const& spells, uint32 spellId)
-        {
-            return uint32(std::count(spells.begin(), spells.end(), spellId));
-        }
-
         /// A cast result by name for the results these scenarios wait for, else as CastResultName gives it.
         static std::string ResultName(int32 result)
         {
@@ -20472,9 +20466,10 @@ namespace Harness
      * Focus Magic.
      *
      * `utility`: `slow=<A held at 1><AB at 2>,far=<3's result>/<C at 3><ABC at 5>,focus=self:<6's result>,on:<B holds
-     * it>,proc:<54648 on him>@<its amount>/<its duration>,orb=<82739 damage logs of his in step 9's windows>/<79683
-     * casts there>`. OK at slow=101, far OUT_OF_RANGE/0001, focus self:BAD_TARGETS,on:1,proc:1@3/10000 and orb n/n with
-     * n of at least kMinOrbHits.
+     * it>,proc:<54648 on him>@<its amount>/<its duration>,orb=<82739 damage logs of his in step 9's windows>/<the
+     * SMSG_AURA_UPDATE packets there that put 79683 on him, one for each cast of it>`. OK at slow=101, far
+     * OUT_OF_RANGE/0001, focus self:BAD_TARGETS,on:1,proc:1@3/10000 and orb n/n with n of at least kMinOrbHits (the
+     * orb's ten-yard pulse reaches a Camel for part of its flight only).
      */
     class MageArcaneUtility : public MageArcaneProofScenario
     {
@@ -20651,7 +20646,7 @@ namespace Harness
                                       Num(Kept(st, kFocusStep, "focus")) + ",proc:" + Num(Kept(st, kOrbStep, "proc")) + "@" +
                                       Num(Kept(st, kOrbStep, "procAmount")) + "/" + Num(Kept(st, kOrbStep, "procDuration"));
             const uint32 hits = uint32(HitAmounts(kOrbStep, kOrbHit).size());
-            const uint32 procs = CountOf(st.seen[kOrbStep].triggered, kMissilesBuff);
+            const uint32 procs = MissilesGains(kOrbStep);
 
             const std::string value = "slow=" + slow + ",far=" + far + ",focus=" + focus + ",orb=" + U(hits) + "/" + U(procs);
             const bool ok = slow == "101" && far == "OUT_OF_RANGE/0001" && focus == "self:BAD_TARGETS,on:1,proc:1@3/10000" &&
@@ -20680,7 +20675,7 @@ namespace Harness
         static constexpr uint32 kShortMs = 600;
         static constexpr uint32 kFireballMs = 4500;
         static constexpr uint32 kOrbMs = 17000;
-        static constexpr uint32 kMinOrbHits = 10;
+        static constexpr uint32 kMinOrbHits = 5;
         static constexpr uint32 kCamelA = 0;
         static constexpr uint32 kCamelB = 1;
         static constexpr uint32 kCamelC = 2;
@@ -20697,6 +20692,30 @@ namespace Harness
 
         ObjectGuid m_second;
         bool m_secondStaged = false;
+
+        /// The SMSG_AURA_UPDATE packets sent to him in step k's windows that put Arcane Missiles! on him, one for each
+        /// cast of it (a triggered spell with no visual, which sends no SMSG_SPELL_GO).
+        uint32 MissilesGains(uint32 k) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            uint32 gains = 0;
+            for (std::string const& window : StepWindows(k))
+            {
+                for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_AURA_UPDATE))
+                {
+                    std::string text;
+                    uint32 slot = 0, spell = 0;
+                    if (!seen->payload.empty() &&
+                        Trace::DecodeAuraUpdate(&seen->payload[0], seen->payload.size(), roles, text) &&
+                        sscanf(text.c_str(), "target=self slot=%u spell=%u", &slot, &spell) == 2 &&
+                        spell == kMissilesBuff)
+                    {
+                        ++gains;
+                    }
+                }
+            }
+            return gains;
+        }
     };
 
     /**
