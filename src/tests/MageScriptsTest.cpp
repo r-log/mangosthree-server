@@ -29,8 +29,9 @@
 /// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
 /// Arcane damage spell, Arcane Potency's buffs spent only by a spell that deals or triggers damage, Ignite's munching
 /// leaves against the roll-over, Clearcasting used up only by a spell its cost modifier makes cheaper, the slows
-/// Torment the Weak counts and its multiplier, Nether Vortex's Slow and its refusals, Invocation's buff from a
-/// Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker when damage breaks a Polymorph,
+/// Torment the Weak counts and its multiplier, Nether Vortex's Slow and its refusals, Focus Magic's buff cast by its
+/// mage at himself and its proc-trigger effect that casts nothing, Invocation's buff from a Counterspell that
+/// interrupted a cast alone, Improved Polymorph's stun and marker when damage breaks a Polymorph,
 /// Incanter's Absorption's knockback when damage breaks a Mana Shield, Improved Mana Gem's amount after the Mana Gem's
 /// spell, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the removal of Hot Streak's
 /// buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals, the frozen query,
@@ -184,6 +185,9 @@ namespace
 
     // The ids Nether Vortex's script holds at the proc hook: its two ranks.
     uint32 const NETHER_VORTEX_IDS[] = { 86181, 86209 };
+
+    // The ids Focus Magic's script holds at the proc hook: the spell, whose proc-trigger effect it ends.
+    uint32 const FOCUS_MAGIC_IDS[] = { 54646 };
 
     // The ids Invocation's script holds at the check-proc hook: its two ranks, whose buff only a Counterspell that
     // interrupted a cast gives.
@@ -362,6 +366,7 @@ namespace
             { 86181, 0, SPELL_AURA_DUMMY },
             { 86209, 0, SPELL_AURA_DUMMY },
             { 12571, 0, SPELL_AURA_DUMMY }, { 12571, 1, SPELL_AURA_ADD_FLAT_MODIFIER },
+            { 54646, 0, SPELL_AURA_MOD_SPELL_CRIT_CHANCE }, { 54646, 1, SPELL_AURA_PROC_TRIGGER_SPELL },
         };
         static SpellEffectEntry effects[sizeof(rows) / sizeof(rows[0])];
         static bool added = false;
@@ -644,17 +649,17 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Fireball at the launch hook, Frostbolt at the cast-start hook, Frostbolt and Cone of Cold at the after-hit hook,
     // Piercing Chill's chill at the target hook, and Ice Barrier at the aura-apply and aura-remove hooks. At the proc
     // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State,
-    // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield
-    // and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane Missiles at the
-    // aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of Polymorph and Mana
-    // Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orb: Flame Orb at the dummy-effect
-    // hook, and the orb's scan at the target and dummy-effect hooks. The ring: Ring of Frost at the periodic-tick hook,
-    // and the ring's freeze at the target and aura-remove hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane
-    // Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two ranks
-    // also at the check-proc hook. 161 rows, 158 keys and 3 defaults, none twice.
+    // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield,
+    // Nether Vortex and Focus Magic. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane
+    // Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of
+    // Polymorph and Mana Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orb: Flame Orb
+    // at the dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. The ring: Ring of Frost at the
+    // periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact, Clearcasting, Arcane
+    // Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and Reactive
+    // Barrier's two ranks also at the check-proc hook. 162 rows, 159 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(161));
-    CHECK_EQ(registry.Count(), std::size_t(158));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(162));
+    CHECK_EQ(registry.Count(), std::size_t(159));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -662,7 +667,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(26));
+    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(27));
     CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(16));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
@@ -695,7 +700,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 75, 75, 0 },
-        { &Mage::RegisterArcane, 25, 25, 0 },
+        { &Mage::RegisterArcane, 26, 26, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
     };
@@ -708,8 +713,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(161));
-    CHECK_EQ(registry.Count(), std::size_t(158));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(162));
+    CHECK_EQ(registry.Count(), std::size_t(159));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -720,7 +725,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(158));
+    CHECK_EQ(mine.size(), std::size_t(159));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -855,7 +860,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 26 ids in 14 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 27 ids in 15 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
     bodies.insert(OneProcBody(registry, IGNITE_IDS));
     bodies.insert(OneProcBody(registry, MASTER_OF_ELEMENTS_IDS));
@@ -870,8 +875,9 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     bodies.insert(OneProcBody(registry, IMPACT_IDS));
     bodies.insert(OneProcBody(registry, NETHER_VORTEX_IDS));
     bodies.insert(OneProcBody(registry, PERMAFROST_IDS));
+    bodies.insert(OneProcBody(registry, FOCUS_MAGIC_IDS));
     bodies.insert(OneProcBody(registry, REACTIVE_BARRIER_IDS));
-    CHECK_EQ(bodies.size(), std::size_t(14));
+    CHECK_EQ(bodies.size(), std::size_t(15));
     std::size_t const ids = sizeof(IGNITE_IDS) / sizeof(uint32) +
                             sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
                             sizeof(ARCANE_POTENCY_IDS) / sizeof(uint32) + sizeof(HOT_STREAK_IDS) / sizeof(uint32) +
@@ -879,8 +885,9 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
                             sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(OFFENSIVE_STATE_IDS) / sizeof(uint32) +
                             sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32) +
                             sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(NETHER_VORTEX_IDS) / sizeof(uint32) +
-                            sizeof(PERMAFROST_IDS) / sizeof(uint32) + sizeof(REACTIVE_BARRIER_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(26));
+                            sizeof(PERMAFROST_IDS) / sizeof(uint32) + sizeof(FOCUS_MAGIC_IDS) / sizeof(uint32) +
+                            sizeof(REACTIVE_BARRIER_IDS) / sizeof(uint32);
+    CHECK_EQ(ids, std::size_t(27));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
@@ -4149,6 +4156,46 @@ TEST(MageScripts_NetherVortexRefusesEveryEventButAnArcaneBlastHitWithNoSlowOut)
         CHECK(reached.IsReturn());
         CHECK_EQ(int(reached.GetValue()), int(SPELL_AURA_PROC_FAILED));
     }
+}
+
+TEST(MageScripts_FocusMagicsBuffIsCastByItsMageAtHimself)
+{
+    // Focus Magic's buff (54648) has one effect, at its caster: the mage who cast Focus Magic casts it, so it lands on
+    // him and never on the unit Focus Magic is on, whose crit procs it.
+    BareCreature mage;
+    BareCreature holder;
+    CHECK(FocusMagicBuffCaster(holder, &mage) == &mage);
+
+    // No mage to cast it, or a Focus Magic its holder cast himself: nobody casts the buff and the proc fails.
+    CHECK(FocusMagicBuffCaster(holder, NULL) == NULL);
+    CHECK(FocusMagicBuffCaster(holder, &holder) == NULL);
+}
+
+TEST(MageScripts_FocusMagicsProcTriggerEffectCastsNothing)
+{
+    // The row: Focus Magic at the proc hook, the same body in the game's table; its crit-chance effect's legacy row,
+    // which casts the buff for the mage, stays in the game's table.
+    AddProcEffectRows();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<OnProcHook>(registry, FOCUS_MAGIC_IDS);
+    CHECK(SpellHandlerRegistry::Game().Find<SpellCritChanceAuraProcMageSite>(54646) != NULL);
+
+    // A crit of the unit's Fireball: effect 1, the client's trigger of the buff, ends its proc casting nothing; effect
+    // 0, the unit's +3% spell crit, goes on to the crit-chance proc.
+    BareCreature holderUnit;
+    BareCreature camel;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage fireballRow;
+    SpellEntry const& fireball = SpellRow(fireballRow, 133);
+    SpellHandlerOutcome<SpellAuraProcResult> trigger = Proc(registry, holderUnit, 54646, EFFECT_INDEX_1, holder, &fireball,
+                                                            PROC_EX_CRITICAL_HIT, 0, &camel, 900);
+    CHECK(trigger.IsReturn());
+    CHECK_EQ(int(trigger.GetValue()), int(SPELL_AURA_PROC_CANT_TRIGGER));
+    SpellHandlerOutcome<SpellAuraProcResult> crit = Proc(registry, holderUnit, 54646, EFFECT_INDEX_0, holder, &fireball,
+                                                         PROC_EX_CRITICAL_HIT, 3, &camel, 900);
+    CHECK(crit.IsContinue());
 }
 
 TEST(MageScripts_InvocationGrantsOnlyForACounterspellThatInterruptedACast)

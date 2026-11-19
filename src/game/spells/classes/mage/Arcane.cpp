@@ -252,6 +252,18 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, *ctx.victim, SLOW));
     }
 
+    /// 54646: Focus Magic: its proc-trigger effect (1, Focus Magic's buff 54648) casts nothing. Cast by the unit Focus
+    /// Magic is on, the buff, whose one effect is at its caster, would land on that unit; the mage's own cast of it at
+    /// himself comes from the crit-chance effect's proc (FocusMagicBuffCaster), so effect 0 goes on to it.
+    ProcOutcome FocusMagicProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
+    }
+
     uint32 const COUNTERSPELL = 2139;
 
     /// 84722, 84723: Invocation: answers true for a hit of the mage's Counterspell that interrupted a spell its target
@@ -307,6 +319,7 @@ namespace
     uint32 const ARCANE_BLAST_BUFF[] = { 36032 };
     uint32 const ARCANE_POTENCY_BUFFS[] = { 57529, 57531 };
     uint32 const NETHER_VORTEX[] = { 86181, 86209 };
+    uint32 const FOCUS_MAGIC[] = { 54646 };
     uint32 const INVOCATION[] = { 84722, 84723 };
     uint32 const POLYMORPH[] = { 118, 28271, 28272, 61025, 61305, 61721, 61780 };
 }
@@ -455,6 +468,7 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     rows += RegisterRanks<CheckProcHook>(registry, ARCANE_POTENCY_BUFFS, &ArcanePotencyBuffCheckProc);
     rows += RegisterRanks<DamageDoneHook>(registry, TORMENT_THE_WEAK, &TormentTheWeakDamageDone);
     rows += RegisterRanks<OnProcHook>(registry, NETHER_VORTEX, &NetherVortexProc);
+    rows += RegisterRanks<OnProcHook>(registry, FOCUS_MAGIC, &FocusMagicProc);
     rows += RegisterRanks<CheckProcHook>(registry, INVOCATION, &InvocationCheckProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, POLYMORPH, &PolymorphRemove);
     return rows;
