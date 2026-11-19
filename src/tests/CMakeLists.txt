@@ -162,6 +162,7 @@ set(SRC_GRP_TESTS
     SpellHitResultTest.cpp
     SpellCoefficientTest.cpp
     PeriodicTimingTest.cpp
+    SpellRulesTest.cpp
     ActionBarOverrideTest.cpp
     MasteryAmountTest.cpp
     TargetLimitTest.cpp

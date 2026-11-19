@@ -50,6 +50,7 @@
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/pipeline/SpellRules.h"
 #include "Player.h"
 #include "Unit.h"
 #include "Policies/Singleton.h"
@@ -91,28 +92,19 @@ void Spell::TriggerGlobalCooldown()
         return;
     }
 
-    // global cooldown can't leave range 1..1.5 secs (if it it)
-    // exist some spells (mostly not player directly casted) that have < 1 sec and > 1.5 sec global cooldowns
-    // but its as test show not affected any spell mods.
-    if (gcd >= 1000 && gcd <= 1500)
+    // a player's global cooldown modifiers first, then the haste and the 1.0 to 1.5 s hold only above one second, in
+    // the client's order (Spell_C_StartSpellCooldown)
+    if (m_caster->GetTypeId() == TYPEID_PLAYER)
     {
-        // gcd modifier auras applied only to self spells and only player have mods for this
-        if (m_caster->GetTypeId() == TYPEID_PLAYER)
-        {
-            m_caster->GetSpellMods()->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd);
-        }
+        m_caster->GetSpellMods()->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd);
+    }
 
-        // apply haste rating
-        gcd = int32(float(gcd) * m_caster->GetFloatValue(UNIT_MOD_CAST_SPEED));
-
-        if (gcd < 1000)
-        {
-            gcd = 1000;
-        }
-        else if (gcd > 1500)
-        {
-            gcd = 1500;
-        }
+    const bool physical = Spells::IsPhysicalAttack(m_spellInfo->GetDmgClass(), m_spellInfo->Attributes);
+    const bool hasted = Spells::GlobalCooldownHasted(m_spellInfo->GetStartRecoveryCategory(), physical, gcd);
+    gcd = Spells::GlobalCooldown(gcd, hasted, m_caster->GetFloatValue(UNIT_MOD_CAST_HASTE));
+    if (gcd <= 0)
+    {
+        return;
     }
 
     // global cooldown have only player or controlled units

@@ -448,3 +448,33 @@ std::function<bool(uint32 conditionId)> SpellAreaConditionCheckFor(Player const*
         return IsPlayerMeetToCondition(conditionId, player, player->GetMap(), NULL, CONDITION_FROM_SPELL_AREA);
     };
 }
+
+bool Spells::IsPhysicalAttack(uint32 dmgClass, uint32 attributes)
+{
+    return dmgClass == SPELL_DAMAGE_CLASS_MELEE || dmgClass == SPELL_DAMAGE_CLASS_RANGED ||
+           (attributes & (SPELL_ATTR_RANGED | SPELL_ATTR_ABILITY)) != 0;
+}
+
+bool Spells::GlobalCooldownHasted(uint32 startRecoveryCategory, bool physicalAttack, int32 modified)
+{
+    return startRecoveryCategory == kHastedGlobalCooldownCategory && !physicalAttack && modified > 1000;
+}
+
+int32 Spells::GlobalCooldown(int32 modified, bool hasteApplies, float castHaste)
+{
+    if (!hasteApplies)
+    {
+        return modified;
+    }
+
+    const int32 hasted = int32(float(modified) * castHaste);
+    if (hasted < 1000)
+    {
+        return 1000;
+    }
+    if (hasted > 1500)
+    {
+        return 1500;
+    }
+    return hasted;
+}

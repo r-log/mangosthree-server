@@ -728,6 +728,9 @@ class GlobalCooldownMgr                                     // Shared by Player 
 
     public:
         bool HasGlobalCooldown(SpellEntry const* spellInfo) const;
+        /// The duration in ms of the global cooldown last started in the spell's start recovery category; 0 when none
+        /// was started or it was cancelled.
+        uint32 GetGlobalCooldown(SpellEntry const* spellInfo) const;
         void AddGlobalCooldown(SpellEntry const* spellInfo, uint32 gcd);
         void CancelGlobalCooldown(SpellEntry const* spellInfo);
 
