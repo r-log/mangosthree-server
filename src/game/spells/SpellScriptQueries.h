@@ -102,6 +102,19 @@ namespace Spells
      * only triggers another is not counted by what it triggers.
      */
     bool DealsDamage(SpellEntry const& spell);
+
+    /**
+     * @brief Whether a pet's spell starts with its autocast on when no saved state names one: a harmful spell whose own
+     * rows deal damage and that has neither a cooldown nor a category cooldown.
+     */
+    bool AutocastsByDefault(bool harmful, bool dealsDamage, uint32 recoveryMs, uint32 categoryRecoveryMs);
+
+    /**
+     * @brief The state a pet's spell that is not passive starts in when no saved state names one: ACT_ENABLED when
+     * AutocastsByDefault answers true for the spell's rows (IsPositiveSpell, DealsDamage, its cooldown and its category
+     * cooldown), ACT_DISABLED otherwise.
+     */
+    ActiveStates PetSpellAutocastDefault(SpellEntry const& spell);
 }
 
 /// The script word of effect `eff` of the first holder of `spellId` on `unit` that is not deleted, whoever cast it;

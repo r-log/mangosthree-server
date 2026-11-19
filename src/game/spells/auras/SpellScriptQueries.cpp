@@ -260,6 +260,17 @@ bool Spells::DealsDamage(SpellEntry const& spell)
     return false;
 }
 
+bool Spells::AutocastsByDefault(bool harmful, bool dealsDamage, uint32 recoveryMs, uint32 categoryRecoveryMs)
+{
+    return harmful && dealsDamage && recoveryMs == 0 && categoryRecoveryMs == 0;
+}
+
+ActiveStates Spells::PetSpellAutocastDefault(SpellEntry const& spell)
+{
+    return AutocastsByDefault(!IsPositiveSpell(&spell), DealsDamage(spell), spell.GetRecoveryTime(),
+                              spell.GetCategoryRecoveryTime()) ? ACT_ENABLED : ACT_DISABLED;
+}
+
 int32* ScriptWordOf(Unit& unit, uint32 spellId, SpellEffectIndex eff)
 {
     Unit::SpellAuraHolderBounds const bounds = unit.GetSpellAuraHolderBounds(spellId);
