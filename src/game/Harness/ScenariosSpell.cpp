@@ -16599,7 +16599,8 @@ namespace Harness
     /**
      * S1011 `mage-frost-early-frost`: Early Frost (talent 9862: 83049 at rank 1, 83050 at rank 2), its lockouts (83162,
      * 83239) and Glyph of Icy Veins (56374) on a staged Frost mage: Early Frost 1, Frostbolt (116), Icy Veins (12472)
-     * and the glyph, no haste rating. A Frostbolt cast that begins casts on him the lockout of the rank he knows,
+     * and the glyph, no haste rating; before his first cast he takes Precision (13843, +6% spell hit), so no Frostbolt
+     * misses the level-85 Camel. A Frostbolt cast that begins casts on him the lockout of the rank he knows,
      * unless he holds one; for its 15 s its modifiers (+300 or +600 ms on Frostbolt's cast time and global cooldown)
      * cancel the talent's (-300 or -600). The global cooldown takes its modifiers first; the haste and the 1000..1500
      * ms hold apply only above 1000 ms. Steps, each acting first:
@@ -16641,6 +16642,7 @@ namespace Harness
         std::vector<uint32> Spells() const override { return { kFrostbolt, kIcyVeins }; }
         std::vector<uint32> SpellsLearnedLater() const override { return { kRankTwo }; }
         std::vector<uint32> Glyphs() const override { return { kGlyphOfIcyVeinsSlot }; }
+        uint32 CasterAura() const override { return kPrecision; }
 
         std::vector<Step> Steps() const override
         {
@@ -16675,6 +16677,8 @@ namespace Harness
                 { 56716, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 65 }, { "eff0.EffectBasePoints", -50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 1 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 79 }, { "eff1.EffectBasePoints", 75 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 1714: 49 fields, fnv 8c2ef312
                 { 1714, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 216 }, { "eff0.EffectBasePoints", -30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 75 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 8 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 76613: 49 fields, fnv a5f94991
                 { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 79684: 26 fields, fnv 8068d7f8
@@ -16791,6 +16795,7 @@ namespace Harness
         static constexpr uint32 kMindTremor = 8272;
         static constexpr uint32 kIcyWinds = 56716;
         static constexpr uint32 kCurseOfTongues = 1714;
+        static constexpr uint32 kPrecision = 13843;
         static constexpr int32 kAuraMs = 120000;
         static constexpr uint32 kPastLockoutMs = 7500;
         static constexpr uint32 kLongPastLockoutMs = 11500;
