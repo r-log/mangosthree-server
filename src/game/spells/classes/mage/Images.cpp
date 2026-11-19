@@ -50,6 +50,9 @@ namespace
     /// Clone Me!: cast by the mage at an image, it gives the image his look and his name.
     uint32 const CLONE_ME = 45204;
 
+    /// Initialize Images: cast by the mage on Mirror Image's first tick, it puts his name on his images.
+    uint32 const INITIALIZE_IMAGES = 58836;
+
     /// Glyph of Mirror Image (GlyphProperties.dbc).
     uint32 const GLYPH_OF_MIRROR_IMAGE = 699;
 
@@ -101,8 +104,8 @@ namespace
     SpellHandlerOutcome<void> CloneMeEffect(DummyEffectContext& ctx)
     {
         Unit* image = ctx.target;
-        if (ctx.effIndex != EFFECT_INDEX_2 || !image || !Mage::ImageRowFor(image->GetEntry()) ||
-            image->GetOwnerGuid() != ctx.caster.GetObjectGuid())
+        if (ctx.effIndex != EFFECT_INDEX_2 || !image ||
+            !Mage::IsOwnImage(image->GetEntry(), image->GetOwnerGuid(), ctx.caster.GetObjectGuid()))
         {
             return SpellHandlerOutcome<void>::Continue();
         }
@@ -115,6 +118,22 @@ namespace
             }
         }
         return SpellHandlerOutcome<void>::Return();
+    }
+
+    /// 58836 effect 0: Initialize Images: of the units its area found, keeps the caster's own images alone
+    /// (Mage::IsOwnImage), so his name goes on no other mage's image and the cast touches no other unit. Its other
+    /// effect, at the caster, is left as it is.
+    SpellHandlerOutcome<void> InitializeImagesTargets(SelectTargetsContext& ctx)
+    {
+        if (ctx.effIndex == EFFECT_INDEX_0)
+        {
+            ObjectGuid const caster = ctx.caster.GetObjectGuid();
+            ctx.targets.remove_if([&caster](Unit* unit)
+            {
+                return !unit || !Mage::IsOwnImage(unit->GetEntry(), unit->GetOwnerGuid(), caster);
+            });
+        }
+        return SpellHandlerOutcome<void>::Continue();
     }
 
     /// An image of a mage's Mirror Image, his guardian for the summon's 30 s. On its first update with its mage on its
@@ -162,7 +181,7 @@ namespace
                     [image](Unit& unit)
                     {
                         return Mage::ImageMayStrike(unit.IsTargetableForAttack(), image->IsFriendlyTo(&unit),
-                                                    unit.hasNegativeAuraWithInterruptFlag(AURA_INTERRUPT_FLAG_DAMAGE));
+                                                    Spells::HeldByControlDamageBreaks(unit));
                     });
                 if (target && CastAt(*target))
                 {
@@ -268,6 +287,11 @@ Mage::ImageRow const* Mage::ImageRowFor(uint32 creatureEntry)
     return NULL;
 }
 
+bool Mage::IsOwnImage(uint32 creatureEntry, ObjectGuid const& imageOwner, ObjectGuid const& caster)
+{
+    return !caster.IsEmpty() && imageOwner == caster && ImageRowFor(creatureEntry) != NULL;
+}
+
 uint32 Mage::ImageSummonSpell(bool glyphed, uint32 primaryTree)
 {
     ImageRow const& plain = IMAGES[0];
@@ -333,5 +357,6 @@ uint32 Mage::RegisterImages(SpellHandlerRegistry& registry)
 
     RegisterScript<DummyEffectHook>(registry, MIRROR_IMAGE, &MirrorImageEffect);
     RegisterScript<DummyEffectHook>(registry, CLONE_ME, &CloneMeEffect);
-    return 2;
+    RegisterScript<SelectTargetsHook>(registry, INITIALIZE_IMAGES, &InitializeImagesTargets);
+    return 3;
 }

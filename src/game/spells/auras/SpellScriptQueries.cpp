@@ -27,6 +27,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "combat/SpellBonus.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/handlers/UnitSpellBonusHandlers.h"
 
@@ -255,6 +256,24 @@ bool Spells::DealsDamage(SpellEntry const& spell)
             effect->EffectAura == SPELL_AURA_PERIODIC_LEECH)
         {
             return true;
+        }
+    }
+    return false;
+}
+
+bool Spells::HeldByControlDamageBreaks(Unit const& unit)
+{
+    for (AuraType const type : { SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_STUN })
+    {
+        Unit::AuraList const& auras = unit.GetAurasByType(type);
+        for (Unit::AuraList::const_iterator i = auras.begin(); i != auras.end(); ++i)
+        {
+            SpellAuraHolder const* holder = (*i)->GetHolder();
+            if (holder && !holder->IsPositive() &&
+                BreaksOnAnyDamage((*i)->GetSpellProto()->GetAuraInterruptFlags(), uint32(type)))
+            {
+                return true;
+            }
         }
     }
     return false;

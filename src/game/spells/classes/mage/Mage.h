@@ -55,10 +55,10 @@
  * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
  * and OrbCostShare). Ring.cpp holds the ring a mage's Ring of Frost summons: its creature AI, its scripts and its
  * leaves (RingSpellsFor, IsRingCreature, RingInBand, RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and
- * RingMarkerOnRemove). Images.cpp holds the images a mage's Mirror Image summons: their creature AI, Mirror Image's
- * and Clone Me!'s scripts and their leaves (ImageRowFor, ImageSummonSpell, HoldsGlyph, ImageBonusDamage,
- * ImageSpellToCast, ImageMayStrike and ImageTarget). Each file registers its rows through one function of namespace
- * Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * RingMarkerOnRemove). Images.cpp holds the images a mage's Mirror Image summons: their creature AI, Mirror Image's,
+ * Clone Me!'s and Initialize Images' scripts and their leaves (ImageRowFor, IsOwnImage, ImageSummonSpell, HoldsGlyph,
+ * ImageBonusDamage, ImageSpellToCast, ImageMayStrike and ImageTarget). Each file registers its rows through one
+ * function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's, the ring's and the
@@ -103,8 +103,8 @@ namespace Mage
     /// Registers the ring's scripts and its creature AI, whose factory is added to the creature AI registry once.
     /// Returns the rows registered.
     uint32 RegisterRing(SpellHandlerRegistry& registry);
-    /// Registers Mirror Image's and Clone Me!'s scripts and the images' creature AI, whose factory is added to the
-    /// creature AI registry once. Returns the rows registered.
+    /// Registers Mirror Image's, Clone Me!'s and Initialize Images' scripts and the images' creature AI, whose factory
+    /// is added to the creature AI registry once. Returns the rows registered.
     uint32 RegisterImages(SpellHandlerRegistry& registry);
 
     /// The spells and the creature a ring is made of, by the mage's spell.
@@ -272,6 +272,10 @@ namespace Mage
     /// Fire images (47244); NULL for any other creature. Defined in Images.cpp.
     ImageRow const* ImageRowFor(uint32 creatureEntry);
 
+    /// Whether a unit of `creatureEntry` whose owner is `imageOwner` is one of the images of `caster`: an image of the
+    /// table (ImageRowFor) that he owns. Never for a caster of no guid. Defined in Images.cpp.
+    bool IsOwnImage(uint32 creatureEntry, ObjectGuid const& imageOwner, ObjectGuid const& caster);
+
     /// The summon Mirror Image's dummy effect casts: with Glyph of Mirror Image (`glyphed`), the Arcane images' (88091)
     /// for a mage whose primary talent tree `primaryTree` is Arcane (799) and the Fire images' (88092) for one whose
     /// tree is Fire (851); else the images' without the glyph (58832). Defined in Images.cpp.
@@ -290,8 +294,8 @@ namespace Mage
     uint32 ImageSpellToCast(ImageRow const& row, int32 fireBlastLeftMs);
 
     /// Whether an image may start a cast at a unit: one it may attack (`attackable`), not friendly to it (`friendly`),
-    /// and holding no harmful aura that any damage removes (`damageBreaks`), a crowd control that breaks on damage.
-    /// Defined in Images.cpp.
+    /// and not held by a crowd control that any damage breaks at once (`damageBreaks`,
+    /// Spells::HeldByControlDamageBreaks). Defined in Images.cpp.
     bool ImageMayStrike(bool attackable, bool friendly, bool damageBreaks);
 
     /// The unit an image casts at: of its mage's victim, his selection and the unit that attacks him, in that order,

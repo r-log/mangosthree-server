@@ -419,6 +419,45 @@ TEST(SpellTables_NoOtherAuraTypeBreaksOnAnyDamage)
     }
 }
 
+namespace
+{
+    // the aura interrupt flags of Dragon's Breath (31661), Sap (6770), Hammer of Justice (853) and Frost Nova (122),
+    // SpellInterrupts.dbc
+    const uint32 kDragonsBreathFlags = 0x00480000;
+    const uint32 kSapFlags = 0x00480002;
+    const uint32 kHammerOfJusticeFlags = 0x00480000;
+    const uint32 kFrostNovaFlags = 0x00480000;
+}
+
+TEST(SpellTables_AnyDamageBreaksAConfuseAndAStunWhoseFlagsSaySoAtOnce)
+{
+    // Polymorph's and Dragon's Breath's confuse, whose flags hold no AURA_INTERRUPT_FLAG_DAMAGE
+    CHECK(BreaksOnAnyDamage(kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(BreaksOnAnyDamage(kDragonsBreathFlags, SPELL_AURA_MOD_CONFUSE));
+
+    // a stun with AURA_INTERRUPT_FLAG_DAMAGE (Sap, Wyvern Sting) and one without it (Hammer of Justice, Ring of Frost)
+    CHECK(BreaksOnAnyDamage(kSapFlags, SPELL_AURA_MOD_STUN));
+    CHECK(BreaksOnAnyDamage(kWyvernStingFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnAnyDamage(kHammerOfJusticeFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnAnyDamage(kRingOfFrostFlags, SPELL_AURA_MOD_STUN));
+
+    // Frost Nova's root, Polymorph's transform and Fear's fear, whatever their flags
+    CHECK(!BreaksOnAnyDamage(kFrostNovaFlags, SPELL_AURA_MOD_ROOT));
+    CHECK(!BreaksOnAnyDamage(kSapFlags, SPELL_AURA_MOD_ROOT));
+    CHECK(!BreaksOnAnyDamage(kPolymorphFlags, SPELL_AURA_TRANSFORM));
+    CHECK(!BreaksOnAnyDamage(kSapFlags, SPELL_AURA_MOD_FEAR));
+
+    // the same answer BreaksOnDamageProc gives a hit of another spell that gets through, on a holder with no charges
+    for (uint32 flags : { kPolymorphFlags, kDragonsBreathFlags, kSapFlags, kHammerOfJusticeFlags, kRingOfFrostFlags })
+    {
+        for (uint32 auraType : { uint32(SPELL_AURA_MOD_CONFUSE), uint32(SPELL_AURA_MOD_STUN),
+                                 uint32(SPELL_AURA_MOD_ROOT) })
+        {
+            CHECK(BreaksOnAnyDamage(flags, auraType) == BreaksOnDamageProc(500, true, 0, false, 0, flags, auraType));
+        }
+    }
+}
+
 TEST(SpellTables_TheThresholdEffectsAreFearRootAndPacifySilenceAndNoOther)
 {
     // Fear, Entangling Roots and Frost Nova, and Hex's pacify-silence, whatever their flags and charges

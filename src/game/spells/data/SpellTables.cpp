@@ -852,6 +852,11 @@ bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ow
     }
 }
 
+bool BreaksOnAnyDamage(uint32 auraInterruptFlags, uint32 auraType)
+{
+    return BreaksOnDamageProc(1, true, 0, false, 0, auraInterruptFlags, auraType);
+}
+
 bool CountsPreventedDamage(uint32 auraType, uint32 auraInterruptFlags, uint32 charges)
 {
     if (auraType == SPELL_AURA_MOD_STUN)

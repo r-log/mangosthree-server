@@ -23,11 +23,13 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the images of the mage's Mirror Image (spells/classes/mage/Images.cpp): their table rows, the summon the
-/// glyph and the primary tree choose, the glyph slots' read, the spell power an image takes, the spell it casts next,
-/// the units it may strike and the one it casts at, Mirror Image's and Clone Me!'s rows at the dummy-effect hook with
-/// the images' creature AI, and the specialization a script reads of a player (Spells::ActiveSpecialization). The units
-/// are bare creatures (update fields allocated; no map, template or AI) and a player on a session with no socket.
+/// Tests of the images of the mage's Mirror Image (spells/classes/mage/Images.cpp): their table rows, which images are
+/// a mage's own, the summon the glyph and the primary tree choose, the glyph slots' read, the spell power an image
+/// takes, the spell it casts next, the units it may strike and the one it casts at, Mirror Image's and Clone Me!'s rows
+/// at the dummy-effect hook and Initialize Images' at the target hook with the images' creature AI, Clone Me!'s weapons
+/// on a player's image, and what a script reads of a player's specialization (Spells::ActiveSpecialization) and of a
+/// unit's crowd control (Spells::HeldByControlDamageBreaks). The units are bare creatures (update fields allocated; no
+/// map, template, aura or AI) and a player on a session with no socket.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -40,6 +42,7 @@
 #include "Auth/BigNumber.h"
 #include "DBCStructure.h"
 
+#include <list>
 #include <set>
 
 namespace
@@ -128,6 +131,25 @@ TEST(MageImages_TheRowsNameTheCreaturesTheirSummonsAndTheirSpells)
     }
 }
 
+TEST(MageImages_AnImageIsHisWhenItIsOfTheTableAndHeOwnsIt)
+{
+    ObjectGuid const mage(HIGHGUID_PLAYER, uint32(1));
+    ObjectGuid const other(HIGHGUID_PLAYER, uint32(2));
+
+    // Each image of the table, his; another mage's or no one's is not.
+    for (uint32 entry : { 31216u, 47243u, 47244u })
+    {
+        CHECK(Mage::IsOwnImage(entry, mage, mage));
+        CHECK(!Mage::IsOwnImage(entry, other, mage));
+        CHECK(!Mage::IsOwnImage(entry, ObjectGuid(), mage));
+    }
+
+    // His Water Elemental and no creature are no image; a caster of no guid owns none.
+    CHECK(!Mage::IsOwnImage(510, mage, mage));
+    CHECK(!Mage::IsOwnImage(0, mage, mage));
+    CHECK(!Mage::IsOwnImage(31216, ObjectGuid(), ObjectGuid()));
+}
+
 TEST(MageImages_TheGlyphAndThePrimaryTreeChooseTheSummon)
 {
     // Without the glyph every mage summons the images without it, whatever his tree.
@@ -211,6 +233,14 @@ TEST(MageImages_AnImageStrikesAnAttackableUnitNotFriendlyAndNotUnderABreakableCo
     CHECK(!Mage::ImageMayStrike(false, true, true));
 }
 
+TEST(MageImages_AUnitWithNoAuraIsHeldByNoControl)
+{
+    // The query reads the unit's confuse and stun auras; SpellTablesTest holds the rule it applies to each one.
+    ImageTestCreature camel;
+    camel.SetEntry(50249);
+    CHECK(!Spells::HeldByControlDamageBreaks(camel));
+}
+
 TEST(MageImages_TheTargetIsTheVictimThenTheSelectionThenTheAttacker)
 {
     ImageTestCreature victim;
@@ -265,22 +295,29 @@ TEST(MageImages_AScriptReadsThePlayersPrimaryTreeAndGlyphs)
     CHECK(!Mage::HoldsGlyph(creatures.glyphs, MAX_GLYPH_SLOT_INDEX, 699));
 }
 
-TEST(MageImages_TheRowsSitOnTheDummyEffectHookAndTheImagesHaveTheirAI)
+TEST(MageImages_TheRowsSitOnTheDummyEffectAndTargetHooksAndTheImagesHaveTheirAI)
 {
-    // Mirror Image and Clone Me! at the dummy-effect hook: two rows, two keys, each the game's body too.
+    // Mirror Image and Clone Me! at the dummy-effect hook and Initialize Images at the target hook: three rows, three
+    // keys, each the game's body too.
     SpellHandlerRegistry registry;
-    CHECK_EQ(Mage::RegisterImages(registry), uint32(2));
-    CHECK_EQ(registry.Count(), std::size_t(2));
+    CHECK_EQ(Mage::RegisterImages(registry), uint32(3));
+    CHECK_EQ(registry.Count(), std::size_t(3));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     CHECK(registry.Find<DummyEffectHook>(55342) != NULL);
     CHECK(registry.Find<DummyEffectHook>(45204) != NULL);
+    CHECK(registry.Find<SelectTargetsHook>(58836) != NULL);
     CHECK(registry.Find<DummyEffectHook>(55342) != registry.Find<DummyEffectHook>(45204));
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(game.Find<DummyEffectHook>(55342) == registry.Find<DummyEffectHook>(55342));
     CHECK(game.Find<DummyEffectHook>(45204) == registry.Find<DummyEffectHook>(45204));
+    CHECK(game.Find<SelectTargetsHook>(58836) == registry.Find<SelectTargetsHook>(58836));
     for (uint32 spellId : { 58832u, 88091u, 88092u, 58836u, 45206u })
     {
         CHECK(game.Find<DummyEffectHook>(spellId) == NULL);
+    }
+    for (uint32 spellId : { 55342u, 45204u, 58832u, 88091u, 88092u })
+    {
+        CHECK(game.Find<SelectTargetsHook>(spellId) == NULL);
     }
 
     // The images' AI is chosen by its permit for the three image creatures alone, and registering again keeps the one
@@ -355,4 +392,88 @@ TEST(MageImages_MirrorImagesScriptEndsItsEffectsAndCloneMeEndsOnlyAtTheMagesImag
                            &image, word);
     CHECK(registry.Dispatch<DummyEffectHook>(45204, own).IsReturn());
     CHECK_EQ(image.GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID), uint32(28782));
+}
+
+TEST(MageImages_CloneMeGivesTheMagesImageHisWeaponsAndNothingComesBackAtHim)
+{
+    SpellHandlerRegistry registry;
+    Mage::RegisterImages(registry);
+    WorldSession session(1, "images", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    ImageTestPlayer mage(session);
+    mage.SetUInt32Value(PLAYER_VISIBLE_ITEM_16_ENTRYID, 71086);
+    mage.SetUInt32Value(PLAYER_VISIBLE_ITEM_17_ENTRYID, 71154);
+    mage.SetUInt32Value(PLAYER_VISIBLE_ITEM_18_ENTRYID, 71153);
+    ImageTestCreature image;
+    image.SetEntry(31216);
+    image.SetOwnerGuid(mage.GetObjectGuid());
+    SpellRowStorage row;
+    int32 value = 0;
+    int32 word = 0;
+
+    // His image takes his main hand, off hand and ranged items in its three virtual item slots, and the effect ends
+    // there: the image casts no Copy Off-hand Weapon (45206) at him, so he holds none of its aura (45205).
+    DummyEffectContext own(mage, &image, NULL, NULL, SpellRow(row, 45204), EFFECT_INDEX_2, value, ObjectGuid(),
+                           &image, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(45204, own).IsReturn());
+    CHECK_EQ(image.GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0), uint32(71086));
+    CHECK_EQ(image.GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1), uint32(71154));
+    CHECK_EQ(image.GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 2), uint32(71153));
+    CHECK(!image.IsNonMeleeSpellCasted(false));
+    CHECK(!mage.HasAura(45205));
+    CHECK(!mage.HasAura(45206));
+
+    // Another mage's image takes nothing of his and goes on to the effect's handler.
+    ImageTestCreature other;
+    other.SetEntry(31216);
+    other.SetOwnerGuid(ObjectGuid(HIGHGUID_PLAYER, uint32(4711)));
+    DummyEffectContext others(mage, &other, NULL, NULL, SpellRow(row, 45204), EFFECT_INDEX_2, value, ObjectGuid(),
+                              &other, word);
+    CHECK(registry.Dispatch<DummyEffectHook>(45204, others).IsContinue());
+    for (uint32 slot = 0; slot < 3; ++slot)
+    {
+        CHECK_EQ(other.GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot), uint32(0));
+    }
+}
+
+TEST(MageImages_InitializeImagesKeepsTheCastersOwnImagesAlone)
+{
+    SpellHandlerRegistry registry;
+    Mage::RegisterImages(registry);
+    ImageTestCreature caster;
+    caster.SetEntry(50249);
+    caster.TakeGuid(7);
+    ImageTestCreature plain;
+    plain.SetEntry(31216);
+    plain.SetOwnerGuid(caster.GetObjectGuid());
+    ImageTestCreature fire;
+    fire.SetEntry(47244);
+    fire.SetOwnerGuid(caster.GetObjectGuid());
+    ImageTestCreature others;
+    others.SetEntry(31216);
+    others.SetOwnerGuid(ObjectGuid(HIGHGUID_PLAYER, uint32(4711)));
+    ImageTestCreature wild;
+    wild.SetEntry(47243);
+    ImageTestCreature elemental;
+    elemental.SetEntry(510);
+    elemental.SetOwnerGuid(caster.GetObjectGuid());
+    SpellRowStorage row;
+    uint32 maxTargets = 0;
+
+    // The area's units: his two images stay, in their order; another mage's image, an image of no owner and his
+    // creature that is no image go. The cut after the hook is left as it was.
+    std::list<Unit*> area = { &plain, &others, &wild, &elemental, &fire };
+    SelectTargetsContext renamed(caster, SpellRow(row, 58836), EFFECT_INDEX_0, TARGET_AREAEFFECT_INSTANT, area,
+                                 maxTargets);
+    CHECK(registry.Dispatch<SelectTargetsHook>(58836, renamed).IsContinue());
+    REQUIRE(area.size() == std::size_t(2));
+    CHECK(area.front() == &plain);
+    CHECK(area.back() == &fire);
+    CHECK_EQ(maxTargets, uint32(0));
+
+    // Its other effect, the break of targeting at the caster, keeps its list.
+    std::list<Unit*> self = { &caster };
+    SelectTargetsContext deselect(caster, SpellRow(row, 58836), EFFECT_INDEX_1, TARGET_NONE, self, maxTargets);
+    CHECK(registry.Dispatch<SelectTargetsHook>(58836, deselect).IsContinue());
+    REQUIRE(self.size() == std::size_t(1));
+    CHECK(self.front() == &caster);
 }

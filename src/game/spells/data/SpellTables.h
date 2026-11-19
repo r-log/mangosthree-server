@@ -108,6 +108,12 @@ bool DamageBreaksAuras(uint32 attributesEx4);
 bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ownSpell, uint32 procAttributesEx4,
                         uint32 auraInterruptFlags, uint32 auraType);
 
+/// Whether any damage that gets through removes an aura of `auraType` whose aura interrupt flags are
+/// `auraInterruptFlags`, by the rule BreaksOnDamageProc applies to a hit of another spell on a holder with no charges:
+/// a confuse (Polymorph, Dragon's Breath), and a stun whose flags hold AURA_INTERRUPT_FLAG_DAMAGE (Sap, Wyvern Sting).
+/// A stun without that flag, a root, a fear or any other aura answers false.
+bool BreaksOnAnyDamage(uint32 auraInterruptFlags, uint32 auraType);
+
 /// Whether an aura of `auraType` whose aura interrupt flags are `auraInterruptFlags`, on a holder with `charges`
 /// charges, breaks on damage by a chance past a threshold and counts the damage a hit's absorbs and the victim's
 /// damage-reduction effects took (ThresholdDamage): a fear, a root or a pacify-silence, and a stun whose flags hold

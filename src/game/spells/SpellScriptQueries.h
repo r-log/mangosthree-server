@@ -105,6 +105,13 @@ namespace Spells
      */
     bool DealsDamage(SpellEntry const& spell);
 
+    /**
+     * @brief Whether `unit` is held by a crowd control that any damage breaks at once: a harmful holder's confuse or
+     * stun aura that BreaksOnAnyDamage accepts by its spell's aura interrupt flags (Polymorph, Dragon's Breath, Sap,
+     * Blind, Wyvern Sting). A stun without AURA_INTERRUPT_FLAG_DAMAGE, a fear, a root or a pacify does not count.
+     */
+    bool HeldByControlDamageBreaks(Unit const& unit);
+
     /// What a spell script reads of a player's active specialization.
     struct SpecializationView
     {
