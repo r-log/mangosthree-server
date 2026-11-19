@@ -37,8 +37,12 @@ class Unit;
 /// A cast's cast time: the record's, with the caster's level, scaling, mods and haste.
 uint32 GetSpellCastTime(SpellEntry const* spellInfo, Spell const* spell);
 
-/// A spell's duration after the caster's combo points and mods.
+/// A spell's duration after the caster's combo points and mods, and his haste for a spell whose periodic effect it
+/// shortens.
 int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster);
+
+/// A spell's duration after the caster's combo points and mods, before his haste.
+int32 UnhastedSpellDuration(SpellEntry const* spellInfo, Unit const* caster);
 
 /// Whether the spell may be cast here: its area group, continent, raid instance, spell-area rows,
 /// arena and battleground rules and its own location handler.

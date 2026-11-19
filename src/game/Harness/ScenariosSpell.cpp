@@ -217,7 +217,8 @@
 // refused by it; under Glyph of Arcane Power, Blink and Mana Shield start no global cooldown and Mirror Image's is 0;
 // Improved Arcane Explosion's first rank makes Arcane Explosion's global cooldown 1.25 s, hasted and held at 1.0 s,
 // and its second 1.0 s, unhasted; Arcane Flows and Glyph of Mana Shield shorten their spells' cooldowns.
-// 1112 a staged Arcane mage's Evocation gives him 15% of his mana four times, hasted in a shorter channel, and 10% of
+// 1112 a staged Arcane mage's hasted Arcane Missiles keep their three missiles in a shorter channel, and his
+// Evocation gives him 15% of his mana four times, hasted in a shorter channel too, and 10% of
 // his health each tick with its glyph; Mana Shield absorbs its amount at one mana a point; Mage Armor gives 3% of his
 // mana every 5 s, his glyphed tick recorded, and shortens a harmful magic effect on him by 35%.
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
@@ -20176,9 +20177,11 @@ namespace Harness
      * learns the Arcane tree's spells; Evocation (12051: a 6 s channel, effect 0 15% of his maximum mana every 2 s with
      * a tick at the start, effect 1 his health by its amount in percent, 0 in the data), Mana Shield (1463: an absorb
      * of int(1.585 x 937.33) = 1485 + spell power x 0.807, spell_bonus_data's coefficient, 1 mana for each point it
-     * absorbs) and Mage Armor (6117: effect 1 3% of his maximum mana every 5 s, effect 2 the duration of harmful magic
-     * effects on him -35%) learned; kSpellPower spell power. Once staged his Offensive State and Mana Adept are taken
-     * off. Steps:
+     * absorbs), Mage Armor (6117: effect 1 3% of his maximum mana every 5 s, effect 2 the duration of harmful magic
+     * effects on him -35%) and Arcane Missiles (5143: a 2.25 s channel, a missile (7268) every 0.75 s from 0.75 s on,
+     * hasted in its period and its duration) learned; kSpellPower spell power. Once staged his Offensive State and
+     * Mana Adept are taken off. Before each cast that is not triggered he takes Precision (+6% spell hit), so Arcane
+     * Missiles never misses the Camel. Steps:
      *  1. a wait, kShortMs, at which the Camel casts Slow (31589: 15 s, a magic spell) at him, triggered; the full
      *     duration of its holder on him is kept and the holder taken off;
      *  2. Evocation, kEvocationMs;
@@ -20195,17 +20198,26 @@ namespace Harness
      *  9. Mage Armor, kCastMs; 10. a wait, kTickWaitMs, across the armor's first tick;
      * 11. Glyph of Mage Armor (56383: Mage Armor's effect 1 +20%) cast by him at himself, triggered, kCastMs;
      * 12. Mage Armor again, kCastMs, its amounts taken with the glyph; 13. a wait, kTickWaitMs, across its first tick;
-     * 14. a wait, at which the Camel casts Slow at him again, as at step 1.
-     * Every cast's read is kReadMs after it, inside Evocation's channel, where the channel's period and full duration
-     * are kept. The ticks are the SMSG_PERIODICAURALOG entries about him in the steps' windows: Evocation's mana (aura
-     * 21) and health (aura 20), Mage Armor's mana.
+     * 14. a wait, at which the Camel casts Slow at him again, as at step 1;
+     * 15. Arcane Missiles! (79683) cast by him at himself, triggered; then he selects the Camel, as a client does before
+     *     it casts at it, Power Infusion is put on him again and kMissilesHasteRating spell haste rating added by call;
+     *     kCastMs;
+     * 16. Arcane Missiles at the Camel, kMissilesMs to the end.
+     * Every cast's read is kReadMs after it, inside Evocation's or Arcane Missiles' channel, where the channel's period
+     * and full duration are kept. The ticks are the SMSG_PERIODICAURALOG entries about him in the steps' windows:
+     * Evocation's mana (aura 21) and health (aura 20), Mage Armor's mana; the missiles are the SMSG_SPELL_GO packets of
+     * 7268 in step 16's windows. Power Infusion with the rating makes his cast-haste field 0.82222539: Arcane Missiles'
+     * period 750 x it = 616.67 -> 617 and its channel 2250 x it = 1850.00 -> 1850, the client's pair, where the third
+     * missile's 3 x 617 = 1851 would fall past the channel.
      *
      * `mana`: `evocation=<step 2's mana ticks>@<period>/<length>:<its health ticks>,hasted=<step 4's mana
      * ticks>@<period>/<length>:<its health ticks>,shield=<the amount>/<its band>,blows=<mana lost at step 7>:<the
      * shield left>,<mana lost at step 8>:<the shield left>,armor=<step 10's ticks>/<3% of his maximum mana>,glyph=<step
-     * 13's ticks>/<3.6% of it>,magic=<step 1's duration>/<step 14's>`. OK when each Evocation deals four mana ticks of
+     * 13's ticks>/<3.6% of it>,magic=<step 1's duration>/<step 14's>,missiles=<step 16's missiles>@<period>/<length>`.
+     * OK when each Evocation deals four mana ticks of
      * 15% of his maximum mana (one point either side), the first at 2000/6000 with no health tick above 0, the hasted
-     * one at 1666..1667/4999..5000 with four health ticks of 10% of his maximum health; the shield's amount in its
+     * one at 1667/5000, the client's pair, with four health ticks of 10% of his maximum health; Arcane Missiles' three
+     * missiles at 617/1850; the shield's amount in its
      * band; the first blow takes kSmallBlow mana and leaves the amount less kSmallBlow, the second takes what was left
      * and leaves no shield; Mage Armor's tick is 3% (one point either side; the glyphed tick is recorded, not judged);
      * and Slow lasts 15000 then 9750.
@@ -20217,10 +20229,11 @@ namespace Harness
 
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
-        std::vector<uint32> Spells() const override { return { kEvocation, kManaShield, kMageArmor }; }
+        std::vector<uint32> Spells() const override { return { kEvocation, kManaShield, kMageArmor, kArcaneMissiles }; }
         int32 SpellPower() const override { return kSpellPower; }
         bool Heals() const override { return true; }
         uint32 CastReadMs() const override { return kReadMs; }
+        uint32 CasterAura() const override { return kPrecision; }
 
         void AfterStage(Player& p) override
         {
@@ -20234,7 +20247,8 @@ namespace Harness
             return { Wait(kShortMs), AuraCast(kEvocation, kEvocationMs), SelfAura(kGlyphOfEvocation, kCastMs), evocationAgain,
                      Wait(kShortMs), AuraCast(kManaShield, kCastMs), Blow(kSmallBlow, SPELL_SCHOOL_MASK_NORMAL, kShortMs),
                      Blow(kBigBlow, SPELL_SCHOOL_MASK_NORMAL, kShortMs), AuraCast(kMageArmor, kCastMs), Wait(kTickWaitMs),
-                     SelfAura(kGlyphOfMageArmor, kCastMs), AuraCast(kMageArmor, kCastMs), Wait(kTickWaitMs), Wait(kShortMs) };
+                     SelfAura(kGlyphOfMageArmor, kCastMs), AuraCast(kMageArmor, kCastMs), Wait(kTickWaitMs), Wait(kShortMs),
+                     SelfAura(kMissilesBuff, kCastMs), AuraCast(kArcaneMissiles, kMissilesMs) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -20258,6 +20272,10 @@ namespace Harness
                 { 31589, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -60 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.EffectSpellClassMask.Flags", 14684919 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 218 }, { "eff1.EffectBasePoints", -60 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 12589815 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 216 }, { "eff2.EffectBasePoints", -30 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectSpellClassMask.Flags", 4194437 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
                 // 10060: 49 fields, fnv 4b272597
                 { 10060, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 65 }, { "eff0.EffectBasePoints", 20 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 72 }, { "eff1.EffectBasePoints", -20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 126 }, { "eff1.EffectMiscValue_1", 1 }, { "eff1.ImplicitTarget_0", 21 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 5143: 72 fields, fnv e5fc61f3
+                { 5143, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 750 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 7268 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 108 }, { "eff2.EffectBasePoints", 100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 9 }, { "eff2.EffectSpellClassMask.Flags", 2048 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 7268: 26 fields, fnv ac6e503b
+                { 7268, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 24 }, { "eff0.EffectBonusCoefficient", 1049515524 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRealPointsPerLevel", 1050253722 }, { "eff0.ImplicitTarget_0", 77 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
             });
         }
 
@@ -20267,10 +20285,10 @@ namespace Harness
             Step const& step = st.steps[k];
             if (atRead)
             {
-                if (step.spell == kEvocation && IsCast(step))
+                if ((step.spell == kEvocation || step.spell == kArcaneMissiles) && IsCast(step))
                 {
                     int32 period = 0, timer = 0, duration = 0, maxDuration = 0;
-                    if (PeriodicOf(p, kEvocation, period, timer, duration, maxDuration))
+                    if (PeriodicOf(p, step.spell, period, timer, duration, maxDuration))
                     {
                         reads["period"] = period;
                         reads["length"] = maxDuration;
@@ -20321,6 +20339,17 @@ namespace Harness
                                "; his mana " + Num(reads["mana"]) + " of " + Num(reads["maxMana"]));
                     break;
                 }
+                case kMissilesBuffStep:
+                {
+                    p->SetSelectionGuid(target->GetObjectGuid());
+                    PutReadyAura(p, kPowerInfusion, kAuraMs);
+                    p->ApplyRatingMod(CR_HASTE_SPELL, kMissilesHasteRating, true);
+                    char buf[160];
+                    snprintf(buf, sizeof(buf), "he selects the Camel; Power Infusion put on him and %d spell haste rating added: "
+                             "cast-haste field %.8f", kMissilesHasteRating, p->GetFloatValue(UNIT_MOD_CAST_HASTE));
+                    m_rec.Note(buf);
+                    break;
+                }
                 default:
                     break;
             }
@@ -20335,6 +20364,13 @@ namespace Harness
             bool ok = true;
             const std::string evocation = Channel(st, kFirstEvocation, false, ok);
             const std::string hasted = Channel(st, kSecondEvocation, true, ok);
+
+            std::vector<uint32> const& launched = st.seen[kMissilesStep].triggered;
+            const int64 missiles = int64(std::count(launched.begin(), launched.end(), kMissile));
+            const int64 missilesPeriod = Kept(st, kMissilesStep, "period");
+            const int64 missilesLength = Kept(st, kMissilesStep, "length");
+            const std::string missilesRun = Num(missiles) + "@" + Num(missilesPeriod) + "/" + Num(missilesLength);
+            ok = ok && missiles == kMissileCount && missilesPeriod == kMissilesPeriod && missilesLength == kMissilesLength;
 
             const int64 sp = Kept(st, kShieldStep, "sp");
             const int64 amount = Kept(st, kShieldStep, "shield");
@@ -20364,10 +20400,11 @@ namespace Harness
             const std::string value = "evocation=" + evocation + ",hasted=" + hasted + ",shield=" + Num(amount) + "/" + band + ",blows=" +
                                       Num(firstLost) + ":" + Num(firstLeft) + "," + Num(secondLost) + ":" + Num(secondLeft) + ",armor=" +
                                       Plus(armor) + "/" + U(armorWant) + ",glyph=" + Plus(glyph) + "/" + U(glyphWant) + ",magic=" +
-                                      Num(magicBefore) + "/" + Num(magicAfter);
+                                      Num(magicBefore) + "/" + Num(magicAfter) + ",missiles=" + missilesRun;
             return (ok ? "OK(" : "BUG(") + value + "; an Evocation reads its mana ticks@its period/full duration:its health " +
                    "ticks; the shield's amount at spell power " + Num(sp) + "; a blow reads the mana it took:the shield left; the " +
-                   "armor reads its ticks/the wanted tick; magic: Slow's full duration on him without and with Mage Armor)";
+                   "armor reads its ticks/the wanted tick; magic: Slow's full duration on him without and with Mage Armor; " +
+                   "missiles: the hasted Arcane Missiles' missiles@its period/full duration)";
         }
 
     private:
@@ -20405,10 +20442,20 @@ namespace Harness
         static constexpr uint32 kSecondArmor = 11;
         static constexpr uint32 kSecondTickStep = 12;
         static constexpr uint32 kLastSlowStep = 13;
-        static constexpr size_t kSteps = 14;
+        static constexpr uint32 kMissilesBuffStep = 14;
+        static constexpr uint32 kMissilesStep = 15;
+        static constexpr size_t kSteps = 16;
+        static constexpr uint32 kArcaneMissiles = 5143;
+        static constexpr uint32 kMissile = 7268;
+        static constexpr uint32 kMissilesBuff = 79683;
+        static constexpr int32 kMissilesHasteRating = 173;
+        static constexpr uint32 kMissilesMs = 3500;
+        static constexpr int64 kMissileCount = 3;
+        static constexpr int64 kMissilesPeriod = 617;
+        static constexpr int64 kMissilesLength = 1850;
 
         /// Evocation step k: `<mana ticks>@<period>/<length>:<health ticks>`; `ok` is cleared unless it dealt four mana
-        /// ticks of 15% of his maximum mana at 2000/6000 and no health tick above 0, or `hasted` at 1666..1667/4999..5000
+        /// ticks of 15% of his maximum mana at 2000/6000 and no health tick above 0, or `hasted` at the client's 1667/5000
         /// with four health ticks of 10% of his maximum health.
         std::string Channel(St const& st, uint32 k, bool hasted, bool& ok) const
         {
@@ -20426,7 +20473,7 @@ namespace Harness
             }
             if (hasted)
             {
-                fine = fine && (period == 1666 || period == 1667) && (length == 4999 || length == 5000) && health.size() == 4;
+                fine = fine && period == 1667 && length == 5000 && health.size() == 4;
                 for (uint32 tick : health)
                 {
                     fine = fine && InBand(tick, healthWant, healthWant);

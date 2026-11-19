@@ -551,12 +551,26 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
         modOwner->ApplySpellMod(spellproto->ID, SPELLMOD_ACTIVATION_TIME, m_modifier.periodictime);
     }
 
-    // the caster's cast haste shortens the period after the spell modifiers, as the client's Spell_C_GetAuraPeriod does
+    // the caster's cast haste shortens the period after the spell modifiers, as the client's Spell_C_GetAuraPeriod does;
+    // a spell whose duration the haste shortens too keeps the ticks it deals without haste, its last one at the latest
+    // at the end of its hasted duration
     if (m_modifier.periodictime && spellproto->HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC) &&
         !spellproto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS))
     {
         const float castHaste = caster ? caster->GetFloatValue(UNIT_MOD_CAST_HASTE) : 1.0f;
-        m_modifier.periodictime = uint32(Spells::HastedPeriod(int32(m_modifier.periodictime), castHaste));
+        if (caster && spellproto->HasAttribute(SPELL_ATTR_EX8_HASTE_AFFECTS_DURATION))
+        {
+            const Spells::HastedTicks timing = Spells::HastedPeriodAndDuration(int32(m_modifier.periodictime),
+                UnhastedSpellDuration(spellproto, caster), spellproto->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY),
+                castHaste);
+            m_modifier.periodictime = uint32(timing.period);
+            m_heldTicks = timing.ticks;
+            m_lastTick = timing.lastTick;
+        }
+        else
+        {
+            m_modifier.periodictime = uint32(Spells::HastedPeriod(int32(m_modifier.periodictime), castHaste));
+        }
     }
 
     // Start periodic on next tick or at aura apply
@@ -769,7 +783,8 @@ void Aura::SetModifier(AuraType t, int32 a, uint32 pt, int32 miscValue)
 
 uint32 Aura::GetAuraMaxTicks() const
 {
-    return Spells::TickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay);
+    return Spells::HeldTickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay, m_heldTicks,
+                                 m_lastTick);
 }
 
 void Aura::SetLoadedState(int32 damage, uint32 periodicTime)
@@ -777,6 +792,7 @@ void Aura::SetLoadedState(int32 damage, uint32 periodicTime)
     m_modifier.m_amount = damage;
     m_tickAmountBeforeDone = damage;
     m_modifier.periodictime = periodicTime;
+    m_heldTicks = 0;
     const bool ticksAtApply = GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY);
     m_firstTickDelay = Spells::FirstTickDelay(int32(periodicTime), ticksAtApply);
     m_periodicTimer = m_firstTickDelay;
@@ -800,8 +816,9 @@ void Aura::Update(uint32 diff)
         if (m_periodicTimer <= 0) // tick also at m_periodicTimer==0 to prevent lost last tick in case max m_duration == (max m_periodicTimer)*N
         {
             // update before applying (aura can be removed in TriggerSpell or PeriodicTick calls)
-            m_periodicTimer += m_modifier.periodictime;
             ++m_periodicTick;                               // for some infinity auras in some cases can overflow and reset
+            m_periodicTimer += Spells::TimeToNextTick(m_periodicTick, int32(m_modifier.periodictime), m_firstTickDelay,
+                                                      m_heldTicks, m_lastTick);
             PeriodicTick();
         }
     }
