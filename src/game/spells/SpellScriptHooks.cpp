@@ -108,6 +108,11 @@ void AfterCastContext::CastTriggeredAt(float x, float y, float z, uint32 spellId
     caster.CastSpell(x, y, z, spellId, true, NULL, NULL, ObjectGuid(), &spell);
 }
 
+void CastStartContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
+{
+    CastTriggeredSpell(caster, to, spellId, basePoints, NULL, NULL, ObjectGuid(), &spell);
+}
+
 Item* OnProcContext::CastItem() const
 {
     return m_castItemGuid ? caster.GetItemByGuid(m_castItemGuid) : NULL;

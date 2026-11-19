@@ -115,10 +115,14 @@ struct SpellEntry;
  *   cast's targets did with it: a miss, an immunity or a reflect at the launch, or none of them yet for a delayed
  *   spell. Its cast time is the one the cast's timer started at, 0 for a cast that went off as it started. Return()
  *   is the same as Continue(). A body may remove the caster's auras and stacks.
+ * - CastStart: `Spell::Prepare`, once per cast the caster begins himself (never a triggered one), only for a spell with
+ *   a row: after its cast time is set, its cast bar sent and its global cooldown started, and before an instant cast
+ *   goes off. A cast that is interrupted or cancelled later has run it. Return() is the same as Continue(). A body may
+ *   cast; what it casts changes neither this cast's cast time nor its global cooldown.
  *
- * EffectValue, AfterHit, AuraAmount, DamageDone, CritChance, AfterCast and Launch read no outcome: a body changes the
- * context's values or casts, and answers Continue(). On a Continue() or a Miss() every hook leaves the steps after it
- * as they are.
+ * EffectValue, AfterHit, AuraAmount, DamageDone, CritChance, AfterCast, Launch and CastStart read no outcome: a body
+ * changes the context's values or casts, and answers Continue(). On a Continue() or a Miss() every hook leaves the
+ * steps after it as they are.
  *
  * A context holds references to the live objects and to the values a script may change. Built, it checks that this
  * thread owns the unit the hook runs on (`Unit::AssertSpellSeamOwner`).
@@ -142,7 +146,8 @@ enum SpellScriptHook
     SPELL_SCRIPT_HOOK_CRIT_CHANCE       = 112,
     SPELL_SCRIPT_HOOK_DUMMY_AURA        = 113,
     SPELL_SCRIPT_HOOK_AFTER_CAST        = 114,
-    SPELL_SCRIPT_HOOK_LAUNCH            = 115
+    SPELL_SCRIPT_HOOK_LAUNCH            = 115,
+    SPELL_SCRIPT_HOOK_CAST_START        = 116
 };
 
 /// What a script may ask of the aura holder it runs for, without the aura headers.
@@ -579,6 +584,27 @@ struct LaunchContext
                                                     ///< caster's modifiers; 0 for a cast that went off as it started
 };
 
+/// CastStart's context: a cast its caster has just begun, after its cast time and its global cooldown are set. Value:
+/// void.
+struct CastStartContext
+{
+    CastStartContext(Unit& casterUnit, SpellEntry const& spellEntry, Unit* explicitTarget, int32 castTime)
+        : caster(casterUnit), spell(spellEntry), target(explicitTarget), castTimeMs(castTime)
+    {
+        caster.AssertSpellSeamOwner();
+    }
+
+    /// The caster casts `spellId` at `to`, triggered, with this cast's spell as the trigger and no triggering aura.
+    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+
+    Unit& caster;                                   ///< the caster
+    SpellEntry const& spell;                        ///< the spell cast
+    Unit* target;                                   ///< the cast's explicit unit target; NULL when it has none
+    int32 castTimeMs;                               ///< the cast time in ms the caster was told, with his modifiers
+                                                    ///< and haste; 0 for an instant cast
+};
+
 /// `Spell::CheckCast`, after the checks of the spell's aura effects. Return(result) refuses the cast unless the result
 /// is SPELL_CAST_OK.
 struct CheckCastHook
@@ -713,6 +739,15 @@ struct LaunchHook
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_LAUNCH;
     typedef void Value;
     typedef LaunchContext Context;
+};
+
+/// `Spell::Prepare`, once per cast the caster begins himself, after its cast time and global cooldown are set, before
+/// an instant cast goes off. The outcome is not read: Return() is the same as Continue().
+struct CastStartHook
+{
+    static constexpr uint32 Key = SPELL_SCRIPT_HOOK_CAST_START;
+    typedef void Value;
+    typedef CastStartContext Context;
 };
 
 /// Registers `f` for `spellId` on `Hook`; false, and nothing changes, when the key is taken or `f` is NULL. A legacy

@@ -198,6 +198,13 @@ void Spell::Prepare()
 
         TriggerGlobalCooldown();
 
+        // the cast's script as it begins, when its spell has one: its cast time and global cooldown are set
+        if (SpellHandlerRegistry::Game().Find<CastStartHook>(m_spellInfo->ID))
+        {
+            CastStartContext start(*m_caster, *m_spellInfo, m_targets.getUnitTarget(), m_casttime);
+            SpellHandlerRegistry::Game().Dispatch<CastStartHook>(m_spellInfo->ID, start);
+        }
+
         // Execute instant spells immediate
         if (m_timer == 0 && !IsNextMeleeSwingSpell() && !IsAutoRepeat() && !IsChanneledSpell(m_spellInfo))
         {
