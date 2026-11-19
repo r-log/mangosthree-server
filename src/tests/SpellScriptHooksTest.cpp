@@ -24,11 +24,12 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
-/// target and script word, the after-cast context's count and point, the aura handle's reads, its removal of one
-/// effect, its stack count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the holder's script
-/// words, the holder copy's answer for a unit holding none and the period, tick time, duration and amount a copy keeps,
-/// the low-health multiplier a script query answers from the caster's class-script auras, and the game table, whose
-/// only hook rows are the mage's scripts.
+/// target and script word, the target context's cast target, the after-hit context's search around a unit in no world
+/// and its cast through an aura the caster lacks, the after-cast context's count and point, the aura handle's reads,
+/// its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the
+/// holder's script words, the holder copy's answer for a unit holding none and the period, tick time, duration and
+/// amount a copy keeps, the low-health multiplier a script query answers from the caster's class-script auras, and the
+/// game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -646,11 +647,18 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
     uint32 maxTargets = 0;
     Forget();
     SelectTargetsContext selectTargets(caster, spell, EFFECT_INDEX_1, 22, targets, maxTargets);
+    CHECK(selectTargets.castTarget == NULL);
     CHECK(registry.Dispatch<SelectTargetsHook>(kHookSpell, selectTargets).IsReturn());
     CHECK_EQ(targets.size(), std::size_t(1));
     CHECK(targets.front() == &target);
     CHECK_EQ(s_seen.targetMode, uint32(22));
     CHECK_EQ(maxTargets, uint32(1));
+
+    // A target context built with the cast's explicit target carries it.
+    std::list<Unit*> aimedTargets;
+    uint32 aimedMax = 0;
+    SelectTargetsContext aimedSelect(caster, spell, EFFECT_INDEX_0, 53, aimedTargets, aimedMax, &target);
+    CHECK(aimedSelect.castTarget == &target);
 
     CHECK(registry.Register<EffectValueHook>(kHookSpell, &TestVoidBody));
     int32 value = 41;
@@ -1304,15 +1312,15 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's, Arcane Potency's two
-    // buffs', Fingers of Frost's three, Brain Freeze's three and Invocation's two ranks', the proc hook the mage's 23
-    // proc scripts, the target hook Blink's and the orb's scan's, the damage-done hook the 22 spells Frostburn's class
-    // mask covers and Torment the Weak's three ranks, the crit-chance hook the 26 spells Shatter's covers, the dummy
-    // aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s
-    // and Arcane Missiles', the aura-remove hook Hot Streak's buff's, Mage Ward's, Pyromaniac's ten, Arcane
-    // Missiles!'s and the seven forms of Polymorph's, the dummy-effect hook Combustion's, Impact's spread, Flame Orb's
-    // and the orb's scan's, the after-cast hook Blast Wave's, the launch hook Ice Lance's, Deep Freeze's, Frostfire
-    // Bolt's and Fireball's, and
-    // the after-hit hook Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
+    // buffs', Fingers of Frost's three, Brain Freeze's three and Invocation's two ranks', the proc hook the mage's 26
+    // proc scripts, the target hook Blink's, the orb's scan's and Piercing Chill's chill's, the damage-done hook the
+    // 22 spells Frostburn's class mask covers and Torment the Weak's three ranks, the crit-chance hook the 26 spells
+    // Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and
+    // two ranks), Arcane Missiles!'s and Arcane Missiles', the aura-remove hook Hot Streak's buff's, Mage Ward's,
+    // Pyromaniac's ten, Arcane Missiles!'s and the seven forms of Polymorph's, the dummy-effect hook Combustion's,
+    // Impact's spread, Flame Orb's and the orb's scan's, the after-cast hook Blast Wave's, the launch hook Ice
+    // Lance's, Deep Freeze's, Frostfire Bolt's and Fireball's, and the after-hit hook Frostbolt's, Cone of Cold's and
+    // Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
@@ -1324,8 +1332,8 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
     CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(14));
-    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(23));
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(2));
+    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(26));
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(3));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(game.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
@@ -1334,8 +1342,8 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(4));
-    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1359));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(3));
+    CHECK_EQ(game.Count(), std::size_t(1365));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 
@@ -1569,4 +1577,22 @@ TEST(SpellScriptHooks_DamageTakenMultiplierTakesAreaAvoidanceForAnAreaRowOnly)
 
     victim.Drop();
     CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, blastWave), 1.0f));
+}
+
+TEST(SpellScriptHooks_AnAfterHitContextFindsNoEnemyAroundAUnitInNoWorldAndNeedsTheAuraItCastsThrough)
+{
+    BareCreature caster;
+    BareCreature target;
+    SpellEntry const& spell = HookSpell();
+    AfterHitContext afterHit(caster, target, spell, 1200, true, 0, 0, false);
+
+    // A unit in no world has no enemy around it: the list is emptied and nothing is added.
+    std::list<Unit*> found;
+    found.push_back(&caster);
+    afterHit.EnemiesAround(target, 10.0f, found);
+    CHECK(found.empty());
+
+    // A cast through an aura the caster does not hold casts nothing and says so.
+    CHECK(!afterHit.CastTriggeredByAura(target, kOtherSpell, kHookSpell, EFFECT_INDEX_0));
+    CHECK(target.GetSpellAuraHolderMap().empty());
 }
