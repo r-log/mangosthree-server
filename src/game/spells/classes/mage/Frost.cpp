@@ -55,6 +55,8 @@ namespace
     uint32 const EARLY_FROST_RANK_TWO = 83050;
     uint32 const EARLY_FROST_LOCKOUT_RANK_ONE = 83162;
     uint32 const EARLY_FROST_LOCKOUT_RANK_TWO = 83239;
+    uint32 const COLD_SNAP = 11958;
+    uint32 const FROSTFIRE_ORB = 92283;
 
     /// Fingers of Frost's text: "Ice Lance deals 25% more damage" while a charge is up. No field of the data holds it.
     int32 const ICE_LANCE_FINGERS_PERCENT = 25;
@@ -327,4 +329,13 @@ uint32 Mage::EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockou
         return 0;
     }
     return knowsRankTwo ? EARLY_FROST_LOCKOUT_RANK_TWO : knowsRankOne ? EARLY_FROST_LOCKOUT_RANK_ONE : 0;
+}
+
+bool Mage::ColdSnapResets(uint32 spellId, uint32 family, uint32 schoolMask, uint32 recoveryMs)
+{
+    if (family != SPELLFAMILY_MAGE || spellId == COLD_SNAP || recoveryMs == 0)
+    {
+        return false;
+    }
+    return (schoolMask & SPELL_SCHOOL_MASK_FROST) != 0 || spellId == FROSTFIRE_ORB;
 }

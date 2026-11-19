@@ -233,18 +233,21 @@ TEST(MageOrb_TheRowNamesTheSpellsAndTheCreatureOfFlameOrb)
     CHECK_EQ(orb->explosionTalents[0], uint32(18459));
     CHECK_EQ(orb->explosionTalents[1], uint32(18460));
     CHECK_EQ(orb->explosionTalents[2], uint32(54734));
+    CHECK_EQ(orb->rankHitSpell, uint32(0));
+    CHECK_EQ(orb->rankHitTalent, uint32(0));
 
-    // The summon finds the same row, as the orb does by the spell that created it; the other spells of the chain, the
-    // Frostfire Orb (92283, not in the table yet) and no spell find none.
+    // The summon finds the same row, as the orb does by the spell that created it; the other spells of the chain and
+    // no spell find none.
     CHECK(Mage::OrbSpellsFor(84765) == orb);
-    for (uint32 spellId : { 92283u, 82690u, 82734u, 82739u, 83619u, 0u })
+    for (uint32 spellId : { 82690u, 82734u, 82739u, 83619u, 0u })
     {
         CHECK(Mage::OrbSpellsFor(spellId) == NULL);
     }
 
-    // The orb creature is the Flaming Orb; the Frostfire Orb, the Camel and no creature are not.
+    // The orb creatures are the Flaming Orb and the Frostfire Orb; the Camel and no creature are not.
     CHECK(Mage::IsOrbCreature(44214));
-    for (uint32 entry : { 45322u, 50249u, 0u })
+    CHECK(Mage::IsOrbCreature(45322));
+    for (uint32 entry : { 50249u, 0u })
     {
         CHECK(!Mage::IsOrbCreature(entry));
     }
@@ -480,21 +483,29 @@ TEST(MageOrb_KeepClosestOrbTargetLeavesTheClosestSeenEnemyAlone)
 
 TEST(MageOrb_TheRowsSitOnTheirHooksAndTheOrbHasItsAI)
 {
-    // The orb spell at the dummy-effect hook, the scan at the target hook and at the dummy-effect hook: three rows,
-    // three keys, each the game's body too.
+    // For each orb, its spell at the dummy-effect hook and its scan at the target hook and at the dummy-effect hook:
+    // six rows, six keys, each the game's body too; the two orbs share the three bodies.
     SpellHandlerRegistry registry;
-    CHECK_EQ(Mage::RegisterOrb(registry), uint32(3));
-    CHECK_EQ(registry.Count(), std::size_t(3));
+    CHECK_EQ(Mage::RegisterOrb(registry), uint32(6));
+    CHECK_EQ(registry.Count(), std::size_t(6));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
-    CHECK(registry.Find<DummyEffectHook>(82731) != NULL);
-    CHECK(registry.Find<SelectTargetsHook>(82734) != NULL);
-    CHECK(registry.Find<DummyEffectHook>(82734) != NULL);
-    CHECK(registry.Find<DummyEffectHook>(82731) != registry.Find<DummyEffectHook>(82734));
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK(game.Find<DummyEffectHook>(82731) == registry.Find<DummyEffectHook>(82731));
-    CHECK(game.Find<SelectTargetsHook>(82734) == registry.Find<SelectTargetsHook>(82734));
-    CHECK(game.Find<DummyEffectHook>(82734) == registry.Find<DummyEffectHook>(82734));
-    for (uint32 spellId : { 84765u, 82690u, 82739u, 83619u })
+    uint32 const casts[] = { 82731, 92283 };
+    uint32 const scans[] = { 82734, 84718 };
+    for (uint32 i = 0; i < 2; ++i)
+    {
+        CHECK(registry.Find<DummyEffectHook>(casts[i]) != NULL);
+        CHECK(registry.Find<SelectTargetsHook>(scans[i]) != NULL);
+        CHECK(registry.Find<DummyEffectHook>(scans[i]) != NULL);
+        CHECK(registry.Find<DummyEffectHook>(casts[i]) != registry.Find<DummyEffectHook>(scans[i]));
+        CHECK(registry.Find<DummyEffectHook>(casts[i]) == registry.Find<DummyEffectHook>(casts[0]));
+        CHECK(registry.Find<SelectTargetsHook>(scans[i]) == registry.Find<SelectTargetsHook>(scans[0]));
+        CHECK(registry.Find<DummyEffectHook>(scans[i]) == registry.Find<DummyEffectHook>(scans[0]));
+        CHECK(game.Find<DummyEffectHook>(casts[i]) == registry.Find<DummyEffectHook>(casts[i]));
+        CHECK(game.Find<SelectTargetsHook>(scans[i]) == registry.Find<SelectTargetsHook>(scans[i]));
+        CHECK(game.Find<DummyEffectHook>(scans[i]) == registry.Find<DummyEffectHook>(scans[i]));
+    }
+    for (uint32 spellId : { 84765u, 82690u, 82739u, 83619u, 84714u, 84717u, 95969u, 84721u })
     {
         CHECK(game.Find<DummyEffectHook>(spellId) == NULL);
     }
@@ -504,9 +515,12 @@ TEST(MageOrb_TheRowsSitOnTheirHooksAndTheOrbHasItsAI)
     REQUIRE(factory != NULL);
     OrbTestCreature orb;
     orb.SetEntry(44214);
+    OrbTestCreature frostfire;
+    frostfire.SetEntry(45322);
     OrbTestCreature camel;
     camel.SetEntry(50249);
     CHECK_EQ(factory->Permit(&orb), int(PERMIT_BASE_SPECIAL));
+    CHECK_EQ(factory->Permit(&frostfire), int(PERMIT_BASE_SPECIAL));
     CHECK_EQ(factory->Permit(&camel), int(PERMIT_BASE_NO));
     Mage::RegisterOrb(registry);
     CHECK(CreatureAIRepository::Instance().GetRegistryItem("OrbAI") == factory);
