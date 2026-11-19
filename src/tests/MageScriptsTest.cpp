@@ -4716,9 +4716,8 @@ TEST(MageScripts_GlyphOfIceBarrierRaisesTheWholeAbsorbByItsPercent)
 
 TEST(MageScripts_ReactiveBarrierAnswersAHitThatLeavesTheMageAliveBelowHalfHealth)
 {
-    // The talent's text: "upon taking damage that lowers the caster's life below 50%"; the 4.0.3a note: "triggered
-    // by any damage which causes the mage's health to be below 50%, even if the mage was already below 50%". The
-    // health after the hit decides, not a crossing.
+    // The talent's text: "upon taking damage that lowers the caster's life below 50%". The health after the hit
+    // decides, not a crossing.
     CHECK(Mage::ReactiveBarrierTriggers(50000, 100000, 1));
     CHECK(Mage::ReactiveBarrierTriggers(100000, 100000, 60000));
     CHECK(Mage::ReactiveBarrierTriggers(49000, 100000, 1000));

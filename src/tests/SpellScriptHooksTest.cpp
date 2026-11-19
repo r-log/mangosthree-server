@@ -1375,8 +1375,8 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     // buffs', Fingers of Frost's three, Brain Freeze's three, Invocation's two and Reactive Barrier's two ranks', the
     // proc hook the mage's 26 proc scripts, the target hook Blink's, the orb's scan's, the ring's freeze's and Piercing
     // Chill's chill's, the damage-done hook the 22 spells Frostburn's class mask covers and Torment the Weak's three
-    // ranks, the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook
-    // Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s, Arcane Missiles' and Ice Barrier's, the
+    // ranks, the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply
+    // hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s, Arcane Missiles' and Ice Barrier's, the
     // aura-remove hook Hot Streak's buff's, Mage Ward's, Mana Shield's, Ice Barrier's, Pyromaniac's ten, Arcane
     // Missiles!'s and the seven forms of Polymorph's and the ring's freeze's, the periodic-tick hook Ring of Frost's,
     // the dummy-effect hook Combustion's, Impact's spread, Flame Orb's and the orb's scan's, the after-cast hook Blast
