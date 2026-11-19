@@ -1349,7 +1349,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     // and Arcane Missiles', the aura-remove hook Hot Streak's buff's, Mage Ward's, Pyromaniac's ten, Arcane
     // Missiles!'s and the seven forms of Polymorph's, the dummy-effect hook Combustion's, Impact's spread, Flame Orb's
     // and the orb's scan's, the after-cast hook Blast Wave's, the launch hook Ice Lance's, Deep Freeze's, Frostfire
-    // Bolt's and Fireball's, and
+    // Bolt's and Fireball's, the cast-start hook Frostbolt's, and
     // the after-hit hook Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
@@ -1372,8 +1372,9 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(4));
+    CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1359));
+    CHECK_EQ(game.Count(), std::size_t(1360));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 

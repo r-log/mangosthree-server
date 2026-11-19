@@ -103,6 +103,9 @@ namespace
     // Fingers of Frost's charges, and Fireball, which uses Brain Freeze's buff with Frostfire Bolt.
     uint32 const FROST_LAUNCH_IDS[] = { 30455, 44572, 44614, 133 };
 
+    // The id the Frost cast-start script holds: Frostbolt, whose cast starts Early Frost's lockout.
+    uint32 const FROSTBOLT_CAST_START_IDS[] = { 116 };
+
     // The id the target script holds: the one id the arm named (Blink).
     uint32 const BLINK_IDS[] = { 38194 };
 
@@ -612,18 +615,18 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // hook, Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the
     // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
     // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the
-    // damage-done hook, the 26 Shatter's covers at the crit-chance hook, and Ice Lance, Deep Freeze, Frostfire Bolt and
-    // Fireball at the launch hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and
-    // Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane: Magic Absorption, Arcane Potency, Mana
-    // Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane Missiles
-    // at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven forms of Polymorph
-    // at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and
-    // dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost,
-    // Brain Freeze and Invocation's two ranks also at the check-proc hook. 145 rows, 142 keys and 3 defaults, none
-    // twice.
+    // damage-done hook, the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep Freeze, Frostfire Bolt and
+    // Fireball at the launch hook, and Frostbolt at the cast-start hook. At the proc hook, Fire: Ignite, Master of
+    // Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
+    // Magic Absorption, Arcane Potency, Mana Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply
+    // and aura-remove hooks, Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done
+    // hook and the seven forms of Polymorph at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and
+    // the orb's scan at the target and dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's
+    // two buffs, Fingers of Frost, Brain Freeze and Invocation's two ranks also at the check-proc hook. 146 rows, 143
+    // keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(145));
-    CHECK_EQ(registry.Count(), std::size_t(142));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
+    CHECK_EQ(registry.Count(), std::size_t(143));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -642,6 +645,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(4));
+    CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(1));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
@@ -661,7 +665,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
-        { &Mage::RegisterFrost, 62, 62, 0 },
+        { &Mage::RegisterFrost, 63, 63, 0 },
         { &Mage::RegisterArcane, 25, 25, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
     };
@@ -674,8 +678,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(145));
-    CHECK_EQ(registry.Count(), std::size_t(142));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
+    CHECK_EQ(registry.Count(), std::size_t(143));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -686,7 +690,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(142));
+    CHECK_EQ(mine.size(), std::size_t(143));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -700,6 +704,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
+    CheckRowsInTheGame<CastStartHook>(registry, FROSTBOLT_CAST_START_IDS);
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
     CHECK(registry.Find<AuraPeriodicDummyTickMageSite>(55342) == NULL);

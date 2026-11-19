@@ -47,7 +47,8 @@
  * Flamestrike's (ImprovedFlamestrikeChance), the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick)
  * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
- * UseFingersCharge and IceLanceMultiplier) and Brain Freeze's (UsesBrainFreeze). Orb.cpp holds the orb a mage's Flame
+ * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze) and Early Frost's (EarlyFrostLockout).
+ * Orb.cpp holds the orb a mage's Flame
  * Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
  * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
  * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
@@ -428,6 +429,11 @@ namespace Mage
     /// Whether `spellId` is a mage spell Frostburn's class mask covers: the ones that take its mastery bonus. Defined
     /// in Frost.cpp.
     bool FrostburnCovers(uint32 spellId);
+
+    /// The Early Frost lockout a Frostbolt cast starts for its caster: 83239 for a mage who knows the second rank
+    /// (83050, `knowsRankTwo`), else 83162 for one who knows the first (83049, `knowsRankOne`); 0 for a mage who knows
+    /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frost.cpp.
+    uint32 EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.

@@ -51,6 +51,10 @@ namespace
     uint32 const BRAIN_FREEZE_BUFF = 57761;
     uint32 const FROST_ARMOR_CHILL = 7321;
     uint32 const FROSTFIRE_ORB_RANK_ONE_HIT = 95969;
+    uint32 const EARLY_FROST_RANK_ONE = 83049;
+    uint32 const EARLY_FROST_RANK_TWO = 83050;
+    uint32 const EARLY_FROST_LOCKOUT_RANK_ONE = 83162;
+    uint32 const EARLY_FROST_LOCKOUT_RANK_TWO = 83239;
 
     /// Fingers of Frost's text: "Ice Lance deals 25% more damage" while a charge is up. No field of the data holds it.
     int32 const ICE_LANCE_FINGERS_PERCENT = 25;
@@ -206,10 +210,27 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), NULL));
     }
 
+    /// 116: as a Frostbolt cast begins, the Early Frost lockout of the rank its caster knows (Mage::EarlyFrostLockout)
+    /// is cast on him; while it lasts, its modifiers cancel the talent's on his next Frostbolts' cast time and global
+    /// cooldown. This cast's own are already set, and a cast that is interrupted keeps the lockout it started.
+    SpellHandlerOutcome<void> FrostboltCastStart(CastStartContext& ctx)
+    {
+        uint32 const lockout = Mage::EarlyFrostLockout(ctx.caster.HasAura(EARLY_FROST_RANK_ONE),
+                                                       ctx.caster.HasAura(EARLY_FROST_RANK_TWO),
+                                                       ctx.caster.HasAura(EARLY_FROST_LOCKOUT_RANK_ONE) ||
+                                                       ctx.caster.HasAura(EARLY_FROST_LOCKOUT_RANK_TWO));
+        if (lockout)
+        {
+            ctx.CastTriggered(ctx.caster, lockout);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     uint32 const DEEP_FREEZE_IMMUNITY[] = { 71761 };
     uint32 const FINGERS_OF_FROST[] = { 44543, 44545, 83074 };
     uint32 const BRAIN_FREEZE[] = { 44546, 44548, 44549 };
     uint32 const FROST_LAUNCHES[] = { 30455, 44572, 44614, 133 };
+    uint32 const FROSTBOLT_CAST_START[] = { FROSTBOLT };
 }
 
 uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
@@ -221,6 +242,7 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     rows += RegisterRanks<CheckProcHook>(registry, FINGERS_OF_FROST, &ChillSourceCheckProc);
     rows += RegisterRanks<CheckProcHook>(registry, BRAIN_FREEZE, &ChillSourceCheckProc);
     rows += RegisterRanks<LaunchHook>(registry, FROST_LAUNCHES, &FrostLaunch);
+    rows += RegisterRanks<CastStartHook>(registry, FROSTBOLT_CAST_START, &FrostboltCastStart);
     return rows;
 }
 
@@ -296,4 +318,13 @@ bool Mage::ShatterCovers(uint32 spellId)
 bool Mage::FrostburnCovers(uint32 spellId)
 {
     return std::find(std::begin(FROSTBURN_SPELLS), std::end(FROSTBURN_SPELLS), spellId) != std::end(FROSTBURN_SPELLS);
+}
+
+uint32 Mage::EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp)
+{
+    if (lockoutUp)
+    {
+        return 0;
+    }
+    return knowsRankTwo ? EARLY_FROST_LOCKOUT_RANK_TWO : knowsRankOne ? EARLY_FROST_LOCKOUT_RANK_ONE : 0;
 }
