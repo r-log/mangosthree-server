@@ -33,6 +33,7 @@
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 #include "Player.h"
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
@@ -299,8 +300,8 @@ void Spell::EffectApplyAreaAura(SpellEffectEntry const* effect)
 
 void Spell::EffectSummonType(SpellEffectEntry const* effect)
 {
-    // if this spell already have an aura applied cancel the summon
-    if (m_caster->HasAura(m_spellInfo->ID))
+    // if this spell already have an aura applied cancel the summon, unless the spell summons past it
+    if (m_caster->HasAura(m_spellInfo->ID) && !SummonsPastOwnAura(m_spellInfo->ID))
     {
         return;
     }

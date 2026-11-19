@@ -30,23 +30,27 @@
 /// Arcane damage spell, Arcane Potency's buffs spent only by a spell that deals or triggers damage, Ignite's munching
 /// leaves against the roll-over, Clearcasting used up only by a spell its cost modifier makes cheaper, the slows
 /// Torment the Weak counts and its multiplier, Nether Vortex's Slow and its refusals, Invocation's buff from a
-/// Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker when damage breaks a Polymorph, the
-/// count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the removal of Hot Streak's buff,
-/// Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals, the frozen query, Shatter's
-/// crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two spell lists those scripts
-/// hold against the class masks of the talents, Blink's target count, Living Bomb's exits at the dummy aura hook,
-/// Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the
+/// Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker when damage breaks a Polymorph,
+/// Incanter's Absorption's knockback when damage breaks a Mana Shield, Improved Mana Gem's amount after the Mana Gem's
+/// spell, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the removal of Hot Streak's
+/// buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals, the frozen query,
+/// Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two spell lists those
+/// scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at the dummy aura
+/// hook, Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the
 /// aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with
 /// the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at
 /// the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of
 /// Frostfire's hit without Molten Fury and its tick, Frostfire Bolt's effect taken off at its holder's apply and its
-/// after-hit exits, and the Early Frost lockout a Frostbolt cast starts; the orb's rows are counted here and tested in
-/// MageOrbTest. A body that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts'
-/// refusals run on bare Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts
-/// read added to the effect store as the client's data holds them, and a holder put in the creature's holder map where
-/// a script asks whether it holds an aura. The cooldown Impact clears is a player's: a player on a session with no
-/// socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs on a holder made through
-/// its constructor on a bare creature, of three auras whose apply and removal change nothing on the unit.
+/// after-hit exits, the Early Frost lockout a Frostbolt cast starts, Piercing Chill's count, its pick of the nearest
+/// others and its chill's target list, the exits of Frostbolt's and Cone of Cold's after-hit scripts, Permafrost's heal
+/// and its refusals, and Improved Cone of Cold's freeze by rank; the orb's rows are counted here and tested in
+/// MageOrbTest, the ring's in MageRingTest. A body that casts, reads a level or creates an item needs a live unit and a
+/// spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template or AI), with the
+/// effect rows the scripts read added to the effect store as the client's data holds them, and a holder put in the
+/// creature's holder map where a script asks whether it holds an aura. The cooldown Impact clears is a player's: a
+/// player on a session with no socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs
+/// on a holder made through its constructor on a bare creature, of three auras whose apply and removal change nothing
+/// on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -56,6 +60,7 @@
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/SpellScriptQueries.h"
 #include "spells/PeriodicTiming.h"
@@ -71,6 +76,7 @@
 #include <cmath>
 #include <ctime>
 #include <list>
+#include <memory>
 #include <set>
 #include <utility>
 #include <vector>
@@ -84,7 +90,6 @@ namespace
 
     // The ids each proc script holds at the proc hook: every mage spell with the talent's icon (or class mask) and an
     // aura of the type the script stands for, in the client's data.
-    uint32 const MAGIC_ABSORPTION_IDS[] = { 29441, 29444 };
     uint32 const IGNITE_IDS[] = { 11119, 11120, 12846 };
     uint32 const MASTER_OF_ELEMENTS_IDS[] = { 29074, 29075 };
     uint32 const ARCANE_POTENCY_IDS[] = { 31571, 31572 };
@@ -98,6 +103,9 @@ namespace
 
     // Brain Freeze's ranks, which the check-proc hook holds with Fingers of Frost's body.
     uint32 const BRAIN_FREEZE_IDS[] = { 44546, 44548, 44549 };
+
+    // Permafrost's ranks, whose dummy effect's proc heals the caster's pet.
+    uint32 const PERMAFROST_IDS[] = { 11175, 12569, 12571 };
 
     // The ids the Frost launch script holds at the launch hook: Ice Lance, Deep Freeze and Frostfire Bolt, which use
     // Fingers of Frost's charges, and Fireball, which uses Brain Freeze's buff with Frostfire Bolt.
@@ -150,6 +158,9 @@ namespace
     uint32 const ORB_DUMMY_EFFECT_IDS[] = { 82731, 82734 };
     uint32 const ORB_TARGET_IDS[] = { 82734 };
 
+    // The ring's freeze, whose targets and removal the ring's scripts hold.
+    uint32 const RING_FREEZE_IDS[] = { 82691 };
+
     // The id the after-cast script holds: Blast Wave, which calls the free Flamestrike for Improved Flamestrike.
     uint32 const BLAST_WAVE_IDS[] = { 11113 };
 
@@ -181,6 +192,13 @@ namespace
     // The ids Improved Polymorph's script holds at the aura-remove hook: every form of Polymorph a mage casts, the
     // spells of the Arcane skill line with Polymorph's class mask and a confuse and a transform aura.
     uint32 const POLYMORPH_IDS[] = { 118, 28271, 28272, 61025, 61305, 61721, 61780 };
+
+    // The id Incanter's Absorption's script holds at the aura-remove hook: Mana Shield, whose break by damage knocks
+    // the enemies around the mage back.
+    uint32 const MANA_SHIELD_BREAK_IDS[] = { 1463 };
+
+    // The id Improved Mana Gem's script holds at the after-cast hook: Replenish Mana, the Mana Gem's spell.
+    uint32 const REPLENISH_MANA_IDS[] = { 5405 };
 
     // Every id of `ids` is a key of `Site` on `registry`, and the game's table holds the same body for it.
     template <class Site, std::size_t N>
@@ -331,7 +349,6 @@ namespace
         };
         static Row const rows[] =
         {
-            { 29441, 0, SPELL_AURA_DUMMY }, { 29441, 1, SPELL_AURA_MOD_RESISTANCE },
             { 29074, 0, SPELL_AURA_DUMMY },
             { 12846, 0, SPELL_AURA_DUMMY },
             { 31571, 0, SPELL_AURA_DUMMY },
@@ -344,6 +361,7 @@ namespace
             { 83074, 0, SPELL_AURA_PROC_TRIGGER_SPELL },
             { 86181, 0, SPELL_AURA_DUMMY },
             { 86209, 0, SPELL_AURA_DUMMY },
+            { 12571, 0, SPELL_AURA_DUMMY }, { 12571, 1, SPELL_AURA_ADD_FLAT_MODIFIER },
         };
         static SpellEffectEntry effects[sizeof(rows) / sizeof(rows[0])];
         static bool added = false;
@@ -623,18 +641,20 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
     // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the
     // damage-done hook, the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep Freeze, Frostfire Bolt and
-    // Fireball at the launch hook, Frostbolt at the cast-start hook, and Ice Barrier at the aura-apply and aura-remove
-    // hooks. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep
-    // Freeze Immunity State, Fingers of Frost and Reactive Barrier's two ranks; Arcane: Magic Absorption, Arcane
-    // Potency, Mana Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks,
-    // Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven
-    // forms of Polymorph at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at
-    // the target and dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers
-    // of Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two ranks also at the check-proc hook. 152
-    // rows, 149 keys and 3 defaults, none twice.
+    // Fireball at the launch hook, Frostbolt at the cast-start hook, Frostbolt and Cone of Cold at the after-hit hook,
+    // Piercing Chill's chill at the target hook, and Ice Barrier at the aura-apply and aura-remove hooks. At the proc
+    // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State,
+    // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield
+    // and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane Missiles at the
+    // aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of Polymorph and Mana
+    // Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orb: Flame Orb at the dummy-effect
+    // hook, and the orb's scan at the target and dummy-effect hooks. The ring: Ring of Frost at the periodic-tick hook,
+    // and the ring's freeze at the target and aura-remove hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane
+    // Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two ranks
+    // also at the check-proc hook. 161 rows, 158 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(152));
-    CHECK_EQ(registry.Count(), std::size_t(149));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(161));
+    CHECK_EQ(registry.Count(), std::size_t(158));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -642,19 +662,20 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(25));
+    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(16));
-    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(13));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(21));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(23));
+    CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
-    CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(3));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -676,6 +697,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterFrost, 69, 69, 0 },
         { &Mage::RegisterArcane, 25, 25, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
+        { &Mage::RegisterRing, 3, 3, 0 },
     };
     for (PerFile const& file : files)
     {
@@ -686,8 +708,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(152));
-    CHECK_EQ(registry.Count(), std::size_t(149));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(161));
+    CHECK_EQ(registry.Count(), std::size_t(158));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -698,7 +720,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(149));
+    CHECK_EQ(mine.size(), std::size_t(158));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -833,9 +855,8 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 25 ids in 14 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 26 ids in 14 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
-    bodies.insert(OneProcBody(registry, MAGIC_ABSORPTION_IDS));
     bodies.insert(OneProcBody(registry, IGNITE_IDS));
     bodies.insert(OneProcBody(registry, MASTER_OF_ELEMENTS_IDS));
     bodies.insert(OneProcBody(registry, ARCANE_POTENCY_IDS));
@@ -848,17 +869,18 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     bodies.insert(OneProcBody(registry, FINGERS_OF_FROST_IDS));
     bodies.insert(OneProcBody(registry, IMPACT_IDS));
     bodies.insert(OneProcBody(registry, NETHER_VORTEX_IDS));
+    bodies.insert(OneProcBody(registry, PERMAFROST_IDS));
     bodies.insert(OneProcBody(registry, REACTIVE_BARRIER_IDS));
     CHECK_EQ(bodies.size(), std::size_t(14));
-    std::size_t const ids = sizeof(MAGIC_ABSORPTION_IDS) / sizeof(uint32) + sizeof(IGNITE_IDS) / sizeof(uint32) +
+    std::size_t const ids = sizeof(IGNITE_IDS) / sizeof(uint32) +
                             sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
                             sizeof(ARCANE_POTENCY_IDS) / sizeof(uint32) + sizeof(HOT_STREAK_IDS) / sizeof(uint32) +
                             sizeof(BLAZING_SPEED_IDS) / sizeof(uint32) + sizeof(MANA_SHIELD_IDS) / sizeof(uint32) +
                             sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(OFFENSIVE_STATE_IDS) / sizeof(uint32) +
                             sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32) +
                             sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(NETHER_VORTEX_IDS) / sizeof(uint32) +
-                            sizeof(REACTIVE_BARRIER_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(25));
+                            sizeof(PERMAFROST_IDS) / sizeof(uint32) + sizeof(REACTIVE_BARRIER_IDS) / sizeof(uint32);
+    CHECK_EQ(ids, std::size_t(26));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
@@ -866,10 +888,11 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
               sizeof(ARCANE_POTENCY_BUFF_IDS) + sizeof(FINGERS_OF_FROST_IDS) + sizeof(BRAIN_FREEZE_IDS) +
               sizeof(INVOCATION_IDS) + sizeof(REACTIVE_BARRIER_IDS)) / sizeof(uint32));
 
-    // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
-    // no aura) and 28682 (absent from the client's data). Arcane Blast's buff (36032) holds no proc script: its
-    // check-proc script lets the engine's own handling spend its charge.
-    for (uint32 spellId : { 44449u, 44469u, 44470u, 44471u, 44472u, 11129u, 28682u })
+    // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129
+    // applies no aura), 28682 (absent from the client's data) and Magic Absorption's two ranks (29441, 29444), a talent
+    // no 4.3.4 tree, trainer or spell gives. Arcane Blast's buff (36032) holds no proc script: its check-proc script
+    // lets the engine's own handling spend its charge.
+    for (uint32 spellId : { 44449u, 44469u, 44470u, 44471u, 44472u, 11129u, 28682u, 29441u, 29444u })
     {
         CHECK(game.Find<OnProcHook>(spellId) == NULL);
         CHECK(game.Find<CheckProcHook>(spellId) == NULL);
@@ -914,13 +937,6 @@ TEST(MageScripts_TheProcScriptsKeepTheirEarlyRefusals)
     BareCreature owner;
     HolderStorage storage;
     SpellAuraHolder& holder = EmptyHolder(storage);
-
-    // Magic Absorption: an owner without mana is refused at the dummy effect; the resistance effect is its handler's.
-    owner.SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_RAGE);
-    SpellHandlerOutcome<SpellAuraProcResult> noMana = Proc(registry, owner, 29441, EFFECT_INDEX_0, holder, NULL, PROC_EX_RESIST, 2);
-    CHECK(noMana.IsReturn());
-    CHECK_EQ(int(noMana.GetValue()), int(SPELL_AURA_PROC_FAILED));
-    CHECK(Proc(registry, owner, 29441, EFFECT_INDEX_1, holder, NULL, PROC_EX_RESIST, 0).IsContinue());
 
     // Master of Elements and Arcane Potency: an event with no spell is refused.
     SpellHandlerOutcome<SpellAuraProcResult> noSpell = Proc(registry, owner, 29074, EFFECT_INDEX_0, holder, NULL, PROC_EX_CRITICAL_HIT, 15);
@@ -1100,6 +1116,95 @@ TEST(MageScripts_ArcaneMissilesAurastateFollowsArcaneMissilesBuff)
     AuraApplyContext noCaster(target, NULL, SpellRow(channelRow, 5143), AuraHandle(holder), true);
     CHECK(registry.Dispatch<AuraApplyHook>(5143, noCaster).IsContinue());
     CHECK(target.HasAura(79683));
+}
+
+TEST(MageScripts_ArcaneMissilesAimAtTheUnitTheChannelStartedOn)
+{
+    // The missiles' implicit target 77 is his channel object while Arcane Missiles (5143) is his channel, whatever his
+    // target; a channel object of another channel, one that is no unit, or none, with no channel of 5143 cast, is none.
+    const ObjectGuid camelA(HIGHGUID_UNIT, uint32(50249), uint32(1));
+    const ObjectGuid camelB(HIGHGUID_UNIT, uint32(50249), uint32(2));
+    const ObjectGuid bobber(HIGHGUID_GAMEOBJECT, uint32(35591), uint32(3));
+    BareCreature mage;
+    mage.SetTargetGuid(camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+
+    mage.SetUInt32Value(UNIT_CHANNEL_SPELL, 5143);
+    mage.SetChannelObjectGuid(camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    mage.SetTargetGuid(camelB);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    mage.SetTargetGuid(ObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 47758).IsEmpty());
+
+    mage.SetTargetGuid(camelB);
+    mage.SetChannelObjectGuid(bobber);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+    mage.SetChannelObjectGuid(ObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+}
+
+namespace
+{
+    uint32 const ROW_OWN_TARGET_CHANNEL = 9420017;
+
+    // A channel's Spell.dbc row in the spell store, where a Spell's constructor checks it: only its id and the channel
+    // attribute, so its cast takes the caster's channel slot. Put there once for the rest of the run; no other test
+    // reads it.
+    SpellEntry const* OwnTargetChannelRow()
+    {
+        static SpellRowStorage storage;
+        static bool added = false;
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(storage.bytes);
+        if (!added)
+        {
+            added = true;
+            SpellRow(storage, ROW_OWN_TARGET_CHANNEL);
+            row->AttributesEx = SPELL_ATTR_EX_CHANNELED_1;
+            sSpellStore.SetEntry(ROW_OWN_TARGET_CHANNEL, row);
+        }
+        return row;
+    }
+
+    // A bare creature that a unit guid of its own names.
+    class NamedCreature : public BareCreature
+    {
+        public:
+            explicit NamedCreature(uint32 low)
+            {
+                Object::_Create(low, 50249, HIGHGUID_UNIT);
+            }
+    };
+}
+
+TEST(MageScripts_AChannelWithNoChannelObjectAimsAtItsOwnUnitTarget)
+{
+    // With his channel object empty, as the server leaves it for a channel at himself, the target is the unit target of
+    // the channel he is casting when its id is the one asked for: the Camel it was cast at, or himself for a channel at
+    // himself. A channel with no unit target, another spell's id, and no channel at all give none; a unit in his
+    // channel object for that channel answers first.
+    std::unique_ptr<Spell> channel;
+    NamedCreature mage(1);
+    NamedCreature camel(2);
+    CHECK(!camel.GetObjectGuid().IsEmpty());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL).IsEmpty());
+
+    channel.reset(new Spell(&mage, OwnTargetChannelRow(), false));
+    mage.SetCurrentCastedSpell(channel.get());
+    CHECK(mage.GetCurrentSpell(CURRENT_CHANNELED_SPELL) == channel.get());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL).IsEmpty());
+
+    channel->m_targets.setUnitTarget(&camel);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL) == camel.GetObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+
+    channel->m_targets.setUnitTarget(&mage);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL) == mage.GetObjectGuid());
+
+    mage.SetUInt32Value(UNIT_CHANNEL_SPELL, ROW_OWN_TARGET_CHANNEL);
+    mage.SetChannelObjectGuid(camel.GetObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL) == camel.GetObjectGuid());
 }
 
 TEST(MageScripts_ArcaneBlastBuffEndsOnlyAtTheCastOfAnotherArcaneDamageSpell)
@@ -1526,8 +1631,10 @@ TEST(MageScripts_BlinkKeepsOneTarget)
         CHECK(registry.Find<SelectTargetsHook>(spellId) != NULL);
         CHECK(game.Find<SelectTargetsHook>(spellId) == registry.Find<SelectTargetsHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key),
-             sizeof(BLINK_IDS) / sizeof(uint32) + sizeof(ORB_TARGET_IDS) / sizeof(uint32));
+    // The target hook also holds Piercing Chill's chill (83154).
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), sizeof(BLINK_IDS) / sizeof(uint32) +
+                                                   sizeof(ORB_TARGET_IDS) / sizeof(uint32) +
+                                                   sizeof(RING_FREEZE_IDS) / sizeof(uint32) + 1);
 
     // Blink sets the count the cut after the hook keeps to one and continues, so the cut runs; the list is untouched.
     BareCreature caster;
@@ -1567,7 +1674,9 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
                                                 sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
                                                 sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) +
                                                 sizeof(POLYMORPH_IDS) / sizeof(uint32) +
-                                                sizeof(ICE_BARRIER_IDS) / sizeof(uint32));
+                                                sizeof(ICE_BARRIER_IDS) / sizeof(uint32) +
+                                                sizeof(MANA_SHIELD_BREAK_IDS) / sizeof(uint32) +
+                                                sizeof(RING_FREEZE_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
@@ -1779,6 +1888,110 @@ TEST(MageScripts_AMageWardThatDamageUsesUpBringsBlazingSpeedOnlyWithMoltenShield
     CHECK(registry.Dispatch<AuraRemoveHook>(543, broken).IsContinue());
     CHECK(sSpellStore.LookupEntry(31643) == NULL);
     CHECK(!mage.HasAura(31643));
+}
+
+TEST(MageScripts_IncantersAbsorptionKnocksBackOnlyWhenDamageBreaksAManaShield)
+{
+    // The leaf: a shield that damage used up, of a mage who knows the talent; no other removal, and never without it.
+    CHECK(Mage::IncantersAbsorptionKnocksBack(AURA_REMOVE_BY_SHIELD_BREAK, true));
+    CHECK(!Mage::IncantersAbsorptionKnocksBack(AURA_REMOVE_BY_SHIELD_BREAK, false));
+    AuraRemoveMode const silent[] =
+    {
+        AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEFAULT,
+        AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_TRACKING,
+        AURA_REMOVE_BY_TARGET_LIMIT, AURA_REMOVE_BY_DAMAGE,
+    };
+    for (AuraRemoveMode mode : silent)
+    {
+        CHECK(!Mage::IncantersAbsorptionKnocksBack(mode, true));
+        CHECK(!Mage::IncantersAbsorptionKnocksBack(mode, false));
+    }
+
+    // The script stands for Mana Shield at the aura-remove hook, in the game's table too, beside its proc script, and
+    // lets the removal's boosts run every time. A shield cancelled or run out and a break of a mage who knows neither
+    // rank cast nothing; a break of a mage who holds rank 2 (44395) goes on to the cast of 86261, which the test's
+    // spell store lacks, so nothing is cast.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<AuraRemoveHook>(registry, MANA_SHIELD_BREAK_IDS);
+    CHECK(registry.Find<OnProcHook>(1463) != NULL);
+    BareCreature mage;
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    AuraRemoveContext cancelled(mage, &mage, SpellRow(row, 1463), AuraHandle(holder), AURA_REMOVE_BY_CANCEL);
+    CHECK(registry.Dispatch<AuraRemoveHook>(1463, cancelled).IsContinue());
+    AuraRemoveContext ranOut(mage, &mage, SpellRow(row, 1463), AuraHandle(holder), AURA_REMOVE_BY_EXPIRE);
+    CHECK(registry.Dispatch<AuraRemoveHook>(1463, ranOut).IsContinue());
+    AuraRemoveContext noTalent(mage, &mage, SpellRow(row, 1463), AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
+    CHECK(registry.Dispatch<AuraRemoveHook>(1463, noTalent).IsContinue());
+    HolderStorage talentStorage;
+    mage.HoldAura(44395, EmptyHolder(talentStorage));
+    CHECK(mage.HasAura(44395));
+    AuraRemoveContext broken(mage, &mage, SpellRow(row, 1463), AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
+    CHECK(registry.Dispatch<AuraRemoveHook>(1463, broken).IsContinue());
+    CHECK(sSpellStore.LookupEntry(86261) == NULL);
+    CHECK(!mage.HasAura(86261));
+}
+
+TEST(MageScripts_ImprovedManaGemGivesTheRanksPercentOfMaximumMana)
+{
+    // The leaf: the rank's percent of the maximum mana, truncated; nothing for a percent of 0 or less.
+    CHECK_EQ(Mage::ImprovedManaGemAmount(100000, 2), int32(2000));
+    CHECK_EQ(Mage::ImprovedManaGemAmount(100000, 1), int32(1000));
+    CHECK_EQ(Mage::ImprovedManaGemAmount(99999, 2), int32(1999));
+    CHECK_EQ(Mage::ImprovedManaGemAmount(49, 2), int32(0));
+    CHECK_EQ(Mage::ImprovedManaGemAmount(0, 2), int32(0));
+    CHECK_EQ(Mage::ImprovedManaGemAmount(100000, 0), int32(0));
+    CHECK_EQ(Mage::ImprovedManaGemAmount(100000, -2), int32(0));
+    CHECK_EQ(Mage::ImprovedManaGemAmount(4294967295u, 2), int32(85899345));
+
+    // The script stands for Replenish Mana at the after-cast hook, in the game's table too; the talent's ranks, its
+    // buff and Conjure Mana Gem hold no after-cast row. A Mana Gem's cast by a caster without the talent, and by one
+    // whose rank's holder holds no aura, casts nothing. A smoke case: Energy Cloak's cast and a cast from no item of
+    // that caster cast nothing too, but the rank's empty holder gives a percent of 0 and the test's store holds no
+    // 83098, so these cases cannot tell the item check from none; the next test's leaf and scenario 1106 pin it.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CheckRowsInTheGame<AfterCastHook>(registry, REPLENISH_MANA_IDS);
+    for (uint32 spellId : { 31584u, 31585u, 83098u, 759u })
+    {
+        CHECK(game.Find<AfterCastHook>(spellId) == NULL);
+    }
+    BareCreature caster;
+    SpellRowStorage row;
+    SpellEntry const& replenishMana = SpellRow(row, 5405);
+    AfterCastContext noTalent(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f, 36799);
+    CHECK(registry.Dispatch<AfterCastHook>(5405, noTalent).IsContinue());
+    HolderStorage talentStorage;
+    caster.HoldAura(31585, EmptyHolder(talentStorage));
+    AfterCastContext emptyRank(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f, 36799);
+    CHECK(registry.Dispatch<AfterCastHook>(5405, emptyRank).IsContinue());
+    for (uint32 itemEntry : { 9397u, 0u })
+    {
+        AfterCastContext notAGem(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f, itemEntry);
+        CHECK(registry.Dispatch<AfterCastHook>(5405, notAGem).IsContinue());
+    }
+    CHECK(!caster.HasAura(83098));
+    CHECK_EQ(caster.GetSpellAuraHolderMap().size(), std::size_t(1));
+}
+
+TEST(MageScripts_ImprovedManaGemComesFromTheManaGemsAlone)
+{
+    // "Mana gained from your Mana Gem": the Mana Gem and the six older conjured gems of its cooldown category, the
+    // items of the 15595 client that cast Replenish Mana (5405) besides Energy Cloak.
+    for (uint32 itemEntry : { 36799u, 5514u, 5513u, 8007u, 8008u, 22044u, 33312u })
+    {
+        CHECK(Mage::IsManaGem(itemEntry));
+    }
+
+    // Energy Cloak, a rare cloak whose use casts 5405 too, a cast from no item, a Healthstone (5512) and a Conjured
+    // Mana Strudel (43523), a conjured item that restores mana with another spell.
+    for (uint32 itemEntry : { 9397u, 0u, 5512u, 43523u })
+    {
+        CHECK(!Mage::IsManaGem(itemEntry));
+    }
 }
 
 TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)
@@ -2497,8 +2710,8 @@ TEST(MageScripts_ImprovedFlamestrikesChanceIsTheRanksEffectValue)
 
 TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
 {
-    // Blast Wave holds the after-cast row, in the game's table too; the free Flamestrike and the talent's ranks hold
-    // none.
+    // Blast Wave holds an after-cast row, in the game's table too; the free Flamestrike and the talent's ranks hold
+    // none. The hook's other row is Replenish Mana's.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -2507,7 +2720,7 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
         CHECK(registry.Find<AfterCastHook>(spellId) != NULL);
         CHECK(game.Find<AfterCastHook>(spellId) == registry.Find<AfterCastHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(AfterCastHook::Key), sizeof(BLAST_WAVE_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(AfterCastHook::Key), (sizeof(BLAST_WAVE_IDS) + sizeof(REPLENISH_MANA_IDS)) / sizeof(uint32));
     for (uint32 spellId : { 88148u, 84673u, 84674u, 2120u })
     {
         CHECK(game.Find<AfterCastHook>(spellId) == NULL);
@@ -2528,7 +2741,7 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
     SpellEntry const& blastWave = SpellRow(row, 11113);
 
     // Two enemies hit by a caster without Improved Flamestrike: nothing.
-    AfterCastContext noTalent(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f);
+    AfterCastContext noTalent(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f, 0);
     CHECK(body(noTalent).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
 
@@ -2538,18 +2751,18 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
     caster.HoldAura(84674, EmptyHolder(talentStorage));
     for (uint32 enemies : { 0u, 1u })
     {
-        AfterCastContext few(caster, blastWave, enemies, &aimedAt, true, 10.0f, 20.0f, 5.0f);
+        AfterCastContext few(caster, blastWave, enemies, &aimedAt, true, 10.0f, 20.0f, 5.0f, 0);
         CHECK(body(few).IsContinue());
         CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
     }
-    AfterCastContext pointless(caster, blastWave, 2, NULL, false, 0.0f, 0.0f, 0.0f);
+    AfterCastContext pointless(caster, blastWave, 2, NULL, false, 0.0f, 0.0f, 0.0f, 0);
     CHECK(body(pointless).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
 
     // A smoke case: two enemies hit with rank 2 held and a point runs the chance and the cast of 88148 at the point.
     // The test's store holds no 88148, so the cast ends at its lookup and builds nothing, and this case cannot tell
     // an attempt from none; scenario 980 pins the cast itself. The caster holds only the talent afterwards.
-    AfterCastContext two(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f);
+    AfterCastContext two(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f, 0);
     CHECK(body(two).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
     CHECK_EQ(caster.GetSpellAuraHolderMap().size(), std::size_t(1));
@@ -2893,7 +3106,7 @@ TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(registry.Find<AfterHitHook>(kFrostfireBolt) != NULL);
     CHECK(game.Find<AfterHitHook>(kFrostfireBolt) == registry.Find<AfterHitHook>(kFrostfireBolt));
-    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(3));
 
     // A heal, and a hit on a target that holds no Frostfire Bolt of the caster, change nothing.
     BareCreature caster;
@@ -3655,13 +3868,14 @@ namespace
 
 TEST(MageScripts_TormentTheWeakCountsMovementAttackAndCastSlows)
 {
-    // A negative amount of a movement-speed, an attack-speed or a cast-speed aura, or of one of all haste, counts.
+    // A negative amount of a movement-speed, an attack-speed or a cast-speed aura, or of one of all speeds (all haste,
+    // and the creature slows of all speeds), counts.
     uint32 const slows[] =
     {
         SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE,
         SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED,
         SPELL_AURA_MOD_MELEE_ATTACK_SPEED, SPELL_AURA_MOD_RANGED_ATTACK_SPEED, SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK,
-        SPELL_AURA_HASTE_SPELLS, SPELL_AURA_HASTE_ALL,
+        SPELL_AURA_HASTE_SPELLS, SPELL_AURA_HASTE_ALL, SPELL_AURA_SLOW_ALL,
     };
     for (uint32 type : slows)
     {
@@ -4109,6 +4323,261 @@ TEST(MageScripts_PolymorphsRemovalRunsImprovedPolymorph)
     CHECK(registry.Dispatch<AuraRemoveHook>(118, broken).IsContinue());
     CHECK(!camel.HasAura(83047));
     CHECK(!camel.HasAura(87515));
+}
+
+namespace
+{
+    // Piercing Chill's two ranks (83156, 83157) as the client's data holds them: effect 0 a dummy aura on the caster of
+    // 1 and 2, the other enemies a Frostbolt crit chills. Put into the spell and effect stores once for the rest of the
+    // run; no other test reads them.
+    void AddPiercingChillRanks()
+    {
+        static ServerSpell ranks[2];
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        uint32 const ids[2] = { 83156, 83157 };
+        int32 const others[2] = { 1, 2 };
+        for (std::size_t i = 0; i < 2; ++i)
+        {
+            ranks[i].Entry().ID = ids[i];
+            ranks[i].effect.SpellID = ids[i];
+            ranks[i].effect.EffectIndex = EFFECT_INDEX_0;
+            ranks[i].effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            ranks[i].effect.EffectAura = SPELL_AURA_DUMMY;
+            ranks[i].effect.EffectBasePoints = others[i];
+            ranks[i].effect.ImplicitTarget_0 = TARGET_SELF;
+            sSpellStore.SetEntry(ids[i], &ranks[i].Entry());
+            AddSpellEffectEntry(&ranks[i].effect);
+        }
+    }
+
+    // Places `unit` in map 0's world frame at (x, y, 0), in no world.
+    void PlaceAt(Unit& unit, float x, float y)
+    {
+        unit.Place().EnterFrame(Geometry::Frame::World(0, 0), Geometry::Vector3(x, y, 0.0f), 0.0f);
+    }
+
+    uint32 const FROSTBOLT_AND_CONE_OF_COLD_IDS[] = { 116, 120 };
+    uint32 const PIERCING_CHILL_CHILL_IDS[] = { 83154 };
+}
+
+TEST(MageScripts_PiercingChillsCountIsTheRanksEffectValue)
+{
+    // Rank 1's effect 0 value is 1 and rank 2's 2, as the client's data holds them; the count is read from the store.
+    // Piercing Ice, Frostbolt and no spell are no rank.
+    AddPiercingChillRanks();
+    CHECK_EQ(Mage::PiercingChillCount(83156), int32(1));
+    CHECK_EQ(Mage::PiercingChillCount(83157), int32(2));
+    CHECK_EQ(Mage::PiercingChillCount(11151), int32(0));
+    CHECK_EQ(Mage::PiercingChillCount(116), int32(0));
+    CHECK_EQ(Mage::PiercingChillCount(0), int32(0));
+}
+
+TEST(MageScripts_NearestOthersKeepsTheNearestEnemiesButNeverTheTarget)
+{
+    // A target at the origin and four enemies at 3, 5, 8 and 12 yards from it, listed out of order with the target
+    // among them, as the engine's area fill lists them.
+    BareCreature target;
+    BareCreature at3;
+    BareCreature at5;
+    BareCreature at8;
+    BareCreature at12;
+    PlaceAt(target, 0.0f, 0.0f);
+    PlaceAt(at3, 0.0f, 3.0f);
+    PlaceAt(at5, -5.0f, 0.0f);
+    PlaceAt(at8, 8.0f, 0.0f);
+    PlaceAt(at12, 0.0f, -12.0f);
+    auto filled = [&]()
+    {
+        std::list<Unit*> list;
+        list.push_back(&at8);
+        list.push_back(&target);
+        list.push_back(&at12);
+        list.push_back(&at5);
+        list.push_back(&at3);
+        return list;
+    };
+
+    // Rank 1: the one at 3 yards. Rank 2: the ones at 3 and 5 yards, nearest first.
+    std::list<Unit*> one = filled();
+    Mage::NearestOthers(one, &target, target, 1);
+    CHECK_EQ(one.size(), std::size_t(1));
+    CHECK(one.front() == &at3);
+    std::list<Unit*> two = filled();
+    Mage::NearestOthers(two, &target, target, 2);
+    CHECK_EQ(two.size(), std::size_t(2));
+    CHECK(two.front() == &at3);
+    CHECK(two.back() == &at5);
+
+    // A count above the others leaves every other, the target never among them; a count of 0 empties the list.
+    std::list<Unit*> all = filled();
+    Mage::NearestOthers(all, &target, target, 9);
+    CHECK_EQ(all.size(), std::size_t(4));
+    CHECK(std::find(all.begin(), all.end(), &target) == all.end());
+    CHECK(all.back() == &at12);
+    std::list<Unit*> none = filled();
+    Mage::NearestOthers(none, &target, target, 0);
+    CHECK(none.empty());
+
+    // The target alone, and a unit listed twice: nothing is left of the first, and the second counts once.
+    std::list<Unit*> alone(1, &target);
+    Mage::NearestOthers(alone, &target, target, 2);
+    CHECK(alone.empty());
+    std::list<Unit*> twice;
+    twice.push_back(&at5);
+    twice.push_back(&at5);
+    twice.push_back(&at8);
+    Mage::NearestOthers(twice, &target, target, 2);
+    CHECK_EQ(twice.size(), std::size_t(2));
+    CHECK(twice.front() == &at5);
+    CHECK(twice.back() == &at8);
+}
+
+TEST(MageScripts_PiercingChillsChillKeepsTheCastsTargetAloneAndMakesTheListFinal)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<SelectTargetsHook>(registry, PIERCING_CHILL_CHILL_IDS);
+    BareCreature mage;
+    BareCreature chilled;
+    BareCreature beside;
+    BareCreature frostboltTarget;
+    SpellRowStorage row;
+
+    // Both of the chill's effects: the cast's target is kept once, every other unit the engine found leaves, the cut
+    // count is untouched and the list is final.
+    for (SpellEffectIndex eff : { EFFECT_INDEX_0, EFFECT_INDEX_2 })
+    {
+        std::list<Unit*> targets;
+        targets.push_back(&beside);
+        targets.push_back(&chilled);
+        targets.push_back(&frostboltTarget);
+        targets.push_back(&chilled);
+        uint32 maxTargets = 0;
+        SelectTargetsContext ctx(mage, SpellRow(row, 83154), eff, TARGET_ALL_ENEMY_IN_AREA_INSTANT, targets, maxTargets,
+                                 &chilled);
+        CHECK(registry.Dispatch<SelectTargetsHook>(83154, ctx).IsReturn());
+        CHECK_EQ(targets.size(), std::size_t(1));
+        CHECK(targets.front() == &chilled);
+        CHECK_EQ(maxTargets, uint32(0));
+    }
+
+    // A cast with no unit target, and one whose target the engine did not find: nothing is left.
+    std::list<Unit*> noTarget;
+    noTarget.push_back(&beside);
+    uint32 maxTargets = 0;
+    SelectTargetsContext untargeted(mage, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
+                                    noTarget, maxTargets);
+    CHECK(registry.Dispatch<SelectTargetsHook>(83154, untargeted).IsReturn());
+    CHECK(noTarget.empty());
+    std::list<Unit*> notFound;
+    notFound.push_back(&beside);
+    SelectTargetsContext missing(mage, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
+                                 notFound, maxTargets, &chilled);
+    CHECK(registry.Dispatch<SelectTargetsHook>(83154, missing).IsReturn());
+    CHECK(notFound.empty());
+}
+
+TEST(MageScripts_FrostboltChillsNothingWithoutACritTheTalentOrAnEnemyInReach)
+{
+    // Frostbolt and Cone of Cold hold one body each at the after-hit hook, on this table and the game's.
+    AddPiercingChillRanks();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<AfterHitHook>(registry, FROSTBOLT_AND_CONE_OF_COLD_IDS);
+    CHECK(registry.Find<AfterHitHook>(116) != registry.Find<AfterHitHook>(120));
+    SpellRowStorage row;
+    BareCreature mage;
+    BareCreature target;
+
+    // A hit that is no crit and a heal: nothing is tried. A crit with no rank of the talent: nothing is tried.
+    AfterHitContext plain(mage, target, SpellRow(row, 116), 1000, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(116, plain).IsContinue());
+    AfterHitContext heal(mage, target, SpellRow(row, 116), 1000, true, 0, 0, true);
+    CHECK(registry.Dispatch<AfterHitHook>(116, heal).IsContinue());
+    AfterHitContext untalented(mage, target, SpellRow(row, 116), 1000, true, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(116, untalented).IsContinue());
+
+    // A crit of a mage with rank 2 at a target in no world: no enemy is found around it, so nothing is cast and the
+    // target holds nothing.
+    HolderStorage talentStorage;
+    mage.HoldAura(83157, EmptyHolder(talentStorage));
+    CHECK(mage.HasAura(83157));
+    AfterHitContext crit(mage, target, SpellRow(row, 116), 1000, true, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(116, crit).IsContinue());
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(MageScripts_PermafrostHealsTheRanksPercentOfTheHitTruncated)
+{
+    CHECK_EQ(Mage::PermafrostHeal(800, 15), int32(120));
+    CHECK_EQ(Mage::PermafrostHeal(800, 10), int32(80));
+    CHECK_EQ(Mage::PermafrostHeal(800, 5), int32(40));
+    CHECK_EQ(Mage::PermafrostHeal(801, 15), int32(120));
+    CHECK_EQ(Mage::PermafrostHeal(806, 15), int32(120));
+    CHECK_EQ(Mage::PermafrostHeal(807, 15), int32(121));
+    CHECK_EQ(Mage::PermafrostHeal(800, 0), int32(0));
+    CHECK_EQ(Mage::PermafrostHeal(800, -5), int32(0));
+    CHECK_EQ(Mage::PermafrostHeal(0, 15), int32(0));
+    CHECK_EQ(Mage::PermafrostHeal(4000000000u, 15), int32(600000000));
+}
+
+TEST(MageScripts_PermafrostsProcHealsNothingWithoutAPetAndLeavesItsModifiersAlone)
+{
+    // The three ranks share one body at the proc hook. Effect 1 of rank 3, a flat modifier, is its handler's; the dummy
+    // effect of a mage with no pet fails with nothing cast.
+    AddProcEffectRows();
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CHECK(OneProcBody(registry, PERMAFROST_IDS) != NULL);
+    BareCreature owner;
+    BareCreature victim;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    CHECK(Proc(registry, owner, 12571, EFFECT_INDEX_1, holder, NULL, PROC_EX_NORMAL_HIT, -10, &victim, 800)
+              .IsContinue());
+    SpellHandlerOutcome<SpellAuraProcResult> noPet =
+        Proc(registry, owner, 12571, EFFECT_INDEX_0, holder, NULL, PROC_EX_NORMAL_HIT, 15, &victim, 800);
+    CHECK(noPet.IsReturn());
+    CHECK_EQ(int(noPet.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    CHECK(owner.GetPet() == NULL);
+}
+
+TEST(MageScripts_ImprovedConeOfColdsFreezeIsTheRanksOwn)
+{
+    CHECK_EQ(Mage::ImprovedConeOfColdFreeze(11190), uint32(83301));
+    CHECK_EQ(Mage::ImprovedConeOfColdFreeze(12489), uint32(83302));
+    CHECK_EQ(Mage::ImprovedConeOfColdFreeze(120), uint32(0));
+    CHECK_EQ(Mage::ImprovedConeOfColdFreeze(83301), uint32(0));
+    CHECK_EQ(Mage::ImprovedConeOfColdFreeze(0), uint32(0));
+}
+
+TEST(MageScripts_ConeOfColdFreezesNothingForAHealOrWithoutTheTalent)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellRowStorage row;
+    BareCreature mage;
+    BareCreature target;
+
+    // A heal, and a hit of a mage with no rank of the talent: nothing is cast, and the target holds nothing.
+    AfterHitContext heal(mage, target, SpellRow(row, 120), 900, false, 0, 0, true);
+    CHECK(registry.Dispatch<AfterHitHook>(120, heal).IsContinue());
+    AfterHitContext untalented(mage, target, SpellRow(row, 120), 900, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(120, untalented).IsContinue());
+    CHECK(target.GetSpellAuraHolderMap().empty());
+
+    // Rank 2 with its freeze not in the spell store: nothing is cast.
+    CHECK(sSpellStore.LookupEntry(83302) == NULL);
+    HolderStorage talentStorage;
+    mage.HoldAura(12489, EmptyHolder(talentStorage));
+    AfterHitContext talented(mage, target, SpellRow(row, 120), 900, true, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(120, talented).IsContinue());
+    CHECK(target.GetSpellAuraHolderMap().empty());
 }
 
 TEST(MageScripts_AFrostboltCastStartsTheLockoutOfTheRankTheMageKnowsUnlessOneIsUp)

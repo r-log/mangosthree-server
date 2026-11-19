@@ -636,10 +636,14 @@ class  SingleEnemyTargetAura : public Aura
     public:
         ~SingleEnemyTargetAura();
         Unit* GetTriggerTarget() const override;
+        /// The unit `caster`'s channel of `channelSpellId` started on, which a trigger of implicit target 77 aims at:
+        /// his channel object while that channel is his and the object is a unit, else the unit target of that channel
+        /// while he casts it; an empty guid when neither names a unit. Never his selection.
+        static ObjectGuid ChannelTargetOf(Unit const& caster, uint32 channelSpellId);
 
     protected:
         SingleEnemyTargetAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster  = NULL, Item* castItem = NULL);
-        ObjectGuid m_castersTargetGuid;
+        ObjectGuid m_channelTargetGuid;
 };
 
 /**
