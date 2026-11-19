@@ -24,11 +24,47 @@
  */
 
 #include "spells/SpellScriptHooks.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
+#include "CellImpl.h"
 
 #include <ctime>
 
 namespace
 {
+    /// A unit an area spell of `caster` that strikes enemies takes within `radius` yards of `center`, as the area
+    /// fill of SPELL_TARGETS_AOE_DAMAGE takes it around a point: alive and attackable, in the caster's phase, no
+    /// totem, not friendly to a player-controlled caster (hostile to any other), and within the radius.
+    class AreaEnemyCheck
+    {
+        public:
+            AreaEnemyCheck(Unit const& caster, Unit const& center, float radius)
+                : m_caster(caster), m_center(center), m_radius(radius),
+                  m_playerControlled(caster.IsControlledByPlayer()) {}
+
+            WorldObject const& GetFocusObject() const { return m_center; }
+
+            bool operator()(Unit* u)
+            {
+                if (!u->IsTargetableForAttack() || !u->Where().ShareFrame(m_caster.Where()) || u->IsTotem())
+                {
+                    return false;
+                }
+                if (m_playerControlled ? m_caster.IsFriendlyTo(u) : !m_caster.IsHostileTo(u))
+                {
+                    return false;
+                }
+                Geometry::Placement const& center = m_center.Where();
+                return u->Where().WithinDist(Geometry::Vector3(center.X(), center.Y(), center.Z()), m_radius);
+            }
+
+        private:
+            Unit const& m_caster;
+            Unit const& m_center;
+            float m_radius;
+            bool m_playerControlled;
+    };
+
     /// `from` casts `spellId` at `to`, triggered; a non-zero entry of `basePoints` replaces that effect's value.
     void CastTriggeredSpell(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints, Item* castItem,
                             Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy)
@@ -61,6 +97,45 @@ void DummyEffectContext::RemoveAura(Unit& from, uint32 spellId)
 void AfterHitContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
 {
     CastTriggeredSpell(caster, to, spellId, basePoints, NULL, NULL, ObjectGuid(), &spell);
+}
+
+bool AfterHitContext::CastTriggeredByAura(Unit& to, uint32 spellId, uint32 auraSpellId, SpellEffectIndex auraEffect)
+{
+    Aura* aura = caster.GetAura(auraSpellId, auraEffect);
+    if (!aura)
+    {
+        return false;
+    }
+    CastTriggeredSpell(caster, to, spellId, NULL, NULL, aura, ObjectGuid(), NULL);
+    return true;
+}
+
+void AfterHitContext::CastTriggeredFrom(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints)
+{
+    CastTriggeredSpell(from, to, spellId, basePoints, NULL, NULL, caster.GetObjectGuid(), &spell);
+}
+
+void AfterHitContext::EnemiesAround(Unit const& center, float radius, std::list<Unit*>& out) const
+{
+    out.clear();
+    if (!center.IsInWorld())
+    {
+        return;
+    }
+    AreaEnemyCheck check(caster, center, radius);
+    MaNGOS::UnitListSearcher<AreaEnemyCheck> searcher(out, check);
+    Cell::VisitAllObjects(&center, searcher, radius);
+    for (std::list<Unit*>::iterator i = out.begin(); i != out.end();)
+    {
+        if (!HasLineOfSight(**i, caster))
+        {
+            i = out.erase(i);
+        }
+        else
+        {
+            ++i;
+        }
+    }
 }
 
 void AfterHitContext::RemoveAura(Unit& from, uint32 spellId)

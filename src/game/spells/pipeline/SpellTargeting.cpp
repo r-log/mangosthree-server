@@ -1662,7 +1662,8 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             break;
     }
 
-    SelectTargetsContext selectTargetsCtx(*m_caster, *m_spellInfo, effIndex, targetMode, targetUnitMap, unMaxTargets);
+    SelectTargetsContext selectTargetsCtx(*m_caster, *m_spellInfo, effIndex, targetMode, targetUnitMap, unMaxTargets,
+                                          m_targets.getUnitTarget());
     bool const targetsFinal = SpellHandlerRegistry::Game().Dispatch<SelectTargetsHook>(m_spellInfo->ID, selectTargetsCtx).IsReturn();
 
     // remove caster from the list if required by attribute
