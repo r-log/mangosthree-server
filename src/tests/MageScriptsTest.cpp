@@ -3719,13 +3719,14 @@ namespace
 
 TEST(MageScripts_TormentTheWeakCountsMovementAttackAndCastSlows)
 {
-    // A negative amount of a movement-speed, an attack-speed or a cast-speed aura, or of one of all haste, counts.
+    // A negative amount of a movement-speed, an attack-speed or a cast-speed aura, or of one of all speeds (all haste,
+    // and the creature slows of all speeds), counts.
     uint32 const slows[] =
     {
         SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE,
         SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED,
         SPELL_AURA_MOD_MELEE_ATTACK_SPEED, SPELL_AURA_MOD_RANGED_ATTACK_SPEED, SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK,
-        SPELL_AURA_HASTE_SPELLS, SPELL_AURA_HASTE_ALL,
+        SPELL_AURA_HASTE_SPELLS, SPELL_AURA_HASTE_ALL, SPELL_AURA_SLOW_ALL,
     };
     for (uint32 type : slows)
     {

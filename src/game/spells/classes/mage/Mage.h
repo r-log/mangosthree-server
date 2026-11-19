@@ -297,7 +297,8 @@ namespace Mage
     /// (SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE,
     /// SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED, SPELL_AURA_MOD_MELEE_ATTACK_SPEED and
     /// SPELL_AURA_MOD_RANGED_ATTACK_SPEED), of a cast-speed aura (SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK and
-    /// SPELL_AURA_HASTE_SPELLS) or of SPELL_AURA_HASTE_ALL. Defined in Arcane.cpp.
+    /// SPELL_AURA_HASTE_SPELLS) or of an aura of all speeds (SPELL_AURA_HASTE_ALL and SPELL_AURA_SLOW_ALL). Defined in
+    /// Arcane.cpp.
     bool CountsAsSlow(uint32 auraType, int32 amount);
 
     /// Whether `unit` holds an aura that CountsAsSlow: the most negative amount of each of those aura types on it.
