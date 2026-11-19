@@ -17293,13 +17293,14 @@ namespace Harness
 
     /**
      * S1016 `mage-frost-reactive-barrier`: Reactive Barrier (86304, rank 2 of 2, its proc at 100%) on a staged Frost
-     * mage: Piercing Ice 1, then Ice Barrier (11426) and the talent's second rank learned as spells. A hit he takes
-     * that leaves him alive and below half his maximum health, his health before it less its damage after his
-     * absorbs, a hit an absorb takes whole while he is below half included, casts on him the free Ice Barrier buff
-     * (86347) and then Ice Barrier, triggered: no mana, its cooldown and its category's started, the buff spent. No
-     * crossing of half his health is asked for. Once staged he holds Hit Me (100446) as the GM aura command puts it,
-     * so every swing of the Camel at him lands, and his mana is set to its maximum. Steps, each a swing of the Camel
-     * at him with his health set first to the step's share of his maximum unless named:
+     * mage: Piercing Ice 1, then Ice Barrier (11426) and the talent's second rank learned as spells, and kSpellPower
+     * spell power, so the barrier step 2 casts takes the swings of steps 3 and 5 whole. A hit he takes that leaves him
+     * alive and below half his maximum health, his health before it less its damage after his absorbs, a hit an absorb
+     * takes whole while he is below half included, casts on him the free Ice Barrier buff (86347) and then Ice Barrier,
+     * triggered: no mana, its cooldown and its category's started, the buff spent. No crossing of half his health is
+     * asked for. Once staged he holds Hit Me (100446) as the GM aura command puts it, so every swing of the Camel at
+     * him lands, and his mana is set to its maximum. Steps, each a swing of the Camel at him with his health set first
+     * to the step's share of his maximum unless named:
      *  1. at full health; 2. at 50.5%;
      *  3. at 40%: step 2's barrier takes the swing whole while its cooldown runs;
      *  4. a wait, at which Ice Barrier's cooldown is taken off him by call (the stepped clock never runs it out);
@@ -17324,6 +17325,7 @@ namespace Harness
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override { return { { kPiercingIceTalent, 0 } }; }
         std::vector<uint32> Spells() const override { return { kIceBarrier, kReactiveBarrierTwo }; }
+        int32 SpellPower() const override { return kSpellPower; }
         uint32 Watched() const override { return kIceBarrier; }
 
         void AfterStage(Player& p) override
@@ -17438,6 +17440,7 @@ namespace Harness
         static constexpr uint32 kReactiveBarrierTwo = 86304;
         static constexpr uint32 kReactiveBuff = 86347;
         static constexpr uint32 kHitMe = 100446;
+        static constexpr int32 kSpellPower = 10000;
         static constexpr uint32 kFull = 1000;
         static constexpr uint32 kJustAboveHalf = 505;
         static constexpr uint32 kBelowHalf = 400;
