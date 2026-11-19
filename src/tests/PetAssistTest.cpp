@@ -194,15 +194,15 @@ TEST(PetBar_TheStanceButtonsAreAssistDefensiveAndPassive)
     // A fresh bar: Assist (3), Defensive (1) and Passive (0), each a reaction button (6).
     CharmInfo fresh(NULL);
     fresh.InitPetActionBar();
-    CHECK_EQ(Stances(fresh), std::string("3:6 1:6 0:6"));
+    CHECK_STR(Stances(fresh), "3:6 1:6 0:6");
 
     // A saved bar's Aggressive button (2) loads as the Assist button; its other stance buttons stay.
     CharmInfo saved(NULL);
     saved.LoadPetActionBar("7 2 7 1 7 0 129 0 129 0 129 0 129 0 6 2 6 1 6 0");
-    CHECK_EQ(Stances(saved), std::string("3:6 1:6 0:6"));
+    CHECK_STR(Stances(saved), "3:6 1:6 0:6");
 
     // A saved bar of another length is not read: the fresh bar stays.
     CharmInfo shortBar(NULL);
     shortBar.LoadPetActionBar("7 2 7 1");
-    CHECK_EQ(Stances(shortBar), std::string("3:6 1:6 0:6"));
+    CHECK_STR(Stances(shortBar), "3:6 1:6 0:6");
 }
