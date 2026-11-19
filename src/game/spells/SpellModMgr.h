@@ -38,7 +38,8 @@ struct ClassFamilyMask;
 /// One spell modifier on a list: the aura it comes from (an identity for the removal, never
 /// dereferenced), whether it is flat or a percentage, its amount (with its fraction) and its spell
 /// class mask by address (read at each use, so a change to either while it is listed is seen), the
-/// modifier operation, the spell family it applies to, and whether the aura's spell is a mastery.
+/// modifier operation, the spell family it applies to, whether the aura's spell is a mastery, and
+/// the aura's spell and effect index, which name the modifier once its aura is gone (0 names none).
 struct SpellModEntry
 {
     Aura const* aura;
@@ -48,7 +49,26 @@ struct SpellModEntry
     uint32 family;
     ClassFamilyMask const* mask;
     bool mastery;
+    uint32 spellId;
+    uint8 effIndex;
 };
+
+/// A spell modifier a spell keeps for its own hits after the modifier left the list: the values of
+/// its list entry when it left, the amount and the class mask copied.
+struct KeptSpellMod
+{
+    uint32 spellId;
+    uint8 effIndex;
+    bool flat;
+    float amount;
+    int32 op;
+    uint32 family;
+    uint64 maskFlags;
+    uint32 maskFlags2;
+    bool mastery;
+};
+
+typedef std::vector<KeptSpellMod> KeptSpellMods;
 
 /// One effect bit of a modifier's class mask and the sum the client is told for it.
 struct SpellModValue
@@ -84,17 +104,68 @@ typedef std::function<void(SpellModChangedFact const& fact)> SpellModChangedSink
  * is handed; an empty sink fails an assertion. ApplySpellMod applies the listed modifiers of an
  * operation that fit a spell to a value in place and returns the difference; with `masteryOnly`,
  * only those whose aura's spell is a mastery. The spell store is the one global it reads.
+ *
+ * A spell keeps the modifiers its cast end takes off the list: while a KeepScope lives, a removal
+ * copies each removed modifier that fits the scope's spell and has an operation the spell reads
+ * after its cast (ReadAfterTheCast) into the scope's list; while a KeptScope lives, ApplySpellMod
+ * for the scope's spell applies that list as well, in place of any listed modifier of the same aura
+ * spell and effect index.
  */
 class SpellModMgr
 {
     public:
+        /// While it lives, the manager copies into `into` (emptied first) each modifier a removal
+        /// takes off its list that spell `spellId` keeps (ReadAfterTheCast, its family and class
+        /// mask), with its amount as it is then; the keeping before it comes back at its end. A
+        /// null manager keeps nothing.
+        class KeepScope
+        {
+            public:
+                KeepScope(SpellModMgr* mgr, uint32 spellId, KeptSpellMods& into);
+                ~KeepScope();
+
+            private:
+                KeepScope(KeepScope const&) = delete;
+                KeepScope& operator=(KeepScope const&) = delete;
+
+                SpellModMgr* m_mgr;
+                uint32 m_previousSpell;
+                KeptSpellMods* m_previousInto;
+        };
+
+        /// While it lives, ApplySpellMod for spell `spellId` also applies `kept`; the use before it
+        /// comes back at its end. A null manager does nothing.
+        class KeptScope
+        {
+            public:
+                KeptScope(SpellModMgr* mgr, uint32 spellId, KeptSpellMods const& kept);
+                ~KeptScope();
+
+            private:
+                KeptScope(KeptScope const&) = delete;
+                KeptScope& operator=(KeptScope const&) = delete;
+
+                SpellModMgr* m_mgr;
+                uint32 m_previousSpell;
+                KeptSpellMods const* m_previousKept;
+        };
+
         void Change(SpellModEntry const& entry, bool apply, SpellModChangedSink const& report);
         template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, bool masteryOnly = false);
         /// Forgets every modifier without telling the client, for a unit whose auras were deleted.
         void Clear();
+        /// Whether a spell reads operation `op` after its cast has ended: at its hits, on each target,
+        /// or on the auras its hits make, whose periodic amounts are fixed there.
+        static bool ReadAfterTheCast(int32 op);
 
     private:
+        void KeepRemoved(Aura const* aura, int32 op);
+
         std::list<SpellModEntry> m_mods[MAX_SPELLMOD];
+        uint32 m_keepSpell = 0;
+        KeptSpellMods* m_keepInto = NULL;
+        uint32 m_keptSpell = 0;
+        KeptSpellMods const* m_kept = NULL;
 };
 
 #endif

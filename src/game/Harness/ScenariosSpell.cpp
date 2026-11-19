@@ -182,9 +182,9 @@
 // nothing and marks nothing.
 // 1102 a staged Arcane mage's damaging hits give Clearcasting at most once in 15 s, his helpful spells and another
 // class's spell none; Clearcasting makes an Arcane Blast free; Clearcasting and Presence of Mind each give Arcane
-// Potency's two charges, one taken by each Arcane Blast or Arcane Explosion cast and none by Arcane Missiles; Presence
-// of Mind makes an Arcane Blast instant and refuses Arcane Power and is refused by it; Arcane Missiles! cast during the
-// channel stays through its missiles.
+// Potency's two charges, one taken by each Arcane Blast or Arcane Explosion cast and none by Arcane Missiles, and both
+// Arcane Blasts that take one hit with its crit chance; Presence of Mind makes an Arcane Blast instant and refuses
+// Arcane Power and is refused by it; Arcane Missiles! cast during the channel stays through its missiles.
 // 1107 a staged Arcane mage with Improved Blink gets its speed from Blink and not from Arcane Brilliance or Mage Armor.
 // The guard of 931-938, 941-978, 980-996, 998-1000, 1010, 1025-1028, 1100-1105 and 1107 (Qualify) fingerprints
 // every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script
@@ -4089,7 +4089,8 @@ namespace Harness
      * added as for a cast; a swing's `hit` when his health fell, else `swing`; a blow's `blow`; a health step's
      * `full`; a Camel health step's `health` and its percent; a kill's `kill`; a removal's `dispel` or `remove`), a
      * BUG when a step was refused or not read, a cast's crit flag is not the step's or an aura cast missed, but not
-     * for a cast whose refusal the step wants (`refusal`), which the scenario's own category judges;
+     * for a cast whose refusal the step wants (`refusal`), which the scenario's own category judges, nor for the crit
+     * flag of a cast that may crit or not (`critAllowed`), which it judges too;
      * `triggered` the spells of the SPELL_GO packets in each step's windows other than the step's own, the crit
      * aura's and the caster aura's, which are what his procs and the auras cast; the scenario's own category;
      * `noPersistence`; `digest`.
@@ -4287,6 +4288,7 @@ namespace Harness
             bool swing = false;
             uint32 spell = 0;
             bool crit = false;                  ///< a cast that must crit; one that must not when false
+            bool critAllowed = false;           ///< a cast that may crit or not: the steps check leaves its crit to the own category
             bool aura = false;                  ///< a cast whose spell applies an aura and sends no damage log of its own
             bool remove = false;                ///< the removal of `spell`'s holder from the Camel
             AuraRemoveMode mode = AURA_REMOVE_BY_DEFAULT;   ///< a removal's mode: AURA_REMOVE_BY_DISPEL, or the plain call's
@@ -5517,7 +5519,9 @@ namespace Harness
                 {
                     value = spellText + (seen.missed ? "miss" : "none");
                 }
-                const bool castBug = step.aura ? seen.missed && !step.refusal : (step.refusal || step.petCast) ? false : (!seen.logRead || seen.crit != step.crit);
+                const bool castBug = step.aura ? seen.missed && !step.refusal
+                                     : (step.refusal || step.petCast) ? false
+                                     : !seen.logRead || (!step.critAllowed && seen.crit != step.crit);
                 const bool bug = !seen.ran || seen.refused || !seen.read || (IsCast(step) && castBug);
                 if (bug && stepsBug.empty())
                 {
@@ -17463,7 +17467,8 @@ namespace Harness
      * spell never roll it. Clearcasting takes the mana cost off his next damage spell. Arcane Potency casts its buff,
      * two charges of +15% critical strike chance, when he gains Clearcasting or casts Presence of Mind, a new gain
      * setting it back to two; each cast of a damage spell the buff names, Arcane Blast (30451) and Arcane Explosion
-     * (1449) here, takes one charge however many targets it hits, and Arcane Missiles (5143) takes none. Presence of
+     * (1449) here, takes one charge however many targets it hits, and Arcane Missiles (5143) takes none; a cast keeps
+     * the crit chance of the charge it takes for its own hits, after the buff is gone too. Presence of
      * Mind makes his next Arcane Blast instant and is kept by Arcane Explosion and Arcane Missiles; it and Arcane Power
      * (12042) refuse each other. Arcane Missiles! (79683) is used up by the Arcane Missiles cast and by no missile
      * (7268). Staged with Arcane Concentration 3, the first talent, so the stage learns the Arcane tree's spells;
@@ -17487,7 +17492,11 @@ namespace Harness
      *  5. a wait: kCalls harmful-spell hit procs of Arcane Blast at the first Camel for kDamage damage each, his
      *     Clearcasting and his cooldown of it read after each; then Arcane Concentration taken off him, so no later hit
      *     rolls it, and the cooldown taken off;
-     *  6-8. Arcane Blast three times, his Arcane Blast buff (36032) taken off him at each read;
+     *  6-8. Arcane Blast three times, steps whose crits the steps check leaves to `crits`: right after each acts, once
+     *     the crit chance below is read, the amount of 57531's modifier raised by call to kForcedCrit while he holds
+     *     it, so under the crit aura at -100 the Arcane Blast's hit crits when it takes that modifier and never when it
+     *     does not; at each read his Arcane Blast buff (36032) taken off him, 57531's amount put back while he holds
+     *     it, and the first Camel's health set to its maximum by call;
      *  9. Presence of Mind, its cooldown taken off first, as at every Presence of Mind and Arcane Power step;
      * 10. Arcane Explosion;
      * 11. Arcane Missiles! cast by him at himself, triggered;
@@ -17507,15 +17516,17 @@ namespace Harness
      * before that call, else 0>/<its seconds left after the calls, -1 for none>,potency=<SMSG_AURA_UPDATE packets in
      * step 5's windows that put 57531 on him at its two charges>@<charges at its read>,free=<step 6's Arcane Blast's
      * own cost>/<12536 at its read>,blasts=<for steps 6, 7 and 8: the crit chance added, `:`, the charges at the
-     * read>,pom=<charges at step 9's read>,explosion=<step 10's damage logs>:<charges>:<12043 at its
+     * read>,crits=<for steps 6, 7 and 8: 1 when the step's Arcane Blast damage log is a crit, 0 when not, -1 with
+     * none>,held=<for steps 6 and 7: whether 57531 stood on him when the Arcane Blast's damage log came: `kept` when
+     * the client saw no slot of it cleared in the step's windows, `cast` when the clear came before the damage log,
+     * `hit` when after it>,pom=<charges at step 9's read>,explosion=<step 10's damage logs>:<charges>:<12043 at its
      * read>,missiles=<79683 at step 12's read, before the new one>/<79683 at step 14's
      * read>:<charges>:<12043>,again=<charges at step 15's read>,instant=<step 16's cast time>/<12043 at its
      * read>:<charges>,refusals=<step 18's cast result>/<step 21's>,pomAfter=<12043 at step 20's read>:<charges>`.
      * OK at `positive=0+0+0,other=0,mage=1/40@<any call>,cooldown=0/15,potency=1@2,free=0/0,blasts=15:1,15:0,0:0,
-     * pom=2,explosion=5:1:1,missiles=0/1:1:1,again=2,instant=0/0:1,refusals=CASTER_AURASTATE/CASTER_AURASTATE,
-     * pomAfter=1:2`. Recorded, not judged: `held=<steps 6 and 7>`, whether 57531 stood on him when the Arcane Blast's
-     * damage log came: `kept` when the client saw no slot of it cleared in the step's windows, `cast` when the clear
-     * came before the damage log, `hit` when after it.
+     * crits=1,1,0,held=kept/cast,pom=2,explosion=5:1:1,missiles=0/1:1:1,again=2,instant=0/0:1,
+     * refusals=CASTER_AURASTATE/CASTER_AURASTATE,pomAfter=1:2`: the charge is still taken at each Arcane Blast's cast
+     * end (`held`), and the second Arcane Blast's hit still takes the crit chance of the last one (`crits`).
      */
     class MageArcaneClearcasting : public MageProcScenario
     {
@@ -17558,6 +17569,8 @@ namespace Harness
         std::vector<Step> Steps() const override
         {
             const Step blast = Cast(kArcaneBlast, false);
+            Step forcedBlast = blast;
+            forcedBlast.critAllowed = true;
             Step presence = AuraCast(kPresenceOfMind, 0);
             presence.clearCooldown = true;
             Step power = AuraCast(kArcanePower, 0);
@@ -17566,8 +17579,8 @@ namespace Harness
             presenceRefused.refusal = true;
             Step powerRefused = power;
             powerRefused.refusal = true;
-            return { SelfAura(kArcaneBrilliance), AuraCast(kMageArmor, 0), Wait(kWaitMs), Wait(kWaitMs), Wait(kWaitMs), blast,
-                     blast, blast, presence, Cast(kArcaneExplosion, false), SelfAura(kMissilesBuff), AuraCast(kArcaneMissiles, 0),
+            return { SelfAura(kArcaneBrilliance), AuraCast(kMageArmor, 0), Wait(kWaitMs), Wait(kWaitMs), Wait(kWaitMs), forcedBlast,
+                     forcedBlast, forcedBlast, presence, Cast(kArcaneExplosion, false), SelfAura(kMissilesBuff), AuraCast(kArcaneMissiles, 0),
                      Wait(kSettleMs), Wait(kWaitMs), presence, blast, power, presenceRefused, SelfRemoval(kArcanePower, kWaitMs),
                      presence, powerRefused };
         }
@@ -17649,6 +17662,19 @@ namespace Harness
                 p->RemoveAurasDueToSpell(kBlastBuff);
                 m_rec.Note("his " + U(kBlastBuff) + (held ? " taken off" : " was not on him"));
             }
+            if (IsBlastStep(k))
+            {
+                if (Aura* potency = PotencyModifier(p))
+                {
+                    potency->SetModifierValue(m_potencyAmount);
+                    m_rec.Note(U(kPotencyBuff) + "'s crit chance put back by call: " + Amount(potency->ModifierValue()));
+                }
+                if (target)
+                {
+                    target->SetHealth(target->GetMaxHealth());
+                    m_rec.Note("the first Camel's health set to its maximum by call: " + U(target->GetHealth()));
+                }
+            }
             if (k == kMissilesStep)
             {
                 p->CastSpell(p, kMissilesBuff, true);
@@ -17692,18 +17718,26 @@ namespace Harness
             const std::string refusals = CastResultName(CastFailedResult(kPresenceRefusedStep, kPresenceOfMind)) + "/" +
                                          CastResultName(CastFailedResult(kPowerRefusedStep, kArcanePower));
             const std::string pomAfter = Num(Kept(st, kPresenceLastStep, "presence")) + ":" + Num(Kept(st, kPresenceLastStep, "charges"));
+            std::string crits;
+            for (uint32 n = 0; n < kBlastCount; ++n)
+            {
+                const std::vector<std::string> hits = HitAmounts(kBlasts[n], kArcaneBlast);
+                crits += std::string(n ? "," : "") + (hits.empty() ? "-1" : hits[0].back() == 'c' ? "1" : "0");
+            }
             const std::string held = BuffClearOrder(kBlasts[0]) + "/" + BuffClearOrder(kBlasts[1]);
 
             const std::string value = "positive=" + positive + ",other=" + U(other) + ",mage=" + U(mage) + "/" + U(kCalls) + "@" +
                                       Num(Kept(st, kMageStep, "first")) + ",cooldown=" + cooldown + ",potency=" + potency + ",free=" + free +
-                                      ",blasts=" + blasts + ",pom=" + pom + ",explosion=" + explosion + ",missiles=" + missiles +
-                                      ",again=" + again + ",instant=" + instant + ",refusals=" + refusals + ",pomAfter=" + pomAfter;
+                                      ",blasts=" + blasts + ",crits=" + crits + ",held=" + held + ",pom=" + pom + ",explosion=" + explosion +
+                                      ",missiles=" + missiles + ",again=" + again + ",instant=" + instant + ",refusals=" + refusals +
+                                      ",pomAfter=" + pomAfter;
             const bool ok = positive == "0+0+0" && other == 0 && mage == 1 && cooldown == "0/15" && potency == "1@2" && free == "0/0" &&
-                            blasts == "15:1,15:0,0:0" && pom == "2" && explosion == "5:1:1" && missiles == "0/1:1:1" && again == "2" &&
-                            instant == "0/0:1" && refusals == "CASTER_AURASTATE/CASTER_AURASTATE" && pomAfter == "1:2";
-            return (ok ? "OK(" : "BUG(") + value + "; held=" + held + ", recorded: 57531 at each of the first two Arcane Blasts' " +
-                   "damage logs; Clearcasting counted in SPELL_GO packets, 57531 in SMSG_AURA_UPDATE packets at two " +
-                   "charges, charges of 57531 at the reads, 1 held)";
+                            blasts == "15:1,15:0,0:0" && crits == "1,1,0" && held == "kept/cast" && pom == "2" && explosion == "5:1:1" &&
+                            missiles == "0/1:1:1" && again == "2" && instant == "0/0:1" &&
+                            refusals == "CASTER_AURASTATE/CASTER_AURASTATE" && pomAfter == "1:2";
+            return (ok ? "OK(" : "BUG(") + value + "; recorded: the crits of the first three Arcane Blasts' damage logs with " +
+                   "57531's crit chance at " + Amount(kForcedCrit) + "; Clearcasting counted in SPELL_GO packets, 57531 in " +
+                   "SMSG_AURA_UPDATE packets at two charges, charges of 57531 at the reads, 1 held)";
         }
 
     private:
@@ -17751,10 +17785,28 @@ namespace Harness
         static constexpr uint32 kPowerRefusedStep = 20;
         static constexpr size_t kSteps = 21;
         static constexpr int64 kNone = -1;
+        static constexpr float kForcedCrit = 300.0f;
+
+        float m_potencyAmount = 0.0f;   ///< the amount of 57531's modifier before an Arcane Blast step raised it
 
         static std::string Num(int64 v)
         {
             return std::to_string(v);
+        }
+
+        /// A modifier amount with no fraction digits.
+        static std::string Amount(float v)
+        {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0f", v);
+            return buf;
+        }
+
+        /// The effect-0 aura of his 57531, the one holding its crit chance modifier; NULL when he holds none.
+        static Aura* PotencyModifier(Player* p)
+        {
+            SpellAuraHolder* buff = p->GetSpellAuraHolder(kPotencyBuff);
+            return buff ? buff->GetAuraByEffectIndex(EFFECT_INDEX_0) : NULL;
         }
 
         /// A read ReadOwn kept for step k; kNone when it kept none of that name.
@@ -17821,7 +17873,7 @@ namespace Harness
 
         /// What a step does right after it acts: the selection at step 1; the calls of steps 3-5 and their reads; the
         /// Arcane Blast's own cost and the critical strike chance his modifiers add to Arcane Blast at an Arcane Blast
-        /// step.
+        /// step, then 57531's raised.
         void Act(St& st, uint32 k, Player* p, Creature* target)
         {
             std::map<std::string, int64>& reads = st.seen[k].reads;
@@ -17889,6 +17941,13 @@ namespace Harness
                 char buf[96];
                 snprintf(buf, sizeof(buf), "critical strike chance his modifiers add to %u: %.2f", kArcaneBlast, added);
                 m_rec.Note(buf);
+                if (Aura* potency = PotencyModifier(p))
+                {
+                    m_potencyAmount = potency->ModifierValue();
+                    potency->SetModifierValue(kForcedCrit);
+                    m_rec.Note(U(kPotencyBuff) + "'s crit chance raised by call from " + Amount(m_potencyAmount) + " to " +
+                               Amount(potency->ModifierValue()));
+                }
             }
         }
 
