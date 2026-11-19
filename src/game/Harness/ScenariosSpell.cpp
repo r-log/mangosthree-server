@@ -6207,9 +6207,11 @@ namespace Harness
      * (86473), as a level-85 Frost mage has them; Ice Lance, Frost Nova (122) and Frostbolt (116) learned. Ice Lance's
      * done damage is multiplied when the target is frozen, or when Fingers of Frost (44544) on him lets it act as if it
      * were. Steps: Ice Lance at the Camel; Frost Nova, which freezes it; Ice Lance at the frozen Camel; then three
-     * rounds of three Frostbolts and an Ice Lance, every Frostbolt's cast a chance for Fingers of Frost. One cast every
-     * 4.7 s: under the harness's seed base no cast crits, and Fingers of Frost triggers at steps 9 and 12, so the Ice
-     * Lances of steps 11 and 15 have it, and each uses the charge it finds.
+     * rounds of three Frostbolts and an Ice Lance, every Frostbolt's cast a chance for Fingers of Frost; the first
+     * Frostbolt of a round starts Early Frost's lockout, so the next two take the full cast time. One cast every 4.7 s:
+     * under the harness's seed base no Ice Lance crits, and Fingers of Frost triggers at steps 9 and 12, so the Ice
+     * Lances of steps 11 and 15 have it, and each uses the charge it finds. A Frostbolt may crit: its crit plays no part
+     * in the record.
      *
      * `iceLance`: each Ice Lance's state when cast (`frozen`, `fingers` when 44544 was on him and the Camel not frozen,
      * else `plain`) and its amount; OK when there is a frozen one and a plain one, and each frozen or fingers one dealt
@@ -6233,9 +6235,10 @@ namespace Harness
 
         std::vector<Step> Steps() const override
         {
-            return { Cast(30455, false), Cast(122, false), Cast(30455, false), Cast(116, false), Cast(116, false), Cast(116, false),
-                     Cast(30455, false), Cast(116, false), Cast(116, false), Cast(116, false), Cast(30455, false), Cast(116, false),
-                     Cast(116, false), Cast(116, false), Cast(30455, false) };
+            Step bolt = Cast(116, false);
+            bolt.critAllowed = true;
+            return { Cast(30455, false), Cast(122, false), Cast(30455, false), bolt, bolt, bolt, Cast(30455, false), bolt, bolt, bolt,
+                     Cast(30455, false), bolt, bolt, bolt, Cast(30455, false) };
         }
 
         std::vector<SpellPrint> Prints() const override
