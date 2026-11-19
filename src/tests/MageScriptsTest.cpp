@@ -1262,9 +1262,9 @@ TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
     CHECK(outcome.IsReturn());
     CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
 
-    // A crit of Molten Armor's hit, of Living Bomb's explosion, of a Flame Orb hit or of Fire Power's explosion is
-    // refused, by its id.
-    for (uint32 spellId : { 34913u, 44461u, 82739u, 83619u })
+    // A crit of Molten Armor's hit, of Living Bomb's explosion, of a Flame Orb hit, of Fire Power's explosion or of a
+    // Frostfire Orb hit of either rank is refused, by its id.
+    for (uint32 spellId : { 34913u, 44461u, 82739u, 83619u, 95969u, 84721u })
     {
         SpellRowStorage notIgniting;
         outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &SpellRow(notIgniting, spellId), PROC_EX_CRITICAL_HIT, 40,
@@ -4093,6 +4093,26 @@ TEST(MageScripts_PolymorphsRemovalRunsImprovedPolymorph)
     CHECK(registry.Dispatch<AuraRemoveHook>(118, broken).IsContinue());
     CHECK(!camel.HasAura(83047));
     CHECK(!camel.HasAura(87515));
+}
+
+TEST(MageScripts_ColdSnapResetsTheFrostSpellsAndTheFrostfireOrb)
+{
+    // The client's rows: Frost Nova 122 (frost, 25 s), Ice Block 45438 (frost, 5 min), the Frostfire Orb 92283 (fire
+    // in its own row, 60 s), Flame Orb 82731 (fire, 60 s), Cold Snap 11958 (frost, 8 min), Frostbolt 116 (frost, no
+    // cooldown), Fire Blast 2136 (fire, 8 s).
+    CHECK(Mage::ColdSnapResets(122, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 25000));
+    CHECK(Mage::ColdSnapResets(45438, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 300000));
+    CHECK(Mage::ColdSnapResets(92283, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE, 60000));
+    CHECK(!Mage::ColdSnapResets(82731, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE, 60000));
+    CHECK(!Mage::ColdSnapResets(11958, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 480000));
+    CHECK(!Mage::ColdSnapResets(116, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 0));
+    CHECK(!Mage::ColdSnapResets(2136, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE, 8000));
+
+    // A mage spell whose mask holds fire and frost counts by its frost (84721, 6 s); a frost spell of another family
+    // (the death knight's Mind Freeze 47528, 10 s) and the Frostfire Orb's id under another family do not.
+    CHECK(Mage::ColdSnapResets(84721, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, 6000));
+    CHECK(!Mage::ColdSnapResets(47528, SPELLFAMILY_DEATHKNIGHT, SPELL_SCHOOL_MASK_FROST, 10000));
+    CHECK(!Mage::ColdSnapResets(92283, SPELLFAMILY_GENERIC, SPELL_SCHOOL_MASK_FIRE, 60000));
 }
 
 TEST(MageScripts_AFrostboltCastStartsTheLockoutOfTheRankTheMageKnowsUnlessOneIsUp)
