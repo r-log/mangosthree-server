@@ -170,8 +170,8 @@
 // chills none; each chill cast's end is a roll of Fingers of Frost's and Brain Freeze's rows. 1013 Permafrost 3
 // heals the Water Elemental through its own heal for 15% of each Frostbolt and Cone of Cold hit, a crit's included,
 // and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of Cold 2 has each Camel the cone hits freeze itself
-// for the mage for four seconds, in the frozen state; an Ice Lance with a Fingers of Frost charge then finds its
-// target frozen and spends the charge.
+// for the mage for four seconds, in the frozen state, but a creature immune to roots, which shows Immune instead; an
+// Ice Lance with a Fingers of Frost charge then finds its target frozen and spends the charge.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -4164,7 +4164,17 @@ namespace Harness
             plan.spells.insert(later.begin(), later.end());
             std::string templateOk;
             QuestPreCheck pre;
-            if (!Qualify(prints, { TargetEntry() }, plan, templateOk, &pre))
+            std::vector<uint32> actors = { TargetEntry() };
+            const std::vector<std::pair<float, float> > extra = ExtraTargets();
+            for (size_t camel = 0; camel < extra.size(); ++camel)
+            {
+                const uint32 entry = ExtraTarget(camel).first;
+                if (std::find(actors.begin(), actors.end(), entry) == actors.end())
+                {
+                    actors.push_back(entry);
+                }
+            }
+            if (!Qualify(prints, actors, plan, templateOk, &pre))
             {
                 return;
             }
@@ -4195,15 +4205,15 @@ namespace Harness
                 targets.push_back(spawned->GetObjectGuid());
             }
             const float firstY = P0.y - float(TargetCount() - 1) / 2.0f * kTargetSpacing;
-            const std::vector<std::pair<float, float> > extra = ExtraTargets();
             for (size_t camel = 0; camel < extra.size(); ++camel)
             {
                 const float ex = tx + extra[camel].first;
                 const float ey = firstY + extra[camel].second;
-                Creature* spawned = SpawnTarget(TargetEntry(), TargetLevel(), ex, ey, Ground(ex, ey, P0.z), 3.14159f);
+                const std::pair<uint32, uint32> kind = ExtraTarget(camel);
+                Creature* spawned = SpawnTarget(kind.first, kind.second, ex, ey, Ground(ex, ey, P0.z), 3.14159f);
                 if (!spawned)
                 {
-                    Verdict(Invalid("the target (" + U(TargetEntry()) + ") did not spawn"));
+                    Verdict(Invalid("the target (" + U(kind.first) + ") did not spawn"));
                     return;
                 }
                 if (const uint32 targetAura = TargetAura())
@@ -4607,6 +4617,12 @@ namespace Harness
         /// More Camels, each at its offset from the first Camel (ahead of him, then across his front), in St::targets
         /// after TargetCount's; none unless the scenario names some.
         virtual std::vector<std::pair<float, float> > ExtraTargets() const { return std::vector<std::pair<float, float> >(); }
+        /// The creature entry and the level of the extra Camel `camel` (ExtraTargets' order, from 0); TargetEntry() at
+        /// TargetLevel() unless the scenario names another.
+        virtual std::pair<uint32, uint32> ExtraTarget(size_t /*camel*/) const
+        {
+            return std::make_pair(TargetEntry(), TargetLevel());
+        }
         /// The spell modifier reads the stage read notes and keeps (ReadModifiers); none by default.
         virtual std::vector<ModifierRead> Modifiers() const { return std::vector<ModifierRead>(); }
         /// The scenario's own reads of step k, right after the step acts (`atRead` false) and at its read (`atRead`
@@ -18838,19 +18854,24 @@ namespace Harness
     /**
      * S1014 `mage-frost-improved-coc`: Improved Cone of Cold's freeze (83302), for a staged Frost mage: Piercing Ice
      * 3 and Shatter 2, then Improved Cone of Cold 2 (12489); Cone of Cold (120) and Ice Lance (30455) learned,
-     * kSpellPower spell power. Camel 1 stands ten yards in front of him and two more on the line to it
-     * (ExtraTargets), Camel 2 seven and Camel 3 five yards ahead, all inside the cone. Steps, kCastEveryMs apart, none
-     * of which may crit: Ice Lance at Camel 1; Cone of Cold; a wait at whose act a Fingers of Frost charge (44544) is
-     * put on him as a cast leaves it; Ice Lance at Camel 1; two waits, the second past the freeze's four seconds.
+     * kSpellPower spell power; before each cast he takes Precision (13843, +6% spell hit), so no cast misses. Camel 1
+     * stands ten yards in front of him and three more inside the cone (ExtraTargets): Camel 2 seven and Camel 3 five
+     * yards ahead on the line to Camel 1, and Camel 4, a Lava Hound (1) (32553) at its template's level 82, eight
+     * yards ahead and a yard aside: a creature of the world database that runs no AI, binds no script and whose
+     * template is immune to roots (MechanicImmuneMask 0x268B3A5D holds 0x40) and not to snares. Steps, kCastEveryMs
+     * apart, none of which may crit: Ice Lance at Camel 1; Cone of Cold; a wait at whose act a Fingers of Frost charge
+     * (44544) is put on him as a cast leaves it; Ice Lance at Camel 1; two waits, the second past the freeze's four
+     * seconds.
      *
      * `freeze`: `rooted=<the Camels holding his 83302 at Cone of Cold's act>,frozen=<the Camels in the frozen state
-     * then>,duration=<Camel 1's 83302 full duration>,lance=<Camel 1's state when the second Ice Lance was cast: frozen,
+     * then>,immune=<the Camels named immune by an SMSG_SPELLLOGMISS of his 83302 in Cone of Cold's windows>,
+     * duration=<Camel 1's 83302 full duration>,lance=<Camel 1's state when the second Ice Lance was cast: frozen,
      * fingers when he held 44544 and it was not frozen, else plain>,charge=<his 44544 after that Ice Lance>,
      * ratio=<that Ice Lance's damage over the first's, in hundredths>,after=<the Camels holding his 83302 at the last
-     * wait's act>`. OK at `rooted=1+2+3,frozen=1+2+3,duration=4000,lance=frozen,charge=none,after=none` with a ratio
-     * above 200: each Camel the cone hits freezes itself for the caster for four seconds, the freeze is the frozen
-     * state, and an Ice Lance with a charge at a frozen Camel deals more than twice a plain one and spends the
-     * charge.
+     * wait's act>`. OK at `rooted=1+2+3,frozen=1+2+3,immune=4,duration=4000,lance=frozen,charge=none,after=none` with a
+     * ratio above 200: each Camel the cone hits freezes itself for the caster for four seconds, but the one immune to
+     * roots, which shows Immune instead, the freeze is the frozen state, and an Ice Lance with a charge at a frozen
+     * Camel deals more than twice a plain one and spends the charge.
      */
     class MageFrostImprovedConeOfCold : public MageProcScenario
     {
@@ -18864,9 +18885,15 @@ namespace Harness
         }
         std::vector<uint32> Spells() const override { return { kConeOfCold, kIceLance }; }
         int32 SpellPower() const override { return kSpellPower; }
+        uint32 CasterAura() const override { return kPrecision; }
         std::vector<std::pair<float, float> > ExtraTargets() const override
         {
-            return { { -3.0f, 0.5f }, { -5.0f, -0.5f } };
+            return { { -3.0f, 0.5f }, { -5.0f, -0.5f }, { -2.0f, -1.0f } };
+        }
+        std::pair<uint32, uint32> ExtraTarget(size_t camel) const override
+        {
+            return camel == kHoundExtra ? std::make_pair(kLavaHound, kLavaHoundLevel) :
+                   std::make_pair(TargetEntry(), TargetLevel());
         }
         uint32 CastEveryMs() const override { return kCastEveryMs; }
         uint32 CastReadMs() const override { return kCastReadMs; }
@@ -18893,6 +18920,8 @@ namespace Harness
                 { 83302, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 26 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 44544: 26 fields, fnv 65bc81c5
                 { 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 23434: 26 fields, fnv 6bb46cc2
                 { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 12953: 26 fields, fnv 5ddaf0d2
@@ -18961,19 +18990,21 @@ namespace Harness
             const std::string state = lance.targetFrozen ? "frozen" : fingers ? "fingers" : "plain";
             const uint64 ratio = plainLance.logRead && lance.logRead && plainLance.amount ?
                                  uint64(lance.amount) * 100 / plainLance.amount : 0;
+            const std::string immune = ImmuneShown(st, kConeStep);
             const std::string value = "rooted=" + Camels(Kept(st, kConeStep, "rooted")) + ",frozen=" +
-                                      Camels(Kept(st, kConeStep, "frozen")) + ",duration=" +
+                                      Camels(Kept(st, kConeStep, "frozen")) + ",immune=" + immune + ",duration=" +
                                       std::to_string(Kept(st, kConeStep, "duration")) + ",lance=" + state + ",charge=" +
                                       (lance.holder.empty() ? std::string("unread") : lance.holder) + ",ratio=" +
                                       U(ratio) + ",after=" + Camels(Kept(st, kLastStep, "rooted"));
             const bool ok = Camels(Kept(st, kConeStep, "rooted")) == "1+2+3" &&
-                            Camels(Kept(st, kConeStep, "frozen")) == "1+2+3" &&
+                            Camels(Kept(st, kConeStep, "frozen")) == "1+2+3" && immune == "4" &&
                             Kept(st, kConeStep, "duration") == kFreezeMs && state == "frozen" &&
                             lance.holder == "none" && !plainLance.crit && !lance.crit && ratio > 200 &&
                             Camels(Kept(st, kLastStep, "rooted")) == "none";
-            const std::string detail = "wanted each Camel the cone hits frozen by his 83302 for 4000 ms, the Ice "
-                                       "Lance with a charge at frozen Camel 1 above twice the plain one with the "
-                                       "charge spent, and no freeze left past its time)";
+            const std::string detail = "wanted each Camel the cone hits frozen by his 83302 for 4000 ms but the "
+                                       "root-immune Camel 4, shown Immune once and not frozen, the Ice Lance with a "
+                                       "charge at frozen Camel 1 above twice the plain one with the charge spent, and "
+                                       "no freeze left past its time)";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
@@ -18982,6 +19013,10 @@ namespace Harness
         static constexpr uint32 kIceLance = 30455;
         static constexpr uint32 kFreeze = 83302;
         static constexpr uint32 kFingersOfFrost = 44544;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kLavaHound = 32553;
+        static constexpr uint32 kLavaHoundLevel = 82;
+        static constexpr size_t kHoundExtra = 2;
         static constexpr int32 kSpellPower = 1000;
         static constexpr uint32 kCastEveryMs = 1600;
         static constexpr uint32 kCastReadMs = 1200;
@@ -19020,6 +19055,53 @@ namespace Harness
                 }
             }
             return out.empty() ? std::string("none") : out;
+        }
+
+        /// The Camels named immune by the SMSG_SPELLLOGMISS packets of his 83302 in step k's windows, one per name in
+        /// the order sent, `+`-joined from 1; `none` for none. Each packet is read as BuildSpellMissPacket writes it:
+        /// the spell, the caster's raw guid, a flag byte, the count, then each unit's raw guid and its miss condition.
+        std::string ImmuneShown(St const& st, uint32 k) const
+        {
+            std::string out;
+            const std::vector<std::string> windows = StepWindows(k);
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                std::vector<Recorder::Seen const*> misses = m_rec.SeenIn(windows[w], SMSG_SPELLLOGMISS);
+                for (size_t i = 0; i < misses.size(); ++i)
+                {
+                    std::vector<uint8> const& bytes = misses[i]->payload;
+                    if (bytes.size() < 17 || LittleEndian(bytes, 0, 4) != kFreeze ||
+                        LittleEndian(bytes, 4, 8) != st.player.GetRawValue())
+                    {
+                        continue;
+                    }
+                    const uint64 count = LittleEndian(bytes, 13, 4);
+                    for (uint64 n = 0; n < count && 17 + (n + 1) * 9 <= bytes.size(); ++n)
+                    {
+                        const uint64 unit = LittleEndian(bytes, size_t(17 + n * 9), 8);
+                        const uint8 condition = bytes[size_t(17 + n * 9 + 8)];
+                        for (uint32 camel = 0; camel < st.targets.size(); ++camel)
+                        {
+                            if (condition == uint8(SPELL_MISS_IMMUNE) && st.targets[camel].GetRawValue() == unit)
+                            {
+                                out += (out.empty() ? "" : "+") + U(camel + 1);
+                            }
+                        }
+                    }
+                }
+            }
+            return out.empty() ? std::string("none") : out;
+        }
+
+        /// `width` bytes of `bytes` from `at`, little-endian.
+        static uint64 LittleEndian(std::vector<uint8> const& bytes, size_t at, size_t width)
+        {
+            uint64 value = 0;
+            for (size_t i = 0; i < width; ++i)
+            {
+                value |= uint64(bytes[at + i]) << (8 * i);
+            }
+            return value;
         }
     };
 
