@@ -594,8 +594,9 @@ struct CastStartContext
         caster.AssertSpellSeamOwner();
     }
 
-    /// The caster casts `spellId` at `to`, triggered, with this cast's spell as the trigger and no triggering aura.
-    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    /// The caster casts `spellId` at `to`, triggered, with no trigger spell and no triggering aura, so it does not
+    /// travel at this cast's spell's speed: a spell that has no speed of its own lands at once. `basePoints`, when
+    /// given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
 
     Unit& caster;                                   ///< the caster

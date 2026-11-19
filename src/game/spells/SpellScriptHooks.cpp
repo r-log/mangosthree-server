@@ -110,7 +110,7 @@ void AfterCastContext::CastTriggeredAt(float x, float y, float z, uint32 spellId
 
 void CastStartContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
 {
-    CastTriggeredSpell(caster, to, spellId, basePoints, NULL, NULL, ObjectGuid(), &spell);
+    CastTriggeredSpell(caster, to, spellId, basePoints, NULL, NULL, ObjectGuid(), NULL);
 }
 
 Item* OnProcContext::CastItem() const
