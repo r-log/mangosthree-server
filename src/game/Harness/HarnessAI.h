@@ -75,6 +75,7 @@ namespace Harness
         void SummonedCreatureJustDied(Creature* summoned) override;
         void KilledUnit(Unit* victim) override;
         void OwnerKilledUnit(Unit* victim) override;
+        void OwnerAttacked(Unit* victim) override;
         void JustSummoned(Creature* summoned) override;
         void JustSummoned(GameObject* go) override;
         void SummonedCreatureDespawn(Creature* summoned) override;

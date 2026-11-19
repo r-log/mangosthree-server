@@ -44,6 +44,7 @@ class PetAI : public CreatureAI
         void AttackStart(Unit*) override;
         void EnterEvadeMode() override;
         void AttackedBy(Unit*) override;
+        void OwnerAttacked(Unit*) override;
         bool IsVisible(Unit*) const override;
 
         void UpdateAI(const uint32) override;
@@ -55,6 +56,8 @@ class PetAI : public CreatureAI
         void _stopAttack(void);
 
         void UpdateAllies();
+        void UpdateAssist(uint32 diff);
+        void ClearAssistCandidate();
 
         Pet* const m_pet;                                   ///< the pet this AI drives; the selector gives PetAI to pets only
         TimeTracker i_tracker;
@@ -62,5 +65,8 @@ class PetAI : public CreatureAI
 
         GuidSet m_AllySet;
         uint32 m_updateAlliesTimer;
+
+        ObjectGuid m_assistCandidate;                       ///< the owner's new target an Assist pet may switch to
+        uint32 m_assistHeldMs;                              ///< how long the owner has attacked the candidate
 };
 #endif

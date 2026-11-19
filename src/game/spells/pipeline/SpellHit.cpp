@@ -62,6 +62,7 @@
 #include "DisableMgr.h"
 #include "Map.h"
 #include "spells/SpellScriptHooks.h"
+#include "ai/PetAssist.h"
 
 /**
  * @brief Applies all pending spell effects to a unit target entry.
@@ -431,6 +432,7 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                 unit->AddThreat(realCaster);
                 unit->SetInCombatWith(realCaster);
                 realCaster->SetInCombatWith(unit);
+                Pets::NotifyOwnerAttacked(*realCaster, *unit);
 
                 if (Player* attackedPlayer = unit->GetCharmerOrOwnerPlayerOrPlayerItself())
                 {

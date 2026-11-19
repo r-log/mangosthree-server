@@ -38,6 +38,7 @@
 #include "data/GameConfig.h"
 #include "Util.h"
 #include "MotionMaster.h"
+#include "PetAssist.h"
 
 /**
  * @brief Determines whether PetAI can control the given creature.
@@ -60,7 +61,8 @@ int PetAI::Permissible(const Creature* creature)
  *
  * @param c The creature controlled by this AI.
  */
-PetAI::PetAI(Creature* c) : CreatureAI(c), m_pet(ToPet(c)), i_tracker(TIME_INTERVAL_LOOK), inCombat(false)
+PetAI::PetAI(Creature* c) : CreatureAI(c), m_pet(ToPet(c)), i_tracker(TIME_INTERVAL_LOOK), inCombat(false),
+    m_assistHeldMs(0)
 {
     MANGOS_ASSERT(m_pet);
     m_AllySet.clear();
@@ -114,6 +116,12 @@ void PetAI::AttackStart(Unit* u)
     if (!u || (m_pet->getPetType() == MINI_PET))
     {
         return;
+    }
+
+    // a new victim, by the owner's command or the pet's own choice, ends a pending Assist switch
+    if (u != m_creature->getVictim())
+    {
+        ClearAssistCandidate();
     }
 
     if (m_creature->Attack(u, true))
@@ -206,6 +214,11 @@ void PetAI::UpdateAI(const uint32 diff)
 
     Unit* owner = m_creature->GetCharmerOrOwner();
     Unit* victim = NULL;
+
+    if (!m_assistCandidate.IsEmpty())
+    {
+        UpdateAssist(diff);
+    }
 
     if (!m_pet->isControlled())
     {
@@ -499,9 +512,11 @@ void PetAI::UpdateAI(const uint32 diff)
     {
         CharmInfo* charmInfo = m_creature->GetCharmInfo();
 
+        // an Aggressive pet takes the owner's victim first; a Defensive or Assist one only what attacks him
         if (owner->IsInCombat() && !(m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PASSIVE)
             || (charmInfo && charmInfo->HasReactState(REACT_PASSIVE))))
-            AttackStart(owner->getAttackerForHelper());
+            AttackStart(charmInfo && !charmInfo->HasReactState(REACT_AGGRESSIVE) ? Pets::OwnerAttacker(*owner)
+                                                                                  : owner->getAttackerForHelper());
         else if (!m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE))
         {
             if (charmInfo && charmInfo->HasCommandState(COMMAND_STAY))
@@ -620,6 +635,77 @@ void PetAI::UpdateAllies()
     {
         m_AllySet.insert(owner->GetObjectGuid());
     }
+}
+
+/**
+ * @brief Follows the owner's attack in the Assist stance.
+ *
+ * A pet with no victim attacks the unit at once. A pet whose victim it is drops the pending switch. Any other unit
+ * becomes the candidate the pet switches to once the owner has attacked it for PET_ASSIST_SWITCH_MS (UpdateAssist),
+ * its time counted from now; the same candidate again keeps its time. A pet in another stance, retreating, with its
+ * actions disabled or passive by its flags, does nothing.
+ *
+ * @param victim The unit the owner attacked.
+ */
+void PetAI::OwnerAttacked(Unit* victim)
+{
+    CharmInfo* charmInfo = m_creature->GetCharmInfo();
+    if (!victim || !charmInfo || !charmInfo->HasReactState(REACT_ASSIST) || m_pet->GetIsRetreating()
+        || (m_pet->GetModeFlags() & PET_MODE_DISABLE_ACTIONS)
+        || m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PASSIVE))
+    {
+        return;
+    }
+
+    Unit* current = m_creature->getVictim();
+    if (!current)
+    {
+        AttackStart(victim);
+    }
+    else if (current == victim)
+    {
+        ClearAssistCandidate();
+    }
+    else if (m_assistCandidate != victim->GetObjectGuid())
+    {
+        m_assistCandidate = victim->GetObjectGuid();
+        m_assistHeldMs = 0;
+    }
+}
+
+/**
+ * @brief Counts the time the owner has attacked the Assist candidate and switches to it when that time is due.
+ *
+ * The candidate is dropped when it is gone, dead or no longer attackable, when the pet has left the Assist stance or
+ * has no victim.
+ *
+ * @param diff The elapsed time since the last update in milliseconds.
+ */
+void PetAI::UpdateAssist(uint32 diff)
+{
+    CharmInfo* charmInfo = m_creature->GetCharmInfo();
+    Unit* candidate = m_creature->GetMap()->GetUnit(m_assistCandidate);
+    if (!candidate || !candidate->IsAlive() || !candidate->IsTargetableForAttack() || !charmInfo
+        || !charmInfo->HasReactState(REACT_ASSIST) || !m_creature->getVictim())
+    {
+        ClearAssistCandidate();
+        return;
+    }
+
+    m_assistHeldMs += diff;
+    if (Pets::AssistSwitchDue(m_assistHeldMs, Pets::PET_ASSIST_SWITCH_MS))
+    {
+        AttackStart(candidate);
+    }
+}
+
+/**
+ * @brief Drops the pending Assist switch.
+ */
+void PetAI::ClearAssistCandidate()
+{
+    m_assistCandidate.Clear();
+    m_assistHeldMs = 0;
 }
 
 /**

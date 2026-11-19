@@ -226,6 +226,13 @@ class CreatureAI
         virtual void OwnerKilledUnit(Unit* /*pVictim*/) {}
 
         /**
+         * Called when the owner of m_creature attacked a unit: a harmful spell of his landed on it, or his melee swing
+         * connected
+         * @param pVictim Unit the owner attacked
+         */
+        virtual void OwnerAttacked(Unit* /*pVictim*/) {}
+
+        /**
          * Called when the creature summon successfully other creature
          * @param pSummoned Creature that got summoned
          */
