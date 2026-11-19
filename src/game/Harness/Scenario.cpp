@@ -447,7 +447,7 @@ namespace Harness
         return c ? c->GetMotionMaster()->SelectedRelays() : NULL;
     }
 
-    Pet* Scenario::BuildOwnedPet(Player* owner, uint32 entry, float x, float y, float o)
+    Pet* Scenario::BuildOwnedPet(Player* owner, uint32 entry, float x, float y, float o, bool keepAI)
     {
         Map* map = GetMap();
         CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(entry);
@@ -484,9 +484,10 @@ namespace Harness
         // optional: PetAI::UpdateAI draws from urand for its autocast pick (PetAI.cpp:399),
         // re-lays a follow on its owner and selects hostile targets, so a live one would both
         // perturb the seeded stream every other scenario shares and fight the claims under
-        // test for the wheel.
+        // test for the wheel. A scenario whose subject is the pet's own AI keeps it (keepAI).
         pet->SetAI(new HarnessAI(pet, pet->AI(), this));
-        if (HarnessAI* recording = dynamic_cast<HarnessAI*>(pet->AI()))
+        HarnessAI* recording = keepAI ? NULL : dynamic_cast<HarnessAI*>(pet->AI());
+        if (recording)
         {
             delete recording->Release();
         }
