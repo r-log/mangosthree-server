@@ -4145,9 +4145,9 @@ namespace Harness
      * 998-1000, 1010-1016, 1018-1019, 1025-1028, 1100-1113): a human mage staged to level 85 with the scenario's
      * talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him
      * once staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
-     * (PetRunsAI), and a Camel (50249, or the creature TargetEntry names) staged to level TargetLevel() (85 unless the
-     * scenario sets its own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the
-     * scenario's steps, in order:
+     * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
+     * Camel (50249, or the creature TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its
+     * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him when he does not hold it, by a triggered self-cast or, when CasterAuraPut()
      *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
@@ -4377,9 +4377,14 @@ namespace Harness
                 AfterStage(*p);
                 if (const uint32 petEntry = PetEntry())
                 {
-                    if (!BuildOwnedPet(p, petEntry, P0.x, P0.y + kPetOffset, 0.0f, PetRunsAI()))
+                    Pet* pet = BuildOwnedPet(p, petEntry, P0.x, P0.y + kPetOffset, 0.0f, PetRunsAI());
+                    if (!pet)
                     {
                         st->staged = false;
+                    }
+                    else if (PetLearnsSpells())
+                    {
+                        pet->InitLevelupSpellsForLevel();
                     }
                 }
             }
@@ -4740,6 +4745,9 @@ namespace Harness
         /// Whether the pet keeps its own AI (Scenario::BuildOwnedPet's keepAI), so it acts on its own; false by
         /// default.
         virtual bool PetRunsAI() const { return false; }
+        /// Whether the pet learns the spells of its level as a summoned pet does (Pet::InitLevelupSpellsForLevel);
+        /// false by default.
+        virtual bool PetLearnsSpells() const { return false; }
         /// The yards above the ground the mage stands at; none by default.
         virtual float PlayerLift() const { return 0.0f; }
         /// The way the mage faces, in radians; +x by default.
@@ -22571,7 +22579,7 @@ namespace Harness
 
     /**
      * What 1018 and 1019 share: a staged Frost mage (Piercing Ice 3, Shatter 2, kSpellPower spell power) with a Water
-     * Elemental (510) built for him that keeps its pet AI (PetRunsAI), so it attacks and casts on its own; each Camel
+     * Elemental (510) built for him that keeps its pet AI (PetRunsAI), so it attacks on its own; each Camel
      * holds Hit Me (100446), so neither his casts nor the pet's miss; the mage's casts may not crit. The pet's stance
      * is set as the client's stance buttons send it (PetAction: CMSG_PET_ACTION to the pet action handler). The pet
      * is ended at the last step's read, owner guid first, as ScenariosControl.cpp's EndPet ends one.
@@ -22741,7 +22749,8 @@ namespace Harness
 
     /**
      * S1018 `mage-frost-water-elemental`: a staged Frost mage's Water Elemental (MageFrostPetScenario) on its own:
-     * Waterbolt (31707) autocast, its spell power, and its Invisibility (96243) with the mage's. Frostbolt (116) and
+     * Waterbolt (31707) autocast, its spell power, and its Invisibility (96243) with the mage's. The pet learns its
+     * spells as a summoned one does (PetLearnsSpells), so Waterbolt and Freeze are on its bar. Frostbolt (116) and
      * Invisibility (66) learned. Steps:
      *  1. a wait whose act reads the pet's two spells' buttons on its bar, its spell power share and Waterbolt's spell
      *     power part, and sends the Assist button; read: the stance;
@@ -22770,6 +22779,7 @@ namespace Harness
         MageFrostWaterElemental() : MageFrostPetScenario("mage-frost-water-elemental", 1018, "pet") {}
 
     protected:
+        bool PetLearnsSpells() const override { return true; }
         std::vector<uint32> Spells() const override { return { kFrostbolt, kFade }; }
 
         std::vector<Step> Steps() const override
