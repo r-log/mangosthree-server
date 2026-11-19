@@ -68,6 +68,13 @@ namespace
     uint32 const IMPROVED_CONE_OF_COLD_RANK_TWO = 12489;
     uint32 const IMPROVED_CONE_OF_COLD_FREEZE_ONE = 83301;
     uint32 const IMPROVED_CONE_OF_COLD_FREEZE_TWO = 83302;
+    uint32 const ICE_BARRIER = 11426;
+    uint32 const SHATTERED_BARRIER_RANK_ONE = 44745;
+    uint32 const SHATTERED_BARRIER_RANK_TWO = 54787;
+    uint32 const SHATTERED_BARRIER_FREEZE_RANK_ONE = 55080;
+    uint32 const SHATTERED_BARRIER_FREEZE_RANK_TWO = 83073;
+    uint32 const GLYPH_OF_ICE_BARRIER = 63095;
+    uint32 const REACTIVE_BARRIER_BUFF = 86347;
 
     /// Fingers of Frost's text: "Ice Lance deals 25% more damage" while a charge is up. No field of the data holds it.
     int32 const ICE_LANCE_FINGERS_PERCENT = 25;
@@ -338,6 +345,75 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    /// 11426: Ice Barrier: at the holder's add, for a caster who knows Glyph of Ice Barrier (63095), the shield's
+    /// amount, its base and its spell power part together, is raised by the glyph's effect 0 value in percent
+    /// (Mage::GlyphedBarrierAmount). A shield loaded with its owner keeps the amount it was saved with. The holder's
+    /// boosts still run.
+    SpellHandlerOutcome<void> IceBarrierAuraApply(AuraApplyContext& ctx)
+    {
+        if (ctx.real && !ctx.target.IsLoading() && ctx.caster && ctx.caster->HasAura(GLYPH_OF_ICE_BARRIER))
+        {
+            int32 const percent = EffectValue(GLYPH_OF_ICE_BARRIER, EFFECT_INDEX_0);
+            ctx.aura.SetAmount(EFFECT_INDEX_0, Mage::GlyphedBarrierAmount(ctx.aura.Amount(EFFECT_INDEX_0), percent));
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 11426: Ice Barrier: when damage used up its last point and its caster knows Shattered Barrier, the caster casts
+    /// the freeze of the rank he knows (Mage::ShatteredBarrierFreeze) at himself: a root on every enemy within the
+    /// freeze's radius of him. A barrier that runs out, is dispelled, cancelled or replaced casts nothing. The
+    /// removal's boosts still run.
+    SpellHandlerOutcome<void> IceBarrierAuraRemove(AuraRemoveContext& ctx)
+    {
+        if (!ctx.caster)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        uint32 const freeze = Mage::ShatteredBarrierFreeze(ctx.mode, ctx.caster->HasAura(SHATTERED_BARRIER_RANK_ONE),
+                                                           ctx.caster->HasAura(SHATTERED_BARRIER_RANK_TWO));
+        if (freeze)
+        {
+            ctx.CastTriggered(*ctx.caster, freeze);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 86303, 86304: Reactive Barrier: keeps for its proc a hit that an absorb took whole (no damage, some absorbed,
+    /// a normal or a critical hit) while its owner is below half his health, a hit the engine's own check refuses as
+    /// one that dealt nothing; every other event is left to that check.
+    SpellHandlerOutcome<bool> ReactiveBarrierCheckProc(CheckProcContext& ctx)
+    {
+        if (ctx.damage == 0 && ctx.absorbed && (ctx.procEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT)) &&
+            Mage::ReactiveBarrierTriggers(ctx.owner.GetHealth(), ctx.owner.GetMaxHealth(), 0))
+        {
+            return SpellHandlerOutcome<bool>::Return(true);
+        }
+        return SpellHandlerOutcome<bool>::Continue();
+    }
+
+    /// 86303, 86304: Reactive Barrier: a proc-trigger aura whose own trigger spell (18350) the client's data lacks.
+    /// When the hit, its damage after absorbs taken from his health before it, leaves its owner alive and below half
+    /// his health (Mage::ReactiveBarrierTriggers) and Ice Barrier (11426) is not on cooldown for him, he casts the free
+    /// Ice Barrier buff (86347: Ice Barrier's cost -100%, one charge) on himself, then Ice Barrier, triggered: it costs
+    /// nothing, starts no global cooldown and starts its own cooldown and its category's as its cast does. The cast
+    /// spends the buff's one charge: the buff is taken off him. FAILED otherwise.
+    ProcOutcome ReactiveBarrierProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        if (!Mage::ReactiveBarrierTriggers(ctx.caster.GetHealth(), ctx.caster.GetMaxHealth(), ctx.damage) ||
+            ctx.OnCooldown(ICE_BARRIER))
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        Mage::CastProcSpell(ctx, ctx.caster, REACTIVE_BARRIER_BUFF);
+        SpellAuraProcResult const result = Mage::CastProcSpell(ctx, ctx.caster, ICE_BARRIER);
+        ctx.caster.RemoveAurasDueToSpell(REACTIVE_BARRIER_BUFF);
+        return ProcOutcome::Return(result);
+    }
+
     uint32 const DEEP_FREEZE_IMMUNITY[] = { 71761 };
     uint32 const FINGERS_OF_FROST[] = { 44543, 44545, 83074 };
     uint32 const BRAIN_FREEZE[] = { 44546, 44548, 44549 };
@@ -347,6 +423,8 @@ namespace
     uint32 const PIERCING_CHILL_CHILLS[] = { 83154 };
     uint32 const PERMAFROST[] = { 11175, 12569, 12571 };
     uint32 const CONE_OF_COLD_HIT[] = { 120 };
+    uint32 const ICE_BARRIER_IDS[] = { ICE_BARRIER };
+    uint32 const REACTIVE_BARRIER[] = { 86303, 86304 };
 }
 
 uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
@@ -363,6 +441,10 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     rows += RegisterRanks<SelectTargetsHook>(registry, PIERCING_CHILL_CHILLS, &PiercingChillTargets);
     rows += RegisterRanks<OnProcHook>(registry, PERMAFROST, &PermafrostProc);
     rows += RegisterRanks<AfterHitHook>(registry, CONE_OF_COLD_HIT, &ConeOfColdAfterHit);
+    rows += RegisterRanks<AuraApplyHook>(registry, ICE_BARRIER_IDS, &IceBarrierAuraApply);
+    rows += RegisterRanks<AuraRemoveHook>(registry, ICE_BARRIER_IDS, &IceBarrierAuraRemove);
+    rows += RegisterRanks<CheckProcHook>(registry, REACTIVE_BARRIER, &ReactiveBarrierCheckProc);
+    rows += RegisterRanks<OnProcHook>(registry, REACTIVE_BARRIER, &ReactiveBarrierProc);
     return rows;
 }
 
@@ -510,4 +592,27 @@ uint32 Mage::ImprovedConeOfColdFreeze(uint32 talentSpell)
         default:
             return 0;
     }
+}
+
+uint32 Mage::ShatteredBarrierFreeze(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo)
+{
+    if (mode != AURA_REMOVE_BY_SHIELD_BREAK)
+    {
+        return 0;
+    }
+    return knowsRankTwo ? SHATTERED_BARRIER_FREEZE_RANK_TWO : knowsRankOne ? SHATTERED_BARRIER_FREEZE_RANK_ONE : 0;
+}
+
+int32 Mage::GlyphedBarrierAmount(int32 amount, int32 percent)
+{
+    return percent > 0 ? amount + amount * percent / 100 : amount;
+}
+
+bool Mage::ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damage)
+{
+    if (damage >= health)
+    {
+        return false;
+    }
+    return uint64(health - damage) * 2 < uint64(maxHealth);
 }
