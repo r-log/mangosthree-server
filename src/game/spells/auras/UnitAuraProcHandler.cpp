@@ -3119,7 +3119,7 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
         }
 
         CheckProcContext checkProcCtx(*this, pTarget, *itr->second->GetSpellProto(), AuraHandle(*itr->second), procSpell,
-                                      procFlag, procExtra, damage);
+                                      procFlag, procExtra, damage, absorb);
         SpellHandlerOutcome<bool> checkProc = SpellHandlerRegistry::Game().Dispatch<CheckProcHook>(itr->second->GetId(), checkProcCtx);
         if (checkProc.IsReturn() && !checkProc.GetValue())
         {

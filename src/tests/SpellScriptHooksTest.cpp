@@ -60,6 +60,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <ctime>
 #include <list>
 #include <new>
 #include <vector>
@@ -874,6 +875,12 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK(!vetoed.GetValue());
     CHECK_EQ(s_seen.charges, uint32(2));
 
+    // The part of the hit the owner's absorbs took: 0 when the event names none, as given otherwise.
+    CHECK_EQ(checkProc.absorbed, uint32(0));
+    CheckProcContext absorbedProc(owner, &other, spell, AuraHandle(holder), NULL, 0x8, 0x401, 0, 750);
+    CHECK_EQ(absorbedProc.damage, uint32(0));
+    CHECK_EQ(absorbedProc.absorbed, uint32(750));
+
     CHECK(registry.Register<OnProcHook>(kHookSpell, [](OnProcContext& ctx)
     {
         s_seen.triggerAmount = ctx.triggerAmount;
@@ -891,6 +898,14 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK_EQ(s_seen.triggerAmount, 13);
     CHECK_EQ(s_seen.cooldown, uint32(6));
     CHECK(registry.Dispatch<OnProcHook>(kOtherSpell, onProc).IsMiss());
+
+    // OnCooldown reads the owner's cooldown store: a spell whose cooldown runs is on cooldown, one whose cooldown
+    // ended or that has none is not.
+    cooldowns.AddSpellCooldown(kHookSpell, 0, time(NULL) + 30);
+    cooldowns.AddSpellCooldown(kOtherSpell, 0, time(NULL) - 1);
+    CHECK(onProc.OnCooldown(kHookSpell));
+    CHECK(!onProc.OnCooldown(kOtherSpell));
+    CHECK(!onProc.OnCooldown(kHookSpell + 1));
 
     // The dummy aura body doubles the amount and sets its effect's script word at the apply and goes on; at the
     // un-apply it ends the handler. The context has no aura to cast with: the body casts nothing.
