@@ -927,6 +927,11 @@ float CombatReachBetween(Unit const& attacker, Unit const& victim, bool forMelee
 float CombatDistanceBetween(Unit const& attacker, Unit const& target, bool forMeleeRange);
 bool InMeleeReach(Unit const& attacker, Unit const& victim, float flat_mod = 0.0f);
 
+// Whether `viewer` sees `unit` as a friend, as the client does when it picks a spell's friendly or hostile visual:
+// Unit::IsFriendlyTo, and, with a player behind `unit`, the two faction templates as well, which never read the PvP
+// flag; so a player of the other faction is no friend, PvP-flagged or not.
+bool SeesAsFriend(Player const& viewer, Unit const& unit);
+
 class Unit : public WorldObject
 {
     public:

@@ -424,9 +424,8 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
 
         RemainingDamage -= currentAbsorb;
 
-        // Fire Ward or Frost Ward or Ice Barrier (or Mana Shield)
-        // for Incanter's Absorption converting to spell power
-        if (spellProto->IsFitToFamily(SPELLFAMILY_MAGE, UI64LIT(0x0000000000000000), 0x00000008))
+        // what Mage Ward absorbs counts toward Incanter's Absorption
+        if (CountsForIncantersAbsorption(spellProto->ID))
         {
             incanterAbsorption += currentAbsorb;
         }
@@ -509,17 +508,17 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
             ApplyPowerMod(POWER_MANA, manaReduction, false);
         }
 
-        // Mana Shield (or Fire Ward or Frost Ward or Ice Barrier)
-        // for Incanter's Absorption converting to spell power
-        if ((*i)->GetSpellProto()->IsFitToFamily(SPELLFAMILY_MAGE, UI64LIT(0x0000000000000000), 0x000008))
+        // what Mana Shield absorbs counts toward Incanter's Absorption
+        if (CountsForIncantersAbsorption((*i)->GetId()))
         {
             incanterAbsorption += currentAbsorb;
         }
 
+        // a shield the damage used up is removed as broken
         (*i)->GetModifier()->m_amount -= currentAbsorb;
         if ((*i)->GetModifier()->m_amount <= 0)
         {
-            RemoveAurasDueToSpell((*i)->GetId());
+            RemoveAurasDueToSpell((*i)->GetId(), NULL, AURA_REMOVE_BY_SHIELD_BREAK);
             next = vManaShield.begin();
         }
 

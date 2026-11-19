@@ -74,8 +74,10 @@ struct SpellEntry;
  *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras. It is the
  *   boosts' moment; a dummy effect's own body runs on DummyAura.
  * - PeriodicTick: `Aura::PeriodicTick`, for a damage or a heal tick, before the target's steps (its taken bonus, the
- *   crit, its absorb and resist), and `Aura::PeriodicDummyTick`, before its family switch. Return() ends the tick with
- *   nothing dealt. A body may change the amount; a body that removes the ticking aura must Return().
+ *   crit, its absorb and resist), `Aura::PeriodicDummyTick`, before its family switch, and `Aura::TriggerSpell`, for
+ *   the tick of a periodic trigger whose aura has a caster and a trigger target, before its trigger spell is looked
+ *   up, with `dummy` true and the effect's amount. Return() ends the tick with nothing dealt or cast. A body may change
+ *   the amount; a body that removes the ticking aura must Return().
  * - CheckProc: `Unit::ProcDamageAndSpellFor`, after the proc event accepted a holder. Return(false) drops the holder
  *   from this proc. Return(true) keeps it, and for a holder with no spell_proc_event row its effects then skip
  *   Aura::CanProcFrom (their class mask and the hit's kind, which refuses a hit that dealt nothing), as the core's
@@ -224,9 +226,10 @@ struct CheckCastContext
 struct SelectTargetsContext
 {
     SelectTargetsContext(Unit& casterUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
-                         uint32 implicitTargetMode, std::list<Unit*>& unitTargets, uint32& maxTargetCount)
+                         uint32 implicitTargetMode, std::list<Unit*>& unitTargets, uint32& maxTargetCount,
+                         Unit* castTargetUnit = NULL)
         : caster(casterUnit), spell(spellEntry), effIndex(effectIndex), targetMode(implicitTargetMode),
-          targets(unitTargets), maxTargets(maxTargetCount)
+          targets(unitTargets), maxTargets(maxTargetCount), castTarget(castTargetUnit)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -238,6 +241,7 @@ struct SelectTargetsContext
     std::list<Unit*>& targets;                      ///< the effect's unit list, which a body may change
     uint32& maxTargets;                             ///< the most targets the cut after the hook keeps, 0 for no cut,
                                                     ///< which a body may change
+    Unit* castTarget;                               ///< the cast's explicit unit target; NULL when it has none
 };
 
 /// EffectValue's context. Value: void.
@@ -303,6 +307,22 @@ struct AfterHitContext
     /// The caster casts `spellId` at `to`, triggered by this spell. `basePoints`, when given, holds
     /// MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// The caster casts `spellId` at `to`, triggered by his own aura of `auraSpellId` at `auraEffect`, as a proc of
+    /// that aura casts: the aura's spell is the trigger and its caster the original caster, so the cast's hits start
+    /// no procs, while its cast end does. False, and nothing cast, when he holds no such aura.
+    bool CastTriggeredByAura(Unit& to, uint32 spellId, uint32 auraSpellId, SpellEffectIndex auraEffect);
+    /// `from` casts `spellId` at `to`, triggered, with this context's caster as the original caster and this spell as
+    /// the trigger. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggeredFrom(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// Fills `out`, cleared first, with the units an area spell of the caster that strikes enemies takes within
+    /// `radius` yards of `center`, as the area fill of SPELL_TARGETS_AOE_DAMAGE takes them: alive and attackable, no
+    /// totem, in the caster's phase, not friendly to a player-controlled caster (hostile to any other), then in the
+    /// caster's line of sight, as Spell::CheckTarget asks. `center` itself among them when it qualifies. Empty when
+    /// `center` is in no world.
+    void EnemiesAround(Unit const& center, float radius, std::list<Unit*>& out) const;
+    /// Tells the units around the caster that `to` is immune to his `spellId`, as the engine tells a spell its target
+    /// is immune to (Unit::SendSpellMiss, SPELL_MISS_IMMUNE); nothing is cast.
+    void ShowImmune(Unit& to, uint32 spellId);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
 
@@ -402,7 +422,8 @@ struct PeriodicTickContext
     SpellEffectIndex effIndex;                      ///< the ticking effect
     AuraHandle aura;                                ///< the aura's holder
     uint32& amount;                                 ///< the tick's damage or heal, which a body may change
-    bool dummy;                                     ///< true for the tick of a dummy aura, which deals nothing
+    bool dummy;                                     ///< true for the tick of a dummy aura or of a periodic trigger,
+                                                    ///< which deal nothing
 };
 
 /// CheckProc's context. Value: bool.
@@ -410,9 +431,9 @@ struct CheckProcContext
 {
     CheckProcContext(Unit const& ownerUnit, Unit const* victimUnit, SpellEntry const& spellEntry,
                      AuraHandle const& holder, SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags,
-                     uint32 eventDamage)
+                     uint32 eventDamage, uint32 eventAbsorbed = 0)
         : owner(ownerUnit), victim(victimUnit), spell(spellEntry), aura(holder), procSpell(triggeringSpell),
-          procFlag(flags), procEx(extraFlags), damage(eventDamage)
+          procFlag(flags), procEx(extraFlags), damage(eventDamage), absorbed(eventAbsorbed)
     {
         owner.AssertSpellSeamOwner();
     }
@@ -425,6 +446,8 @@ struct CheckProcContext
     uint32 procFlag;                                ///< the event's PROC_FLAG_* mask
     uint32 procEx;                                  ///< the event's PROC_EX_* mask
     uint32 damage;                                  ///< the event's damage or heal
+    uint32 absorbed;                                ///< the part of the hit the owner's absorbs took, when the owner
+                                                    ///< is the one hit; 0 otherwise
 };
 
 /// OnProc's context. Value: SpellAuraProcResult. After the effects of a proc that succeeded, the engine drops one of
@@ -450,6 +473,9 @@ struct OnProcContext
     /// player caster with a proc cooldown has `spellId` on cooldown; a player caster then gets that cooldown.
     /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     bool CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// Whether the cooldown store of the unit that holds the aura holds `spellId` on cooldown now: a player's spell
+    /// and category cooldowns; a unit that is not a player keeps none there.
+    bool OnCooldown(uint32 spellId) const;
 
     Unit& caster;                                   ///< the unit that holds the aura
     Unit* victim;                                   ///< the other unit of the event; NULL when there is none
@@ -543,13 +569,14 @@ struct DummyAuraContext
         Aura* m_aura;                               ///< this aura effect, the trigger of CastTriggeredByAura
 };
 
-/// AfterCast's context: the cast that just finished, what it hit and where it was aimed. Value: void.
+/// AfterCast's context: the cast that just finished, what it hit, where it was aimed and the item it was cast from.
+/// Value: void.
 struct AfterCastContext
 {
     AfterCastContext(Unit& casterUnit, SpellEntry const& spellEntry, uint32 enemies, Unit* explicitTarget,
-                     bool destinationSet, float x, float y, float z)
+                     bool destinationSet, float x, float y, float z, uint32 itemEntry)
         : caster(casterUnit), spell(spellEntry), enemiesHit(enemies), target(explicitTarget),
-          hasDestination(destinationSet), destX(x), destY(y), destZ(z)
+          hasDestination(destinationSet), destX(x), destY(y), destZ(z), castItemEntry(itemEntry)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -557,6 +584,9 @@ struct AfterCastContext
     /// The caster casts `spellId` at the point, triggered, with this cast's spell as the trigger and no triggering
     /// aura.
     void CastTriggeredAt(float x, float y, float z, uint32 spellId);
+    /// The caster casts `spellId` at `to`, triggered, with this cast's spell as the trigger and no triggering aura.
+    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
 
     Unit& caster;                                   ///< the caster
     SpellEntry const& spell;                        ///< the spell cast
@@ -567,6 +597,8 @@ struct AfterCastContext
     bool hasDestination;                            ///< whether the cast carried a destination
     float destX, destY, destZ;                      ///< the destination when hasDestination; the explicit target's
                                                     ///< position otherwise; else the caster's
+    uint32 castItemEntry;                           ///< the entry of the item the cast started from, kept when a
+                                                    ///< spent last charge destroyed it; 0 for a cast from no item
 };
 
 /// Launch's context: the cast that goes off. Value: void.
@@ -673,8 +705,8 @@ struct AuraRemoveHook
     typedef AuraRemoveContext Context;
 };
 
-/// `Aura::PeriodicTick`, before the target's steps (its taken bonus, the crit, its absorb), and
-/// `Aura::PeriodicDummyTick`. Return() ends the tick.
+/// `Aura::PeriodicTick`, before the target's steps (its taken bonus, the crit, its absorb),
+/// `Aura::PeriodicDummyTick`, and `Aura::TriggerSpell`, before the trigger spell is looked up. Return() ends the tick.
 struct PeriodicTickHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_PERIODIC_TICK;

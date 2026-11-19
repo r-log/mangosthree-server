@@ -24,11 +24,12 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
-/// target and script word, the after-cast context's count and point, the aura handle's reads, its removal of one
-/// effect, its stack count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the holder's script
-/// words, the holder copy's answer for a unit holding none and the period, tick time, duration and amount a copy keeps,
-/// the low-health multiplier a script query answers from the caster's class-script auras, and the game table, whose
-/// only hook rows are the mage's scripts.
+/// target and script word, the target context's cast target, the after-hit context's search around a unit in no world,
+/// its cast through an aura the caster lacks and its Immune notice, the after-cast context's count and point, the aura
+/// handle's reads, its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to,
+/// RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and the period, tick
+/// time, duration and amount a copy keeps, the low-health multiplier a script query answers from the caster's
+/// class-script auras, and the game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -51,6 +52,7 @@
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
+#include "combat/CombatNotices.h"
 #include "spells/SpellScriptQueries.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/pipeline/Spell.h"
@@ -60,6 +62,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <ctime>
 #include <list>
 #include <new>
 #include <vector>
@@ -481,6 +484,7 @@ namespace
         uint32 enemies;
         bool destination;
         float x, y, z;
+        uint32 itemEntry;
     };
 
     Seen s_seen;
@@ -528,8 +532,8 @@ TEST(SpellScriptHooks_TheSeventeenKeysAre100To116AboveEveryLegacySite)
     CHECK(CastStartHook::Key > LaunchHook::Key);
 
     // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
-    // check-proc, proc, damage-done, crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast,
-    // launch, cast-start and after-hit hooks.
+    // check-proc, proc, damage-done, crit-chance, dummy aura, aura-apply, aura-remove, periodic-tick, dummy-effect,
+    // after-cast, launch, cast-start and after-hit hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
@@ -539,8 +543,9 @@ TEST(SpellScriptHooks_TheSeventeenKeysAre100To116AboveEveryLegacySite)
     CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(CheckProcHook::Key) +
              game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key) + game.CountAt(CritChanceHook::Key) +
              game.CountAt(DummyAuraHook::Key) + game.CountAt(AuraApplyHook::Key) + game.CountAt(AuraRemoveHook::Key) +
-             game.CountAt(DummyEffectHook::Key) + game.CountAt(AfterCastHook::Key) + game.CountAt(LaunchHook::Key) +
-             game.CountAt(CastStartHook::Key) + game.CountAt(AfterHitHook::Key),
+             game.CountAt(PeriodicTickHook::Key) + game.CountAt(DummyEffectHook::Key) +
+             game.CountAt(AfterCastHook::Key) + game.CountAt(LaunchHook::Key) + game.CountAt(CastStartHook::Key) +
+             game.CountAt(AfterHitHook::Key),
              game.Count());
 }
 
@@ -629,13 +634,15 @@ TEST(SpellScriptHooks_TheAfterCastHookCarriesTheCastsCountAndPoint)
         s_seen.x = ctx.destX;
         s_seen.y = ctx.destY;
         s_seen.z = ctx.destZ;
+        s_seen.itemEntry = ctx.castItemEntry;
         return SpellHandlerOutcome<void>::Continue();
     }));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
 
-    // A cast with two enemies hit and a destination carries the count, the three floats and the flag.
+    // A cast from an item, with two enemies hit and a destination, carries the count, the three floats, the flag and
+    // the item's entry.
     Forget();
-    AfterCastContext aimed(caster, spell, 2, &target, true, 12.5f, -40.25f, 7.0f);
+    AfterCastContext aimed(caster, spell, 2, &target, true, 12.5f, -40.25f, 7.0f, 36799);
     CHECK(registry.Dispatch<AfterCastHook>(kHookSpell, aimed).IsContinue());
     CHECK_EQ(s_seen.enemies, uint32(2));
     CHECK(s_seen.castTarget == &target);
@@ -643,14 +650,16 @@ TEST(SpellScriptHooks_TheAfterCastHookCarriesTheCastsCountAndPoint)
     CHECK(s_seen.x == 12.5f);
     CHECK(s_seen.y == -40.25f);
     CHECK(s_seen.z == 7.0f);
+    CHECK_EQ(s_seen.itemEntry, uint32(36799));
 
-    // A cast with no destination and no unit target says so; another spell's cast reaches no body.
+    // A cast from no item, with no destination and no unit target, says so; another spell's cast reaches no body.
     Forget();
-    AfterCastContext unaimed(caster, spell, 0, NULL, false, 1.0f, 2.0f, 3.0f);
+    AfterCastContext unaimed(caster, spell, 0, NULL, false, 1.0f, 2.0f, 3.0f, 0);
     CHECK(registry.Dispatch<AfterCastHook>(kHookSpell, unaimed).IsContinue());
     CHECK_EQ(s_seen.enemies, uint32(0));
     CHECK(s_seen.castTarget == NULL);
     CHECK(!s_seen.destination);
+    CHECK_EQ(s_seen.itemEntry, uint32(0));
     CHECK(registry.Dispatch<AfterCastHook>(kOtherSpell, unaimed).IsMiss());
 }
 
@@ -684,11 +693,18 @@ TEST(SpellScriptHooks_TheCastHooksReturnWhatTheirBodiesAnswer)
     uint32 maxTargets = 0;
     Forget();
     SelectTargetsContext selectTargets(caster, spell, EFFECT_INDEX_1, 22, targets, maxTargets);
+    CHECK(selectTargets.castTarget == NULL);
     CHECK(registry.Dispatch<SelectTargetsHook>(kHookSpell, selectTargets).IsReturn());
     CHECK_EQ(targets.size(), std::size_t(1));
     CHECK(targets.front() == &target);
     CHECK_EQ(s_seen.targetMode, uint32(22));
     CHECK_EQ(maxTargets, uint32(1));
+
+    // A target context built with the cast's explicit target carries it.
+    std::list<Unit*> aimedTargets;
+    uint32 aimedMax = 0;
+    SelectTargetsContext aimedSelect(caster, spell, EFFECT_INDEX_0, 53, aimedTargets, aimedMax, &target);
+    CHECK(aimedSelect.castTarget == &target);
 
     CHECK(registry.Register<EffectValueHook>(kHookSpell, &TestVoidBody));
     int32 value = 41;
@@ -874,6 +890,12 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK(!vetoed.GetValue());
     CHECK_EQ(s_seen.charges, uint32(2));
 
+    // The part of the hit the owner's absorbs took: 0 when the event names none, as given otherwise.
+    CHECK_EQ(checkProc.absorbed, uint32(0));
+    CheckProcContext absorbedProc(owner, &other, spell, AuraHandle(holder), NULL, 0x8, 0x401, 0, 750);
+    CHECK_EQ(absorbedProc.damage, uint32(0));
+    CHECK_EQ(absorbedProc.absorbed, uint32(750));
+
     CHECK(registry.Register<OnProcHook>(kHookSpell, [](OnProcContext& ctx)
     {
         s_seen.triggerAmount = ctx.triggerAmount;
@@ -891,6 +913,14 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK_EQ(s_seen.triggerAmount, 13);
     CHECK_EQ(s_seen.cooldown, uint32(6));
     CHECK(registry.Dispatch<OnProcHook>(kOtherSpell, onProc).IsMiss());
+
+    // OnCooldown reads the owner's cooldown store: a spell whose cooldown runs is on cooldown, one whose cooldown
+    // ended or that has none is not.
+    cooldowns.AddSpellCooldown(kHookSpell, 0, time(NULL) + 30);
+    cooldowns.AddSpellCooldown(kOtherSpell, 0, time(NULL) - 1);
+    CHECK(onProc.OnCooldown(kHookSpell));
+    CHECK(!onProc.OnCooldown(kOtherSpell));
+    CHECK(!onProc.OnCooldown(kHookSpell + 1));
 
     // The dummy aura body doubles the amount and sets its effect's script word at the apply and goes on; at the
     // un-apply it ends the handler. The context has no aura to cast with: the body casts nothing.
@@ -1342,39 +1372,41 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
 TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
 {
     // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's, Arcane Potency's two
-    // buffs', Fingers of Frost's three, Brain Freeze's three and Invocation's two ranks', the proc hook the mage's 23
-    // proc scripts, the target hook Blink's and the orb's scan's, the damage-done hook the 22 spells Frostburn's class
-    // mask covers and Torment the Weak's three ranks, the crit-chance hook the 26 spells Shatter's covers, the dummy
-    // aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s
-    // and Arcane Missiles', the aura-remove hook Hot Streak's buff's, Mage Ward's, Pyromaniac's ten, Arcane
-    // Missiles!'s and the seven forms of Polymorph's, the dummy-effect hook Combustion's, Impact's spread, Flame Orb's,
-    // the orb's scan's, Mirror Image's and Clone Me!'s, the after-cast hook Blast Wave's, the launch hook Ice Lance's,
-    // Deep Freeze's, Frostfire Bolt's and Fireball's, the cast-start hook Frostbolt's, and the after-hit hook Frostfire
-    // Bolt's (MageScriptsTest names their ids); no other hook holds a row.
+    // buffs', Fingers of Frost's three, Brain Freeze's three, Invocation's two and Reactive Barrier's two ranks', the
+    // proc hook the mage's 27 proc scripts, the target hook Blink's, the orb's scan's, the ring's freeze's and Piercing
+    // Chill's chill's, the damage-done hook the 22 spells Frostburn's class mask covers and Torment the Weak's three
+    // ranks, the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply
+    // hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s, Arcane Missiles' and Ice Barrier's, the
+    // aura-remove hook Hot Streak's buff's, Mage Ward's, Mana Shield's, Ice Barrier's, Pyromaniac's ten, Arcane
+    // Missiles!'s and the seven forms of Polymorph's and the ring's freeze's, the periodic-tick hook Ring of Frost's,
+    // the dummy-effect hook Combustion's, Impact's spread, Flame Orb's, the orb's scan's, Mirror Image's and Clone Me!'s,
+    // the after-cast hook Blast Wave's and Replenish Mana's, the launch hook Ice Lance's, Deep Freeze's, Frostfire
+    // Bolt's and Fireball's, the cast-start hook Frostbolt's, and the after-hit hook Frostbolt's, Cone of Cold's and
+    // Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
-        PeriodicTickHook::Key,
     };
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 key : emptyKeys)
     {
         CHECK_EQ(game.CountAt(key), std::size_t(0));
     }
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(14));
-    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(23));
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(2));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(16));
+    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(27));
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(game.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(12));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(20));
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(13));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(23));
+    CHECK_EQ(game.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(6));
-    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(2));
     CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
-    CHECK_EQ(game.Count(), std::size_t(1361));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(3));
+    CHECK_EQ(game.Count(), std::size_t(1377));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 
@@ -1608,4 +1640,65 @@ TEST(SpellScriptHooks_DamageTakenMultiplierTakesAreaAvoidanceForAnAreaRowOnly)
 
     victim.Drop();
     CHECK(Near(Spells::DamageTakenMultiplier(victim, caster, blastWave), 1.0f));
+}
+
+TEST(SpellScriptHooks_AnAfterHitContextFindsNoEnemyAroundAUnitInNoWorldAndNeedsTheAuraItCastsThrough)
+{
+    BareCreature caster;
+    BareCreature target;
+    SpellEntry const& spell = HookSpell();
+    AfterHitContext afterHit(caster, target, spell, 1200, true, 0, 0, false);
+
+    // A unit in no world has no enemy around it: the list is emptied and nothing is added.
+    std::list<Unit*> found;
+    found.push_back(&caster);
+    afterHit.EnemiesAround(target, 10.0f, found);
+    CHECK(found.empty());
+
+    // A cast through an aura the caster does not hold casts nothing and says so.
+    CHECK(!afterHit.CastTriggeredByAura(target, kOtherSpell, kHookSpell, EFFECT_INDEX_0));
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+namespace
+{
+    // Notices that keep the spell misses they are told, in place of the session's.
+    class MissNotices : public CombatNotices
+    {
+        public:
+            void SpellMiss(Unit& caster, Unit& target, uint32 spellId, SpellMissInfo missInfo) override
+            {
+                ++misses;
+                lastCaster = &caster;
+                lastTarget = &target;
+                lastSpell = spellId;
+                lastMiss = missInfo;
+            }
+
+            uint32 misses = 0;
+            Unit* lastCaster = NULL;
+            Unit* lastTarget = NULL;
+            uint32 lastSpell = 0;
+            SpellMissInfo lastMiss = SPELL_MISS_NONE;
+    };
+}
+
+TEST(SpellScriptHooks_AnAfterHitContextShowsImmuneAsTheEngineDoesAndCastsNothing)
+{
+    BareCreature caster;
+    BareCreature target;
+    SpellEntry const& spell = HookSpell();
+    AfterHitContext afterHit(caster, target, spell, 1200, false, 0, 0, false);
+
+    // The miss goes out as Unit::SendSpellMiss tells it: the caster's spell at the unit, immune; nothing is cast.
+    MissNotices notices;
+    CombatNotices* previous = CombatNotices::Install(&notices);
+    afterHit.ShowImmune(target, kOtherSpell);
+    CombatNotices::Install(previous);
+    CHECK_EQ(notices.misses, uint32(1));
+    CHECK(notices.lastCaster == &caster);
+    CHECK(notices.lastTarget == &target);
+    CHECK_EQ(notices.lastSpell, kOtherSpell);
+    CHECK_EQ(uint32(notices.lastMiss), uint32(SPELL_MISS_IMMUNE));
+    CHECK(target.GetSpellAuraHolderMap().empty());
 }
