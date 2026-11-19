@@ -60,6 +60,7 @@
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/SpellScriptQueries.h"
 #include "spells/PeriodicTiming.h"
@@ -75,6 +76,7 @@
 #include <cmath>
 #include <ctime>
 #include <list>
+#include <memory>
 #include <set>
 #include <utility>
 #include <vector>
@@ -1101,6 +1103,95 @@ TEST(MageScripts_ArcaneMissilesAurastateFollowsArcaneMissilesBuff)
     AuraApplyContext noCaster(target, NULL, SpellRow(channelRow, 5143), AuraHandle(holder), true);
     CHECK(registry.Dispatch<AuraApplyHook>(5143, noCaster).IsContinue());
     CHECK(target.HasAura(79683));
+}
+
+TEST(MageScripts_ArcaneMissilesAimAtTheUnitTheChannelStartedOn)
+{
+    // The missiles' implicit target 77 is his channel object while Arcane Missiles (5143) is his channel, whatever his
+    // target; a channel object of another channel, one that is no unit, or none, with no channel of 5143 cast, is none.
+    const ObjectGuid camelA(HIGHGUID_UNIT, uint32(50249), uint32(1));
+    const ObjectGuid camelB(HIGHGUID_UNIT, uint32(50249), uint32(2));
+    const ObjectGuid bobber(HIGHGUID_GAMEOBJECT, uint32(35591), uint32(3));
+    BareCreature mage;
+    mage.SetTargetGuid(camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+
+    mage.SetUInt32Value(UNIT_CHANNEL_SPELL, 5143);
+    mage.SetChannelObjectGuid(camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    mage.SetTargetGuid(camelB);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    mage.SetTargetGuid(ObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 47758).IsEmpty());
+
+    mage.SetTargetGuid(camelB);
+    mage.SetChannelObjectGuid(bobber);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+    mage.SetChannelObjectGuid(ObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+}
+
+namespace
+{
+    uint32 const ROW_OWN_TARGET_CHANNEL = 9420017;
+
+    // A channel's Spell.dbc row in the spell store, where a Spell's constructor checks it: only its id and the channel
+    // attribute, so its cast takes the caster's channel slot. Put there once for the rest of the run; no other test
+    // reads it.
+    SpellEntry const* OwnTargetChannelRow()
+    {
+        static SpellRowStorage storage;
+        static bool added = false;
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(storage.bytes);
+        if (!added)
+        {
+            added = true;
+            SpellRow(storage, ROW_OWN_TARGET_CHANNEL);
+            row->AttributesEx = SPELL_ATTR_EX_CHANNELED_1;
+            sSpellStore.SetEntry(ROW_OWN_TARGET_CHANNEL, row);
+        }
+        return row;
+    }
+
+    // A bare creature that a unit guid of its own names.
+    class NamedCreature : public BareCreature
+    {
+        public:
+            explicit NamedCreature(uint32 low)
+            {
+                Object::_Create(low, 50249, HIGHGUID_UNIT);
+            }
+    };
+}
+
+TEST(MageScripts_AChannelWithNoChannelObjectAimsAtItsOwnUnitTarget)
+{
+    // With his channel object empty, as the server leaves it for a channel at himself, the target is the unit target of
+    // the channel he is casting when its id is the one asked for: the Camel it was cast at, or himself for a channel at
+    // himself. A channel with no unit target, another spell's id, and no channel at all give none; a unit in his
+    // channel object for that channel answers first.
+    std::unique_ptr<Spell> channel;
+    NamedCreature mage(1);
+    NamedCreature camel(2);
+    CHECK(!camel.GetObjectGuid().IsEmpty());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL).IsEmpty());
+
+    channel.reset(new Spell(&mage, OwnTargetChannelRow(), false));
+    mage.SetCurrentCastedSpell(channel.get());
+    CHECK(mage.GetCurrentSpell(CURRENT_CHANNELED_SPELL) == channel.get());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL).IsEmpty());
+
+    channel->m_targets.setUnitTarget(&camel);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL) == camel.GetObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+
+    channel->m_targets.setUnitTarget(&mage);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL) == mage.GetObjectGuid());
+
+    mage.SetUInt32Value(UNIT_CHANNEL_SPELL, ROW_OWN_TARGET_CHANNEL);
+    mage.SetChannelObjectGuid(camel.GetObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, ROW_OWN_TARGET_CHANNEL) == camel.GetObjectGuid());
 }
 
 TEST(MageScripts_ArcaneBlastBuffEndsOnlyAtTheCastOfAnotherArcaneDamageSpell)
