@@ -228,18 +228,6 @@ static SpellHandlerOutcome<void> EffectTriggerSpellShadowfiend(SpellEffectTrigge
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// 58832: Mirror Image: a caster with Glyph of Mirror Image (63093) also casts Mirror Image (65047) on itself;
-/// the triggered spell is then cast
-static SpellHandlerOutcome<void> EffectTriggerSpellMirrorImage(SpellEffectTriggerSpellContext& ctx)
-{
-    // Glyph of Mirror Image
-    if (ctx.m_caster->HasAura(63093))
-    {
-        ctx.m_caster->CastSpell(ctx.m_caster, 65047, true, ctx.m_CastItem, NULL, ctx.m_originalCasterGUID);
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
-
 /// 48129, 60320, 60321: Scroll of Recall I to III: a player target above the scroll's level (40, 70, 80) casts
 /// Lost! (60444) and one of its faction's eight spells from 60323 or 60328, and the effect ends; otherwise the
 /// teleport goes on
@@ -493,7 +481,6 @@ uint32 RegisterSpellEffectDamageTeleportHandlers(SpellHandlerRegistry& registry)
         { 31980, &EffectTriggerSpellRighteousDefense },
         { 35729, &EffectTriggerSpellCloakOfShadows },
         { 41967, &EffectTriggerSpellShadowfiend },
-        { 58832, &EffectTriggerSpellMirrorImage },
     };
 
     static SpellEffectDamageTeleportRow<SpellEffectTeleportRecallSite> const teleportRecall[] =
