@@ -22756,19 +22756,19 @@ namespace Harness
      *     power part, and sends the Assist button; read: the stance;
      *  2. Frostbolt at the Camel, nine seconds to the next step: the Assist pet attacks the Camel and fires Waterbolt
      *     on its own; read: its victim;
-     *  3. a wait whose act sends the Passive button, which stops the pet, three seconds long so a bolt it was casting
-     *     ends;
+     *  3. a wait whose act sends the Passive button, three seconds long so a bolt it was casting ends; that bolt's
+     *     hit sets the pet on the Camel again (Unit::DealDamage), so it goes on casting Waterbolt;
      *  4. the fade (66) cast by him at himself, four seconds to the next step: its expiry at three seconds casts his
      *     Invisibility (32612); read: his 32612 and the pet's 96243;
-     *  5. Frostbolt at the Camel, which takes his 32612 off him; read: his 32612 and the pet's 96243, then the pet is
-     *     ended.
+     *  5. Frostbolt at the Camel, which takes his 32612 off him; the pet's 96243 is read right after the cast, before
+     *     the pet's own next cast can end it; read: his 32612 and the pet's 96243, then the pet is ended.
      *
      * `pet`: `autocast=<Waterbolt's button>,<Freeze's button>,stance=<step 1's read>,bolts=<yes when the pet's
      * Waterbolt hit the Camel in step 2's windows, else none>,fit=<yes when each bolt that did not crit is Waterbolt's
-     * base at level 85 (kBoltLow..kBoltHigh) plus the spell power part read at step 1, no when one is not, none
-     * without such a bolt>,coefficient=<row when the part is 0.833 of the pet's spell power, cast-time when 2.5 / 3.5
-     * of it, else other>,share=<yes when the pet's spell power is 0.4 of his frost spell power>,invis=<the pet's 96243
-     * at step 4's read>,<at step 5's read>`. OK at `autocast=on,off,stance=assist,bolts=yes,fit=yes,coefficient=row,
+     * base at level 85 (kBoltLow..kBoltHigh) plus the spell power part read at step 1, no when one is not, none without
+     * such a bolt>,coefficient=<row when the part is 0.833 of the pet's spell power, cast-time when 2.5 / 3.5 of it,
+     * else other>,share=<yes when the pet's spell power is 0.4 of his frost spell power>,invis=<the pet's 96243 at step
+     * 4's read>,<right after step 5's cast>`. OK at `autocast=on,off,stance=assist,bolts=yes,fit=yes,coefficient=row,
      * share=yes,invis=yes,no`: a fresh Water Elemental's Waterbolt is on and its Freeze off, the client's Assist button
      * is taken, the pet fires on its own, each bolt takes 0.833 of its spell power (the world's spell_bonus_data row),
      * and the pet turns invisible with the mage and back with him.
@@ -22842,6 +22842,11 @@ namespace Harness
             {
                 PetAction(p, kPassiveButton);
             }
+            else if (!atRead && k == kLastStep)
+            {
+                seen.reads["petInvisibleAtCast"] = pet && pet->HasAura(kPetInvisibility) ? 1 : 0;
+                m_rec.Note("right after his cast, the pet's 96243 " + HolderOf(pet, kPetInvisibility));
+            }
             else if (atRead)
             {
                 seen.reads["victim"] = pet && pet->getVictim() ? 1 : 0;
@@ -22893,7 +22898,7 @@ namespace Harness
                                       ",fit=" + fit +
                                       ",coefficient=" + coefficient + ",share=" + (share ? "yes" : "no") + ",invis=" +
                                       (Kept(st, kFadeStep, "petInvisible") == 1 ? "yes" : "no") + "," +
-                                      (Kept(st, kLastStep, "petInvisible") == 1 ? "yes" : "no");
+                                      (Kept(st, kLastStep, "petInvisibleAtCast") == 1 ? "yes" : "no");
             const std::string detail = "the pet's Waterbolts " + (amounts.empty() ? std::string("none") : amounts) +
                                        "; its frost spell power " + std::to_string(power) + ", Waterbolt's part " +
                                        std::to_string(part) + "; his frost spell power " + std::to_string(frost) +
