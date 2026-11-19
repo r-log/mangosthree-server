@@ -1361,12 +1361,13 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     // proc scripts, the target hook Blink's, the orb's scan's, the ring's freeze's and Piercing Chill's chill's, the
     // damage-done hook the 22 spells Frostburn's class mask covers and Torment the Weak's three ranks, the crit-chance
     // hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook Pyromaniac's ten (its
-    // eight DoTs and two ranks), Arcane Missiles!'s and Arcane Missiles', the aura-remove hook Hot Streak's buff's,
-    // Mage Ward's, Mana Shield's, Pyromaniac's ten, Arcane Missiles!'s and the seven forms of Polymorph's and the
-    // ring's freeze's, the periodic-tick hook Ring of Frost's, the dummy-effect hook Combustion's, Impact's spread,
-    // Flame Orb's and the orb's scan's, the after-cast hook Blast Wave's and Replenish Mana's, the launch hook Ice
-    // Lance's, Deep Freeze's, Frostfire Bolt's and Fireball's, the cast-start hook Frostbolt's, and the after-hit hook
-    // Frostbolt's, Cone of Cold's and Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
+    // eight DoTs and two ranks), Arcane Missiles!'s, Arcane Missiles' and the seven forms of Polymorph's, the
+    // aura-remove hook Hot Streak's buff's, Mage Ward's, Mana Shield's, Pyromaniac's ten, Arcane Missiles!'s and the
+    // seven forms of Polymorph's and the ring's freeze's, the periodic-tick hook Ring of Frost's, the dummy-effect hook
+    // Combustion's, Impact's spread, Flame Orb's and the orb's scan's, the after-cast hook Blast Wave's and Replenish
+    // Mana's, the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's and Fireball's, the cast-start hook
+    // Frostbolt's, and the after-hit hook Frostbolt's, Cone of Cold's and Frostfire Bolt's (MageScriptsTest names their
+    // ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
@@ -1382,7 +1383,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(game.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(12));
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(19));
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(22));
     CHECK_EQ(game.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(4));
@@ -1390,7 +1391,7 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(4));
     CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(3));
-    CHECK_EQ(game.Count(), std::size_t(1369));
+    CHECK_EQ(game.Count(), std::size_t(1375));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 

@@ -154,19 +154,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56372(DummyAura
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
 }
 
-/// 56375: Glyph of Polymorph: removes the periodic damage auras from a living victim
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56375(DummyAuraProcContext& ctx)
-{
-    if (!ctx.pVictim || !ctx.pVictim->IsAlive())
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE);
-    ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE_PERCENT);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-}
-
 /// 64411: Blessing of Ancient Kings: after a positive spell, triggers 64413 for 15 percent of the damage
 static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAuraProcContext& ctx)
 {
@@ -253,7 +240,6 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
     static Row<DummyAuraProcMageSite> const dummyAuraProcMage[] =
     {
         { 56372, &DummyAuraProcMage56372 },
-        { 56375, &DummyAuraProcMage56375 },
         { 64411, &DummyAuraProcMage64411 },
     };
 
