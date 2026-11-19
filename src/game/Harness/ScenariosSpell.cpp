@@ -152,7 +152,8 @@
 // 1010 a staged Frost mage's Ring of Frost forms in 3 seconds and freezes the units in its band, a Camel and a hostile
 // player standing there as it forms, and a Camel moved in later; never one at its centre, one the pole hides from
 // it or one immune to the freeze, which shows Immune once; the player's freeze lasts 8 s and halves his Deep Freeze;
-// a dispelled freeze leaves its 3 s marker, after which the unit is frozen again; a second ring ends the first.
+// a dispelled freeze leaves its 3 s marker, after which the unit is frozen again; a second ring ends the first; a hit
+// breaks the freeze by a chance that grows with its damage, a shield's part counted, and a reactive hit never does.
 // 1025 Polymorph and Wyvern Sting on the Camel break on a direct hit and on a periodic tick, not on Molten Armor's
 // hit, a heal or a hit a shield takes whole, and Hex breaks on a chance per hit.
 // 1026 a root, a fear and Hex on the Camel count the damage a shield absorbed and the damage its damage-reduction
@@ -18183,7 +18184,13 @@ namespace Harness
      *     and display and P's 82691 read;
      *  3. A's 82691 dispelled (Unit::RemoveAuraHolderDueToSpellByDispel), kMarkerWaitMs before the next step; A's
      *     91264 read right after;
-     *  4. a wait of kStepMs, read inside the marker's 3 s;
+     *  4. a wait of kStepMs, read inside the marker's 3 s: W takes the Camel's side of the proc call a Fireball (133)
+     *     hit makes (Unit::ProcDamageAndSpell with the taken-negative-spell and damage-taken flags), kProcHits times
+     *     of kSmallHit and kProcHits times of kBigHit, then once of kBigHit that a shield took whole and once of
+     *     kBigHit from Molten Armor's hit (34913, a reactive damage proc), its 82691 put back on before each call
+     *     (as PutReadyAura puts it, with him as its caster) when it does not hold it. W is level 85, so a hit that
+     *     counts 25 x 85 - 150 = 1975 or more breaks the freeze for certain and kSmallHit by a chance of
+     *     kSmallHit / 1975;
      *  5. a wait of kStepMs: he casts Deep Freeze (44572) at P, triggered; read after the marker ran out;
      *  6. a wait of kStepMs: his cooldown of 82676 taken off by call, he casts 82676 at C2, kSecondRingAhead yards
      *     ahead of him and kSecondRingAcross across, far from every Camel, as in step 1.
@@ -18193,10 +18200,12 @@ namespace Harness
      * immune=<Immune misses of 82691 on E in the run>/<E ever frozen>,ring=<44199 not selectable>/<its display>,
      * pvp=<P's 82691 full duration>,deepFreeze=<P's 44572 full duration>,marker=<A's 91264 full duration after the
      * dispel>/<A frozen inside it>/<A frozen after it>,rings=<44199 alive after the second cast>/<the one alive is
-     * the second>`, a frozen unit 1 and one never frozen 0, -1 for a duration never read. OK when formed is
-     * kFormedLow..kFormedHigh for both, centre 0, walkIn 0/1, wall 0/blocked, immune 1/0, ring 1/34997, pvp 8000,
-     * deepFreeze 2500 (half of 5000: the freeze raised the diminishing returns the two share), marker 3000/0/1 and
-     * rings 1/1.
+     * the second>,damage=<small calls that broke W's freeze>/<calls>,<big calls that broke it>/<calls>,<the absorbed
+     * call broke it>/<the reactive call broke it>`, a frozen unit 1 and one never frozen 0, -1 for a duration never
+     * read, a call that broke the freeze 1. OK when formed is kFormedLow..kFormedHigh for both, centre 0, walkIn 0/1,
+     * wall 0/blocked, immune 1/0, ring 1/34997, pvp 8000, deepFreeze 2500 (half of 5000: the freeze raised the
+     * diminishing returns the two share), marker 3000/0/1, rings 1/1, and damage broke the freeze on at least one
+     * small call and kept it on at least one, on every big call and on the absorbed call, and not on the reactive one.
      */
     class MageFrostRing : public MageProcScenario
     {
@@ -18272,6 +18281,10 @@ namespace Harness
                 { 97936, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 26 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 44572: 26 fields, fnv 8e0a4500
                 { 44572, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 133: 26 fields, fnv 81dba6e7
+                { 133, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1067332927 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 34913: 26 fields, fnv aa3af5ec
+                { 34913, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 75 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 12982: 49 fields, fnv 78c33ea5
                 { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 76613: 49 fields, fnv a5f94991
@@ -18335,7 +18348,10 @@ namespace Harness
                             immune == 1 && !m_read.immuneFrozen && m_read.notSelectable == 1 &&
                             m_read.display == int32(kHostileDisplay) && m_read.pvp == kPvpMs &&
                             m_read.deepFreeze == kDiminishedDeepFreezeMs && m_read.marker == kMarkerMs &&
-                            !m_read.frozenInMarker && m_read.refrozen && m_read.rings == 1 && m_read.secondIsNew;
+                            !m_read.frozenInMarker && m_read.refrozen && m_read.rings == 1 && m_read.secondIsNew &&
+                            m_read.smallBreaks >= 1 && m_read.smallBreaks < int32(kProcHits) &&
+                            m_read.bigBreaks == int32(kProcHits) && m_read.absorbedBreak == 1 &&
+                            m_read.reactiveBreak == 0;
             const std::string value =
                 "formed=" + std::to_string(m_read.formedA) + "/" + std::to_string(m_read.formedP) +
                 ",centre=" + Bit(m_read.centre) + ",walkIn=" + Bit(m_read.walkerBefore) + "/" +
@@ -18345,11 +18361,15 @@ namespace Harness
                 std::to_string(m_read.display) + ",pvp=" + std::to_string(m_read.pvp) + ",deepFreeze=" +
                 std::to_string(m_read.deepFreeze) + ",marker=" + std::to_string(m_read.marker) + "/" +
                 Bit(m_read.frozenInMarker) + "/" + Bit(m_read.refrozen) + ",rings=" + std::to_string(m_read.rings) +
-                "/" + Bit(m_read.secondIsNew);
+                "/" + Bit(m_read.secondIsNew) + ",damage=" + std::to_string(m_read.smallBreaks) + "/" +
+                U(kProcHits) + "," + std::to_string(m_read.bigBreaks) + "/" + U(kProcHits) + "," +
+                std::to_string(m_read.absorbedBreak) + "/" + std::to_string(m_read.reactiveBreak);
             const std::string detail = "A and P frozen from the ring's first formed tick, the centre, the wall and the "
                                        "immune Camel left alone with one Immune miss, the walker frozen in the band, "
                                        "the ring not selectable with the hostile display, P frozen 8 s, Deep Freeze "
-                                       "halved, the marker 3 s after a dispel and one ring after the second cast";
+                                       "halved, the marker 3 s after a dispel, one ring after the second cast, and "
+                                       "the freeze broken by a chance on small hits, always on big and absorbed ones, "
+                                       "never on a reactive one";
             return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
         }
 
@@ -18361,6 +18381,11 @@ namespace Harness
         static constexpr uint32 kImmunity = 41625;
         static constexpr uint32 kRoot = 97936;
         static constexpr uint32 kDeepFreeze = 44572;
+        static constexpr uint32 kFireball = 133;
+        static constexpr uint32 kMoltenArmorHit = 34913;
+        static constexpr uint32 kProcHits = 20;
+        static constexpr uint32 kSmallHit = 720;
+        static constexpr uint32 kBigHit = 2000;
         static constexpr uint32 kHostileDisplay = 34997;
         static constexpr uint32 kLevel = 85;
         static constexpr float kPoleX = -3112.07f;
@@ -18419,6 +18444,10 @@ namespace Harness
             bool refrozen = false;          ///< A held 82691 at the read after the marker
             int32 rings = -1;               ///< the 44199 alive near him after the second cast
             bool secondIsNew = false;       ///< the one alive is not the first ring
+            int32 smallBreaks = -1;         ///< the kSmallHit calls after which W did not hold 82691
+            int32 bigBreaks = -1;           ///< the kBigHit calls after which W did not hold 82691
+            int32 absorbedBreak = -1;       ///< 1 when W did not hold 82691 after the absorbed call, else 0
+            int32 reactiveBreak = -1;       ///< 1 when W did not hold 82691 after the reactive call, else 0
         };
 
         /// `step` aimed at the Camel of index `camel`.
@@ -18523,8 +18552,55 @@ namespace Harness
             m_read.immuneFrozen = m_read.immuneFrozen || Frozen(Camel(kCamelE));
         }
 
+        /// The Camel's side of the proc call a hit of `damage` by `hit` makes at W, of which a shield took `absorb`,
+        /// W's 82691 put back on first when it does not hold it; true when W does not hold 82691 after the call.
+        bool BreaksAfterHit(Player* p, Creature* w, SpellEntry const* hit, uint32 damage, uint32 absorb)
+        {
+            if (!w->HasAura(kFreeze))
+            {
+                PutReadyAura(w, kFreeze, kAuraMs, p);
+            }
+            p->ProcDamageAndSpell(w, PROC_FLAG_NONE, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT | PROC_FLAG_TAKEN_ANY_DAMAGE,
+                                  PROC_EX_NORMAL_HIT | (absorb ? uint32(PROC_EX_ABSORB) : 0u), damage, BASE_ATTACK,
+                                  hit, absorb);
+            return !w->HasAura(kFreeze);
+        }
+
+        /// The damage calls at W (step 4): kProcHits small, kProcHits big, one absorbed whole, one reactive.
+        void DamageCalls(Player* p)
+        {
+            Creature* w = Camel(kCamelW);
+            SpellEntry const* fireball = sSpellStore.LookupEntry(kFireball);
+            SpellEntry const* reactive = sSpellStore.LookupEntry(kMoltenArmorHit);
+            if (!w || !fireball || !reactive)
+            {
+                m_rec.Note("no W, Fireball or Molten Armor's hit for the damage calls");
+                return;
+            }
+            const bool frozen = Frozen(w);
+            m_read.smallBreaks = 0;
+            m_read.bigBreaks = 0;
+            for (uint32 i = 0; i < kProcHits; ++i)
+            {
+                m_read.smallBreaks += BreaksAfterHit(p, w, fireball, kSmallHit, 0) ? 1 : 0;
+            }
+            for (uint32 i = 0; i < kProcHits; ++i)
+            {
+                m_read.bigBreaks += BreaksAfterHit(p, w, fireball, kBigHit, 0) ? 1 : 0;
+            }
+            m_read.absorbedBreak = BreaksAfterHit(p, w, fireball, 0, kBigHit) ? 1 : 0;
+            m_read.reactiveBreak = BreaksAfterHit(p, w, reactive, kBigHit, 0) ? 1 : 0;
+            m_rec.Note(std::string("W (level ") + U(w->getLevel()) + ") " + (frozen ? "frozen" : "not frozen") +
+                       " before the damage calls; " + U(kProcHits) + " of " + U(kSmallHit) + " broke the freeze " +
+                       std::to_string(m_read.smallBreaks) + " times, " + U(kProcHits) + " of " + U(kBigHit) + " " +
+                       std::to_string(m_read.bigBreaks) + " times; the absorbed one " +
+                       (m_read.absorbedBreak ? "broke it" : "did not") + ", the reactive one " +
+                       (m_read.reactiveBreak ? "broke it" : "did not") + "; W " +
+                       (w->HasAura(kRoot) ? "still rooted" : "no longer rooted"));
+        }
+
         /// What step k does besides the base's step, right after it acts: the Camels' auras and the first cast, W's
-        /// move and the ring's reads, the marker's read, Deep Freeze at P, the second cast.
+        /// move and the ring's reads, the marker's read, the damage calls at W, Deep Freeze at P, the second cast.
         void Act(St& st, uint32 k, Player* p, Creature* /*target*/)
         {
             if (k == kCastStep)
@@ -18587,6 +18663,10 @@ namespace Harness
                 m_read.marker = marker ? marker->GetAuraMaxDuration() : -1;
                 m_rec.Note("A's " + U(kMarker) + " right after the dispel: " + std::to_string(m_read.marker) +
                            " ms; A " + (Frozen(a) ? "frozen" : "not frozen"));
+            }
+            else if (k == kInsideMarkerStep)
+            {
+                DamageCalls(p);
             }
             else if (k == kAfterMarkerStep)
             {
