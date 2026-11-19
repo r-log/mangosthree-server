@@ -26,8 +26,8 @@
 /**
  * @file PeriodicTiming.h
  * @brief The timing of a periodic effect as the 4.3.4 client computes it: the period and the duration a caster's
- * haste gives, the time to an aura's first tick, the number of ticks it deals, and how an amount is spread over
- * those ticks. Pure functions over numbers.
+ * haste gives, the time to an aura's first tick, the number of ticks it deals, how an amount is spread over those
+ * ticks, and the tick that restores a percent of a maximum. Pure functions over numbers.
  *
  * Every float-to-int rounding here is to the nearest integer with ties to even, the client's conversion; every
  * integer division truncates toward zero.
@@ -72,6 +72,65 @@ namespace Spells
      *         below kMinCastHaste or `duration` is not positive.
      */
     int32 HastedDurationDirect(int32 duration, float castHaste);
+
+    /// The timing of a periodic effect whose period and duration the caster's haste both shortens
+    /// (SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC with SPELL_ATTR_EX8_HASTE_AFFECTS_DURATION), from HastedPeriodAndDuration.
+    struct HastedTicks
+    {
+        int32 period;                                   ///< the hasted period, HastedPeriod's
+        int32 duration;                                 ///< the hasted duration, HastedDurationDirect's
+        uint32 ticks;                                   ///< the tick count without haste
+        int32 lastTick;                                 ///< the time from the apply to the last tick
+    };
+
+    /**
+     * @brief The hasted period and duration of a periodic effect whose period and duration haste both shortens, the
+     *        tick count it keeps and the time of its last tick.
+     *
+     * The client rounds the hasted period (Spell_C_GetAuraPeriod) and the hasted duration (Spell_C_GetDuration) apart,
+     * so the hasted periods can end a few milliseconds past the hasted duration: Evocation (2000 over 6000, a tick at
+     * its apply) at 20% haste has a period of 1667 and a duration of 5000, and its fourth tick would come at 5001. The
+     * effect keeps the tick count it has without haste, and its last tick comes at the hasted periods' time or at the
+     * end of the duration, the sooner.
+     *
+     * @param period The period after the spell modifiers, in milliseconds.
+     * @param duration The duration after the spell modifiers, in milliseconds.
+     * @param ticksAtApply True for an effect that deals a tick at its apply (SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY).
+     * @param castHaste The caster's cast-haste multiplier (UNIT_MOD_CAST_HASTE).
+     * @return HastedPeriod of the period and HastedDurationDirect of the duration; TickCount of the period and the
+     *         duration as they are; and the last tick's time, FirstTickDelay of the hasted period plus one hasted period
+     *         for each later tick, at most the hasted duration. A tick count and a last tick of 0 when the period or the
+     *         duration is not positive.
+     */
+    HastedTicks HastedPeriodAndDuration(int32 period, int32 duration, bool ticksAtApply, float castHaste);
+
+    /**
+     * @brief The time from a periodic aura's tick to its next one.
+     *
+     * @param ticksDealt The ticks the aura has dealt, the one just dealt included.
+     * @param period The aura's period, in milliseconds.
+     * @param firstTickDelay The time from the apply to the first tick.
+     * @param heldTicks The tick count of an aura whose last tick comes at `lastTick` (HastedPeriodAndDuration); 0 for
+     *        any other aura.
+     * @param lastTick The time from the apply to that last tick.
+     * @return `period`; when the next tick is the held aura's last, the time from this tick to `lastTick` instead when
+     *         that is sooner, never below 0.
+     */
+    int32 TimeToNextTick(uint32 ticksDealt, int32 period, int32 firstTickDelay, uint32 heldTicks, int32 lastTick);
+
+    /**
+     * @brief How many ticks a periodic aura whose last tick may be held deals over its duration.
+     *
+     * @param duration The aura's maximum duration, in milliseconds.
+     * @param period The aura's period, in milliseconds.
+     * @param firstTickDelay The time from the apply to the first tick.
+     * @param heldTicks The tick count of an aura whose last tick comes at `lastTick` (HastedPeriodAndDuration); 0 for
+     *        any other aura.
+     * @param lastTick The time from the apply to that last tick.
+     * @return `heldTicks` when the periods alone fit one tick fewer into `duration` and `lastTick` lies within it;
+     *         TickCount(duration, period, firstTickDelay) otherwise.
+     */
+    uint32 HeldTickCount(int32 duration, int32 period, int32 firstTickDelay, uint32 heldTicks, int32 lastTick);
 
     /**
      * @brief The time from an aura's apply, or its load from the database, to its first tick.
@@ -134,6 +193,20 @@ namespace Spells
      *         `7 * (ticks - 1)` is above 100.
      */
     int32 DecliningTickOffset(int32 amount, int32 ticks, int32 tick);
+
+    /**
+     * @brief The amount of a tick that restores a percent of a maximum (SPELL_AURA_OBS_MOD_MANA).
+     *
+     * The percent keeps the fraction its spell modifiers gave it, to a thousandth of a point: Mage Armor's 3% raised
+     * 20% by Glyph of Mage Armor restores 3.6%. A whole percent restores `maximum * percent / 100`, truncated.
+     *
+     * @param maximum The maximum the percent is of.
+     * @param amount The aura's integer amount.
+     * @param exactAmount The aura's amount with its fraction; read only while it truncates to `amount`.
+     * @return `maximum * thousandths / 100000`, truncated, with the percent's thousandths rounded to the nearest, ties
+     *         to even; 0 when the percent is not above 0.
+     */
+    uint32 PercentOfMaximumTick(uint32 maximum, int32 amount, float exactAmount);
 }
 
 #endif

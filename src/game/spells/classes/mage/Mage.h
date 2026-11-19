@@ -48,16 +48,20 @@
  * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
  * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
- * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal) and Improved Cone of Cold's
- * (ImprovedConeOfColdFreeze). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts and its
- * leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead,
- * OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows through one
- * function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
+ * (ImprovedConeOfColdFreeze), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice Barrier's
+ * (GlyphedBarrierAmount) and Reactive Barrier's (ReactiveBarrierTriggers). Orb.cpp holds the orb a mage's Flame Orb
+ * summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
+ * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
+ * and OrbCostShare). Ring.cpp holds the ring a mage's Ring of Frost summons: its creature AI, its scripts and its
+ * leaves (RingSpellsFor, IsRingCreature, RingInBand, RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and
+ * RingMarkerOnRemove). Each file registers its rows through one function of namespace Mage: a table per legacy site
+ * of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
-/// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
-/// and defaults registered; a row whose key was taken does not change the table, so a caller that finds fewer keys
-/// than rows has a duplicate.
+/// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's and the ring's.
+/// Returns the rows and defaults registered; a row whose key was taken does not change the table, so a caller that
+/// finds fewer keys than rows has a duplicate.
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry);
 
 namespace Mage
@@ -93,6 +97,60 @@ namespace Mage
     /// Registers the orb's scripts and its creature AI, whose factory is added to the creature AI registry once.
     /// Returns the rows registered.
     uint32 RegisterOrb(SpellHandlerRegistry& registry);
+    /// Registers the ring's scripts and its creature AI, whose factory is added to the creature AI registry once.
+    /// Returns the rows registered.
+    uint32 RegisterRing(SpellHandlerRegistry& registry);
+
+    /// The spells and the creature a ring is made of, by the mage's spell.
+    struct RingSpells
+    {
+        uint32 castSpell;           ///< the mage's spell (82676): its summon makes the ring, its aura on him ticks it
+        uint32 creature;            ///< the creature the summon makes (44199)
+        uint32 freezeSpell;         ///< the freeze the ring casts at the units in its band (82691)
+        uint32 markerSpell;         ///< the marker a unit whose freeze was dispelled holds while the ring leaves it
+                                    ///< alone (91264); its duration is also the time the ring takes to form
+        float innerRadius;          ///< the band's inner edge, in yards (4.7)
+    };
+
+    /// The ring row of the mage's spell (82676); NULL for any other id. Defined in Ring.cpp.
+    RingSpells const* RingSpellsFor(uint32 spellId);
+
+    /// Whether `creatureEntry` is a ring of the table. Defined in Ring.cpp.
+    bool IsRingCreature(uint32 creatureEntry);
+
+    /// Whether a unit `distance` yards from the ring's centre stands in its band: at or beyond `inner` and within
+    /// `outer`. Defined in Ring.cpp.
+    bool RingInBand(float distance, float inner, float outer);
+
+    /// The time a ring takes to form, in milliseconds: the duration of the row's marker spell (3000); 0 when the spell
+    /// store lacks it. Defined in Ring.cpp.
+    int32 RingFormingMs(RingSpells const& spells);
+
+    /// Whether a ring whose mage's aura has run `elapsedMs` has formed: at or past `formingMs`; never for a forming
+    /// time of 0 or less. Defined in Ring.cpp.
+    bool RingFormed(int32 elapsedMs, int32 formingMs);
+
+    /// The band's outer edge, in yards: the radius of the summon effect of the row's cast spell (8); 0 when the spell
+    /// store lacks it. Defined in Ring.cpp.
+    float RingOuterRadius(RingSpells const& spells);
+
+    /// What a ring does with a unit its freeze's area found.
+    enum RingTake
+    {
+        RING_SKIP,                                  ///< the unit is left out of the freeze
+        RING_FREEZE,                                ///< the freeze is cast at the unit
+        RING_SHOW_IMMUNE                            ///< the freeze is cast at the unit, which is immune to it, so that
+                                                    ///< it shows Immune; the ring then marks it as shown
+    };
+
+    /// What a ring does with a unit: RING_SKIP when it stands outside the band (`inBand` false) or holds the freeze or
+    /// the marker (`held`); for a unit immune to the freeze, RING_SHOW_IMMUNE while the ring has not shown it Immune
+    /// (`shownImmune` false) and RING_SKIP after; RING_FREEZE otherwise. Defined in Ring.cpp.
+    RingTake RingTakeFor(bool inBand, bool held, bool immune, bool shownImmune);
+
+    /// Whether a freeze removed in `mode` leaves the marker on its unit: only a dispel (AURA_REMOVE_BY_DISPEL).
+    /// Defined in Ring.cpp.
+    bool RingMarkerOnRemove(AuraRemoveMode mode);
 
     /// The spells and the creature an orb is made of, by the spell that created it.
     struct OrbSpells
@@ -297,7 +355,8 @@ namespace Mage
     /// (SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE,
     /// SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED, SPELL_AURA_MOD_MELEE_ATTACK_SPEED and
     /// SPELL_AURA_MOD_RANGED_ATTACK_SPEED), of a cast-speed aura (SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK and
-    /// SPELL_AURA_HASTE_SPELLS) or of SPELL_AURA_HASTE_ALL. Defined in Arcane.cpp.
+    /// SPELL_AURA_HASTE_SPELLS) or of an aura of all speeds (SPELL_AURA_HASTE_ALL and SPELL_AURA_SLOW_ALL). Defined in
+    /// Arcane.cpp.
     bool CountsAsSlow(uint32 auraType, int32 amount);
 
     /// Whether `unit` holds an aura that CountsAsSlow: the most negative amount of each of those aura types on it.
@@ -329,6 +388,22 @@ namespace Mage
     /// knows neither, and 0 while the target holds Improved Polymorph Marker (87515, `targetMarked`). Defined in
     /// Arcane.cpp.
     uint32 ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo, bool targetMarked);
+
+    /// Whether a mage whose Mana Shield is removed in `mode` knocks back the enemies around him for Incanter's
+    /// Absorption: only when damage used up the shield's last point (AURA_REMOVE_BY_SHIELD_BREAK) and he knows a rank
+    /// of the talent (`knowsTalent`); never for a shield that is cancelled, runs out or is dispelled. Defined in
+    /// Arcane.cpp.
+    bool IncantersAbsorptionKnocksBack(AuraRemoveMode mode, bool knowsTalent);
+
+    /// The amount of each of Improved Mana Gem's two effects for one use of the Mana Gem: `percent` percent of
+    /// `maxMana`, truncated; 0 for a percent of 0 or less. Defined in Arcane.cpp.
+    int32 ImprovedManaGemAmount(uint32 maxMana, int32 percent);
+
+    /// Whether `itemEntry` is a mage's Mana Gem, the only item whose Replenish Mana (5405) gives Improved Mana Gem's
+    /// buff: the Mana Gem (36799) and the older conjured gems that share its cooldown category (Mana Agate 5514, Mana
+    /// Jade 5513, Mana Citrine 8007, Mana Ruby 8008, Mana Emerald 22044, Mana Sapphire 33312); never Energy Cloak
+    /// (9397), the other item that casts 5405, and never 0, a cast from no item. Defined in Arcane.cpp.
+    bool IsManaGem(uint32 itemEntry);
 
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
@@ -450,6 +525,22 @@ namespace Mage
     /// The freeze a Cone of Cold hit puts on its target for a mage who knows `talentSpell` (Improved Cone of Cold):
     /// 83301 (2 s) for 11190, 83302 (4 s) for 12489, 0 for any other spell. Defined in Frost.cpp.
     uint32 ImprovedConeOfColdFreeze(uint32 talentSpell);
+
+    /// The freeze an Ice Barrier removed in `mode` casts for a mage who knows Shattered Barrier: 83073 (4 s) for the
+    /// second rank (54787, `knowsRankTwo`), else 55080 (2 s) for the first (44745, `knowsRankOne`); 0 unless damage
+    /// used up the barrier's last point (AURA_REMOVE_BY_SHIELD_BREAK), and 0 for a mage who knows neither. Defined in
+    /// Frost.cpp.
+    uint32 ShatteredBarrierFreeze(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo);
+
+    /// Ice Barrier's absorb with Glyph of Ice Barrier: `amount`, the whole absorb with its spell power part, plus
+    /// `percent` of it, truncated; `amount` as it is for a percent of 0 or less. Defined in Frost.cpp.
+    int32 GlyphedBarrierAmount(int32 amount, int32 percent);
+
+    /// Whether a hit of `damage` on a unit at `health` of `maxHealth` is one Reactive Barrier answers: it leaves the
+    /// unit alive and below half its maximum health, whatever its health before the hit. A hit of 0 (one an absorb took
+    /// whole) answers while the unit is below half; a hit of `health` or more (a killing blow) never does. Defined in
+    /// Frost.cpp.
+    bool ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damage);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.

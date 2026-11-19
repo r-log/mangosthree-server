@@ -64,6 +64,8 @@
 #include "spells/SpellScriptHooks.h"
 #include "ai/PetAssist.h"
 
+#include <algorithm>
+
 /**
  * @brief Applies all pending spell effects to a unit target entry.
  *
@@ -473,6 +475,14 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
         {
             unit->IncrDiminishing(m_diminishGroup);
         }
+    // A spell that also counts in the shared group takes the deeper of the two levels, and raises both
+    DiminishingGroup const sharedGroup =
+        GetSharedDiminishingGroup(m_spellInfo, m_diminishGroup, unit->GetTypeId() == TYPEID_PLAYER);
+    if (sharedGroup != DIMINISHING_NONE)
+    {
+        m_diminishLevel = std::max(m_diminishLevel, unit->GetDiminishing(sharedGroup));
+        unit->IncrDiminishing(sharedGroup);
+    }
 
     // Apply additional spell effects to target
     CastPreCastSpells(unit);

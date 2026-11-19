@@ -81,8 +81,8 @@ struct SpellEffectTriggerSpellContext
 };
 
 /// `Spell::EffectTriggerSpell`, before the triggered spell is looked up: its `switch (triggered_spell_id)`, keyed
-/// on the effect's trigger spell. The labels cast or remove spells and end the effect, Mirror Image's goes on to
-/// the triggered spell; there is no `default:`, so a miss continues after the switch.
+/// on the effect's trigger spell. The labels cast or remove spells and end the effect; there is no `default:`, so a
+/// miss continues after the switch.
 struct SpellEffectTriggerSpellSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_TRIGGER_SPELL;
