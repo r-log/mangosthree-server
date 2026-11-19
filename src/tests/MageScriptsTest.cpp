@@ -39,14 +39,14 @@
 /// aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with
 /// the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at
 /// the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of
-/// Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's apply and
-/// its after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
-/// creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
-/// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
-/// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The
-/// cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the
-/// test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three
-/// auras whose apply and removal change nothing on the unit.
+/// Frostfire's hit without Molten Fury and its tick, Frostfire Bolt's effect taken off at its holder's apply and its
+/// after-hit exits, and the Early Frost lockout a Frostbolt cast starts; the orb's rows are counted here and tested in
+/// MageOrbTest. A body that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts'
+/// refusals run on bare Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts
+/// read added to the effect store as the client's data holds them, and a holder put in the creature's holder map where
+/// a script asks whether it holds an aura. The cooldown Impact clears is a player's: a player on a session with no
+/// socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs on a holder made through
+/// its constructor on a bare creature, of three auras whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -4093,4 +4093,25 @@ TEST(MageScripts_PolymorphsRemovalRunsImprovedPolymorph)
     CHECK(registry.Dispatch<AuraRemoveHook>(118, broken).IsContinue());
     CHECK(!camel.HasAura(83047));
     CHECK(!camel.HasAura(87515));
+}
+
+TEST(MageScripts_AFrostboltCastStartsTheLockoutOfTheRankTheMageKnowsUnlessOneIsUp)
+{
+    // The two ranks' texts: "This effect becomes inactive for $83162d after use" (83049) and "$83239d" (83050).
+    CHECK_EQ(Mage::EarlyFrostLockout(false, true, false), uint32(83239));
+    CHECK_EQ(Mage::EarlyFrostLockout(true, false, false), uint32(83162));
+    CHECK_EQ(Mage::EarlyFrostLockout(true, true, false), uint32(83239));
+    CHECK_EQ(Mage::EarlyFrostLockout(false, false, false), uint32(0));
+    CHECK_EQ(Mage::EarlyFrostLockout(false, true, true), uint32(0));
+    CHECK_EQ(Mage::EarlyFrostLockout(true, false, true), uint32(0));
+
+    // The script runs at the cast-start hook for Frostbolt alone, and nowhere else for it.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(registry.Find<CastStartHook>(116) != NULL);
+    CHECK(game.Find<CastStartHook>(116) == registry.Find<CastStartHook>(116));
+    CHECK(game.Find<LaunchHook>(116) == NULL);
+    CHECK(game.Find<AfterCastHook>(116) == NULL);
+    CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
 }
