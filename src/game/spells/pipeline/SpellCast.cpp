@@ -198,6 +198,13 @@ void Spell::Prepare()
 
         TriggerGlobalCooldown();
 
+        // the cast's script as it begins, when its spell has one: its cast time and global cooldown are set
+        if (SpellHandlerRegistry::Game().Find<CastStartHook>(m_spellInfo->ID))
+        {
+            CastStartContext start(*m_caster, *m_spellInfo, m_targets.getUnitTarget(), m_casttime);
+            SpellHandlerRegistry::Game().Dispatch<CastStartHook>(m_spellInfo->ID, start);
+        }
+
         // Execute instant spells immediate
         if (m_timer == 0 && !IsNextMeleeSwingSpell() && !IsAutoRepeat() && !IsChanneledSpell(m_spellInfo))
         {
@@ -284,6 +291,25 @@ void Spell::cancel()
 
 namespace
 {
+    /// Removes from `unit` every holder with an aura of `type` whose amount is below 0: the slows of that type, not its
+    /// hastes.
+    void RemoveSlowingAuras(Unit& unit, AuraType type)
+    {
+        Unit::AuraList const& auras = unit.GetAurasByType(type);
+        for (Unit::AuraList::const_iterator itr = auras.begin(); itr != auras.end();)
+        {
+            if ((*itr)->GetModifier()->m_amount < 0)
+            {
+                unit.RemoveSpellAuraHolder((*itr)->GetHolder());
+                itr = auras.begin();
+            }
+            else
+            {
+                ++itr;
+            }
+        }
+    }
+
     /// Removes from the caster the action-bar override buffs the cast uses up (Spells::UsedUpOverrides over his auras
     /// of type SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS and SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS_2), each holder after the
     /// walk: the buff that made this spell castable is used up by casting it. An aura without a duration stays.
@@ -437,6 +463,7 @@ void Spell::cast(bool skipCheck)
                     // not exist spell do it so apply directly
                     m_caster->RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
                     m_caster->RemoveSpellsCausingAura(SPELL_AURA_HASTE_SPELLS);
+                    RemoveSlowingAuras(*m_caster, SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK);
                 }
             }
             break;

@@ -56,6 +56,10 @@ namespace
     uint32 const BRAIN_FREEZE_BUFF = 57761;
     uint32 const FROST_ARMOR_CHILL = 7321;
     uint32 const FROSTFIRE_ORB_RANK_ONE_HIT = 95969;
+    uint32 const EARLY_FROST_RANK_ONE = 83049;
+    uint32 const EARLY_FROST_RANK_TWO = 83050;
+    uint32 const EARLY_FROST_LOCKOUT_RANK_ONE = 83162;
+    uint32 const EARLY_FROST_LOCKOUT_RANK_TWO = 83239;
     uint32 const PIERCING_CHILL_RANK_ONE = 83156;
     uint32 const PIERCING_CHILL_RANK_TWO = 83157;
     uint32 const PIERCING_CHILL_CHILL = 83154;
@@ -228,6 +232,22 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), NULL));
     }
 
+    /// 116: as a Frostbolt cast begins, the Early Frost lockout of the rank its caster knows (Mage::EarlyFrostLockout)
+    /// is cast on him; while it lasts, its modifiers cancel the talent's on his next Frostbolts' cast time and global
+    /// cooldown. This cast's own are already set, and a cast that is interrupted keeps the lockout it started.
+    SpellHandlerOutcome<void> FrostboltCastStart(CastStartContext& ctx)
+    {
+        uint32 const lockout = Mage::EarlyFrostLockout(ctx.caster.HasAura(EARLY_FROST_RANK_ONE),
+                                                       ctx.caster.HasAura(EARLY_FROST_RANK_TWO),
+                                                       ctx.caster.HasAura(EARLY_FROST_LOCKOUT_RANK_ONE) ||
+                                                       ctx.caster.HasAura(EARLY_FROST_LOCKOUT_RANK_TWO));
+        if (lockout)
+        {
+            ctx.CastTriggered(ctx.caster, lockout);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     /// 116: Frostbolt: after a hit that was a critical strike, for a caster who knows Piercing Chill (83157, or 83156):
     /// of the enemies within the chill's radius (effect 0 of 83154) of the target, the talent's count nearest to the
     /// target, the target never among them (Mage::NearestOthers), each get the chill (83154), cast at each one through
@@ -317,6 +337,7 @@ namespace
     uint32 const FINGERS_OF_FROST[] = { 44543, 44545, 83074 };
     uint32 const BRAIN_FREEZE[] = { 44546, 44548, 44549 };
     uint32 const FROST_LAUNCHES[] = { 30455, 44572, 44614, 133 };
+    uint32 const FROSTBOLT_CAST_START[] = { FROSTBOLT };
     uint32 const FROSTBOLT_HIT[] = { 116 };
     uint32 const PIERCING_CHILL_CHILLS[] = { 83154 };
     uint32 const PERMAFROST[] = { 11175, 12569, 12571 };
@@ -332,6 +353,7 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     rows += RegisterRanks<CheckProcHook>(registry, FINGERS_OF_FROST, &ChillSourceCheckProc);
     rows += RegisterRanks<CheckProcHook>(registry, BRAIN_FREEZE, &ChillSourceCheckProc);
     rows += RegisterRanks<LaunchHook>(registry, FROST_LAUNCHES, &FrostLaunch);
+    rows += RegisterRanks<CastStartHook>(registry, FROSTBOLT_CAST_START, &FrostboltCastStart);
     rows += RegisterRanks<AfterHitHook>(registry, FROSTBOLT_HIT, &FrostboltAfterHit);
     rows += RegisterRanks<SelectTargetsHook>(registry, PIERCING_CHILL_CHILLS, &PiercingChillTargets);
     rows += RegisterRanks<OnProcHook>(registry, PERMAFROST, &PermafrostProc);
@@ -411,6 +433,15 @@ bool Mage::ShatterCovers(uint32 spellId)
 bool Mage::FrostburnCovers(uint32 spellId)
 {
     return std::find(std::begin(FROSTBURN_SPELLS), std::end(FROSTBURN_SPELLS), spellId) != std::end(FROSTBURN_SPELLS);
+}
+
+uint32 Mage::EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp)
+{
+    if (lockoutUp)
+    {
+        return 0;
+    }
+    return knowsRankTwo ? EARLY_FROST_LOCKOUT_RANK_TWO : knowsRankOne ? EARLY_FROST_LOCKOUT_RANK_ONE : 0;
 }
 
 int32 Mage::PiercingChillCount(uint32 talentSpell)

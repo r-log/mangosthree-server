@@ -39,16 +39,16 @@
 /// aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with
 /// the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at
 /// the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of
-/// Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's apply and
-/// its after-hit exits, Piercing Chill's count, its pick of the nearest others and its chill's target list, the exits
-/// of Frostbolt's and Cone of Cold's after-hit scripts, Permafrost's heal and its refusals, and Improved Cone of Cold's
-/// freeze by rank; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
-/// creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
-/// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
-/// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The
-/// cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the
-/// test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three
-/// auras whose apply and removal change nothing on the unit.
+/// Frostfire's hit without Molten Fury and its tick, Frostfire Bolt's effect taken off at its holder's apply and its
+/// after-hit exits, the Early Frost lockout a Frostbolt cast starts, Piercing Chill's count, its pick of the nearest
+/// others and its chill's target list, the exits of Frostbolt's and Cone of Cold's after-hit scripts, Permafrost's heal
+/// and its refusals, and Improved Cone of Cold's freeze by rank; the orb's rows are counted here and tested in
+/// MageOrbTest. A body that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts'
+/// refusals run on bare Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts
+/// read added to the effect store as the client's data holds them, and a holder put in the creature's holder map where
+/// a script asks whether it holds an aura. The cooldown Impact clears is a player's: a player on a session with no
+/// socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs on a holder made through
+/// its constructor on a bare creature, of three auras whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -104,6 +104,9 @@ namespace
     // The ids the Frost launch script holds at the launch hook: Ice Lance, Deep Freeze and Frostfire Bolt, which use
     // Fingers of Frost's charges, and Fireball, which uses Brain Freeze's buff with Frostfire Bolt.
     uint32 const FROST_LAUNCH_IDS[] = { 30455, 44572, 44614, 133 };
+
+    // The id the Frost cast-start script holds: Frostbolt, whose cast starts Early Frost's lockout.
+    uint32 const FROSTBOLT_CAST_START_IDS[] = { 116 };
 
     // The id the target script holds: the one id the arm named (Blink).
     uint32 const BLINK_IDS[] = { 38194 };
@@ -616,18 +619,18 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
     // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the
     // damage-done hook, the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep Freeze, Frostfire Bolt and
-    // Fireball at the launch hook, Frostbolt and Cone of Cold at the after-hit hook, and Piercing Chill's chill at the
-    // target hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost:
-    // Deep Freeze Immunity State, Fingers of Frost and Permafrost's three ranks; Arcane: Magic Absorption, Arcane
-    // Potency, Mana Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks,
-    // Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven
-    // forms of Polymorph at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at
-    // the target and dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs,
-    // Fingers of Frost, Brain Freeze and Invocation's two ranks also at the check-proc hook. 151 rows, 148 keys and 3
-    // defaults, none twice.
+    // Fireball at the launch hook, Frostbolt at the cast-start hook, Frostbolt and Cone of Cold at the after-hit hook,
+    // and Piercing Chill's chill at the target hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
+    // Blazing Speed and Impact; Frost: Deep Freeze Immunity State, Fingers of Frost and Permafrost's three ranks;
+    // Arcane: Magic Absorption, Arcane Potency, Mana Shield and Nether Vortex. Arcane also: Arcane Missiles! at the
+    // aura-apply and aura-remove hooks, Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the
+    // damage-done hook and the seven forms of Polymorph at the aura-remove hook. The orb: Flame Orb at the dummy-effect
+    // hook, and the orb's scan at the target and dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane
+    // Potency's two buffs, Fingers of Frost, Brain Freeze and Invocation's two ranks also at the check-proc hook. 152
+    // rows, 149 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(151));
-    CHECK_EQ(registry.Count(), std::size_t(148));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(152));
+    CHECK_EQ(registry.Count(), std::size_t(149));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -646,6 +649,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(4));
+    CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(3));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
@@ -665,7 +669,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
-        { &Mage::RegisterFrost, 68, 68, 0 },
+        { &Mage::RegisterFrost, 69, 69, 0 },
         { &Mage::RegisterArcane, 25, 25, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
     };
@@ -678,8 +682,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(151));
-    CHECK_EQ(registry.Count(), std::size_t(148));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(152));
+    CHECK_EQ(registry.Count(), std::size_t(149));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -690,7 +694,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(148));
+    CHECK_EQ(mine.size(), std::size_t(149));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -704,6 +708,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
+    CheckRowsInTheGame<CastStartHook>(registry, FROSTBOLT_CAST_START_IDS);
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
     CHECK(registry.Find<AuraPeriodicDummyTickMageSite>(55342) == NULL);
@@ -4348,4 +4353,25 @@ TEST(MageScripts_ConeOfColdFreezesNothingForAHealOrWithoutTheTalent)
     AfterHitContext talented(mage, target, SpellRow(row, 120), 900, true, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(120, talented).IsContinue());
     CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(MageScripts_AFrostboltCastStartsTheLockoutOfTheRankTheMageKnowsUnlessOneIsUp)
+{
+    // The two ranks' texts: "This effect becomes inactive for $83162d after use" (83049) and "$83239d" (83050).
+    CHECK_EQ(Mage::EarlyFrostLockout(false, true, false), uint32(83239));
+    CHECK_EQ(Mage::EarlyFrostLockout(true, false, false), uint32(83162));
+    CHECK_EQ(Mage::EarlyFrostLockout(true, true, false), uint32(83239));
+    CHECK_EQ(Mage::EarlyFrostLockout(false, false, false), uint32(0));
+    CHECK_EQ(Mage::EarlyFrostLockout(false, true, true), uint32(0));
+    CHECK_EQ(Mage::EarlyFrostLockout(true, false, true), uint32(0));
+
+    // The script runs at the cast-start hook for Frostbolt alone, and nowhere else for it.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(registry.Find<CastStartHook>(116) != NULL);
+    CHECK(game.Find<CastStartHook>(116) == registry.Find<CastStartHook>(116));
+    CHECK(game.Find<LaunchHook>(116) == NULL);
+    CHECK(game.Find<AfterCastHook>(116) == NULL);
+    CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
 }

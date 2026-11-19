@@ -47,12 +47,12 @@
  * Flamestrike's (ImprovedFlamestrikeChance), the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick)
  * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
- * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Piercing Chill's (PiercingChillCount and
- * NearestOthers), Permafrost's (PermafrostHeal) and Improved Cone of Cold's (ImprovedConeOfColdFreeze). Orb.cpp holds
- * the orb a mage's Flame Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature,
- * ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs,
- * OrbExplosionChance and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table
- * per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
+ * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal) and Improved Cone of Cold's
+ * (ImprovedConeOfColdFreeze). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts and its
+ * leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead,
+ * OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows through one
+ * function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -430,6 +430,10 @@ namespace Mage
     /// in Frost.cpp.
     bool FrostburnCovers(uint32 spellId);
 
+    /// The Early Frost lockout a Frostbolt cast starts for its caster: 83239 for a mage who knows the second rank
+    /// (83050, `knowsRankTwo`), else 83162 for one who knows the first (83049, `knowsRankOne`); 0 for a mage who knows
+    /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frost.cpp.
+    uint32 EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp);
     /// How many other enemies a Frostbolt crit chills for a mage who knows `talentSpell` (Piercing Chill, 83156 or
     /// 83157): that spell's effect 0 value in the spell store (1 or 2); 0 for any other spell, or when the store lacks
     /// it. Defined in Frost.cpp.
