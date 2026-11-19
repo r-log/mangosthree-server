@@ -18280,7 +18280,7 @@ namespace Harness
             }
             m_friend = friendly->GetObjectGuid();
             m_rec.Note(std::string("the third player: in free-for-all PvP: ") + (friendly->IsFFAPvP() ? "yes" : "no") +
-                       "; his friend: " + (friendly->IsFriendlyTo(&p) ? "yes" : "no"));
+                       "; his friend: " + (SeesAsFriend(*friendly, p) ? "yes" : "no"));
         }
 
         std::vector<SpellPrint> Prints() const override

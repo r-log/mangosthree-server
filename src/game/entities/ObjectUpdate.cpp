@@ -243,13 +243,13 @@ namespace
         return hull ? hull->Vessel() : NULL;
     }
 
-    /// Whether `viewer` is friendly to the unit that summoned `creature`, found on the creature's map; false when no
-    /// such unit is on it.
+    /// Whether `viewer` sees the unit that summoned `creature`, found on the creature's map, as a friend
+    /// (SeesAsFriend); false when no such unit is on it.
     bool FriendlyToSummoner(Creature const& creature, Player const& viewer)
     {
         Map* map = creature.FindMap();
         Unit const* summoner = map ? map->GetUnit(creature.GetSummonerGuid()) : NULL;
-        return summoner && viewer.IsFriendlyTo(summoner);
+        return summoner && SeesAsFriend(viewer, *summoner);
     }
 }
 

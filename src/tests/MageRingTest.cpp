@@ -26,10 +26,12 @@
 /// Tests of the mage's ring (spells/classes/mage/Ring.cpp): its table row, the creature it names, its band, the time
 /// it takes to form, the units it takes, the removals that leave the marker, its rows at the periodic-tick, target and
 /// aura-remove hooks with its creature AI's factory, the exits of its scripts, the summon a second cast makes while the
-/// first cast's aura holds and the display each viewer is sent (SpellTables), and the diminishing-returns group its
-/// freeze shares with Deep Freeze (SpellMgr). The spells the leaves read are put into the stores as the client's data
-/// holds them, once for the rest of the run; no other test reads them. The units are bare creatures (update fields
-/// allocated; no map, template or AI).
+/// first cast's aura holds and the display each viewer is sent (SpellTables) with the friend test that picks it
+/// (SeesAsFriend), and the diminishing-returns group its freeze shares with Deep Freeze (SpellMgr). The spells the
+/// leaves read are put into the stores as the client's data holds them, once for the rest of the run; no other test
+/// reads them. The human's and the orc's faction templates are put there the same way. The units are bare creatures
+/// (update fields allocated; no map, template or AI) and bare players (update fields allocated, a session with no
+/// socket, no world).
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -38,9 +40,12 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
 #include "ai/CreatureAI.h"
+#include "Auth/BigNumber.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
+#include "Player.h"
+#include "WorldSession.h"
 #include "data/ServerSpellStore.h"
 
 #include <list>
@@ -62,6 +67,58 @@ namespace
                 m_uint32Values = NULL;
             }
     };
+
+    // A player of `team` with faction template `faction` and its update fields allocated, on a session with no socket,
+    // in no world.
+    class RingTestPlayer : public Player
+    {
+        public:
+            RingTestPlayer(WorldSession& session, uint32 guidLow, Team team, uint32 faction) : Player(&session)
+            {
+                Object::_Create(guidLow, 0, HIGHGUID_PLAYER);
+                m_team = team;
+                setFaction(faction);
+            }
+
+            ~RingTestPlayer()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+
+    const uint32 kHumanFaction = 1;             // the human's FactionTemplate row
+    const uint32 kOrcFaction = 2;               // the orc's FactionTemplate row
+
+    // The human's and the orc's faction templates, as the client's data holds them: the player group with the
+    // Alliance's or the Horde's, friendly to its own side and hostile to the other side and to monsters.
+    void StoreRaceFactions()
+    {
+        static FactionTemplateEntry human, orc;
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+
+        human = FactionTemplateEntry();
+        human.ID = kHumanFaction;
+        human.Faction = 1;
+        human.Flags = 72;
+        human.FactionGroup = 3;
+        human.FriendGroup = 2;
+        human.EnemyGroup = 12;
+        sFactionTemplateStore.SetEntry(kHumanFaction, &human);
+        orc = FactionTemplateEntry();
+        orc.ID = kOrcFaction;
+        orc.Faction = 2;
+        orc.Flags = 72;
+        orc.FactionGroup = 5;
+        orc.FriendGroup = 4;
+        orc.EnemyGroup = 10;
+        sFactionTemplateStore.SetEntry(kOrcFaction, &orc);
+    }
 
     struct SpellRowStorage
     {
@@ -396,6 +453,37 @@ TEST(MageRing_TheRingShowsTheFriendlyRingToTheMagesFriendsAndTheHostileRingToThe
     // Any other creature shows every viewer its own display.
     CHECK_EQ(ViewerDisplayId(44214, 34997, true), uint32(34997));
     CHECK_EQ(ViewerDisplayId(0, 1234, true), uint32(1234));
+}
+
+TEST(MageRing_APlayerOfTheOtherFactionIsSentTheHostileRingWhetherTheMageIsPvpFlaggedOrNot)
+{
+    StoreRaceFactions();
+    WorldSession mageSession(1, "mage", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession humanSession(2, "human", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession orcSession(3, "orc", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    RingTestPlayer mage(mageSession, 1, ALLIANCE, kHumanFaction);
+    RingTestPlayer human(humanSession, 2, ALLIANCE, kHumanFaction);
+    RingTestPlayer orc(orcSession, 3, HORDE, kOrcFaction);
+
+    // The mage himself and a human are his friends and are sent the friendly ring.
+    CHECK(SeesAsFriend(mage, mage));
+    CHECK(SeesAsFriend(human, mage));
+    CHECK_EQ(ViewerDisplayId(44199, 34997, SeesAsFriend(human, mage)), uint32(38203));
+
+    // An orc is not, though Unit::IsFriendlyTo calls him friendly while the mage is not PvP-flagged: he is sent the
+    // hostile ring, and still is once the mage is flagged.
+    CHECK(!mage.IsPvP());
+    CHECK(orc.IsFriendlyTo(&mage));
+    CHECK(!SeesAsFriend(orc, mage));
+    CHECK_EQ(ViewerDisplayId(44199, 34997, SeesAsFriend(orc, mage)), uint32(34997));
+    mage.SetPvP(true);
+    CHECK(!SeesAsFriend(orc, mage));
+    mage.SetPvP(false);
+
+    // A human in free-for-all PvP with the mage is no friend either.
+    mage.SetFFAPvP(true);
+    human.SetFFAPvP(true);
+    CHECK(!SeesAsFriend(human, mage));
 }
 
 TEST(MageRing_TheFreezeSharesDiminishingReturnsWithDeepFreezeOnPlayers)
