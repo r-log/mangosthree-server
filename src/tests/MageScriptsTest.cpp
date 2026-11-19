@@ -42,12 +42,13 @@
 /// Frostfire's hit without Molten Fury and its tick, Frostfire Bolt's effect taken off at its holder's apply and its
 /// after-hit exits, the Early Frost lockout a Frostbolt cast starts, Piercing Chill's count, its pick of the nearest
 /// others and its chill's target list, the exits of Frostbolt's and Cone of Cold's after-hit scripts, Permafrost's heal
-/// and its refusals, and Improved Cone of Cold's freeze by rank; the orb's rows are counted here and tested in
-/// MageOrbTest, the ring's in MageRingTest. A body that casts, reads a level or creates an item needs a live unit and a
-/// spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template or AI), with the
-/// effect rows the scripts read added to the effect store as the client's data holds them, and a holder put in the
-/// creature's holder map where a script asks whether it holds an aura. The cooldown Impact clears is a player's: a
-/// player on a session with no socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs
+/// and its refusals, Improved Cone of Cold's freeze by rank, and Frost Nova's cooldown ended at Ice Block's launch with
+/// Glyph of Ice Block; the orb's rows are counted here and tested in MageOrbTest, the ring's in MageRingTest. A body
+/// that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare
+/// Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts read added to the
+/// effect store as the client's data holds them, and a holder put in the creature's holder map where a script asks
+/// whether it holds an aura. The cooldowns Impact and Glyph of Ice Block clear are a player's: a player on a session
+/// with no socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs
 /// on a holder made through its constructor on a bare creature, of three auras whose apply and removal change nothing
 /// on the unit.
 
@@ -83,7 +84,7 @@ namespace
     // The labels the class files register at each mage site, in their tables' order.
     uint32 const TRIGGER_SPELL_IDS[] = { 66 };
     uint32 const EFFECT_DUMMY_IDS[] = { 32826, 38194, 42955, 1459, 61316 };
-    uint32 const DUMMY_PROC_IDS[] = { 56372, 56375, 64411 };
+    uint32 const DUMMY_PROC_IDS[] = { 56375, 64411 };
 
     // The ids each proc script holds at the proc hook: every mage spell with the talent's icon (or class mask) and an
     // aura of the type the script stands for, in the client's data.
@@ -108,6 +109,9 @@ namespace
     // The ids the Frost launch script holds at the launch hook: Ice Lance, Deep Freeze and Frostfire Bolt, which use
     // Fingers of Frost's charges, and Fireball, which uses Brain Freeze's buff with Frostfire Bolt.
     uint32 const FROST_LAUNCH_IDS[] = { 30455, 44572, 44614, 133 };
+
+    // The id the Ice Block launch script holds: Ice Block, whose launch ends Frost Nova's cooldown with its glyph.
+    uint32 const ICE_BLOCK_LAUNCH_IDS[] = { 45438 };
 
     // The id the Frost cast-start script holds: Frostbolt, whose cast starts Early Frost's lockout.
     uint32 const FROSTBOLT_CAST_START_IDS[] = { 116 };
@@ -282,10 +286,18 @@ namespace
                 Object::_Create(1, 0, HIGHGUID_PLAYER);
             }
 
+            // The holders HoldAura put in the map are the test's own storage and leave the map first.
             ~SessionPlayer()
             {
+                m_auras.Holders().clear();
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
+            }
+
+            // Puts `holder` in the holder map under `spellId`, so Unit::HasAura(spellId) finds it.
+            void HoldAura(uint32 spellId, SpellAuraHolder& holder)
+            {
+                m_auras.AddHolder(spellId, &holder);
             }
     };
 
@@ -619,15 +631,15 @@ namespace
 TEST(MageScripts_TheTableRegistersEveryRowOnce)
 {
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
-    // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
-    // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura
-    // hook, Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the
-    // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
-    // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the
-    // damage-done hook, the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep Freeze, Frostfire Bolt and
-    // Fireball at the launch hook, Frostbolt at the cast-start hook, Frostbolt and Cone of Cold at the after-hit hook,
-    // and Piercing Chill's chill at the target hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
+    // and the two raid buffs at the dummy-effect site; Glyph of Polymorph and Blessing of Ancient Kings at the dummy
+    // proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at the target hook,
+    // Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura hook, Hot Streak's
+    // buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the aura-apply and
+    // aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the after-cast hook,
+    // and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the damage-done hook,
+    // the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep Freeze, Frostfire Bolt, Fireball and Ice Block
+    // at the launch hook, Frostbolt at the cast-start hook, Frostbolt and Cone of Cold at the after-hit hook, and
+    // Piercing Chill's chill at the target hook. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
     // Blazing Speed and Impact; Frost: Deep Freeze Immunity State, Fingers of Frost and Permafrost's three ranks;
     // Arcane: Magic Absorption, Arcane Potency, Mana Shield and Nether Vortex. Arcane also: Arcane Missiles! at the
     // aura-apply and aura-remove hooks, Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the
@@ -644,7 +656,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(5));
-    CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(14));
@@ -657,7 +669,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(4));
+    CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(3));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
@@ -676,9 +688,9 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     };
     PerFile const files[] =
     {
-        { &Mage::RegisterClassWide, 15, 12, 3 },
+        { &Mage::RegisterClassWide, 14, 11, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
-        { &Mage::RegisterFrost, 69, 69, 0 },
+        { &Mage::RegisterFrost, 70, 70, 0 },
         { &Mage::RegisterArcane, 25, 25, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
@@ -716,8 +728,9 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
-    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(2));
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
+    CheckRowsInTheGame<LaunchHook>(registry, ICE_BLOCK_LAUNCH_IDS);
     CheckRowsInTheGame<CastStartHook>(registry, FROSTBOLT_CAST_START_IDS);
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
@@ -748,8 +761,8 @@ TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
         CHECK(key.second != 12847u && key.second != 12848u);
     }
 
-    // The Glyphs of Ice Block and Polymorph and Blessing of Ancient Kings each have their own body at the dummy proc
-    // site: 3 labels in 3 bodies, and no Ignite rank among them.
+    // Glyph of Polymorph and Blessing of Ancient Kings each have their own body at the dummy proc site: 2 labels in 2
+    // bodies, and no Ignite rank among them.
     typedef SpellHandler<DummyAuraProcMageSite>::Function ProcBody;
     for (uint32 spellId : IGNITE_IDS)
     {
@@ -761,7 +774,7 @@ TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
         procBodies.insert(registry.Find<DummyAuraProcMageSite>(spellId));
     }
     CHECK(procBodies.count(NULL) == 0);
-    CHECK_EQ(procBodies.size(), std::size_t(3));
+    CHECK_EQ(procBodies.size(), std::size_t(2));
 
     // No mage file holds a label at the boost site; 74396, which the client's data lacks, is a key of no site.
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(0));
@@ -3440,7 +3453,7 @@ TEST(MageScripts_ASpellUsesAFingersChargeByTheBuffNotByTheTargetsState)
 TEST(MageScripts_FingersOfFrostsUsersTakeTheChargeAtTheLaunchHookAndNowhereElse)
 {
     // Ice Lance, Deep Freeze, Frostfire Bolt and Fireball share one body at the launch hook, in the game's table too,
-    // and hold no after-cast row; no other Frost spell holds a launch row.
+    // and hold no after-cast row; of the other Frost spells only Ice Block holds a launch row, with a body of its own.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -3452,7 +3465,13 @@ TEST(MageScripts_FingersOfFrostsUsersTakeTheChargeAtTheLaunchHookAndNowhereElse)
         CHECK(game.Find<LaunchHook>(spellId) == body);
         CHECK(game.Find<AfterCastHook>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(LaunchHook::Key), sizeof(FROST_LAUNCH_IDS) / sizeof(uint32));
+    for (uint32 spellId : ICE_BLOCK_LAUNCH_IDS)
+    {
+        CHECK(game.Find<LaunchHook>(spellId) != NULL);
+        CHECK(game.Find<LaunchHook>(spellId) != body);
+    }
+    CHECK_EQ(game.CountAt(LaunchHook::Key),
+             sizeof(FROST_LAUNCH_IDS) / sizeof(uint32) + sizeof(ICE_BLOCK_LAUNCH_IDS) / sizeof(uint32));
     for (uint32 spellId : { kFrostbolt, kDeepFreezeDamage, 120u, 122u, 11113u })
     {
         CHECK(game.Find<LaunchHook>(spellId) == NULL);
@@ -4388,4 +4407,65 @@ TEST(MageScripts_AFrostboltCastStartsTheLockoutOfTheRankTheMageKnowsUnlessOneIsU
     CHECK(game.Find<LaunchHook>(116) == NULL);
     CHECK(game.Find<AfterCastHook>(116) == NULL);
     CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
+}
+
+TEST(MageScripts_GlyphOfIceBlockEndsFrostNovasCooldownWhenIceBlockGoesOff)
+{
+    uint32 const kIceBlock = 45438;
+    uint32 const kGlyphOfIceBlock = 56372;
+    uint32 const kFrostNova = 122;
+    uint32 const kFrostNovaCategory = 35;
+
+    // Ice Block's script runs at the launch hook alone, on this table and the game's; the glyph holds no row.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(registry.Find<LaunchHook>(kIceBlock) != NULL);
+    CHECK(game.Find<LaunchHook>(kIceBlock) == registry.Find<LaunchHook>(kIceBlock));
+    CHECK(game.Find<AfterCastHook>(kIceBlock) == NULL);
+    CHECK(game.Find<CastStartHook>(kIceBlock) == NULL);
+    CHECK(game.Find<DummyAuraProcMageSite>(kGlyphOfIceBlock) == NULL);
+    CHECK(game.Find<OnProcHook>(kGlyphOfIceBlock) == NULL);
+
+    // A player whose Frost Nova (122), of category 35, is on cooldown; what his cooldown sink is told is kept.
+    SpellCategorySet& category = sSpellCategoryStore[kFrostNovaCategory];
+    bool const added = category.insert(kFrostNova).second;
+    WorldSession session(1, "iceblock", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    SessionPlayer mage(session);
+    static std::vector<uint32> s_cleared;
+    s_cleared.clear();
+    CooldownSinks sinks;
+    sinks.cleared = [](CooldownsClearedFact const& fact)
+    {
+        s_cleared.insert(s_cleared.end(), fact.spellIds.begin(), fact.spellIds.end());
+    };
+    mage.SetCooldownSinks(sinks);
+    time_t const now = time(NULL);
+    mage.GetSpellCooldownMgr().AddSpellCooldown(kFrostNova, 0, now + 20);
+    CHECK(mage.GetSpellCooldownMgr().HasSpellCooldown(kFrostNova, now));
+    SpellRowStorage row;
+
+    // Without the glyph, Ice Block's launch leaves the cooldown and tells the client nothing.
+    LaunchContext bare(mage, SpellRow(row, kIceBlock), 0);
+    CHECK(registry.Dispatch<LaunchHook>(kIceBlock, bare).IsContinue());
+    CHECK(mage.GetSpellCooldownMgr().HasSpellCooldown(kFrostNova, now));
+    CHECK(s_cleared.empty());
+
+    // With the glyph, it ends the cooldown and tells the client.
+    HolderStorage glyphStorage;
+    mage.HoldAura(kGlyphOfIceBlock, EmptyHolder(glyphStorage));
+    LaunchContext glyphed(mage, SpellRow(row, kIceBlock), 0);
+    CHECK(registry.Dispatch<LaunchHook>(kIceBlock, glyphed).IsContinue());
+    CHECK(!mage.GetSpellCooldownMgr().HasSpellCooldown(kFrostNova, now));
+    CHECK_EQ(s_cleared.size(), std::size_t(1));
+    CHECK(!s_cleared.empty() && s_cleared[0] == kFrostNova);
+
+    if (added)
+    {
+        category.erase(kFrostNova);
+        if (category.empty())
+        {
+            sSpellCategoryStore.erase(kFrostNovaCategory);
+        }
+    }
 }

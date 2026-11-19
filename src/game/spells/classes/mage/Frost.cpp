@@ -68,6 +68,10 @@ namespace
     uint32 const IMPROVED_CONE_OF_COLD_RANK_TWO = 12489;
     uint32 const IMPROVED_CONE_OF_COLD_FREEZE_ONE = 83301;
     uint32 const IMPROVED_CONE_OF_COLD_FREEZE_TWO = 83302;
+    uint32 const GLYPH_OF_ICE_BLOCK = 56372;
+
+    /// Frost Nova's (122) cooldown category.
+    uint32 const FROST_NOVA_CATEGORY = 35;
 
     /// Fingers of Frost's text: "Ice Lance deals 25% more damage" while a charge is up. No field of the data holds it.
     int32 const ICE_LANCE_FINGERS_PERCENT = 25;
@@ -338,6 +342,17 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    /// 45438: Ice Block: as the cast goes off, a caster who holds Glyph of Ice Block (56372) has the cooldowns of
+    /// Frost Nova's category ended, and his client told. Nothing for a caster without the glyph.
+    SpellHandlerOutcome<void> IceBlockLaunch(LaunchContext& ctx)
+    {
+        if (ctx.caster.HasAura(GLYPH_OF_ICE_BLOCK))
+        {
+            ctx.caster.RemoveSpellCategoryCooldown(FROST_NOVA_CATEGORY, true);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     uint32 const DEEP_FREEZE_IMMUNITY[] = { 71761 };
     uint32 const FINGERS_OF_FROST[] = { 44543, 44545, 83074 };
     uint32 const BRAIN_FREEZE[] = { 44546, 44548, 44549 };
@@ -347,6 +362,7 @@ namespace
     uint32 const PIERCING_CHILL_CHILLS[] = { 83154 };
     uint32 const PERMAFROST[] = { 11175, 12569, 12571 };
     uint32 const CONE_OF_COLD_HIT[] = { 120 };
+    uint32 const ICE_BLOCK[] = { 45438 };
 }
 
 uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
@@ -363,6 +379,7 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     rows += RegisterRanks<SelectTargetsHook>(registry, PIERCING_CHILL_CHILLS, &PiercingChillTargets);
     rows += RegisterRanks<OnProcHook>(registry, PERMAFROST, &PermafrostProc);
     rows += RegisterRanks<AfterHitHook>(registry, CONE_OF_COLD_HIT, &ConeOfColdAfterHit);
+    rows += RegisterRanks<LaunchHook>(registry, ICE_BLOCK, &IceBlockLaunch);
     return rows;
 }
 
