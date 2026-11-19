@@ -222,8 +222,8 @@
 // his health each tick with its glyph; Mana Shield absorbs its amount at one mana a point; Mage Armor gives 3% of his
 // mana every 5 s, his glyphed tick recorded, and shortens a harmful magic effect on him by 35%.
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
-// Magic goes on another mage and not on him, and that mage's crit gives him 54648; each hit of his Flame Orb casts
-// Arcane Missiles!.
+// Magic goes on another mage and not on him, and that mage's crit gives him 54648 and gives the other mage none; each
+// hit of his Flame Orb casts Arcane Missiles!.
 // The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1014, 1025-1028 and 1100-1113 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
@@ -20508,15 +20508,16 @@ namespace Harness
      *  7. a wait, kShortMs, at which he casts Focus Magic at B the same way;
      *  8. a wait, kFireballMs, at which B takes Precision and the crit aura at +100 and casts Fireball at A through the
      *     cast handler's calls, so its hit crits;
-     *  9. Flame Orb, kOrbMs to the end: right after the cast his 54648 is kept, its effect 0 and full duration.
+     *  9. Flame Orb, kOrbMs to the end: right after the cast his 54648 is kept, its effect 0 and full duration, and
+     *     whether B holds a 54648.
      * At each Slow's read the scenario keeps which Camels hold his Slow; right after step 7 acts whether B holds his
      * Focus Magic.
      *
      * `utility`: `slow=<A held at 1><AB at 2>,far=<3's result>/<C at 3><ABC at 5>,focus=self:<6's result>,on:<B holds
-     * it>,proc:<54648 on him>@<its amount>/<its duration>,orb=<82739 damage logs of his in step 9's windows>/<the
-     * SMSG_AURA_UPDATE packets there that put 79683 on him, one for each cast of it>`. OK at slow=101, far
-     * OUT_OF_RANGE/0001, focus self:BAD_TARGETS,on:1,proc:1@3/10000 and orb n/n with n of at least kMinOrbHits (the
-     * orb's ten-yard pulse reaches a Camel for part of its flight only).
+     * it>,proc:<54648 on him>@<its amount>/<its duration>/B<54648 on B>,orb=<82739 damage logs of his in step 9's
+     * windows>/<the SMSG_AURA_UPDATE packets there that put 79683 on him, one for each cast of it>`. OK at slow=101,
+     * far OUT_OF_RANGE/0001, focus self:BAD_TARGETS,on:1,proc:1@3/10000/B0 and orb n/n with n of at least kMinOrbHits
+     * (the orb's ten-yard pulse reaches a Camel for part of its flight only).
      */
     class MageArcaneUtility : public MageArcaneProofScenario
     {
@@ -20673,6 +20674,9 @@ namespace Harness
                     reads["procAmount"] = proc ? proc->GetModifier()->m_amount : 0;
                     reads["procDuration"] = HolderDuration(p, kFocusProc);
                     m_rec.Note("his " + U(kFocusProc) + ": " + HolderOf(p, kFocusProc) + ", full duration " + Num(reads["procDuration"]));
+                    Player* second = m_secondStaged ? sPlayerRegistry.Find(m_second) : NULL;
+                    reads["procOnB"] = !second ? kNone : second->HasAura(kFocusProc) ? 1 : 0;
+                    m_rec.Note("B's " + U(kFocusProc) + ": " + (second ? HolderOf(second, kFocusProc) : std::string("B is not there")));
                     break;
                 }
                 default:
@@ -20691,12 +20695,13 @@ namespace Harness
                                         Num(Kept(st, kSlowFar, "slow0")) + Num(Kept(st, kSlowFar, "slow1")) + Num(Kept(st, kSlowFar, "slow2"));
             const std::string focus = "self:" + ResultName(CastFailedResult(kFocusSelfStep, kFocusMagic)) + ",on:" +
                                       Num(Kept(st, kFocusStep, "focus")) + ",proc:" + Num(Kept(st, kOrbStep, "proc")) + "@" +
-                                      Num(Kept(st, kOrbStep, "procAmount")) + "/" + Num(Kept(st, kOrbStep, "procDuration"));
+                                      Num(Kept(st, kOrbStep, "procAmount")) + "/" + Num(Kept(st, kOrbStep, "procDuration")) +
+                                      "/B" + Num(Kept(st, kOrbStep, "procOnB"));
             const uint32 hits = uint32(HitAmounts(kOrbStep, kOrbHit).size());
             const uint32 procs = MissilesGains(kOrbStep);
 
             const std::string value = "slow=" + slow + ",far=" + distant + ",focus=" + focus + ",orb=" + U(hits) + "/" + U(procs);
-            const bool ok = slow == "101" && distant == "OUT_OF_RANGE/0001" && focus == "self:BAD_TARGETS,on:1,proc:1@3/10000" &&
+            const bool ok = slow == "101" && distant == "OUT_OF_RANGE/0001" && focus == "self:BAD_TARGETS,on:1,proc:1@3/10000/B0" &&
                             hits >= kMinOrbHits && procs == hits;
             return (ok ? "OK(" : "BUG(") + value + "; slow: his Slow on A at step 1's read, on A and B at step 2's; far: the refusal " +
                    "at C, his Slow on C then, on A, B and C after the glyph; orb: the orb's hits against the Arcane Missiles! they " +
