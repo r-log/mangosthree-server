@@ -62,7 +62,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libbz2-dev default-libmysqlclient-dev             ${{ matrix.pkg }}
 
       - name: Compiler cache
-        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d
+        uses: hendrikmuhs/ccache-action@dbeefd73e8e2ffc1bbc412570072735eb4db3607
         with:
           key: linux-${{ matrix.name }}-pch${{ matrix.pch == 0 && '-off' || '' }}
           max-size: 2G
