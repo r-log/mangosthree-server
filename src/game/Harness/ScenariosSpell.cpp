@@ -223,8 +223,8 @@
 // his health each tick with its glyph; Mana Shield absorbs its amount at one mana a point; Mage Armor gives 3% of his
 // mana every 5 s, his glyphed tick recorded, and shortens a harmful magic effect on him by 35%.
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
-// Magic goes on another mage and not on him, and that mage's crit gives him 54648 and gives the other mage none; each
-// hit of his Flame Orb casts Arcane Missiles!.
+// Magic goes on another mage and not on him, that mage's hit that does not crit gives him no 54648, and his crit gives
+// him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
 // The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1014, 1025-1028 and 1100-1113 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
@@ -20537,18 +20537,21 @@ namespace Harness
      *     spell; 5. Slow at C;
      *  6. a wait, kShortMs, at which he casts Focus Magic at himself through the cast handler's calls (refused);
      *  7. a wait, kShortMs, at which he casts Focus Magic at B the same way;
-     *  8. a wait, kFireballMs, at which B takes Precision and the crit aura at +100 and casts Fireball at A through the
-     *     cast handler's calls, so its hit crits;
-     *  9. Flame Orb, kOrbMs to the end: right after the cast his 54648 is kept, its effect 0 and full duration, and
+     *  8. a wait, kFireballMs, at which B takes Precision and the crit aura at NonCritAuraPoints() and casts Fireball at
+     *     A through the cast handler's calls, so its hit cannot crit;
+     *  9. a wait, kFireballMs, at which the scenario keeps whether he holds a 54648, then B's crit aura is taken off and
+     *     put on at +100 and B casts Fireball at A the same way, so its hit crits;
+     * 10. Flame Orb, kOrbMs to the end: right after the cast his 54648 is kept, its effect 0 and full duration, and
      *     whether B holds a 54648.
      * At each Slow's read the scenario keeps which Camels hold his Slow; right after step 7 acts whether B holds his
      * Focus Magic.
      *
      * `utility`: `slow=<A held at 1><AB at 2>,far=<3's result>/<C at 3><ABC at 5>,focus=self:<6's result>,on:<B holds
-     * it>,proc:<54648 on him>@<its amount>/<its duration>/B<54648 on B>,orb=<82739 damage logs of his in step 9's
-     * windows>/<the SMSG_AURA_UPDATE packets there that put 79683 on him, one for each cast of it>`. OK at slow=101,
-     * far OUT_OF_RANGE/0001, focus self:BAD_TARGETS,on:1,proc:1@3/10000/B0 and orb n/n with n of at least kMinOrbHits
-     * (the orb's ten-yard pulse reaches a Camel for part of its flight only).
+     * it>,plain:<133 damage logs in step 8's windows>/<the crits among them>:<54648 on him at step 9's act>,proc:<54648
+     * on him>@<its amount>/<its duration>/B<54648 on B>,orb=<82739 damage logs of his in step 10's windows>/<the
+     * SMSG_AURA_UPDATE packets there that put 79683 on him, one for each cast of it>`. OK at slow=101, far
+     * OUT_OF_RANGE/0001, focus self:BAD_TARGETS,on:1,plain:1/0:0,proc:1@3/10000/B0 and orb n/n with n of at least
+     * kMinOrbHits (the orb's ten-yard pulse reaches a Camel for part of its flight only).
      */
     class MageArcaneUtility : public MageArcaneProofScenario
     {
@@ -20600,7 +20603,8 @@ namespace Harness
             Step farRefused = AuraCastAt(kSlow, kCamelC, 0);
             farRefused.refusal = true;
             return { AuraCastAt(kSlow, kCamelA, 0), AuraCastAt(kSlow, kCamelB, 0), farRefused, SelfAura(kGlyphOfSlow, kEveryMs),
-                     AuraCastAt(kSlow, kCamelC, 0), Wait(kShortMs), Wait(kShortMs), Wait(kFireballMs), AuraCast(kFlameOrb, kOrbMs) };
+                     AuraCastAt(kSlow, kCamelC, 0), Wait(kShortMs), Wait(kShortMs), Wait(kFireballMs), Wait(kFireballMs),
+                     AuraCast(kFlameOrb, kOrbMs) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -20681,7 +20685,7 @@ namespace Harness
                     m_rec.Note("B's " + U(kFocusMagic) + ": " + HolderOf(second, kFocusMagic));
                     break;
                 }
-                case kSecondCastStep:
+                case kPlainCastStep:
                 {
                     Player* second = m_secondStaged ? sPlayerRegistry.Find(m_second) : NULL;
                     Creature* camelA = Get(st.targets[kCamelA]);
@@ -20691,6 +20695,26 @@ namespace Harness
                         break;
                     }
                     second->CastSpell(second, kPrecision, true);
+                    int32 points = NonCritAuraPoints();
+                    second->CastCustomSpell(second, kCritAura, &points, NULL, NULL, true);
+                    second->SetPower(POWER_MANA, second->GetMaxPower(POWER_MANA));
+                    m_rec.Note("B casts " + U(kFireball) + " at Camel A under the crit aura at " + Num(points));
+                    reads["castPlain"] = CastAsHandler(second, kFireball, camelA, uint8(k + 1));
+                    break;
+                }
+                case kSecondCastStep:
+                {
+                    reads["plainProc"] = p->HasAura(kFocusProc) ? 1 : 0;
+                    m_rec.Note("his " + U(kFocusProc) + " after B's hit that does not crit: " + HolderOf(p, kFocusProc));
+                    Player* second = m_secondStaged ? sPlayerRegistry.Find(m_second) : NULL;
+                    Creature* camelA = Get(st.targets[kCamelA]);
+                    if (!second || !camelA)
+                    {
+                        m_rec.Note("the second mage or Camel A is not there; B's Fireball is not cast");
+                        break;
+                    }
+                    second->CastSpell(second, kPrecision, true);
+                    second->RemoveAurasDueToSpell(kCritAura);
                     int32 points = kCritAuraPoints;
                     second->CastCustomSpell(second, kCritAura, &points, NULL, NULL, true);
                     second->SetPower(POWER_MANA, second->GetMaxPower(POWER_MANA));
@@ -20724,19 +20748,22 @@ namespace Harness
             const std::string slow = Num(Kept(st, kSlowA, "slow0")) + Num(Kept(st, kSlowB, "slow0")) + Num(Kept(st, kSlowB, "slow1"));
             const std::string distant = ResultName(CastFailedResult(kSlowFarRefused, kSlow)) + "/" + Num(Kept(st, kSlowFarRefused, "slow2")) +
                                         Num(Kept(st, kSlowFar, "slow0")) + Num(Kept(st, kSlowFar, "slow1")) + Num(Kept(st, kSlowFar, "slow2"));
+            uint32 plainCrits = 0;
+            const uint32 plainHits = FireballHits(kPlainCastStep, plainCrits);
             const std::string focus = "self:" + ResultName(CastFailedResult(kFocusSelfStep, kFocusMagic)) + ",on:" +
-                                      Num(Kept(st, kFocusStep, "focus")) + ",proc:" + Num(Kept(st, kOrbStep, "proc")) + "@" +
+                                      Num(Kept(st, kFocusStep, "focus")) + ",plain:" + U(plainHits) + "/" + U(plainCrits) + ":" +
+                                      Num(Kept(st, kSecondCastStep, "plainProc")) + ",proc:" + Num(Kept(st, kOrbStep, "proc")) + "@" +
                                       Num(Kept(st, kOrbStep, "procAmount")) + "/" + Num(Kept(st, kOrbStep, "procDuration")) +
                                       "/B" + Num(Kept(st, kOrbStep, "procOnB"));
             const uint32 hits = uint32(HitAmounts(kOrbStep, kOrbHit).size());
             const uint32 procs = MissilesGains(kOrbStep);
 
             const std::string value = "slow=" + slow + ",far=" + distant + ",focus=" + focus + ",orb=" + U(hits) + "/" + U(procs);
-            const bool ok = slow == "101" && distant == "OUT_OF_RANGE/0001" && focus == "self:BAD_TARGETS,on:1,proc:1@3/10000/B0" &&
+            const bool ok = slow == "101" && distant == "OUT_OF_RANGE/0001" && focus == "self:BAD_TARGETS,on:1,plain:1/0:0,proc:1@3/10000/B0" &&
                             hits >= kMinOrbHits && procs == hits;
             return (ok ? "OK(" : "BUG(") + value + "; slow: his Slow on A at step 1's read, on A and B at step 2's; far: the refusal " +
-                   "at C, his Slow on C then, on A, B and C after the glyph; orb: the orb's hits against the Arcane Missiles! they " +
-                   "cast)";
+                   "at C, his Slow on C then, on A, B and C after the glyph; plain: B's Fireball hits and crits, then his 54648; orb: " +
+                   "the orb's hits against the Arcane Missiles! they cast)";
         }
 
     private:
@@ -20769,12 +20796,44 @@ namespace Harness
         static constexpr uint32 kSlowFar = 4;
         static constexpr uint32 kFocusSelfStep = 5;
         static constexpr uint32 kFocusStep = 6;
-        static constexpr uint32 kSecondCastStep = 7;
-        static constexpr uint32 kOrbStep = 8;
-        static constexpr size_t kSteps = 9;
+        static constexpr uint32 kPlainCastStep = 7;
+        static constexpr uint32 kSecondCastStep = 8;
+        static constexpr uint32 kOrbStep = 9;
+        static constexpr size_t kSteps = 10;
 
         ObjectGuid m_second;
         bool m_secondStaged = false;
+
+        /// The damage logs of Fireball (B's alone: he casts none) in step k's windows; `crits` counts the crits among them.
+        uint32 FireballHits(uint32 k, uint32& crits) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            const std::string hit = ".hit." + U(kFireball) + "=";
+            uint32 hits = 0;
+            crits = 0;
+            for (std::string const& window : StepWindows(k))
+            {
+                for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_SPELLNONMELEEDAMAGELOG))
+                {
+                    if (seen->payload.empty())
+                    {
+                        continue;
+                    }
+                    for (std::string const& field : Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &seen->payload[0],
+                                                                           seen->payload.size(), roles))
+                    {
+                        const size_t at = field.find(hit);
+                        uint32 amount = 0, crit = 0;
+                        if (at != std::string::npos && sscanf(field.c_str() + at + hit.size(), "%u/%u", &amount, &crit) == 2)
+                        {
+                            ++hits;
+                            crits += crit ? 1 : 0;
+                        }
+                    }
+                }
+            }
+            return hits;
+        }
 
         /// The SMSG_AURA_UPDATE packets sent to him in step k's windows that put Arcane Missiles! on him, one for each
         /// cast of it (a triggered spell with no visual, which sends no SMSG_SPELL_GO).
