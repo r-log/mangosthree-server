@@ -47,7 +47,9 @@
  * Flamestrike's (ImprovedFlamestrikeChance), the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick)
  * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
- * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze) and Early Frost's (EarlyFrostLockout).
+ * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
+ * Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice Barrier's (GlyphedBarrierAmount) and Reactive Barrier's
+ * (ReactiveBarrierTriggers).
  * Orb.cpp holds the orb a mage's Flame
  * Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
  * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
@@ -434,6 +436,22 @@ namespace Mage
     /// (83050, `knowsRankTwo`), else 83162 for one who knows the first (83049, `knowsRankOne`); 0 for a mage who knows
     /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frost.cpp.
     uint32 EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp);
+
+    /// The freeze an Ice Barrier removed in `mode` casts for a mage who knows Shattered Barrier: 83073 (4 s) for the
+    /// second rank (54787, `knowsRankTwo`), else 55080 (2 s) for the first (44745, `knowsRankOne`); 0 unless damage
+    /// used up the barrier's last point (AURA_REMOVE_BY_SHIELD_BREAK), and 0 for a mage who knows neither. Defined in
+    /// Frost.cpp.
+    uint32 ShatteredBarrierFreeze(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo);
+
+    /// Ice Barrier's absorb with Glyph of Ice Barrier: `amount`, the whole absorb with its spell power part, plus
+    /// `percent` of it, truncated; `amount` as it is for a percent of 0 or less. Defined in Frost.cpp.
+    int32 GlyphedBarrierAmount(int32 amount, int32 percent);
+
+    /// Whether a hit of `damage` on a unit at `health` of `maxHealth` is one Reactive Barrier answers: it leaves the
+    /// unit alive and below half its maximum health, whatever its health before the hit. A hit of 0 (one an absorb took
+    /// whole) answers while the unit is below half; a hit of `health` or more (a killing blow) never does. Defined in
+    /// Frost.cpp.
+    bool ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damage);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.

@@ -106,6 +106,13 @@ namespace
     // The id the Frost cast-start script holds: Frostbolt, whose cast starts Early Frost's lockout.
     uint32 const FROSTBOLT_CAST_START_IDS[] = { 116 };
 
+    // The id Ice Barrier's scripts hold at the aura-apply and aura-remove hooks: Ice Barrier, which Glyph of Ice
+    // Barrier raises and whose break by damage casts Shattered Barrier's freeze.
+    uint32 const ICE_BARRIER_IDS[] = { 11426 };
+
+    // The ids Reactive Barrier's scripts hold at the check-proc and proc hooks: its two ranks.
+    uint32 const REACTIVE_BARRIER_IDS[] = { 86303, 86304 };
+
     // The id the target script holds: the one id the arm named (Blink).
     uint32 const BLINK_IDS[] = { 38194 };
 
@@ -616,17 +623,18 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
     // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the
     // damage-done hook, the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep Freeze, Frostfire Bolt and
-    // Fireball at the launch hook, and Frostbolt at the cast-start hook. At the proc hook, Fire: Ignite, Master of
-    // Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State and Fingers of Frost; Arcane:
-    // Magic Absorption, Arcane Potency, Mana Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply
-    // and aura-remove hooks, Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done
-    // hook and the seven forms of Polymorph at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and
-    // the orb's scan at the target and dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's
-    // two buffs, Fingers of Frost, Brain Freeze and Invocation's two ranks also at the check-proc hook. 146 rows, 143
-    // keys and 3 defaults, none twice.
+    // Fireball at the launch hook, Frostbolt at the cast-start hook, and Ice Barrier at the aura-apply and aura-remove
+    // hooks. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep
+    // Freeze Immunity State, Fingers of Frost and Reactive Barrier's two ranks; Arcane: Magic Absorption, Arcane
+    // Potency, Mana Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks,
+    // Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven
+    // forms of Polymorph at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at
+    // the target and dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers
+    // of Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two ranks also at the check-proc hook. 152
+    // rows, 149 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
-    CHECK_EQ(registry.Count(), std::size_t(143));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(152));
+    CHECK_EQ(registry.Count(), std::size_t(149));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -634,14 +642,14 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
-    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(23));
-    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(14));
+    CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(25));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(16));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(12));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(20));
+    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(13));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(21));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(4));
@@ -665,7 +673,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
-        { &Mage::RegisterFrost, 63, 63, 0 },
+        { &Mage::RegisterFrost, 69, 69, 0 },
         { &Mage::RegisterArcane, 25, 25, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
     };
@@ -678,8 +686,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
-    CHECK_EQ(registry.Count(), std::size_t(143));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(152));
+    CHECK_EQ(registry.Count(), std::size_t(149));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -690,7 +698,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(143));
+    CHECK_EQ(mine.size(), std::size_t(149));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -705,6 +713,9 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
     CheckRowsInTheGame<CastStartHook>(registry, FROSTBOLT_CAST_START_IDS);
+    CheckRowsInTheGame<AuraApplyHook>(registry, ICE_BARRIER_IDS);
+    CheckRowsInTheGame<AuraRemoveHook>(registry, ICE_BARRIER_IDS);
+    CheckRowsInTheGame<CheckProcHook>(registry, REACTIVE_BARRIER_IDS);
     CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
     CHECK(registry.Find<AuraPeriodicDummyTickMageSite>(55342) == NULL);
@@ -822,7 +833,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 23 ids in 13 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 25 ids in 14 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
     bodies.insert(OneProcBody(registry, MAGIC_ABSORPTION_IDS));
     bodies.insert(OneProcBody(registry, IGNITE_IDS));
@@ -837,21 +848,23 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     bodies.insert(OneProcBody(registry, FINGERS_OF_FROST_IDS));
     bodies.insert(OneProcBody(registry, IMPACT_IDS));
     bodies.insert(OneProcBody(registry, NETHER_VORTEX_IDS));
-    CHECK_EQ(bodies.size(), std::size_t(13));
+    bodies.insert(OneProcBody(registry, REACTIVE_BARRIER_IDS));
+    CHECK_EQ(bodies.size(), std::size_t(14));
     std::size_t const ids = sizeof(MAGIC_ABSORPTION_IDS) / sizeof(uint32) + sizeof(IGNITE_IDS) / sizeof(uint32) +
                             sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
                             sizeof(ARCANE_POTENCY_IDS) / sizeof(uint32) + sizeof(HOT_STREAK_IDS) / sizeof(uint32) +
                             sizeof(BLAZING_SPEED_IDS) / sizeof(uint32) + sizeof(MANA_SHIELD_IDS) / sizeof(uint32) +
                             sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(OFFENSIVE_STATE_IDS) / sizeof(uint32) +
                             sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32) +
-                            sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(NETHER_VORTEX_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(23));
+                            sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(NETHER_VORTEX_IDS) / sizeof(uint32) +
+                            sizeof(REACTIVE_BARRIER_IDS) / sizeof(uint32);
+    CHECK_EQ(ids, std::size_t(25));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
              (sizeof(IMPACT_IDS) + sizeof(CLEARCASTING_IDS) + sizeof(ARCANE_BLAST_BUFF_IDS) +
               sizeof(ARCANE_POTENCY_BUFF_IDS) + sizeof(FINGERS_OF_FROST_IDS) + sizeof(BRAIN_FREEZE_IDS) +
-              sizeof(INVOCATION_IDS)) / sizeof(uint32));
+              sizeof(INVOCATION_IDS) + sizeof(REACTIVE_BARRIER_IDS)) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data). Arcane Blast's buff (36032) holds no proc script: its
@@ -873,21 +886,22 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
 
     // The proc-trigger scripts end the proc themselves (Mage::CastProcTriggerSpell): no row and no default of the
     // legacy site of trigger spells, which the proc-trigger handler dispatches for the spell it casts, answers for the
-    // spells they cast: Blazing Speed's 31643, Persistent Shield's 26470, Deep Freeze's damage 71757 and Fingers of
-    // Frost's 44544.
-    for (uint32 spellId : { 31643u, 26470u, 71757u, 44544u })
+    // spells they cast: Blazing Speed's 31643, Persistent Shield's 26470, Deep Freeze's damage 71757, Fingers of
+    // Frost's 44544 and Reactive Barrier's 86347 and 11426.
+    for (uint32 spellId : { 31643u, 26470u, 71757u, 44544u, 86347u, 11426u })
     {
         CHECK(game.Find<ProcTriggerSpellAuraProcTriggeredSite>(spellId) == NULL);
     }
     CHECK(game.FindDefault<ProcTriggerSpellAuraProcTriggeredSite>() == NULL);
 
-    // No script stands for the holders of icon 32 (Ice Barrier 11426 and 98864, Glyph of Ice Barrier 63095): no row of
-    // the mage boost site, the aura-apply or the aura-remove hook names them, and the site's default returns for them.
+    // Of the holders of icon 32, Ice Barrier (11426) holds a script at the aura-apply and the aura-remove hooks, and
+    // 98864 and Glyph of Ice Barrier (63095) none; no row of the mage boost site names any of them, and the site's
+    // default returns for them.
     for (uint32 spellId : { 11426u, 98864u, 63095u })
     {
         CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
-        CHECK(game.Find<AuraApplyHook>(spellId) == NULL);
-        CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);
+        CHECK((game.Find<AuraApplyHook>(spellId) != NULL) == (spellId == 11426u));
+        CHECK((game.Find<AuraRemoveHook>(spellId) != NULL) == (spellId == 11426u));
     }
     CHECK(game.FindDefault<AuraBoostMageSite>() != NULL);
 }
@@ -1552,7 +1566,8 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
                                                 sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
                                                 sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
                                                 sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) +
-                                                sizeof(POLYMORPH_IDS) / sizeof(uint32));
+                                                sizeof(POLYMORPH_IDS) / sizeof(uint32) +
+                                                sizeof(ICE_BARRIER_IDS) / sizeof(uint32));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
@@ -1884,7 +1899,8 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
     }
     CHECK_EQ(game.CountAt(AuraApplyHook::Key),
              sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
-             sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32));
+             sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32) +
+             sizeof(ICE_BARRIER_IDS) / sizeof(uint32));
 
     // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
     // the call before the add, and a removal by re-application or with no caster, change nothing and let the holder's
