@@ -20640,16 +20640,16 @@ namespace Harness
                 return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
             }
             const std::string slow = Num(Kept(st, kSlowA, "slow0")) + Num(Kept(st, kSlowB, "slow0")) + Num(Kept(st, kSlowB, "slow1"));
-            const std::string far = ResultName(CastFailedResult(kSlowFarRefused, kSlow)) + "/" + Num(Kept(st, kSlowFarRefused, "slow2")) +
-                                    Num(Kept(st, kSlowFar, "slow0")) + Num(Kept(st, kSlowFar, "slow1")) + Num(Kept(st, kSlowFar, "slow2"));
+            const std::string distant = ResultName(CastFailedResult(kSlowFarRefused, kSlow)) + "/" + Num(Kept(st, kSlowFarRefused, "slow2")) +
+                                        Num(Kept(st, kSlowFar, "slow0")) + Num(Kept(st, kSlowFar, "slow1")) + Num(Kept(st, kSlowFar, "slow2"));
             const std::string focus = "self:" + ResultName(CastFailedResult(kFocusSelfStep, kFocusMagic)) + ",on:" +
                                       Num(Kept(st, kFocusStep, "focus")) + ",proc:" + Num(Kept(st, kOrbStep, "proc")) + "@" +
                                       Num(Kept(st, kOrbStep, "procAmount")) + "/" + Num(Kept(st, kOrbStep, "procDuration"));
             const uint32 hits = uint32(HitAmounts(kOrbStep, kOrbHit).size());
             const uint32 procs = MissilesGains(kOrbStep);
 
-            const std::string value = "slow=" + slow + ",far=" + far + ",focus=" + focus + ",orb=" + U(hits) + "/" + U(procs);
-            const bool ok = slow == "101" && far == "OUT_OF_RANGE/0001" && focus == "self:BAD_TARGETS,on:1,proc:1@3/10000" &&
+            const std::string value = "slow=" + slow + ",far=" + distant + ",focus=" + focus + ",orb=" + U(hits) + "/" + U(procs);
+            const bool ok = slow == "101" && distant == "OUT_OF_RANGE/0001" && focus == "self:BAD_TARGETS,on:1,proc:1@3/10000" &&
                             hits >= kMinOrbHits && procs == hits;
             return (ok ? "OK(" : "BUG(") + value + "; slow: his Slow on A at step 1's read, on A and B at step 2's; far: the refusal " +
                    "at C, his Slow on C then, on A, B and C after the glyph; orb: the orb's hits against the Arcane Missiles! they " +
