@@ -844,6 +844,32 @@ void Player::UpdateManaRegen()
     SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER, base_regen + 0.001f + power_regen_mp5 + spirit_regen);
 }
 
+namespace
+{
+    /// The spells of `player`'s MASTERY auras into `auraSpells`, and every mastery and primary spell of his class's
+    /// talent trees into `treeSpells`.
+    void MasterySpellsOf(Player const& player, std::vector<uint32>& auraSpells, std::vector<uint32>& treeSpells)
+    {
+        Unit::AuraList const& auras = player.GetAurasByType(SPELL_AURA_MASTERY);
+        for (Unit::AuraList::const_iterator i = auras.begin(); i != auras.end(); ++i)
+        {
+            auraSpells.push_back((*i)->GetId());
+        }
+        uint32 const* tabs = GetTalentTabPages(player.getClass());
+        for (uint32 i = 0; i < MAX_TALENT_TABS; ++i)
+        {
+            if (std::vector<uint32> const* mastery = GetTalentTreeMasterySpells(tabs[i]))
+            {
+                treeSpells.insert(treeSpells.end(), mastery->begin(), mastery->end());
+            }
+            if (std::vector<uint32> const* primary = GetTalentTreePrimarySpells(tabs[i]))
+            {
+                treeSpells.insert(treeSpells.end(), primary->begin(), primary->end());
+            }
+        }
+    }
+}
+
 void Player::UpdateMasteryAuras()
 {
     if (!HasAuraType(SPELL_AURA_MASTERY))
@@ -852,7 +878,13 @@ void Player::UpdateMasteryAuras()
         return;
     }
 
-    float masteryValue = GetTotalAuraModifier(SPELL_AURA_MASTERY) + GetRatingBonusValue(CR_MASTERY);
+    // the mastery is 0 until he holds his class's Mastery passive, his rating and his trees' own MASTERY auras too;
+    // the trees' mastery effects below then take 0 as well
+    std::vector<uint32> auraSpells;
+    std::vector<uint32> treeSpells;
+    MasterySpellsOf(*this, auraSpells, treeSpells);
+    float masteryValue = Combat::MasteryCounts(auraSpells, treeSpells) ?
+                         GetTotalAuraModifier(SPELL_AURA_MASTERY) + GetRatingBonusValue(CR_MASTERY) : 0.0f;
     SetFloatValue(PLAYER_MASTERY, masteryValue);
 
     std::vector<uint32> const* masterySpells = GetTalentTreeMasterySpells(m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()));

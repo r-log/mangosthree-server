@@ -27,25 +27,26 @@
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles, the pairing of Arcane Missiles Aurastate
 /// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
-/// Arcane damage spell, Ignite's munching leaves against the roll-over, Clearcasting used up only by a spell its cost
-/// modifier makes cheaper, the slows Torment the Weak counts and its multiplier, Nether Vortex's Slow and its
-/// refusals, Invocation's buff from a Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker
-/// when damage breaks a Polymorph, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
-/// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
-/// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
-/// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
-/// the dummy aura hook, Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its
-/// rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's
-/// stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of
-/// its spread at the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook,
-/// Glyph of Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's
-/// apply and its after-hit exits; the orb's rows are counted here and tested in MageOrbTest, the ring's in
-/// MageRingTest. A body that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts'
-/// refusals run on bare Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts
-/// read added to the effect store as the client's data holds them, and a holder put in the creature's holder map where
-/// a script asks whether it holds an aura. The cooldown Impact clears is a player's: a player on a session with no
-/// socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs on a holder made through
-/// its constructor on a bare creature, of three auras whose apply and removal change nothing on the unit.
+/// Arcane damage spell, Arcane Potency's buffs spent only by a spell that deals or triggers damage, Ignite's munching
+/// leaves against the roll-over, Clearcasting used up only by a spell its cost modifier makes cheaper, the slows
+/// Torment the Weak counts and its multiplier, Nether Vortex's Slow and its refusals, Invocation's buff from a
+/// Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker when damage breaks a Polymorph, the
+/// count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the removal of Hot Streak's buff,
+/// Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals, the frozen query, Shatter's
+/// crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two spell lists those scripts
+/// hold against the class masks of the talents, Blink's target count, Living Bomb's exits at the dummy aura hook,
+/// Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the
+/// aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with
+/// the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at
+/// the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of
+/// Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's apply and
+/// its after-hit exits; the orb's rows are counted here and tested in MageOrbTest, the ring's in MageRingTest. A body
+/// that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare
+/// Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts read added to the
+/// effect store as the client's data holds them, and a holder put in the creature's holder map where a script asks
+/// whether it holds an aura. The cooldown Impact clears is a player's: a player on a session with no socket, in no
+/// world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs on a holder made through its constructor
+/// on a bare creature, of three auras whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -154,6 +155,10 @@ namespace
     // The id the check-proc script of Arcane Blast's buff holds: the buff, which only the end of the mage's own cast of
     // an Arcane damage spell other than Arcane Blast and Arcane Explosion spends.
     uint32 const ARCANE_BLAST_BUFF_IDS[] = { 36032 };
+
+    // The ids the check-proc script of Arcane Potency's buffs holds: the buff of each rank, whose charges a spell that
+    // neither deals nor triggers damage never spends.
+    uint32 const ARCANE_POTENCY_BUFF_IDS[] = { 57529, 57531 };
 
     // The ids Torment the Weak's script holds at the damage-done hook: its three ranks, which the engine runs it for
     // as dummy auras of the caster.
@@ -617,11 +622,12 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven forms of Polymorph
     // at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and
     // dummy-effect hooks. The ring: Ring of Frost at the periodic-tick hook, and the ring's freeze at the target and
-    // aura-remove hooks. Impact, Clearcasting, Arcane Blast's buff, Fingers of Frost, Brain Freeze and Invocation's two
-    // ranks also at the check-proc hook. 146 rows, 143 keys and 3 defaults, none twice.
+    // aura-remove hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost,
+    // Brain Freeze and Invocation's two ranks also at the check-proc hook. 148 rows, 145 keys and 3 defaults, none
+    // twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
-    CHECK_EQ(registry.Count(), std::size_t(143));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(148));
+    CHECK_EQ(registry.Count(), std::size_t(145));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -630,7 +636,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(23));
-    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(12));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(14));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
@@ -661,7 +667,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 62, 62, 0 },
-        { &Mage::RegisterArcane, 23, 23, 0 },
+        { &Mage::RegisterArcane, 25, 25, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
     };
@@ -674,8 +680,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(146));
-    CHECK_EQ(registry.Count(), std::size_t(143));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(148));
+    CHECK_EQ(registry.Count(), std::size_t(145));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -686,7 +692,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(143));
+    CHECK_EQ(mine.size(), std::size_t(145));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -845,7 +851,8 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
              (sizeof(IMPACT_IDS) + sizeof(CLEARCASTING_IDS) + sizeof(ARCANE_BLAST_BUFF_IDS) +
-              sizeof(FINGERS_OF_FROST_IDS) + sizeof(BRAIN_FREEZE_IDS) + sizeof(INVOCATION_IDS)) / sizeof(uint32));
+              sizeof(ARCANE_POTENCY_BUFF_IDS) + sizeof(FINGERS_OF_FROST_IDS) + sizeof(BRAIN_FREEZE_IDS) +
+              sizeof(INVOCATION_IDS)) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data). Arcane Blast's buff (36032) holds no proc script: its
@@ -1174,6 +1181,57 @@ TEST(MageScripts_ArcaneBlastBuffDropsEveryEventButAnOwnCastsEnd)
     SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(36032, noSpell);
     CHECK(outcome.IsReturn());
     CHECK(!outcome.GetValue());
+}
+
+TEST(MageScripts_ArcanePotencyBuffsDropTheEventsOfSpellsThatDealOrTriggerNoDamage)
+{
+    // The rows: both buffs at the check-proc hook, one body of their own, the same in the game's table; no proc script.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<CheckProcHook>(registry, ARCANE_POTENCY_BUFF_IDS);
+    CHECK(registry.Find<CheckProcHook>(57529) == registry.Find<CheckProcHook>(57531));
+    CHECK(registry.Find<CheckProcHook>(57531) != registry.Find<CheckProcHook>(36032));
+    for (uint32 buffId : ARCANE_POTENCY_BUFF_IDS)
+    {
+        CHECK(registry.Find<OnProcHook>(buffId) == NULL);
+    }
+
+    AddDamageCheckRows();
+    AddTriggerCheckRows();
+    BareCreature mage;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage buffRow;
+    SpellRowStorage eventRow;
+    for (uint32 buffId : ARCANE_POTENCY_BUFF_IDS)
+    {
+        // The end of a cast of a spell that deals no damage and triggers none that does is dropped, as the cast of
+        // Arcane Blast's buff (36032) is: Slow's auras, a confuse, a stun, a trigger of a stun alone.
+        for (uint32 spellId : { ROW_SLOW_AURAS, ROW_CONFUSE, ROW_STUN, ROW_TRIGGERS_STUN })
+        {
+            SpellEntry const& event = SpellRow(eventRow, spellId);
+            CHECK(!Mage::DealsOrTriggersDamage(event));
+            CheckProcContext ctx(mage, NULL, SpellRow(buffRow, buffId), AuraHandle(holder), &event, 0x10000,
+                                 PROC_EX_CAST_END, 0);
+            SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(buffId, ctx);
+            CHECK(outcome.IsReturn());
+            CHECK(!outcome.GetValue());
+        }
+
+        // The end of a cast of a spell that deals damage, or of a channel whose missile does, and an event with no
+        // spell go on to the engine's proc handling.
+        for (uint32 spellId : { ROW_DIRECT_DAMAGE, ROW_PERIODIC_DAMAGE_WITH_DUMMY, ROW_MISSILE_CHANNEL })
+        {
+            SpellEntry const& event = SpellRow(eventRow, spellId);
+            CHECK(Mage::DealsOrTriggersDamage(event));
+            CheckProcContext ctx(mage, NULL, SpellRow(buffRow, buffId), AuraHandle(holder), &event, 0x10000,
+                                 PROC_EX_CAST_END, 0);
+            CHECK(registry.Dispatch<CheckProcHook>(buffId, ctx).IsContinue());
+        }
+        CheckProcContext noSpell(mage, NULL, SpellRow(buffRow, buffId), AuraHandle(holder), NULL, 0x10000,
+                                 PROC_EX_CAST_END, 0);
+        CHECK(registry.Dispatch<CheckProcHook>(buffId, noSpell).IsContinue());
+    }
 }
 
 TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
@@ -2159,6 +2217,46 @@ TEST(MageScripts_ArcaneMissilesBuffAndItsAurastateStackWithEachOther)
     CHECK(sSpellStore.LookupEntry(79808) == NULL);
 }
 
+namespace
+{
+    // The class options and the Spell.dbc rows of the Fingers of Frost stacking test: mage spells of icon 2947, a
+    // passive one as the talent's ranks (44543, 44545, 83074) are and one that is not, as the buff (44544) is; the
+    // test rows carry no effects. The test takes the rows out of the spell store again.
+    const uint32 kOptionsFingersOfFrost = 94270;
+    const uint32 kFingersTalentRow = 94271;
+    const uint32 kFingersBuffRow = 94272;
+
+    SpellClassOptionsEntry s_optionsFingersOfFrost;
+    ServerSpell s_fingersTalentRow;
+    ServerSpell s_fingersBuffRow;
+
+    void StoreIcon2947Spell(ServerSpell& spell, uint32 spellId, uint32 attributes)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = kOptionsFingersOfFrost;
+        spell.Entry().SpellIconID = 2947;
+        spell.Entry().Attributes = attributes;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+    }
+}
+
+TEST(MageScripts_FingersOfFrostsTalentAndItsBuffStandTogether)
+{
+    // The mage spells of icon 2947 that are auras: the talent's three ranks, passive, of which a mage holds one, and
+    // the buff, not passive. A passive aura and one that is not stand together before any rule of their icon.
+    s_optionsFingersOfFrost.SpellClassMask = ClassFamilyMask(0, 0);
+    s_optionsFingersOfFrost.SpellClassSet = SPELLFAMILY_MAGE;
+    sSpellClassOptionsStore.SetEntry(kOptionsFingersOfFrost, &s_optionsFingersOfFrost);
+    StoreIcon2947Spell(s_fingersTalentRow, kFingersTalentRow, SPELL_ATTR_PASSIVE);
+    StoreIcon2947Spell(s_fingersBuffRow, kFingersBuffRow, 0);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kFingersTalentRow, kFingersBuffRow));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kFingersBuffRow, kFingersTalentRow));
+
+    sSpellStore.SetEntry(kFingersTalentRow, NULL);
+    sSpellStore.SetEntry(kFingersBuffRow, NULL);
+    CHECK(sSpellStore.LookupEntry(kFingersBuffRow) == NULL);
+}
+
 TEST(MageScripts_ImpactSpreadsPyroblastIgniteAndCombustionAlwaysAndLivingBombToTwoEnemies)
 {
     // Pyroblast, Pyroblast!, Ignite and Combustion always, and the count of Living Bombs stays as it is.
@@ -2945,7 +3043,7 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
 
     // An unfrozen target: Ice Lance and Deep Freeze count it as frozen under Fingers of Frost alone; Frostbolt, a
     // Frostfire Bolt without Brain Freeze's buff and the rest do not, and nothing does without the charge. Deep
-    // Freeze's damage always does.
+    // Freeze's damage does not, with the charge or without.
     for (uint32 spellId : { kIceLance, kDeepFreeze })
     {
         CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
@@ -2961,7 +3059,9 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
                  int(Mage::NOT_FROZEN));
     }
     CHECK_EQ(int(Mage::CountsAsFrozen(caster, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE, 0)),
-             int(Mage::FINGERS));
+             int(Mage::NOT_FROZEN));
+    CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE, 0)),
+             int(Mage::NOT_FROZEN));
 
     // The Frostfire Bolt Brain Freeze makes instant counts it as frozen under Fingers of Frost, and not without it; one
     // cast in full does not, under a buff that came during its cast too.
@@ -2992,7 +3092,7 @@ TEST(MageScripts_ASpellCountsItsTargetAsFrozenByTheStateOrByAFingersChargeForTwo
     // A frozen target: every spell counts it as frozen, with the charge or without, and so does a periodic effect.
     Freeze(victim);
     CHECK(victim.IsFrozen());
-    for (uint32 spellId : { kIceLance, kDeepFreeze, kFrostbolt, kFrostfireBoltSpell, 122u })
+    for (uint32 spellId : { kIceLance, kDeepFreeze, kDeepFreezeDamage, kFrostbolt, kFrostfireBoltSpell, 122u })
     {
         CHECK_EQ(int(Mage::CountsAsFrozen(fingers, victim, SpellRow(row, spellId), SPELL_DIRECT_DAMAGE, 0)),
                  int(Mage::REALLY_FROZEN));
@@ -3077,6 +3177,27 @@ TEST(MageScripts_ShatterRaisesTheCritChanceOfASpellThatCountsItsTargetAsFrozen)
         CritChanceContext bolt(boltMage, *v.victim, SpellRow(row, kFrostfireBoltSpell), v.type, value);
         CHECK(registry.Dispatch<CritChanceHook>(kFrostfireBoltSpell, bolt).IsContinue());
         CHECK(Near(value, v.expected));
+    }
+
+    // Deep Freeze's damage (71757) takes the factor at a frozen target alone: at an unfrozen one the chance stays as
+    // it is, whether the caster holds a Fingers of Frost charge or not.
+    BareCreature deepFreezeMage;
+    HolderStorage deepFreezeShatter;
+    HolderStorage deepFreezeFingers;
+    deepFreezeMage.HoldAura(kShatterRankTwo, EmptyHolder(deepFreezeShatter));
+    deepFreezeMage.HoldAura(kFingersOfFrost, EmptyHolder(deepFreezeFingers));
+    for (BareCreature* caster : { &rankTwo, &deepFreezeMage })
+    {
+        float unfrozenChance = 20.0f;
+        CritChanceContext atUnfrozen(*caster, unfrozenVictim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE,
+                                     unfrozenChance);
+        CHECK(registry.Dispatch<CritChanceHook>(kDeepFreezeDamage, atUnfrozen).IsContinue());
+        CHECK_EQ(unfrozenChance, 20.0f);
+        float frozenChance = 20.0f;
+        CritChanceContext atFrozen(*caster, victim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE,
+                                   frozenChance);
+        CHECK(registry.Dispatch<CritChanceHook>(kDeepFreezeDamage, atFrozen).IsContinue());
+        CHECK(Near(frozenChance, 60.0f));
     }
 
     // The engine adds the spell's flat crit-chance modifiers after the hook, and Shatter multiplies them too: a sheet
@@ -3168,6 +3289,18 @@ TEST(MageScripts_FrostburnShatterAndIceLanceMultiplyTheDamageOnceEachForAFrozenT
     CHECK(registry.Dispatch<DamageDoneHook>(kFrostbolt, fingersBolt).IsContinue());
     CHECK_EQ(bolt, 1.0f);
 
+    // Deep Freeze's damage takes Frostburn at an unfrozen target too, and nothing more: no Frostburn, no bonus.
+    float deepFreeze = 1.0f;
+    DamageDoneContext unfrozenDeepFreeze(frostMage, unfrozenVictim, SpellRow(row, kDeepFreezeDamage),
+                                         SPELL_DIRECT_DAMAGE, deepFreeze);
+    CHECK(registry.Dispatch<DamageDoneHook>(kDeepFreezeDamage, unfrozenDeepFreeze).IsContinue());
+    CHECK(Near(deepFreeze, 1.05f));
+    float fingersDeepFreeze = 1.0f;
+    DamageDoneContext noFrostburn(fingersMage, unfrozenVictim, SpellRow(row, kDeepFreezeDamage), SPELL_DIRECT_DAMAGE,
+                                  fingersDeepFreeze);
+    CHECK(registry.Dispatch<DamageDoneHook>(kDeepFreezeDamage, noFrostburn).IsContinue());
+    CHECK_EQ(fingersDeepFreeze, 1.0f);
+
     // A Frostfire Bolt under Fingers of Frost and Brain Freeze's buff: its hit at an unfrozen target takes Frostburn,
     // the amount of its periodic effect does not; at a frozen target the periodic amount takes it too.
     BareCreature boltMage;
@@ -3195,7 +3328,7 @@ TEST(MageScripts_FrostburnShatterAndIceLanceMultiplyTheDamageOnceEachForAFrozenT
         CHECK(Near(value, v.expected));
     }
 
-    // A Frostburn of no amount (before the mastery gate) multiplies nothing.
+    // A Frostburn of no amount (a mage without the Mastery passive) multiplies nothing.
     AuraHandle(*frostburnHolder).SetAmount(EFFECT_INDEX_0, 0);
     float none = 1.0f;
     DamageDoneContext noAmount(frostMage, victim, SpellRow(row, 133), SPELL_DIRECT_DAMAGE, none);

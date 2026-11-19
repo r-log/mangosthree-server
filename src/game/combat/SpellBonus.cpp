@@ -200,6 +200,18 @@ namespace Combat
         return coefficient * masteryPoints;
     }
 
+    bool MasteryCounts(std::vector<uint32> const& masteryAuraSpells, std::vector<uint32> const& treeSpells)
+    {
+        for (uint32 spell : masteryAuraSpells)
+        {
+            if (std::find(treeSpells.begin(), treeSpells.end(), spell) == treeSpells.end())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     int32 DotShareTick(float amount, uint32 percent, uint32 ticks)
     {
         if (!ticks)

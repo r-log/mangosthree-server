@@ -2466,15 +2466,6 @@ SpellAuraProcResult Unit::HandleOverrideClassScriptAuraProc(Unit* pVictim, uint3
             triggered_spell_id = 12485;
             break;
         }
-        case 989:                                           // Improved Blizzard (Rank 3)
-        {
-            if (!procSpell || procSpell->SpellVisualID[0] != 9487)
-            {
-                return SPELL_AURA_PROC_FAILED;
-            }
-            triggered_spell_id = 12486;
-            break;
-        }
         case 4086:                                          // Improved Mend Pet (Rank 1)
         case 4087:                                          // Improved Mend Pet (Rank 2)
         {

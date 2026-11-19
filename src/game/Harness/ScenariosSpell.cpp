@@ -161,6 +161,10 @@
 // place of the earlier, two that land a few updates apart both feed it, and Pyroblast! leaves Clearcasting on.
 // 1028 Clearcasting on a Fire mage is used up by a Fireball and kept through Blood Fury, the free Flamestrike and
 // Blizzard's damage, none of which it makes cheaper.
+// 996 a staged Frost mage's Deep Freeze at a target immune to stuns deals its damage once, with Frostburn and the
+// glyph, uses one Fingers of Frost charge, and the damage's crit chance takes Shatter's factor at a frozen target
+// alone. 1000 a staged Frost mage's mastery is 0 without the Mastery passive, his rating and Frost Specialization's -6
+// included, and 2 points and his rating's with it; Frostburn follows it.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -176,7 +180,13 @@
 // 1105 a staged Arcane mage's Polymorph that damage breaks stuns the Camel for Improved Polymorph's rank and marks it,
 // a second break while the mark holds stuns nothing, and a Polymorph that runs out, is dispelled or is removed stuns
 // nothing and marks nothing.
-// The guard of 931-938, 941-978, 980-995, 998-999, 1010, 1025-1028, 1100-1101 and 1103-1105 (Qualify) fingerprints
+// 1102 a staged Arcane mage's damaging hits give Clearcasting at most once in 15 s, his helpful spells and another
+// class's spell none; Clearcasting makes an Arcane Blast free; Clearcasting and Presence of Mind each give Arcane
+// Potency's two charges, one taken by each Arcane Blast or Arcane Explosion cast and none by Arcane Missiles; Presence
+// of Mind makes an Arcane Blast instant and refuses Arcane Power and is refused by it; Arcane Missiles! cast during the
+// channel stays through its missiles.
+// 1107 a staged Arcane mage with Improved Blink gets its speed from Blink and not from Arcane Brilliance or Mage Armor.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010, 1025-1028, 1100-1105 and 1107 (Qualify) fingerprints
 // every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script
 // binding.
 namespace Harness
@@ -4014,12 +4024,12 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-995,
-     * 998-999, 1025-1028, 1100-1101, 1103-1105): a human mage staged to level 85 with the scenario's talents, glyphs,
+     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
+     * 998-1000, 1025-1028, 1100-1105, 1107): a human mage staged to level 85 with the scenario's talents, glyphs,
      * spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged
-     * (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85
-     * unless the scenario sets its own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the
-     * scenario's steps, in order:
+     * (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249, or the creature TargetEntry names)
+     * staged to level TargetLevel() (85 unless the scenario sets its own) ten yards in front of him
+     * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him when he does not hold it, by a triggered self-cast or, when CasterAuraPut()
      *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
@@ -4110,7 +4120,7 @@ namespace Harness
                 plan.takesDamage = plan.takesDamage || steps[i].swing || steps[i].blow || steps[i].swingAtMs;
                 if (steps[i].kill)
                 {
-                    ++plan.kills[kCamel];
+                    ++plan.kills[TargetEntry()];
                 }
             }
             for (size_t i = 0; i < prints.size(); ++i)
@@ -4147,7 +4157,7 @@ namespace Harness
             plan.spells.insert(later.begin(), later.end());
             std::string templateOk;
             QuestPreCheck pre;
-            if (!Qualify(prints, { kCamel }, plan, templateOk, &pre))
+            if (!Qualify(prints, { TargetEntry() }, plan, templateOk, &pre))
             {
                 return;
             }
@@ -4164,10 +4174,10 @@ namespace Harness
             for (uint32 camel = 0; camel < TargetCount(); ++camel)
             {
                 const float ty = P0.y + (float(camel) - float(TargetCount() - 1) / 2.0f) * kTargetSpacing;
-                Creature* spawned = SpawnTarget(kCamel, TargetLevel(), tx, ty, Ground(tx, ty, P0.z), 3.14159f);
+                Creature* spawned = SpawnTarget(TargetEntry(), TargetLevel(), tx, ty, Ground(tx, ty, P0.z), 3.14159f);
                 if (!spawned)
                 {
-                    Verdict(Invalid("the target (50249) did not spawn"));
+                    Verdict(Invalid("the target (" + U(TargetEntry()) + ") did not spawn"));
                     return;
                 }
                 if (const uint32 targetAura = TargetAura())
@@ -4183,10 +4193,10 @@ namespace Harness
             {
                 const float ex = tx + extra[camel].first;
                 const float ey = firstY + extra[camel].second;
-                Creature* spawned = SpawnTarget(kCamel, TargetLevel(), ex, ey, Ground(ex, ey, P0.z), 3.14159f);
+                Creature* spawned = SpawnTarget(TargetEntry(), TargetLevel(), ex, ey, Ground(ex, ey, P0.z), 3.14159f);
                 if (!spawned)
                 {
-                    Verdict(Invalid("the target (50249) did not spawn"));
+                    Verdict(Invalid("the target (" + U(TargetEntry()) + ") did not spawn"));
                     return;
                 }
                 if (const uint32 targetAura = TargetAura())
@@ -4566,6 +4576,8 @@ namespace Harness
         virtual uint32 TargetAura() const { return 0; }
         /// The level the Camels are spawned at; 85 by default.
         virtual uint32 TargetLevel() const { return 85; }
+        /// The creature entry the Camels are spawned from; the Camel (50249) by default.
+        virtual uint32 TargetEntry() const { return kCamel; }
         /// The creature entry of a pet built for him after he is staged (Scenario::BuildOwnedPet), kPetOffset yards to
         /// his side; 0 for none.
         virtual uint32 PetEntry() const { return 0; }
@@ -15145,6 +15157,431 @@ namespace Harness
         }
     };
 
+    /**
+     * S996 `mage-frost-deep-freeze`: Deep Freeze (44572) at a target its stun cannot hold, for a staged Frost mage with
+     * Shatter 2 (12982), Glyph of Deep Freeze (696, its aura 63090), the Mastery passive (86473) and kMasteryRating
+     * mastery rating; Deep Freeze and Frost Nova (122) learned. His target is a Felflame Infernal (1) (35262), a
+     * creature of the world database that runs no AI, binds no script and whose template is immune to stuns, snares and
+     * charms alone (MechanicImmuneMask 0xC01), spawned at its template's level 82 (the world database's class level
+     * stats for its class and expansion hold no damage above level 83); the notes call it the Camel. Before each cast
+     * he takes Precision (13843, +6% spell hit), so no cast misses, and the crit aura at -100, so none crits. Each
+     * Fingers of Frost charge is a wait at whose act he casts 44544 at himself, triggered. Steps: two charges; Deep
+     * Freeze at the Infernal, whose stun the Infernal is immune to, so Deep Freeze Immunity State (71761) casts Deep
+     * Freeze's damage (71757) at it; a wait at whose act the scenario reads Unit::SpellDamageBonusDone of kDoneBase for
+     * 71757 at the Infernal before and after his mastery rating is raised by kRatingGain (taken back after), then rolls
+     * Unit::IsSpellCrit for 71757 at it kRolls times with the crit aura at kRollCritPoints; Frost Nova, its cooldown
+     * taken off first; a wait at whose act the rolls are made again at the Infernal Frost Nova froze.
+     *
+     * `deepFreeze`: `hits=<71757 damage logs in Deep Freeze's windows>,damage=<the first one's amount>,stun=<1 when the
+     * Infernal held 44572 at Deep Freeze's read>,stacks=<44544's stack at the second charge's read and at Deep
+     * Freeze's>,glyph=<his damage modifier for 71757 on 100, at the stage>,frostburn=<Frostburn's amount before and
+     * after the rating>,done=<the two SpellDamageBonusDone reads>,sheet=<his frost crit chance at the first
+     * rolls>,unfrozen=,frozen=<the share of each set of rolls that crit>`, the last three in hundredths of a percent.
+     * OK at `hits=1`, `stun=0`, `stacks=2,1`, `glyph=120`, the second done read over the first at (100 + Frostburn
+     * after) over (100 + Frostburn before) within a unit of each, the Infernal unfrozen at the first rolls and frozen
+     * at the second, `unfrozen` within kRollTolerance of `sheet` and `frozen` of three times it: the Infernal takes
+     * Deep Freeze's damage once and no stun, Frostburn and the glyph raise that damage, Deep Freeze uses one charge,
+     * and Shatter multiplies the damage's crit chance at a frozen target alone.
+     */
+    class MageFrostDeepFreeze : public MageProcScenario
+    {
+    public:
+        MageFrostDeepFreeze() : MageProcScenario("mage-frost-deep-freeze", 996, "deepFreeze") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11158, 1 } }; }
+        std::vector<uint32> Spells() const override { return { kDeepFreeze, kFrostNova, kMasteryPassive }; }
+        std::vector<uint32> Glyphs() const override { return { kGlyphOfDeepFreezeSlot }; }
+        int32 MasteryRating() const override { return kMasteryRating; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 TargetEntry() const override { return kInfernal; }
+        uint32 TargetLevel() const override { return kInfernalLevel; }
+        uint32 CastEveryMs() const override { return 1600; }
+        uint32 CastReadMs() const override { return 1200; }
+        uint32 Watched() const override { return kFingersOfFrost; }
+        bool NotesBeforeStep() const override { return true; }
+
+        std::vector<ModifierRead> Modifiers() const override
+        {
+            return { { kDeepFreezeDamage, SPELLMOD_DAMAGE, 100.0f } };
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step charge = Wait(300);
+            charge.spell = kFingersOfFrost;
+            Step deepFreeze = AuraCast(kDeepFreeze, 1600);
+            deepFreeze.refusal = true;
+            Step nova = Cast(kFrostNova, false);
+            nova.clearCooldown = true;
+            return { charge, charge, deepFreeze, Wait(300), nova, Wait(300) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 44572: 26 fields, fnv 8e0a4500
+                { 44572, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 122: 49 fields, fnv 2ec0d9e1
+                { 122, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 18 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRadiusIndex_1", 32 }, { "eff0.EffectRealPointsPerLevel", 1056964608 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_1", 32 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44544: 26 fields, fnv 65bc81c5
+                { 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 86473: 26 fields, fnv d7de8265
+                { 86473, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 318 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At a step's act: a wait that names a spell casts it at him, triggered; at the wait after Deep Freeze, the
+        /// done reads (ReadDone) and the rolls (Roll); at the last wait, the rolls again. At each read: the stack of
+        /// 44544 he holds, whether the Infernal holds Deep Freeze's stun, and the Infernal's health set back to its
+        /// maximum.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            if (!atRead)
+            {
+                if (st.steps[k].wait && st.steps[k].spell)
+                {
+                    p->CastSpell(p, st.steps[k].spell, true);
+                }
+                else if (k == kDoneStep)
+                {
+                    ReadDone(seen, p, target);
+                    Roll(seen, p, target);
+                }
+                else if (k == kFrozenRollStep)
+                {
+                    Roll(seen, p, target);
+                }
+                return;
+            }
+            SpellAuraHolder* holder = p->GetSpellAuraHolder(kFingersOfFrost);
+            seen.reads["stack"] = holder ? int64(holder->GetStackAmount()) : 0;
+            seen.reads["stun"] = target->HasAura(kDeepFreeze) ? 1 : 0;
+            target->SetHealth(target->GetMaxHealth());
+        }
+
+        std::string Own(St const& st) const override
+        {
+            std::vector<uint32> const hits = st.seen.size() > kDeepFreezeStep ?
+                                             HitsOf(st, kDeepFreezeStep, kDeepFreezeDamage) : std::vector<uint32>();
+            const int64 stun = Kept(st, kDeepFreezeStep, "stun");
+            const int64 stackBefore = Kept(st, kDeepFreezeStep - 1, "stack");
+            const int64 stackAfter = Kept(st, kDeepFreezeStep, "stack");
+            const int64 glyph = st.modifiers.empty() ? kNone : int64(std::lround(st.modifiers[0]));
+            const int64 frostburnBefore = Kept(st, kDoneStep, "frostburnBefore");
+            const int64 frostburnAfter = Kept(st, kDoneStep, "frostburnAfter");
+            const int64 doneBefore = Kept(st, kDoneStep, "doneBefore");
+            const int64 doneAfter = Kept(st, kDoneStep, "doneAfter");
+            const int64 sheet = Kept(st, kDoneStep, "sheet");
+            const int64 unfrozen = Kept(st, kDoneStep, "share");
+            const int64 frozen = Kept(st, kFrozenRollStep, "share");
+            const bool states = Kept(st, kDoneStep, "rollFrozen") == 0 && Kept(st, kFrozenRollStep, "rollFrozen") == 1;
+            const int64 spread = doneAfter * (100 + frostburnBefore) - doneBefore * (100 + frostburnAfter);
+            const bool doneOk = frostburnBefore > 0 && frostburnAfter > frostburnBefore && doneBefore > 0 &&
+                                (spread < 0 ? -spread : spread) <= (100 + frostburnBefore) + (100 + frostburnAfter);
+            auto within = [](int64 value, int64 wanted)
+            {
+                return value >= 0 && (value > wanted ? value - wanted : wanted - value) <= kRollTolerance;
+            };
+            const bool rollsOk = states && sheet > 0 && within(unfrozen, sheet) &&
+                                 within(frozen, std::min<int64>(10000, 3 * sheet));
+            auto shown = [](int64 v) { return v == kNone ? std::string("none") : std::to_string(v); };
+            const std::string value = "hits=" + U(uint32(hits.size())) + ",damage=" +
+                                      (hits.empty() ? std::string("none") : U(hits[0])) + ",stun=" + shown(stun) +
+                                      ",stacks=" + shown(stackBefore) + "," + shown(stackAfter) + ",glyph=" +
+                                      shown(glyph) + ",frostburn=" + shown(frostburnBefore) + "," +
+                                      shown(frostburnAfter) + ",done=" + shown(doneBefore) + "," + shown(doneAfter) +
+                                      ",sheet=" + shown(sheet) + ",unfrozen=" + shown(unfrozen) + ",frozen=" +
+                                      shown(frozen);
+            const bool ok = hits.size() == 1 && stun == 0 && stackBefore == 2 && stackAfter == 1 && glyph == 120 &&
+                            doneOk && rollsOk;
+            const std::string detail = "wanted one hit of 71757 and no stun at the immune Infernal, the stack 2 then "
+                                       "1, the damage modifier 120, the second done read over the first at (100 + "
+                                       "Frostburn after) over (100 + Frostburn before), the rolls at the sheet chance "
+                                       "at the unfrozen Infernal and three times it at the frozen one, within " +
+                                       U(uint32(kRollTolerance)) + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kInfernal = 35262;
+        static constexpr uint32 kInfernalLevel = 82;
+        static constexpr uint32 kDeepFreeze = 44572;
+        static constexpr uint32 kDeepFreezeDamage = 71757;
+        static constexpr uint32 kFingersOfFrost = 44544;
+        static constexpr uint32 kFrostNova = 122;
+        static constexpr uint32 kFrostburn = 76613;
+        static constexpr uint32 kMasteryPassive = 86473;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kGlyphOfDeepFreezeSlot = 696;
+        static constexpr int32 kMasteryRating = 1500;
+        static constexpr int32 kRatingGain = 1000;
+        static constexpr uint32 kDoneBase = 100000;
+        static constexpr uint32 kRolls = 2000;
+        static constexpr int32 kRollCritPoints = 20;
+        static constexpr int64 kRollTolerance = 350;
+        static constexpr uint32 kDeepFreezeStep = 2;
+        static constexpr uint32 kDoneStep = 3;
+        static constexpr uint32 kFrozenRollStep = 5;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+
+        /// The amounts of his damage logs of `spell` that came in step k's windows, in the order they came.
+        std::vector<uint32> HitsOf(St const& st, uint32 k, uint32 spell) const
+        {
+            std::vector<std::string> const windows = StepWindows(k);
+            Trace::Roles const roles = RolesAt(st, st.steps[k].target);
+            std::vector<uint32> amounts;
+            for (Recorder::Seen const& packet : m_rec.Packets())
+            {
+                if (packet.opcode != SMSG_SPELLNONMELEEDAMAGELOG || packet.payload.empty() ||
+                    std::find(windows.begin(), windows.end(), packet.window) == windows.end())
+                {
+                    continue;
+                }
+                std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG,
+                                                                         &packet.payload[0], packet.payload.size(),
+                                                                         roles);
+                uint32 logged = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                if (fields.size() == 1 &&
+                    sscanf(fields[0].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &logged, &amount, &crit, &absorbed,
+                           &resisted) == 5 &&
+                    logged == spell)
+                {
+                    amounts.push_back(amount);
+                }
+            }
+            return amounts;
+        }
+
+        /// Frostburn's effect-0 amount on him; kNone when he holds none.
+        static int64 FrostburnAmount(Player* p)
+        {
+            Aura const* frostburn = p->GetAura(kFrostburn, EFFECT_INDEX_0);
+            return frostburn ? int64(frostburn->GetModifier()->m_amount) : kNone;
+        }
+
+        /// Unit::SpellDamageBonusDone of kDoneBase for Deep Freeze's damage at the Infernal, with Frostburn's amount,
+        /// before and after his mastery rating is raised by kRatingGain; the rating is taken back after.
+        void ReadDone(Seen& seen, Player* p, Creature* target)
+        {
+            SpellEntry const* damage = sSpellStore.LookupEntry(kDeepFreezeDamage);
+            if (!damage)
+            {
+                return;
+            }
+            seen.reads["frostburnBefore"] = FrostburnAmount(p);
+            seen.reads["doneBefore"] = p->SpellDamageBonusDone(target, damage, kDoneBase, SPELL_DIRECT_DAMAGE, 1);
+            p->ApplyRatingMod(CR_MASTERY, kRatingGain, true);
+            seen.reads["frostburnAfter"] = FrostburnAmount(p);
+            seen.reads["doneAfter"] = p->SpellDamageBonusDone(target, damage, kDoneBase, SPELL_DIRECT_DAMAGE, 1);
+            p->ApplyRatingMod(CR_MASTERY, kRatingGain, false);
+            m_rec.Note("71757 done on " + U(kDoneBase) + ": " + std::to_string(seen.reads["doneBefore"]) +
+                       " with Frostburn " + std::to_string(seen.reads["frostburnBefore"]) + ", " +
+                       std::to_string(seen.reads["doneAfter"]) + " with Frostburn " +
+                       std::to_string(seen.reads["frostburnAfter"]) + " after " + std::to_string(kRatingGain) +
+                       " more mastery rating; the Camel " + (target->IsFrozen() ? "frozen" : "not frozen"));
+        }
+
+        /// kRolls rolls of Unit::IsSpellCrit for Deep Freeze's damage at the Infernal, with the crit aura held at
+        /// kRollCritPoints for them and put back as it was after; kept with his frost crit chance at the rolls and the
+        /// Infernal's frozen state.
+        void Roll(Seen& seen, Player* p, Creature* target)
+        {
+            SpellEntry const* damage = sSpellStore.LookupEntry(kDeepFreezeDamage);
+            if (!damage)
+            {
+                return;
+            }
+            Aura const* critAura = p->GetAura(kCritAura, EFFECT_INDEX_0);
+            int32 points = critAura ? critAura->GetModifier()->m_amount : 0;
+            if (critAura)
+            {
+                p->RemoveAurasDueToSpell(kCritAura);
+            }
+            int32 rollPoints = kRollCritPoints;
+            p->CastCustomSpell(p, kCritAura, &rollPoints, NULL, NULL, true);
+            float const sheet = p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_FROST);
+            uint32 crits = 0;
+            for (uint32 roll = 0; roll < kRolls; ++roll)
+            {
+                crits += p->IsSpellCrit(target, damage, SPELL_SCHOOL_MASK_FROST) ? 1 : 0;
+            }
+            p->RemoveAurasDueToSpell(kCritAura);
+            if (points)
+            {
+                p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
+            }
+            seen.reads["rollFrozen"] = target->IsFrozen() ? 1 : 0;
+            seen.reads["sheet"] = int64(std::lround(sheet * 100.0f));
+            seen.reads["share"] = int64(crits) * 10000 / kRolls;
+            m_rec.Note(std::string("the Camel ") + (target->IsFrozen() ? "frozen" : "not frozen") +
+                       "; his frost crit chance " + std::to_string(seen.reads["sheet"]) +
+                       " hundredths of a percent with the crit aura at " + std::to_string(kRollCritPoints) + "; of " +
+                       U(kRolls) + " IsSpellCrit rolls for 71757 " + U(crits) + " crit");
+        }
+    };
+
+    /**
+     * S1000 `mage-frost-mastery`: a staged Frost mage's mastery and Frostburn (76613), the Frost tree's mastery effect,
+     * with and without the Mastery passive (86473). Staged with Shatter 2 (12982), so the stage teaches the Frost
+     * tree's spells, Frostburn and Frost Specialization (84669, whose MASTERY aura is -6) among them, and not the
+     * passive. Steps, waits each: the stage as it is; the passive learned (Player::learnSpell); the passive unlearned
+     * (Player::removeSpell); kRatingGain mastery rating added (Player::ApplyRatingMod) without it; the passive learned
+     * again. At each read the scenario notes his mastery (PLAYER_MASTERY), Frostburn's effect-0 amount, the points his
+     * mastery rating gives and whether he holds the passive.
+     *
+     * `mastery`: `points=<his mastery at each read, in hundredths>,frostburn=<Frostburn's amount at each read>,held=<1
+     * at each read where he held 86473>`. OK at `points=0,200,0,0,<200 and the rating's points>`, Frostburn at each
+     * read kFrostburnPerPoint times the mastery, truncated (`0,5,0,0,...`), within one, and `held=0,1,0,0,1`: his
+     * mastery counts once he holds the passive, its 8 less Frost Specialization's 6 and his rating, and is 0 without
+     * it, rating and all.
+     */
+    class MageFrostMastery : public MageProcScenario
+    {
+    public:
+        MageFrostMastery() : MageProcScenario("mage-frost-mastery", 1000, "mastery") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11158, 1 } }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kMasteryPassive }; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Wait(300), Wait(300), Wait(300), Wait(300), Wait(300) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 86473: 26 fields, fnv d7de8265
+                { 86473, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 318 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At a step's act: the passive learned, unlearned, the rating added or the passive learned again, by the
+        /// step. At each read: his mastery, Frostburn's amount, his rating's points and whether he holds the passive.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead)
+            {
+                if (k == kLearnStep || k == kRelearnStep)
+                {
+                    p->learnSpell(kMasteryPassive, false);
+                }
+                else if (k == kUnlearnStep)
+                {
+                    p->removeSpell(kMasteryPassive);
+                }
+                else if (k == kRatingStep)
+                {
+                    p->ApplyRatingMod(CR_MASTERY, kRatingGain, true);
+                }
+                return;
+            }
+            Seen& seen = st.seen[k];
+            Aura const* frostburn = p->GetAura(kFrostburn, EFFECT_INDEX_0);
+            seen.reads["points"] = int64(std::lround(p->GetFloatValue(PLAYER_MASTERY) * 100.0f));
+            seen.reads["frostburn"] = frostburn ? int64(frostburn->GetModifier()->m_amount) : kNone;
+            seen.reads["rating"] = int64(std::lround(p->GetRatingBonusValue(CR_MASTERY) * 100.0f));
+            seen.reads["held"] = p->HasAura(kMasteryPassive) ? 1 : 0;
+            m_rec.Note("his mastery " + std::to_string(seen.reads["points"]) + " hundredths, Frostburn " +
+                       std::to_string(seen.reads["frostburn"]) + ", his rating's points " +
+                       std::to_string(seen.reads["rating"]) + " hundredths, the Mastery passive " +
+                       (seen.reads["held"] ? "held" : "not held"));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            std::string points, frostburn, held;
+            bool ok = st.seen.size() == kReads;
+            for (uint32 k = 0; k < st.seen.size(); ++k)
+            {
+                const int64 point = Kept(st, k, "points");
+                const int64 amount = Kept(st, k, "frostburn");
+                const int64 holds = Kept(st, k, "held");
+                const int64 counted = k == kRelearnStep ? 200 + Kept(st, k, "rating") : k == kLearnStep ? 200 : 0;
+                const int64 wantedAmount = int64(kFrostburnPerPoint * float(counted) / 100.0f);
+                const int64 wantedHeld = k == kLearnStep || k == kRelearnStep ? 1 : 0;
+                ok = ok && point != kNone && amount >= 0 &&
+                     (point > counted ? point - counted : counted - point) <= 1 &&
+                     (amount > wantedAmount ? amount - wantedAmount : wantedAmount - amount) <= 1 &&
+                     holds == wantedHeld;
+                points += (k ? "," : "") + std::to_string(point);
+                frostburn += (k ? "," : "") + std::to_string(amount);
+                held += (k ? "," : "") + std::to_string(holds);
+            }
+            ok = ok && Kept(st, kRatingStep, "rating") > 0;
+            const std::string value = "points=" + points + ",frostburn=" + frostburn + ",held=" + held;
+            const std::string detail = "wanted his mastery 0 without the Mastery passive, rating and all, and 2 points "
+                                       "and his rating's with it, Frostburn 2.5 a point truncated, each within one, "
+                                       "held 0,1,0,0,1)";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kMasteryPassive = 86473;
+        static constexpr uint32 kFrostburn = 76613;
+        static constexpr int32 kRatingGain = 1000;
+        /// Frostburn's effect-0 bonus coefficient in the client's data: its amount per point of mastery.
+        static constexpr float kFrostburnPerPoint = 2.5f;
+        static constexpr uint32 kLearnStep = 1;
+        static constexpr uint32 kUnlearnStep = 2;
+        static constexpr uint32 kRatingStep = 3;
+        static constexpr uint32 kRelearnStep = 4;
+        static constexpr uint32 kReads = 5;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+    };
+
     // ---- the Arcane mage scenarios (1100-1199) ----
 
     /**
@@ -17019,6 +17456,657 @@ namespace Harness
     };
 
     /**
+     * S1102 `mage-arcane-clearcasting`: Arcane Concentration (12575, rank 3 of 3), Clearcasting (12536), Arcane Potency
+     * (31572, rank 2 of 2, and its buff 57531) and Presence of Mind (12043) on a staged Arcane mage. Arcane
+     * Concentration rolls 40% at each hit of his damage spells that deals damage and then casts Clearcasting, at most
+     * once every 15 seconds, the 15 seconds starting when Clearcasting comes; a helpful spell's hit and another class's
+     * spell never roll it. Clearcasting takes the mana cost off his next damage spell. Arcane Potency casts its buff,
+     * two charges of +15% critical strike chance, when he gains Clearcasting or casts Presence of Mind, a new gain
+     * setting it back to two; each cast of a damage spell the buff names, Arcane Blast (30451) and Arcane Explosion
+     * (1449) here, takes one charge however many targets it hits, and Arcane Missiles (5143) takes none. Presence of
+     * Mind makes his next Arcane Blast instant and is kept by Arcane Explosion and Arcane Missiles; it and Arcane Power
+     * (12042) refuse each other. Arcane Missiles! (79683) is used up by the Arcane Missiles cast and by no missile
+     * (7268). Staged with Arcane Concentration 3, the first talent, so the stage learns the Arcane tree's spells;
+     * Arcane Blast, Arcane Explosion, Arcane Missiles, Arcane Brilliance (1459), Mage Armor (6117), Presence of Mind,
+     * Arcane Power, Arcane Potency 2, Improved Arcane Missiles 2 (83515) and Missile Barrage 2 (54486: five missiles,
+     * 0.5 s apart) learned through Player::learnSpell, as the stage learns its spells (their talents stand on rows that
+     * ask for points this stage does not spend). Once staged, his Offensive State (79684) and Mana Adept (76547) are
+     * taken off, so no Arcane Missiles! comes but the ones the steps cast. Five Camels stand inside Arcane Explosion's
+     * 10 yards: the first kDistance yards ahead, four more around it. Before each cast at a Camel he takes Precision
+     * (13843, +6% spell hit), so nothing misses, and the crit aura at -100, so nothing crits. The steps' casts do not
+     * roll Arcane Concentration's 40%: three waits make kCalls hit procs on him each by call, as
+     * Spell::DoAllEffectOnTarget makes one at a hit, so the chance that a roll the row lets through never passes is
+     * 0.6^40, below one in a billion. Steps, kEveryMs apart unless named:
+     *  1. Arcane Brilliance cast by him at himself, triggered (it casts 79057 on him); then he selects the first Camel,
+     *     as a client does before it casts at it, since Arcane Missiles sends its missiles at his selection;
+     *  2. Mage Armor;
+     *  3. a wait, kWaitMs, at whose act he takes kCalls helpful-spell hit procs of Mage Armor and kCalls of Arcane
+     *     Brilliance at himself, with no damage;
+     *  4. a wait: kCalls harmful-spell hit procs of Lightning Bolt (403, a shaman spell) at the first Camel for kDamage
+     *     damage each; then Clearcasting and its cooldown taken off him;
+     *  5. a wait: kCalls harmful-spell hit procs of Arcane Blast at the first Camel for kDamage damage each, his
+     *     Clearcasting and his cooldown of it read after each; then Arcane Concentration taken off him, so no later hit
+     *     rolls it, and the cooldown taken off;
+     *  6-8. Arcane Blast three times, his Arcane Blast buff (36032) taken off him at each read;
+     *  9. Presence of Mind, its cooldown taken off first, as at every Presence of Mind and Arcane Power step;
+     * 10. Arcane Explosion;
+     * 11. Arcane Missiles! cast by him at himself, triggered;
+     * 12. Arcane Missiles at the first Camel; at its read, inside the channel and before the fourth missile lands,
+     *     Arcane Missiles! cast by him at himself again;
+     * 13. a wait, kSettleMs; 14. a wait, past the last missile, at whose read Arcane Missiles! is taken off him;
+     * 15. Presence of Mind while it is up; 16. Arcane Blast;
+     * 17. Arcane Power; 18. Presence of Mind, refused; 19. Arcane Power cancelled, kWaitMs;
+     * 20. Presence of Mind; 21. Arcane Power, refused.
+     * At each read the scenario keeps whether he holds Clearcasting, Presence of Mind, Arcane Power and Arcane
+     * Missiles!, and the charges of 57531 (0 for none); right after an Arcane Blast step of 6-8 acts, the Arcane
+     * Blast's own mana cost, its modifiers taken (Spell::GetPowerCost), and the critical strike chance his modifiers
+     * add to Arcane Blast (SpellModMgr::ApplySpellMod, SPELLMOD_CRITICAL_CHANCE).
+     *
+     * `clearcasting`: `positive=<12536 casts in the windows of steps 1, 2 and 3, joined by +>,other=<in step 4's>,
+     * mage=<in step 5's>/kCalls@<the call after which he first held 12536>,cooldown=<1 when a cooldown of 12536 stood
+     * before that call, else 0>/<its seconds left after the calls, -1 for none>,potency=<SMSG_AURA_UPDATE packets in
+     * step 5's windows that put 57531 on him at its two charges>@<charges at its read>,free=<step 6's Arcane Blast's
+     * own cost>/<12536 at its read>,blasts=<for steps 6, 7 and 8: the crit chance added, `:`, the charges at the
+     * read>,pom=<charges at step 9's read>,explosion=<step 10's damage logs>:<charges>:<12043 at its
+     * read>,missiles=<79683 at step 12's read, before the new one>/<79683 at step 14's
+     * read>:<charges>:<12043>,again=<charges at step 15's read>,instant=<step 16's cast time>/<12043 at its
+     * read>:<charges>,refusals=<step 18's cast result>/<step 21's>,pomAfter=<12043 at step 20's read>:<charges>`.
+     * OK at `positive=0+0+0,other=0,mage=1/40@<any call>,cooldown=0/15,potency=1@2,free=0/0,blasts=15:1,15:0,0:0,
+     * pom=2,explosion=5:1:1,missiles=0/1:1:1,again=2,instant=0/0:1,refusals=CASTER_AURASTATE/CASTER_AURASTATE,
+     * pomAfter=1:2`. Recorded, not judged: `held=<steps 6 and 7>`, whether 57531 stood on him when the Arcane Blast's
+     * damage log came: `kept` when the client saw no slot of it cleared in the step's windows, `cast` when the clear
+     * came before the damage log, `hit` when after it.
+     */
+    class MageArcaneClearcasting : public MageProcScenario
+    {
+    public:
+        MageArcaneClearcasting() : MageProcScenario("mage-arcane-clearcasting", 1102, "clearcasting") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9154, 2 } }; }
+        std::vector<uint32> Spells() const override
+        {
+            return { kArcaneBlast, kArcaneExplosion, kArcaneMissiles, kArcaneBrilliance, kMageArmor, kPresenceOfMind,
+                     kArcanePower, kArcanePotency, kImprovedArcaneMissiles, kMissileBarrage };
+        }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        float TargetDistance() const override { return kDistance; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override
+        {
+            return { { 0.0f, 3.0f }, { 0.0f, -3.0f }, { 2.0f, 2.0f }, { 2.0f, -2.0f } };
+        }
+        uint32 CastEveryMs() const override { return kEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 Watched() const override { return kPotencyBuff; }
+        bool NotesBeforeStep() const override { return true; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kConcentration) + (p.HasAura(kConcentration) ? " on him" : " not on him") + "; " +
+                       U(kArcanePotency) + (p.HasAura(kArcanePotency) ? " on him" : " not on him") + "; " + U(kPresenceOfMind) +
+                       (p.HasSpell(kPresenceOfMind) ? " known" : " unknown") + "; " + U(kArcanePower) +
+                       (p.HasSpell(kArcanePower) ? " known" : " unknown"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            const Step blast = Cast(kArcaneBlast, false);
+            Step presence = AuraCast(kPresenceOfMind, 0);
+            presence.clearCooldown = true;
+            Step power = AuraCast(kArcanePower, 0);
+            power.clearCooldown = true;
+            Step presenceRefused = presence;
+            presenceRefused.refusal = true;
+            Step powerRefused = power;
+            powerRefused.refusal = true;
+            return { SelfAura(kArcaneBrilliance), AuraCast(kMageArmor, 0), Wait(kWaitMs), Wait(kWaitMs), Wait(kWaitMs), blast,
+                     blast, blast, presence, Cast(kArcaneExplosion, false), SelfAura(kMissilesBuff), AuraCast(kArcaneMissiles, 0),
+                     Wait(kSettleMs), Wait(kWaitMs), presence, blast, power, presenceRefused, SelfRemoval(kArcanePower, kWaitMs),
+                     presence, powerRefused };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 12575: 26 fields, fnv a496fe3b
+                { 12575, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 12536 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12536: 26 fields, fnv 1683686a
+                { 12536, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 14 }, { "eff0.EffectSpellClassMask.Flags", 721555055317751 }, { "eff0.EffectSpellClassMask.Flags2", 2048 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31572: 26 fields, fnv fcbab467
+                { 31572, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 12 }, { "eff0.EffectSpellClassMask.Flags", 146028888064 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 57531: 26 fields, fnv f488a708
+                { 57531, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 158639453246071 }, { "eff0.EffectSpellClassMask.Flags2", 132 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12043: 26 fields, fnv dac7da28
+                { 12043, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags", 17593817628725 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12042: 72 fields, fnv fef7ca60
+                { 12042, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 79 }, { "eff0.EffectBasePoints", 20 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 440114574660343 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", 10 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 14 }, { "eff1.EffectSpellClassMask.Flags", 721555055319799 }, { "eff1.EffectSpellClassMask.Flags2", 2048 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 107 }, { "eff2.EffectBonusCoefficient", 1065353216 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 21 }, { "eff2.EffectSpellClassMask.Flags", 9007199254839296 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 30451: 49 fields, fnv d3aeb596
+                { 30451, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 841 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 137 }, { "eff0.EffectRealPointsPerLevel", 1084227584 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 64 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.EffectTriggerSpell", 36032 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 36032: 72 fields, fnv 62406494
+                { 36032, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 536875008 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", 150 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 14 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 107 }, { "eff2.EffectBasePoints", -100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 10 }, { "eff2.EffectSpellClassMask.Flags", 536870912 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 1449: 26 fields, fnv 175668c5
+                { 1449, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 31 }, { "eff0.EffectBonusCoefficient", 1044281033 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 5 }, { "eff0.EffectRadiusIndex_0", 13 }, { "eff0.EffectRealPointsPerLevel", 1053609165 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 5143: 72 fields, fnv e5fc61f3
+                { 5143, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 750 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 7268 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 108 }, { "eff2.EffectBasePoints", 100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 9 }, { "eff2.EffectSpellClassMask.Flags", 2048 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 7268: 26 fields, fnv ac6e503b
+                { 7268, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 24 }, { "eff0.EffectBonusCoefficient", 1049515524 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRealPointsPerLevel", 1050253722 }, { "eff0.ImplicitTarget_0", 77 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 1459: 26 fields, fnv b11e2ffc
+                { 1459, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 79057 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_0", 12 }, { "eff0.EffectRadiusIndex_1", 12 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79057: 49 fields, fnv b5d9c704
+                { 79057, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 35 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 317 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 21 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 6117: 72 fields, fnv d9ab2b59
+                { 6117, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 22 }, { "eff0.EffectBasePoints", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 21 }, { "eff1.EffectAuraPeriod", 5000 }, { "eff1.EffectBasePoints", 3 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 245 }, { "eff2.EffectBasePoints", -35 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 1 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 403: 26 fields, fnv f4bb39fb
+                { 403, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 12 }, { "eff0.EffectBonusCoefficient", 1060554932 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRealPointsPerLevel", 1053609165 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83515: 26 fields, fnv 03bdeeb0
+                { 83515, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 1500 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 1 }, { "eff0.EffectSpellClassMask.Flags", 2048 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 54486: 49 fields, fnv eae84c61
+                { 54486, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", -250 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 19 }, { "eff0.EffectSpellClassMask.Flags", 2048 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", -1250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 1 }, { "eff1.EffectSpellClassMask.Flags", 2048 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            if (!atRead)
+            {
+                Act(st, k, p, target);
+                return;
+            }
+            SpellAuraHolder const* buff = p->GetSpellAuraHolder(kPotencyBuff);
+            reads["clearcasting"] = p->HasAura(kClearcasting) ? 1 : 0;
+            reads["charges"] = buff ? int64(buff->GetAuraCharges()) : 0;
+            reads["presence"] = p->HasAura(kPresenceOfMind) ? 1 : 0;
+            reads["power"] = p->HasAura(kArcanePower) ? 1 : 0;
+            reads["missilesBuff"] = p->HasAura(kMissilesBuff) ? 1 : 0;
+            m_rec.Note("at the read: " + U(kClearcasting) + " " + HolderOf(p, kClearcasting) + "; " + U(kPotencyBuff) + " " +
+                       HolderOf(p, kPotencyBuff) + "; " + U(kPresenceOfMind) + " " + HolderOf(p, kPresenceOfMind) + "; " +
+                       U(kArcanePower) + " " + HolderOf(p, kArcanePower) + "; " + U(kMissilesBuff) + " " + HolderOf(p, kMissilesBuff));
+            if (st.steps[k].spell == kArcaneBlast)
+            {
+                const bool held = p->HasAura(kBlastBuff);
+                p->RemoveAurasDueToSpell(kBlastBuff);
+                m_rec.Note("his " + U(kBlastBuff) + (held ? " taken off" : " was not on him"));
+            }
+            if (k == kMissilesStep)
+            {
+                p->CastSpell(p, kMissilesBuff, true);
+                m_rec.Note("inside the channel he casts " + U(kMissilesBuff) + " at himself, triggered: " + HolderOf(p, kMissilesBuff));
+            }
+            if (k == kMissilesKeptStep)
+            {
+                p->RemoveAurasDueToSpell(kMissilesBuff);
+                m_rec.Note("his " + U(kMissilesBuff) + " taken off by call: " + HolderOf(p, kMissilesBuff));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const uint32 positiveCasts[] = { Count(st.seen[0].triggered, kClearcasting), Count(st.seen[1].triggered, kClearcasting),
+                                             Count(st.seen[kPositiveStep].triggered, kClearcasting) };
+            const std::string positive = U(positiveCasts[0]) + "+" + U(positiveCasts[1]) + "+" + U(positiveCasts[2]);
+            const uint32 other = Count(st.seen[kOtherClassStep].triggered, kClearcasting);
+            const uint32 mage = Count(st.seen[kMageStep].triggered, kClearcasting);
+            const std::string cooldown = Num(Kept(st, kMageStep, "keyBefore")) + "/" + Num(Kept(st, kMageStep, "cooldown"));
+            const std::string potency = U(PotencyGains(kMageStep)) + "@" + Num(Kept(st, kMageStep, "charges"));
+            const std::string free = Num(Kept(st, kBlasts[0], "cost")) + "/" +
+                                     Num(Kept(st, kBlasts[0], "clearcasting"));
+            std::string blasts;
+            for (uint32 n = 0; n < kBlastCount; ++n)
+            {
+                blasts += (n ? "," : "") + Num(Kept(st, kBlasts[n], "mod")) + ":" + Num(Kept(st, kBlasts[n], "charges"));
+            }
+            const std::string pom = Num(Kept(st, kPresenceStep, "charges"));
+            const std::string explosion = U(uint32(HitAmounts(kExplosionStep, kArcaneExplosion).size())) + ":" +
+                                          Num(Kept(st, kExplosionStep, "charges")) + ":" + Num(Kept(st, kExplosionStep, "presence"));
+            const std::string missiles = Num(Kept(st, kMissilesStep, "missilesBuff")) + "/" + Num(Kept(st, kMissilesKeptStep, "missilesBuff")) +
+                                         ":" + Num(Kept(st, kMissilesKeptStep, "charges")) + ":" + Num(Kept(st, kMissilesKeptStep, "presence"));
+            const std::string again = Num(Kept(st, kPresenceAgainStep, "charges"));
+            const std::string instant = U(CastPathOf(kInstantStep).castTime) + "/" + Num(Kept(st, kInstantStep, "presence")) + ":" +
+                                        Num(Kept(st, kInstantStep, "charges"));
+            const std::string refusals = CastResultName(CastFailedResult(kPresenceRefusedStep, kPresenceOfMind)) + "/" +
+                                         CastResultName(CastFailedResult(kPowerRefusedStep, kArcanePower));
+            const std::string pomAfter = Num(Kept(st, kPresenceLastStep, "presence")) + ":" + Num(Kept(st, kPresenceLastStep, "charges"));
+            const std::string held = BuffClearOrder(kBlasts[0]) + "/" + BuffClearOrder(kBlasts[1]);
+
+            const std::string value = "positive=" + positive + ",other=" + U(other) + ",mage=" + U(mage) + "/" + U(kCalls) + "@" +
+                                      Num(Kept(st, kMageStep, "first")) + ",cooldown=" + cooldown + ",potency=" + potency + ",free=" + free +
+                                      ",blasts=" + blasts + ",pom=" + pom + ",explosion=" + explosion + ",missiles=" + missiles +
+                                      ",again=" + again + ",instant=" + instant + ",refusals=" + refusals + ",pomAfter=" + pomAfter;
+            const bool ok = positive == "0+0+0" && other == 0 && mage == 1 && cooldown == "0/15" && potency == "1@2" && free == "0/0" &&
+                            blasts == "15:1,15:0,0:0" && pom == "2" && explosion == "5:1:1" && missiles == "0/1:1:1" && again == "2" &&
+                            instant == "0/0:1" && refusals == "CASTER_AURASTATE/CASTER_AURASTATE" && pomAfter == "1:2";
+            return (ok ? "OK(" : "BUG(") + value + "; held=" + held + ", recorded: 57531 at each of the first two Arcane Blasts' " +
+                   "damage logs; Clearcasting counted in SPELL_GO packets, 57531 in SMSG_AURA_UPDATE packets at two " +
+                   "charges, charges of 57531 at the reads, 1 held)";
+        }
+
+    private:
+        static constexpr uint32 kConcentration = 12575;
+        static constexpr uint32 kClearcasting = 12536;
+        static constexpr uint32 kArcanePotency = 31572;
+        static constexpr uint32 kPotencyBuff = 57531;
+        static constexpr uint32 kPotencyCharges = 2;
+        static constexpr uint32 kPresenceOfMind = 12043;
+        static constexpr uint32 kArcanePower = 12042;
+        static constexpr uint32 kArcaneBlast = 30451;
+        static constexpr uint32 kBlastBuff = 36032;
+        static constexpr uint32 kArcaneExplosion = 1449;
+        static constexpr uint32 kArcaneMissiles = 5143;
+        static constexpr uint32 kMissilesBuff = 79683;
+        static constexpr uint32 kArcaneBrilliance = 1459;
+        static constexpr uint32 kMageArmor = 6117;
+        static constexpr uint32 kLightningBolt = 403;
+        static constexpr uint32 kImprovedArcaneMissiles = 83515;
+        static constexpr uint32 kMissileBarrage = 54486;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kCalls = 40;
+        static constexpr uint32 kDamage = 1000;
+        static constexpr int64 kCooldownSeconds = 15;
+        static constexpr float kDistance = 6.0f;
+        static constexpr uint32 kEveryMs = 2400;
+        static constexpr uint32 kReadMs = 2200;
+        static constexpr uint32 kWaitMs = 600;
+        static constexpr uint32 kSettleMs = 1000;
+        static constexpr uint32 kPositiveStep = 2;
+        static constexpr uint32 kOtherClassStep = 3;
+        static constexpr uint32 kMageStep = 4;
+        static constexpr uint32 kBlastCount = 3;
+        static constexpr uint32 kBlasts[kBlastCount] = { 5, 6, 7 };
+        static constexpr uint32 kPresenceStep = 8;
+        static constexpr uint32 kExplosionStep = 9;
+        static constexpr uint32 kMissilesStep = 11;
+        static constexpr uint32 kMissilesKeptStep = 13;
+        static constexpr uint32 kPresenceAgainStep = 14;
+        static constexpr uint32 kInstantStep = 15;
+        static constexpr uint32 kPresenceRefusedStep = 17;
+        static constexpr uint32 kPresenceLastStep = 19;
+        static constexpr uint32 kPowerRefusedStep = 20;
+        static constexpr size_t kSteps = 21;
+        static constexpr int64 kNone = -1;
+
+        static std::string Num(int64 v)
+        {
+            return std::to_string(v);
+        }
+
+        /// A read ReadOwn kept for step k; kNone when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+
+        /// Whether step k is one of the three Arcane Blasts of steps 6-8.
+        static bool IsBlastStep(uint32 k)
+        {
+            for (uint32 n = 0; n < kBlastCount; ++n)
+            {
+                if (kBlasts[n] == k)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// How many of `spells` are `spellId`.
+        static uint32 Count(std::vector<uint32> const& spells, uint32 spellId)
+        {
+            return uint32(std::count(spells.begin(), spells.end(), spellId));
+        }
+
+        /// Whether his cooldown map holds a key of `spellId`, read from the stored keys (the end against time(NULL) is
+        /// a wall clock the stepped world does not move).
+        static bool HasCooldownKey(Player* p, uint32 spellId)
+        {
+            auto const& cooldowns = p->GetSpellCooldownMgr().GetSpellCooldownMap();
+            return cooldowns.find(spellId) != cooldowns.end();
+        }
+
+        /// kCalls hit procs on him by call, each the one Spell::DoAllEffectOnTarget makes at a hit of `spellId` at
+        /// `at`: `procAttacker`, no victim flags, a normal hit of `damage`. Answers the call, from 1, after which he
+        /// first held Clearcasting, 0 when he never did, kNone when the spell is not in the store; `keyBefore` is set
+        /// when his cooldown map held Clearcasting after a call before that one.
+        int64 HitProcsByCall(Player* p, Unit* at, uint32 spellId, uint32 procAttacker, uint32 damage, bool& keyBefore)
+        {
+            keyBefore = false;
+            SpellEntry const* info = sSpellStore.LookupEntry(spellId);
+            if (!info)
+            {
+                return kNone;
+            }
+            int64 first = 0;
+            for (uint32 call = 1; call <= kCalls; ++call)
+            {
+                p->ProcDamageAndSpell(at, procAttacker, PROC_FLAG_NONE, PROC_EX_NORMAL_HIT, damage, BASE_ATTACK, info);
+                if (!first && p->HasAura(kClearcasting))
+                {
+                    first = int64(call);
+                }
+                else if (!first && HasCooldownKey(p, kClearcasting))
+                {
+                    keyBefore = true;
+                }
+            }
+            return first;
+        }
+
+        /// What a step does right after it acts: the selection at step 1; the calls of steps 3-5 and their reads; the
+        /// Arcane Blast's own cost and the critical strike chance his modifiers add to Arcane Blast at an Arcane Blast
+        /// step.
+        void Act(St& st, uint32 k, Player* p, Creature* target)
+        {
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            if (k == 0)
+            {
+                p->SetSelectionGuid(target->GetObjectGuid());
+                m_rec.Note("he selects the first Camel, as a client does before it casts at it");
+            }
+            else if (k == kPositiveStep)
+            {
+                bool keyBefore = false;
+                std::string text;
+                for (uint32 spell : { kMageArmor, kArcaneBrilliance })
+                {
+                    const int64 first = HitProcsByCall(p, p, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, 0, keyBefore);
+                    text += (text.empty() ? "" : "; ") + U(spell) + ": first " + Num(first);
+                }
+                reads["key"] = HasCooldownKey(p, kClearcasting) ? 1 : 0;
+                m_rec.Note(U(kCalls) + " helpful-spell hit procs at himself by call, no damage, of each: " + text + "; " +
+                           U(kClearcasting) + " " + HolderOf(p, kClearcasting) + "; his cooldown keys [" + CooldownKeys(p) + "]");
+            }
+            else if (k == kOtherClassStep)
+            {
+                bool keyBefore = false;
+                const int64 first = HitProcsByCall(p, target, kLightningBolt, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, kDamage, keyBefore);
+                reads["first"] = first;
+                reads["key"] = HasCooldownKey(p, kClearcasting) ? 1 : 0;
+                m_rec.Note(U(kCalls) + " harmful-spell hit procs of " + U(kLightningBolt) + " at the Camel by call, " + U(kDamage) +
+                           " damage each: first " + U(kClearcasting) + " after call " + Num(first) + "; his cooldown keys [" +
+                           CooldownKeys(p) + "]");
+                p->RemoveAurasDueToSpell(kClearcasting);
+                p->RemoveSpellCooldown(kClearcasting, false);
+                m_rec.Note(U(kClearcasting) + " and its cooldown taken off him: " + HolderOf(p, kClearcasting) + "; keys [" + CooldownKeys(p) + "]");
+            }
+            else if (k == kMageStep)
+            {
+                bool keyBefore = false;
+                const int64 first = HitProcsByCall(p, target, kArcaneBlast, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, kDamage, keyBefore);
+                const time_t left = HasCooldownKey(p, kClearcasting) ? p->GetSpellCooldownDelay(kClearcasting) : time_t(-1);
+                reads["first"] = first;
+                reads["keyBefore"] = keyBefore ? 1 : 0;
+                // the seconds left are read moments after they were set; a wall-clock second may turn in between
+                reads["cooldown"] = left == time_t(kCooldownSeconds - 1) ? kCooldownSeconds : int64(left);
+                m_rec.Note(U(kCalls) + " harmful-spell hit procs of " + U(kArcaneBlast) + " at the Camel by call, " + U(kDamage) +
+                           " damage each: first " + U(kClearcasting) + " after call " + Num(first) + "; a cooldown of it before that " +
+                           (keyBefore ? "yes" : "no") + "; seconds left after the calls " + Num(int64(left)) + "; " + U(kClearcasting) + " " +
+                           HolderOf(p, kClearcasting) + ", " + U(kPotencyBuff) + " " + HolderOf(p, kPotencyBuff));
+                const bool held = p->HasAura(kConcentration);
+                p->RemoveAurasDueToSpell(kConcentration);
+                p->RemoveSpellCooldown(kClearcasting, false);
+                m_rec.Note("his " + U(kConcentration) + (held ? " taken off" : " was not on him") + "; the cooldown of " +
+                           U(kClearcasting) + " taken off: keys [" + CooldownKeys(p) + "]");
+            }
+            else if (IsBlastStep(k))
+            {
+                Spell const* cast = p->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+                reads["cost"] = cast && cast->m_spellInfo->ID == kArcaneBlast ? int64(cast->GetPowerCost()) : kNone;
+                m_rec.Note("the Arcane Blast's own cost right after it starts: " + Num(reads["cost"]));
+                float added = 0.0f;
+                if (SpellModMgr* mods = p->GetSpellMods())
+                {
+                    mods->ApplySpellMod(kArcaneBlast, SPELLMOD_CRITICAL_CHANCE, added);
+                }
+                reads["mod"] = int64(added + 0.5f);
+                char buf[96];
+                snprintf(buf, sizeof(buf), "critical strike chance his modifiers add to %u: %.2f", kArcaneBlast, added);
+                m_rec.Note(buf);
+            }
+        }
+
+        /// The SMSG_AURA_UPDATE packets sent to him in step k's windows that put 57531 on him at its two charges, one
+        /// for each cast of the buff (a triggered spell with no visual, which sends no SMSG_SPELL_GO).
+        uint32 PotencyGains(uint32 k) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            uint32 gains = 0;
+            for (std::string const& window : StepWindows(k))
+            {
+                for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_AURA_UPDATE))
+                {
+                    std::string text;
+                    uint32 slot = 0, spell = 0, flags = 0, level = 0, stack = 0;
+                    if (!seen->payload.empty() &&
+                        Trace::DecodeAuraUpdate(&seen->payload[0], seen->payload.size(), roles, text) &&
+                        sscanf(text.c_str(), "target=self slot=%u spell=%u flags=0x%x level=%u stack=%u", &slot,
+                               &spell, &flags, &level, &stack) == 5 &&
+                        spell == kPotencyBuff && stack == kPotencyCharges)
+                    {
+                        ++gains;
+                    }
+                }
+            }
+            return gains;
+        }
+
+        /// Whether 57531 stood on him when step k's Arcane Blast damage log came, as the client saw it: following his
+        /// SMSG_AURA_UPDATE packets from the record's start, the slot 57531 was last put in; `cast` when the packet that
+        /// clears that slot came in the step's windows before his first damage log of Arcane Blast there (or with no
+        /// such log), `hit` when after it, `kept` when no such packet came in the step's windows.
+        std::string BuffClearOrder(uint32 k) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            const std::vector<std::string> windows = StepWindows(k);
+            const std::string hit = "hit self.hit." + U(kArcaneBlast) + "=";
+            int32 slot = -1;
+            bool hitSeen = false;
+            for (Recorder::Seen const& seen : m_rec.Packets())
+            {
+                if (seen.payload.empty())
+                {
+                    continue;
+                }
+                const bool inStep = std::find(windows.begin(), windows.end(), seen.window) != windows.end();
+                if (seen.opcode == SMSG_AURA_UPDATE)
+                {
+                    std::string text;
+                    uint32 updateSlot = 0, spell = 0;
+                    if (!Trace::DecodeAuraUpdate(&seen.payload[0], seen.payload.size(), roles, text) ||
+                        sscanf(text.c_str(), "target=self slot=%u spell=%u", &updateSlot, &spell) != 2)
+                    {
+                        continue;
+                    }
+                    if (spell == kPotencyBuff)
+                    {
+                        slot = int32(updateSlot);
+                    }
+                    else if (spell == 0 && int32(updateSlot) == slot)
+                    {
+                        slot = -1;
+                        if (inStep)
+                        {
+                            return hitSeen ? "hit" : "cast";
+                        }
+                    }
+                }
+                else if (inStep && seen.opcode == SMSG_SPELLNONMELEEDAMAGELOG && !hitSeen)
+                {
+                    std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG, &seen.payload[0], seen.payload.size(), roles);
+                    hitSeen = fields.size() == 1 && fields[0].compare(0, hit.size(), hit) == 0;
+                }
+            }
+            return "kept";
+        }
+    };
+
+    /**
+     * S1107 `mage-arcane-blink`: Improved Blink (31570, rank 2 of 2) on a staged Arcane mage: casting Blink (1953)
+     * gives him 46989, 70% more speed for 3 s; no other spell does, Arcane Brilliance (1459) and Mage Armor (6117),
+     * both helpful mage spells, among them. Staged with Improved Counterspell (11255, rank 1 of 2, an Arcane talent
+     * that touches none of these spells), so the stage learns the Arcane tree's spells; Blink, Arcane Brilliance, Mage
+     * Armor and Improved Blink 2 learned through Player::learnSpell, as the stage learns its spells (its talent stands
+     * on the second row, which asks for points this stage does not spend). Once staged, his Offensive State (79684) and
+     * Mana Adept (76547) are taken off. Steps, kEveryMs apart, each read kReadMs after it:
+     *  1. Arcane Brilliance cast by him at himself, triggered (it casts 79057 on him);
+     *  2. Mage Armor;
+     *  3. Blink.
+     * At each read the scenario keeps whether 46989 stands on him, its effect 0 amount and its full duration.
+     *
+     * `blink`: `brilliance=<46989 casts in step 1's windows>/<46989 on him at its read>,armor=<the same for step 2>,
+     * blink=<the same for step 3>@<its amount>/<its full duration in ms, -1 for none>`. OK at
+     * `brilliance=0/0,armor=0/0,blink=1/1@70/3000`.
+     */
+    class MageArcaneBlink : public MageProcScenario
+    {
+    public:
+        MageArcaneBlink() : MageProcScenario("mage-arcane-blink", 1107, "blink") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kBlink, kArcaneBrilliance, kMageArmor, kImprovedBlink }; }
+        uint32 CastEveryMs() const override { return kEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 Watched() const override { return kSpeed; }
+        bool NotesBeforeStep() const override { return true; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kImprovedBlink) + (p.HasAura(kImprovedBlink) ? " on him" : " not on him") + "; " + U(kBlink) +
+                       (p.HasSpell(kBlink) ? " known" : " unknown"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { SelfAura(kArcaneBrilliance), AuraCast(kMageArmor, 0), AuraCast(kBlink, 0) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 1953: 72 fields, fnv 29f574e1
+                { 1953, { { "eff0.present", 1 }, { "eff0.Effect", 29 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_0", 9 }, { "eff0.ImplicitTarget_0", 1 }, { "eff0.ImplicitTarget_1", 55 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 77 }, { "eff1.EffectBonusCoefficient", 1065353216 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 12 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 77 }, { "eff2.EffectBonusCoefficient", 1065353216 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 7 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 46989: 26 fields, fnv 3ebfae80
+                { 46989, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 31 }, { "eff0.EffectBasePoints", 70 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 14 }, { "eff0.EffectSpellClassMask.Flags", 65536 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31570: 26 fields, fnv 1cad1ddd
+                { 31570, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 46989 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 1459: 26 fields, fnv b11e2ffc
+                { 1459, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 79057 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_0", 12 }, { "eff0.EffectRadiusIndex_1", 12 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79057: 49 fields, fnv b5d9c704
+                { 79057, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 35 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 317 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 21 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 6117: 72 fields, fnv d9ab2b59
+                { 6117, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 22 }, { "eff0.EffectBasePoints", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 21 }, { "eff1.EffectAuraPeriod", 5000 }, { "eff1.EffectBasePoints", 3 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 245 }, { "eff2.EffectBasePoints", -35 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 1 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead)
+            {
+                return;
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            Aura const* speed = p->GetAura(kSpeed, EFFECT_INDEX_0);
+            reads["speed"] = speed ? 1 : 0;
+            reads["amount"] = speed ? int64(speed->GetModifier()->m_amount) : 0;
+            reads["length"] = HolderDuration(p, kSpeed);
+            m_rec.Note("at the read: " + U(kSpeed) + " " + HolderOf(p, kSpeed) + ", its effect 0 at " + std::to_string(reads["amount"]) +
+                       ", its full duration " + std::to_string(reads["length"]));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const std::string brilliance = Pair(st, 0);
+            const std::string armor = Pair(st, 1);
+            const std::string blink = Pair(st, 2) + "@" + std::to_string(Kept(st, 2, "amount")) + "/" + std::to_string(Kept(st, 2, "length"));
+            const std::string value = "brilliance=" + brilliance + ",armor=" + armor + ",blink=" + blink;
+            const bool ok = brilliance == "0/0" && armor == "0/0" && blink == "1/1@70/3000";
+            return (ok ? "OK(" : "BUG(") + value + "; each pair is the 46989 casts in the step's windows / 46989 on him at its read)";
+        }
+
+    private:
+        static constexpr uint32 kBlink = 1953;
+        static constexpr uint32 kSpeed = 46989;
+        static constexpr uint32 kImprovedBlink = 31570;
+        static constexpr uint32 kArcaneBrilliance = 1459;
+        static constexpr uint32 kMageArmor = 6117;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kEveryMs = 1500;
+        static constexpr uint32 kReadMs = 400;
+        static constexpr size_t kSteps = 3;
+
+        /// A read ReadOwn kept for step k; -1 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        /// Step k's 46989 casts in its windows, `/`, 46989 on him at its read (1 held, 0 not, -1 unread).
+        static std::string Pair(St const& st, uint32 k)
+        {
+            const std::vector<uint32>& triggered = st.seen[k].triggered;
+            return U(uint32(std::count(triggered.begin(), triggered.end(), kSpeed))) + "/" + std::to_string(Kept(st, k, "speed"));
+        }
+    };
+
+    /**
      * S1010 `mage-frost-ring`: Ring of Frost (82676) and its ring (44199). A staged Frost mage (Shatter 2, so the stage
      * learns the Frost tree's spells; 82676 learned) stands on the plain. kPoleX, kPoleY is the axis of a pole of the
      * plain's static geometry 28.8 yards from him, ahead and to his left, whose trunk crosses the sight line between
@@ -17576,6 +18664,8 @@ namespace Harness
         r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 946, false));
         r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 947, false));
         r.Register(new MageFrostShatter());
+        r.Register(new MageFrostDeepFreeze());
+        r.Register(new MageFrostMastery());
         r.Register(new MagePolymorphDamage());
         r.Register(new MageThresholdPreventedDamage());
         r.Register(new MageFrostProcRows());
@@ -17590,6 +18680,8 @@ namespace Harness
         r.Register(new MageArcaneTormentVortex());
         r.Register(new MageArcaneInterrupts());
         r.Register(new MageArcaneImprovedPolymorph());
+        r.Register(new MageArcaneClearcasting());
+        r.Register(new MageArcaneBlink());
         r.Register(new MageFrostRing());
     }
 }
