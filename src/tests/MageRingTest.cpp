@@ -26,9 +26,10 @@
 /// Tests of the mage's ring (spells/classes/mage/Ring.cpp): its table row, the creature it names, its band, the time
 /// it takes to form, the units it takes, the removals that leave the marker, its rows at the periodic-tick, target and
 /// aura-remove hooks with its creature AI's factory, the exits of its scripts, the summon a second cast makes while the
-/// first cast's aura holds (SpellTables), and the diminishing-returns group its freeze shares with Deep Freeze
-/// (SpellMgr). The spells the leaves read are put into the stores as the client's data holds them, once for the rest of
-/// the run; no other test reads them. The units are bare creatures (update fields allocated; no map, template or AI).
+/// first cast's aura holds and the display each viewer is sent (SpellTables), and the diminishing-returns group its
+/// freeze shares with Deep Freeze (SpellMgr). The spells the leaves read are put into the stores as the client's data
+/// holds them, once for the rest of the run; no other test reads them. The units are bare creatures (update fields
+/// allocated; no map, template or AI).
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -377,6 +378,24 @@ TEST(MageRing_ASecondCastSummonsItsRingWhileTheMageHoldsTheFirstCastsAura)
     {
         CHECK(!SummonsPastOwnAura(spellId));
     }
+}
+
+TEST(MageRing_TheRingShowsTheFriendlyRingToTheMagesFriendsAndTheHostileRingToTheRest)
+{
+    // The ring alone has a viewer display; Flame Orb's orb, the Camel and no creature do not.
+    CHECK(HasViewerDisplay(44199));
+    for (uint32 entry : { 44214u, 50249u, 0u })
+    {
+        CHECK(!HasViewerDisplay(entry));
+    }
+
+    // A viewer friendly to the mage is sent the friendly ring; any other its own display, the hostile ring.
+    CHECK_EQ(ViewerDisplayId(44199, 34997, true), uint32(38203));
+    CHECK_EQ(ViewerDisplayId(44199, 34997, false), uint32(34997));
+
+    // Any other creature shows every viewer its own display.
+    CHECK_EQ(ViewerDisplayId(44214, 34997, true), uint32(34997));
+    CHECK_EQ(ViewerDisplayId(0, 1234, true), uint32(1234));
 }
 
 TEST(MageRing_TheFreezeSharesDiminishingReturnsWithDeepFreezeOnPlayers)

@@ -74,6 +74,16 @@ bool SharesDiminishingReturns(uint32 spellId);
 /// Frost (82676), whose second ring ends the first. Any other spell's summon is cancelled then.
 bool SummonsPastOwnAura(uint32 spellId);
 
+/// Whether a creature a spell summons shows the viewers friendly to its summoner a display of its own
+/// (ViewerDisplayId): Ring of Frost's ring (44199).
+bool HasViewerDisplay(uint32 creatureEntry);
+
+/// The display a viewer is sent for a creature whose display field holds `display`: for a creature of
+/// HasViewerDisplay, its friendly display when the viewer is friendly to its summoner (`friendlyToSummoner`), else
+/// `display`; Ring of Frost's ring shows 38203 (the friendly ring) to the mage's friends and its own display (34997,
+/// the hostile ring) to the rest. `display` for any other creature.
+uint32 ViewerDisplayId(uint32 creatureEntry, uint32 display, bool friendlyToSummoner);
+
 /// How many targets may carry `spellId` from one caster at a time; 0 when the spell has no such limit.
 uint32 AuraTargetLimit(uint32 spellId);
 

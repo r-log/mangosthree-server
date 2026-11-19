@@ -352,6 +352,13 @@ namespace
         { 44457, 3 },       // Living Bomb: "Limit 3 targets."
     };
 
+    /// The creatures spells summon that show the viewers friendly to their summoner another display, by creature
+    /// entry (the row's key), and that display.
+    constexpr SpellAnswer FRIENDLY_VIEWER_DISPLAYS[] =
+    {
+        { 44199, 38203 },   // Ring of Frost's ring: the friendly ring
+    };
+
     constexpr SpellAnswer ARCANE_POTENCY[] =
     {
         { 31571, 57529 },
@@ -699,6 +706,7 @@ namespace
     static_assert(SortedBySpellId(SUMMONS_PAST_OWN_AURA), "summon-past-own-aura ids are sorted, each once");
     static_assert(SortedBySpellId(PROC_STARTING_TRIGGERED_CASTS), "proc-starting triggered cast ids are sorted, each once");
     static_assert(SortedBySpellId(AURA_TARGET_LIMITS), "aura target limit rows are sorted, each once");
+    static_assert(SortedBySpellId(FRIENDLY_VIEWER_DISPLAYS), "friendly viewer display rows are sorted, each once");
     static_assert(SortedBySpellId(ARCANE_POTENCY), "Arcane Potency rows are sorted, each once");
     static_assert(SortedBySpellId(SECOND_WIND), "Second Wind rows are sorted, each once");
     static_assert(SortedBySpellId(RAPID_RECUPERATION), "Rapid Recuperation rows are sorted, each once");
@@ -788,6 +796,17 @@ bool SharesDiminishingReturns(uint32 spellId)
 bool SummonsPastOwnAura(uint32 spellId)
 {
     return Holds(SUMMONS_PAST_OWN_AURA, spellId);
+}
+
+bool HasViewerDisplay(uint32 creatureEntry)
+{
+    return AnswerOf(FRIENDLY_VIEWER_DISPLAYS, creatureEntry) != 0;
+}
+
+uint32 ViewerDisplayId(uint32 creatureEntry, uint32 display, bool friendlyToSummoner)
+{
+    uint32 const friendly = AnswerOf(FRIENDLY_VIEWER_DISPLAYS, creatureEntry);
+    return friendly && friendlyToSummoner ? friendly : display;
 }
 
 bool TriggeredCastStartsProcs(uint32 spellId)
