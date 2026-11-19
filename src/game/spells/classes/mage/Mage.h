@@ -160,7 +160,7 @@ namespace Mage
         uint32 creature;            ///< the creature the summon makes (44214)
         uint32 orbAura;             ///< the orb's own aura (82690): it casts the scan, and its script words are the orb's
         uint32 scanSpell;           ///< the dummy the orb's own aura casts every half second (82734)
-        uint32 hitSpell;            ///< the hit the orb casts at the closest enemy (82739)
+        uint32 hitSpell;            ///< the hit the orb casts at the closest enemy (82739, 95969)
         uint32 snareSpell;          ///< the slow the orb puts on itself when it finds its first enemy (82736)
         uint32 explosionSpell;      ///< the explosion at the orb's end (83619)
         uint32 explosionTalents[3]; ///< the owner's talents whose proc chance is the explosion's; 0 pads (18459, 18460,

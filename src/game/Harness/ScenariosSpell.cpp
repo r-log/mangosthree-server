@@ -17540,8 +17540,8 @@ namespace Harness
      * sheep=up/0` with every hit his, a crit and of school mask 20, no orb hit on any other unit, and the second rank
      * held alone at step 4: the button casts the Frostfire Orb, its hits are frostfire and chill at rank 2 only, they
      * never ignite, Cold Snap makes the orb ready again, and the orb skips a polymorphed enemy. Each hit's amount is
-     * noted, not judged: (228..292 + int(1197 x 0.134) = 160) x 1.25 (Frost Specialization), then the crit's half
-     * again.
+     * noted, not judged: (228..292 + int(1197 x 0.134) = 160) x 1.25 (Frost Specialization), then x1.5 for the
+     * crit and x1.33 for the mage's passive 85801 (+33% crit damage): about 966..1126.
      */
     class MageFrostFrostfireOrb : public MageProcScenario
     {
