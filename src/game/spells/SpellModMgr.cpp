@@ -75,7 +75,105 @@ void SpellModMgr::Change(SpellModEntry const& entry, bool apply, SpellModChanged
     else
     {
         Aura const* aura = entry.aura;
+        if (m_keepInto)
+        {
+            KeepRemoved(aura, entry.op);
+        }
         m_mods[entry.op].remove_if([aura](SpellModEntry const& listed) { return listed.aura == aura; });
+    }
+}
+
+void SpellModMgr::KeepRemoved(Aura const* aura, int32 op)
+{
+    SpellEntry const* spellInfo = sSpellStore.LookupEntry(m_keepSpell);
+    if (!spellInfo || !ReadAfterTheCast(op))
+    {
+        return;
+    }
+
+    for (SpellModEntry const& listed : m_mods[op])
+    {
+        if (listed.aura != aura || !spellInfo->IsFitToFamily(SpellFamily(listed.family), *listed.mask))
+        {
+            continue;
+        }
+
+        KeptSpellMod kept = { listed.spellId, listed.effIndex, listed.flat, *listed.amount, listed.op, listed.family,
+                              listed.mask->Flags, listed.mask->Flags2, listed.mastery };
+        m_keepInto->push_back(kept);
+    }
+}
+
+bool SpellModMgr::ReadAfterTheCast(int32 op)
+{
+    switch (op)
+    {
+        case SPELLMOD_DAMAGE:
+        case SPELLMOD_DURATION:
+        case SPELLMOD_THREAT:
+        case SPELLMOD_EFFECT1:
+        case SPELLMOD_CHARGES:
+        case SPELLMOD_RADIUS:
+        case SPELLMOD_CRITICAL_CHANCE:
+        case SPELLMOD_ALL_EFFECTS:
+        case SPELLMOD_EFFECT2:
+        case SPELLMOD_CRIT_DAMAGE_BONUS:
+        case SPELLMOD_ACTIVATION_TIME:
+        case SPELLMOD_EFFECT_PAST_FIRST:
+        case SPELLMOD_DOT:
+        case SPELLMOD_EFFECT3:
+        case SPELLMOD_SPELL_BONUS_DAMAGE:
+        case SPELLMOD_MULTIPLE_VALUE:
+        case SPELLMOD_RESIST_DISPEL_CHANCE:
+            return true;
+        default:
+            return false;
+    }
+}
+
+namespace
+{
+    /// Adds one modifier to the sums ApplySpellMod takes: a flat amount always, a percentage unless
+    /// the value is 0 or the cast-time case skips it.
+    template <class T> void AddToSums(bool flat, float amount, int32 op, T basevalue, float& totalpct, float& totalflat)
+    {
+        if (flat)
+        {
+            totalflat += amount;
+            return;
+        }
+
+        // skip percent mods for null basevalue (most important for spell mods with charges )
+        if (basevalue == T(0))
+        {
+            return;
+        }
+
+        // special case (skip >10sec spell casts for instant cast setting)
+        if (op == SPELLMOD_CASTING_TIME && basevalue >= T(10 * IN_MILLISECONDS) && amount <= -100)
+        {
+            return;
+        }
+
+        totalpct += amount;
+    }
+
+    /// Whether `kept` holds a modifier of aura spell `spellId` (not 0) and effect `effIndex`.
+    bool KeptHolds(KeptSpellMods const& kept, uint32 spellId, uint8 effIndex)
+    {
+        if (!spellId)
+        {
+            return false;
+        }
+
+        for (KeptSpellMod const& mod : kept)
+        {
+            if (mod.spellId == spellId && mod.effIndex == effIndex)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -86,6 +184,8 @@ template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T
     {
         return 0;
     }
+
+    KeptSpellMods const* kept = m_kept && m_keptSpell == spellId ? m_kept : NULL;
 
     float totalpct = 0.0f;
     float totalflat = 0.0f;
@@ -98,29 +198,30 @@ template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T
             continue;
         }
 
+        if (kept && KeptHolds(*kept, entry.spellId, entry.effIndex))
+        {
+            continue;
+        }
+
         if (!spellInfo->IsFitToFamily(SpellFamily(entry.family), *entry.mask))
         {
             continue;
         }
 
-        if (entry.flat)
+        AddToSums(entry.flat, *entry.amount, entry.op, basevalue, totalpct, totalflat);
+    }
+
+    if (kept)
+    {
+        for (KeptSpellMod const& mod : *kept)
         {
-            totalflat += *entry.amount;
-        }
-        else
-        {
-            // skip percent mods for null basevalue (most important for spell mods with charges )
-            if (basevalue == T(0))
+            if (mod.op != int32(op) || (masteryOnly && !mod.mastery) ||
+                !spellInfo->IsFitToFamily(SpellFamily(mod.family), mod.maskFlags, mod.maskFlags2))
             {
                 continue;
             }
 
-            // special case (skip >10sec spell casts for instant cast setting)
-            if (entry.op == SPELLMOD_CASTING_TIME
-                    && basevalue >= T(10 * IN_MILLISECONDS) && *entry.amount <= -100)
-                continue;
-
-            totalpct += *entry.amount;
+            AddToSums(mod.flat, mod.amount, mod.op, basevalue, totalpct, totalflat);
         }
     }
 
@@ -132,6 +233,53 @@ template <class T> T SpellModMgr::ApplySpellMod(uint32 spellId, SpellModOp op, T
 template int32 SpellModMgr::ApplySpellMod<int32>(uint32 spellId, SpellModOp op, int32& basevalue, bool masteryOnly);
 template uint32 SpellModMgr::ApplySpellMod<uint32>(uint32 spellId, SpellModOp op, uint32& basevalue, bool masteryOnly);
 template float SpellModMgr::ApplySpellMod<float>(uint32 spellId, SpellModOp op, float& basevalue, bool masteryOnly);
+
+SpellModMgr::KeepScope::KeepScope(SpellModMgr* mgr, uint32 spellId, KeptSpellMods& into)
+    : m_mgr(mgr), m_previousSpell(0), m_previousInto(NULL)
+{
+    into.clear();
+    if (!m_mgr)
+    {
+        return;
+    }
+
+    m_previousSpell = m_mgr->m_keepSpell;
+    m_previousInto = m_mgr->m_keepInto;
+    m_mgr->m_keepSpell = spellId;
+    m_mgr->m_keepInto = &into;
+}
+
+SpellModMgr::KeepScope::~KeepScope()
+{
+    if (m_mgr)
+    {
+        m_mgr->m_keepSpell = m_previousSpell;
+        m_mgr->m_keepInto = m_previousInto;
+    }
+}
+
+SpellModMgr::KeptScope::KeptScope(SpellModMgr* mgr, uint32 spellId, KeptSpellMods const& kept)
+    : m_mgr(mgr), m_previousSpell(0), m_previousKept(NULL)
+{
+    if (!m_mgr)
+    {
+        return;
+    }
+
+    m_previousSpell = m_mgr->m_keptSpell;
+    m_previousKept = m_mgr->m_kept;
+    m_mgr->m_keptSpell = spellId;
+    m_mgr->m_kept = &kept;
+}
+
+SpellModMgr::KeptScope::~KeptScope()
+{
+    if (m_mgr)
+    {
+        m_mgr->m_keptSpell = m_previousSpell;
+        m_mgr->m_kept = m_previousKept;
+    }
+}
 
 void SpellModMgr::Clear()
 {
