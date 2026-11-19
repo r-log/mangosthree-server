@@ -658,20 +658,21 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the after-cast hook,
     // and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the damage-done hook,
     // the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep Freeze, Frostfire Bolt, Fireball and Ice Block
-    // at the launch hook, Frostbolt at the cast-start hook, Frostbolt and Cone of Cold at the after-hit hook,
-    // Piercing Chill's chill at the target hook, and Ice Barrier at the aura-apply and aura-remove hooks. At the proc
-    // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State,
-    // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield,
-    // Nether Vortex and Focus Magic. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane
-    // Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of
-    // Polymorph and Mana Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orb: Flame Orb
-    // at the dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. The ring: Ring of Frost at the
-    // periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact, Clearcasting, Arcane
-    // Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and Reactive
-    // Barrier's two ranks also at the check-proc hook. 162 rows, 159 keys and 3 defaults, none twice.
+    // at the launch hook, Frostbolt at the cast-start hook, Frostbolt, Cone of Cold and Blizzard's damage at the
+    // after-hit hook, Piercing Chill's chill at the target hook, and Ice Barrier at the aura-apply and aura-remove
+    // hooks. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep
+    // Freeze Immunity State, Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane:
+    // Arcane Potency, Mana Shield, Nether Vortex and Focus Magic. Arcane also: Arcane Missiles! at the aura-apply and
+    // aura-remove hooks, Arcane Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done
+    // hook, the seven forms of Polymorph and Mana Shield at the aura-remove hook and Replenish Mana at the after-cast
+    // hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. The
+    // ring: Ring of Frost at the periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact,
+    // Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two
+    // ranks and Reactive Barrier's two ranks also at the check-proc hook. 163 rows, 160 keys and 3 defaults, none
+    // twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(162));
-    CHECK_EQ(registry.Count(), std::size_t(159));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(163));
+    CHECK_EQ(registry.Count(), std::size_t(160));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -692,7 +693,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(4));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != NULL);
     CHECK(registry.FindDefault<AuraBoostMageSite>() != NULL);
@@ -711,7 +712,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     {
         { &Mage::RegisterClassWide, 14, 11, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
-        { &Mage::RegisterFrost, 76, 76, 0 },
+        { &Mage::RegisterFrost, 77, 77, 0 },
         { &Mage::RegisterArcane, 26, 26, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
@@ -725,8 +726,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(162));
-    CHECK_EQ(registry.Count(), std::size_t(159));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(163));
+    CHECK_EQ(registry.Count(), std::size_t(160));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -737,7 +738,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(159));
+    CHECK_EQ(mine.size(), std::size_t(160));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -3126,7 +3127,7 @@ TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(registry.Find<AfterHitHook>(kFrostfireBolt) != NULL);
     CHECK(game.Find<AfterHitHook>(kFrostfireBolt) == registry.Find<AfterHitHook>(kFrostfireBolt));
-    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(4));
 
     // A heal, and a hit on a target that holds no Frostfire Bolt of the caster, change nothing.
     BareCreature caster;
@@ -4428,6 +4429,7 @@ namespace
     }
 
     uint32 const FROSTBOLT_AND_CONE_OF_COLD_IDS[] = { 116, 120 };
+    uint32 const BLIZZARD_HIT_IDS[] = { 42208 };
     uint32 const PIERCING_CHILL_CHILL_IDS[] = { 83154 };
 }
 
@@ -4643,6 +4645,43 @@ TEST(MageScripts_ConeOfColdFreezesNothingForAHealOrWithoutTheTalent)
     mage.HoldAura(12489, EmptyHolder(talentStorage));
     AfterHitContext talented(mage, target, SpellRow(row, 120), 900, true, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(120, talented).IsContinue());
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(MageScripts_IceShardsChillIsTheRanksOwn)
+{
+    // The two ranks' texts: "lowers the target's movement speed by $12484s1%" (11185) and "$12485s1%" (12487).
+    CHECK_EQ(Mage::IceShardsChill(11185), uint32(12484));
+    CHECK_EQ(Mage::IceShardsChill(12487), uint32(12485));
+    CHECK_EQ(Mage::IceShardsChill(12488), uint32(0));
+    CHECK_EQ(Mage::IceShardsChill(42208), uint32(0));
+    CHECK_EQ(Mage::IceShardsChill(0), uint32(0));
+}
+
+TEST(MageScripts_BlizzardChillsNothingForAHealOrWithoutTheTalent)
+{
+    // The script stands for Blizzard's damage (42208) at the after-hit hook, in the game's table too.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<AfterHitHook>(registry, BLIZZARD_HIT_IDS);
+    CHECK(registry.Find<AfterHitHook>(42208) != registry.Find<AfterHitHook>(120));
+    SpellRowStorage row;
+    BareCreature mage;
+    BareCreature target;
+
+    // A heal, and a hit of a mage with no rank of the talent: nothing is cast, and the target holds nothing.
+    AfterHitContext heal(mage, target, SpellRow(row, 42208), 900, false, 0, 0, true);
+    CHECK(registry.Dispatch<AfterHitHook>(42208, heal).IsContinue());
+    AfterHitContext untalented(mage, target, SpellRow(row, 42208), 900, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(42208, untalented).IsContinue());
+    CHECK(target.GetSpellAuraHolderMap().empty());
+
+    // Rank 2 held without its aura of effect 0 and its chill not in the spell store: nothing is cast.
+    CHECK(sSpellStore.LookupEntry(12485) == NULL);
+    HolderStorage talentStorage;
+    mage.HoldAura(12487, EmptyHolder(talentStorage));
+    AfterHitContext talented(mage, target, SpellRow(row, 42208), 900, false, 0, 0, false);
+    CHECK(registry.Dispatch<AfterHitHook>(42208, talented).IsContinue());
     CHECK(target.GetSpellAuraHolderMap().empty());
 }
 

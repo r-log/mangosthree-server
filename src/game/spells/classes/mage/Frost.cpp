@@ -68,6 +68,10 @@ namespace
     uint32 const IMPROVED_CONE_OF_COLD_RANK_TWO = 12489;
     uint32 const IMPROVED_CONE_OF_COLD_FREEZE_ONE = 83301;
     uint32 const IMPROVED_CONE_OF_COLD_FREEZE_TWO = 83302;
+    uint32 const ICE_SHARDS_RANK_ONE = 11185;
+    uint32 const ICE_SHARDS_RANK_TWO = 12487;
+    uint32 const ICE_SHARDS_CHILL_ONE = 12484;
+    uint32 const ICE_SHARDS_CHILL_TWO = 12485;
     uint32 const ICE_BARRIER = 11426;
     uint32 const SHATTERED_BARRIER_RANK_ONE = 44745;
     uint32 const SHATTERED_BARRIER_RANK_TWO = 54787;
@@ -349,6 +353,25 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    /// 42208: Blizzard's damage: after it, for a caster who knows Ice Shards (12487, or 11185), the caster casts the
+    /// rank's chill (Mage::IceShardsChill) at the living unit it hit, as the talent's own aura casts it: the chill's
+    /// hit starts no procs, its cast end does. Nothing for a heal.
+    SpellHandlerOutcome<void> BlizzardAfterHit(AfterHitContext& ctx)
+    {
+        if (ctx.heal || !ctx.target.IsAlive())
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        uint32 const talent = ctx.caster.HasAura(ICE_SHARDS_RANK_TWO) ? ICE_SHARDS_RANK_TWO :
+                              ctx.caster.HasAura(ICE_SHARDS_RANK_ONE) ? ICE_SHARDS_RANK_ONE : 0;
+        uint32 const chill = Mage::IceShardsChill(talent);
+        if (chill)
+        {
+            ctx.CastTriggeredByAura(ctx.target, chill, talent, EFFECT_INDEX_0);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     /// 45438: Ice Block: as the cast goes off, a caster who holds Glyph of Ice Block (56372) has the cooldowns of
     /// Frost Nova's category ended, and his client told. Nothing for a caster without the glyph.
     SpellHandlerOutcome<void> IceBlockLaunch(LaunchContext& ctx)
@@ -438,6 +461,7 @@ namespace
     uint32 const PIERCING_CHILL_CHILLS[] = { 83154 };
     uint32 const PERMAFROST[] = { 11175, 12569, 12571 };
     uint32 const CONE_OF_COLD_HIT[] = { 120 };
+    uint32 const BLIZZARD_HIT[] = { 42208 };
     uint32 const ICE_BLOCK[] = { 45438 };
     uint32 const ICE_BARRIER_IDS[] = { ICE_BARRIER };
     uint32 const REACTIVE_BARRIER[] = { 86303, 86304 };
@@ -457,6 +481,7 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     rows += RegisterRanks<SelectTargetsHook>(registry, PIERCING_CHILL_CHILLS, &PiercingChillTargets);
     rows += RegisterRanks<OnProcHook>(registry, PERMAFROST, &PermafrostProc);
     rows += RegisterRanks<AfterHitHook>(registry, CONE_OF_COLD_HIT, &ConeOfColdAfterHit);
+    rows += RegisterRanks<AfterHitHook>(registry, BLIZZARD_HIT, &BlizzardAfterHit);
     rows += RegisterRanks<LaunchHook>(registry, ICE_BLOCK, &IceBlockLaunch);
     rows += RegisterRanks<AuraApplyHook>(registry, ICE_BARRIER_IDS, &IceBarrierAuraApply);
     rows += RegisterRanks<AuraRemoveHook>(registry, ICE_BARRIER_IDS, &IceBarrierAuraRemove);
@@ -606,6 +631,19 @@ uint32 Mage::ImprovedConeOfColdFreeze(uint32 talentSpell)
             return IMPROVED_CONE_OF_COLD_FREEZE_ONE;
         case IMPROVED_CONE_OF_COLD_RANK_TWO:
             return IMPROVED_CONE_OF_COLD_FREEZE_TWO;
+        default:
+            return 0;
+    }
+}
+
+uint32 Mage::IceShardsChill(uint32 talentSpell)
+{
+    switch (talentSpell)
+    {
+        case ICE_SHARDS_RANK_ONE:
+            return ICE_SHARDS_CHILL_ONE;
+        case ICE_SHARDS_RANK_TWO:
+            return ICE_SHARDS_CHILL_TWO;
         default:
             return 0;
     }

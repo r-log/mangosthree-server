@@ -49,14 +49,14 @@
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
  * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
  * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
- * (ImprovedConeOfColdFreeze), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice Barrier's
- * (GlyphedBarrierAmount) and Reactive Barrier's (ReactiveBarrierTriggers). Orb.cpp holds the orb a mage's Flame Orb
- * summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
+ * (ImprovedConeOfColdFreeze), Ice Shards' (IceShardsChill), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice
+ * Barrier's (GlyphedBarrierAmount) and Reactive Barrier's (ReactiveBarrierTriggers). Orb.cpp holds the orb a mage's
+ * Flame Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
  * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
  * and OrbCostShare). Ring.cpp holds the ring a mage's Ring of Frost summons: its creature AI, its scripts and its
  * leaves (RingSpellsFor, IsRingCreature, RingInBand, RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and
- * RingMarkerOnRemove). Each file registers its rows through one function of namespace Mage: a table per legacy site
- * of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * RingMarkerOnRemove). Each file registers its rows through one function of namespace Mage: a table per legacy site of
+ * SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's and the ring's.
@@ -525,6 +525,10 @@ namespace Mage
     /// The freeze a Cone of Cold hit puts on its target for a mage who knows `talentSpell` (Improved Cone of Cold):
     /// 83301 (2 s) for 11190, 83302 (4 s) for 12489, 0 for any other spell. Defined in Frost.cpp.
     uint32 ImprovedConeOfColdFreeze(uint32 talentSpell);
+
+    /// The chill a Blizzard hit puts on its target for a mage who knows `talentSpell` (Ice Shards): 12484 (-25%,
+    /// 2 s) for 11185, 12485 (-40%, 2 s) for 12487, 0 for any other spell. Defined in Frost.cpp.
+    uint32 IceShardsChill(uint32 talentSpell);
 
     /// The freeze an Ice Barrier removed in `mode` casts for a mage who knows Shattered Barrier: 83073 (4 s) for the
     /// second rank (54787, `knowsRankTwo`), else 55080 (2 s) for the first (44745, `knowsRankOne`); 0 unless damage
