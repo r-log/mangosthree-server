@@ -166,12 +166,12 @@
 // first and haste and the 1.0 to 1.5 s hold only above one second, so the second rank's is 0.9 s with or without
 // haste; Glyph of Icy Veins removes a creature's and a player's cast slow and keeps Power Infusion.
 // 1012 a staged Frost mage's Frostbolt crit with Piercing Chill 2 chills the two Camels nearest its target within ten
-// yards, one chill cast each, and never the target, a third Camel at nine yards or one beyond; a hit that is no crit
-// chills none; each chill cast's end is a roll of Fingers of Frost's and Brain Freeze's rows. 1013 Permafrost 3
-// heals the Water Elemental through its own heal for 15% of each Frostbolt and Cone of Cold hit, a crit's included,
-// and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of Cold 2 has each Camel the cone hits freeze itself
-// for the mage for four seconds, in the frozen state, but a creature immune to roots, which shows Immune instead; an
-// Ice Lance with a Fingers of Frost charge then finds its target frozen and spends the charge.
+// yards, one at nine yards, one chill cast each, and never the target, a third Camel at nine and a half yards or one
+// beyond; a hit that is no crit chills none; each chill cast's end is a roll of Fingers of Frost's and Brain Freeze's
+// rows. 1013 Permafrost 3 heals the Water Elemental through its own heal for 15% of each Frostbolt and Cone of Cold
+// hit, a crit's included, and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of Cold 2 has each Camel the
+// cone hits freeze itself for the mage for four seconds, in the frozen state, but a creature immune to roots, which
+// shows Immune instead; an Ice Lance with a Fingers of Frost charge then finds its target frozen and spends the charge.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -18502,21 +18502,22 @@ namespace Harness
 
     /**
      * S1012 `mage-frost-piercing-chill`: Piercing Chill's chill (83154) after a Frostbolt (116) crit, for a staged
-     * Frost mage: Piercing Ice 3 and Shatter 2 (the five points the second tier asks), Piercing Chill 2 (83157) and
-     * Ice Floes 3, Fingers of Frost 3 (83074) and Ice Shards 2, then Brain Freeze 3 (44549); Frostbolt learned. Camel
-     * 1 stands ten yards in front of him and four more around it (ExtraTargets): Camel 2 three yards to one side,
-     * Camel 3 six yards to the other, Camel 4 nine yards out on the first side, all inside the chill's ten yards
-     * around Camel 1, and Camel 5 fourteen yards out, beyond them. Steps, each read kCastReadMs after it: Frostbolt
-     * at Camel 1, which must crit; Frostbolt at Camel 1, which must not; a wait at whose act the scenario makes
-     * kCalls cast-end procs of the chill on him by call, as Spell::cast makes one at a launch
-     * (Unit::ProcDamageAndSpell with the harmful-spell flag and PROC_EX_CAST_END), each with Fingers of Frost (44544)
-     * and Brain Freeze's buff (57761) taken off him first.
+     * Frost mage: Piercing Ice 3 and Shatter 2 (the five points the second tier asks), Piercing Chill 2 (83157) and Ice
+     * Floes 3, Fingers of Frost 3 (83074) and Ice Shards 2, then Brain Freeze 3 (44549); Frostbolt learned. Camel 1
+     * stands ten yards in front of him and four more around it (ExtraTargets): Camel 2 three yards to one side, Camel 3
+     * nine yards to the other, Camel 4 nine and a half yards out on the first side, all inside the chill's ten yards
+     * around Camel 1, and Camel 5 fourteen yards out, beyond them. Steps, each read kCastReadMs after it: Frostbolt at
+     * Camel 1, which must crit; Frostbolt at Camel 1, which must not; a wait at whose act the scenario makes kCalls
+     * cast-end procs of the chill on him by call, as Spell::cast makes one at a launch (Unit::ProcDamageAndSpell with
+     * the harmful-spell flag and PROC_EX_CAST_END), each with Fingers of Frost (44544) and Brain Freeze's buff (57761)
+     * taken off him first.
      *
      * `chill`: `chilled=<the Camels holding his 83154 at the crit's read>,casts=<83154 SPELL_GO in the crit's
      * windows>/<in the non-crit's>,fingers=<by-call procs that left him holding 44544>/<kCalls>,brainFreeze=<the same
      * for 57761>/<kCalls>`. OK at `chilled=2+3,casts=2/0` with both by-call counts above 0: the crit chills the two
-     * Camels nearest its target within ten yards, one chill cast at each, never its target, the third at nine yards
-     * nor the one beyond; the non-crit chills none; and each chill cast's end is a roll of both talents' rows.
+     * Camels nearest its target within ten yards, the second at nine yards, one chill cast at each, never its target,
+     * the third at nine and a half yards nor the one beyond; the non-crit chills none; and each chill cast's end is a
+     * roll of both talents' rows.
      */
     class MageFrostPiercingChill : public MageProcScenario
     {
@@ -18531,7 +18532,7 @@ namespace Harness
         std::vector<uint32> Spells() const override { return { kFrostbolt }; }
         std::vector<std::pair<float, float> > ExtraTargets() const override
         {
-            return { { 0.0f, 3.0f }, { 0.0f, -6.0f }, { 0.0f, 9.0f }, { 0.0f, -14.0f } };
+            return { { 0.0f, 3.0f }, { 0.0f, -9.0f }, { 0.0f, 9.5f }, { 0.0f, -14.0f } };
         }
         uint32 CastEveryMs() const override { return kCastEveryMs; }
         uint32 CastReadMs() const override { return kCastReadMs; }
