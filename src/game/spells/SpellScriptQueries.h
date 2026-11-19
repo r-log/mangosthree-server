@@ -104,6 +104,24 @@ namespace Spells
     bool DealsDamage(SpellEntry const& spell);
 
     /**
+     * @brief Whether an aura of the spell is taken off its holder by damage the holder takes.
+     *
+     * True for a spell with an aura effect when its aura interrupt flags hold AURA_INTERRUPT_FLAG_DAMAGE, and for one
+     * that procs on a hit that deals damage (spell_proc_event's proc flags when its row names some, else the spell's
+     * own) with an aura the damage proc removes (Unit::HandleRemoveByDamageProc): a confuse, a fear, a root, a
+     * pacify-silence, or a stun that has charges or that CountsPreventedDamage selects. A fear, a root, a
+     * pacify-silence and such a stun break by a chance that grows with the damage; a holder with charges loses one a
+     * hit.
+     */
+    bool BreaksOnDamage(SpellEntry const& spell);
+
+    /**
+     * @brief Whether a harmful spell of an owner that lands on a unit counts as the owner's attack on it for the
+     * owner's Assist pet: it does unless the spell deals no damage (DealsDamage) and breaks on damage (BreaksOnDamage).
+     */
+    bool CountsAsOwnerAttack(SpellEntry const& spell);
+
+    /**
      * @brief Whether a pet's spell starts with its autocast on when no saved state names one: a harmful spell whose own
      * rows deal damage and that has neither a cooldown nor a category cooldown.
      */
