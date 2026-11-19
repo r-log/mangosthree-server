@@ -190,7 +190,8 @@
 // client's Assist button, fires Waterbolt on its own at what he attacks, each bolt taking 0.833 of its spell power,
 // which is 0.4 of his frost spell power, and turns invisible with him and back with him. 1019 an Assist Water
 // Elemental attacks what he attacks, switches to a new target only after he has attacked it for three seconds and
-// drops the switch when he attacks its own target again; a Defensive one keeps its target and does not take his.
+// drops the switch when he attacks its own target again; a Defensive one keeps its target and does not take his; an
+// idle Assist one does not attack a Camel he polymorphs.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -22756,8 +22757,9 @@ namespace Harness
      *     power part, and sends the Assist button; read: the stance;
      *  2. Frostbolt at the Camel, nine seconds to the next step: the Assist pet attacks the Camel and fires Waterbolt
      *     on its own; read: its victim;
-     *  3. a wait whose act sends the Passive button, three seconds long so a bolt it was casting ends; that bolt's
-     *     hit sets the pet on the Camel again (Unit::DealDamage), so it goes on casting Waterbolt;
+     *  3. a wait whose act sends the Passive button, three seconds long so a bolt it was casting ends; the scenario
+     *     claims nothing of the Passive pet: the hit of that bolt sets the pet on the Camel again (Unit::DealDamage),
+     *     and the pet goes on casting Waterbolt;
      *  4. the fade (66) cast by him at himself, four seconds to the next step: its expiry at three seconds casts his
      *     Invisibility (32612); read: his 32612 and the pet's 96243;
      *  5. Frostbolt at the Camel, which takes his 32612 off him; the pet's 96243 is read right after the cast, before
@@ -22955,8 +22957,8 @@ namespace Harness
     /**
      * S1019 `mage-frost-pet-assist`: a staged Frost mage's Water Elemental (MageFrostPetScenario) in the Assist and
      * Defensive stances. Camel A stands ten yards in front of him and Camel B eight yards ahead and eight to the side
-     * (ExtraTargets); Frostbolt (116) and Ice Lance (30455) learned. Each cast is read kReadMs after it, a wait 300 ms.
-     * Steps:
+     * (ExtraTargets); Frostbolt (116), Ice Lance (30455) and Polymorph (118) learned. Each cast is read kReadMs after
+     * it, a wait 300 ms. Steps:
      *  1. a wait whose act sends the Assist button;
      *  2. Frostbolt at A, three seconds to the next step: its hit sends the idle pet at A;
      *  3. a wait read after the Frostbolt's hit;
@@ -22971,12 +22973,17 @@ namespace Harness
      * 12. a wait whose act sends the Passive button, which stops the pet;
      * 13. a wait whose act sends the Defensive button, then starts his melee attack on A (Unit::Attack; A stands out of
      *     his reach, so he never swings): a Defensive pet with no victim attacks only a unit attacking him, and A is
-     *     not; then the pet is ended at its read.
+     *     not; his attack is stopped at its read;
+     * 14. Polymorph at B, kPolymorphEveryMs; its act sends the Assist button while the cast runs, so the idle pet is in
+     *     Assist when the Polymorph lands (its cast time is 1.7 s);
+     * 15. a wait read a second after the Polymorph has landed: a Polymorph deals no damage and breaks on damage, so it
+     *     is not his attack for the Assist pet, which stays idle; then the pet is ended at its read.
      *
-     * `assist`: `victim=<the pet's victim at each read: A, B, - for none>,stance=<the stance at steps 1, 9, 12 and
-     * 13>`. OK at `victim=-,-,A,A,A,A,A,B,B,B,B,-,-,stance=assist,defensive,passive,defensive`: the Assist pet attacks
-     * what he attacks, switches only after he has attacked a new target for three seconds and drops the switch when he
-     * attacks its target again; a Defensive pet keeps its target and does not take his.
+     * `assist`: `victim=<the pet's victim at each read: A, B, - for none>,stance=<the stance at steps 1, 9, 12, 13 and
+     * 14>`. OK at `victim=-,-,A,A,A,A,A,B,B,B,B,-,-,-,-,stance=assist,defensive,passive,defensive,assist`: the Assist
+     * pet attacks what he attacks, switches only after he has attacked a new target for three seconds and drops the
+     * switch when he attacks its target again; a Defensive pet keeps its target and does not take his; an idle Assist
+     * pet does not attack a Camel he polymorphs.
      */
     class MageFrostPetAssist : public MageFrostPetScenario
     {
@@ -22984,7 +22991,7 @@ namespace Harness
         MageFrostPetAssist() : MageFrostPetScenario("mage-frost-pet-assist", 1019, "assist") {}
 
     protected:
-        std::vector<uint32> Spells() const override { return { kFrostbolt, kIceLance }; }
+        std::vector<uint32> Spells() const override { return { kFrostbolt, kIceLance, kPolymorph }; }
         std::vector<std::pair<float, float> > ExtraTargets() const override { return { { -2.0f, 8.0f } }; }
         uint32 CastReadMs() const override { return kReadMs; }
 
@@ -22994,7 +23001,7 @@ namespace Harness
             frostbolt.everyMs = 3000;
             return { Wait(600), frostbolt, Wait(600), LanceAt(kCamelB, 1700), LanceAt(kCamelA, 2500),
                      LanceAt(kCamelB, 1700), LanceAt(kCamelB, 2000), Wait(800), Wait(500), LanceAt(kCamelA, 4000),
-                     Wait(500), Wait(500), Wait(1500) };
+                     Wait(500), Wait(500), Wait(1500), AuraCastAt(kPolymorph, kCamelB, kPolymorphEveryMs), Wait(500) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -23002,21 +23009,24 @@ namespace Harness
             std::vector<SpellPrint> prints = FrostPetPrints();
             // 30455: 49 fields, fnv c88f610e
             prints.push_back({ 30455, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 160 }, { "eff0.EffectBonusCoefficient", 1052870967 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 27 }, { "eff0.EffectRealPointsPerLevel", 1078774989 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 3 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } });
+            // 118: 49 fields, fnv ffbe2272
+            prints.push_back({ 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } });
             return prints;
         }
 
-        /// The stance steps' acts send their buttons, the last one also starts his melee attack on A. Each read keeps
-        /// the pet's victim and stance; the last read ends the pet and his attack.
+        /// The stance steps' acts send their buttons, the melee step's also starts his melee attack on A, and the
+        /// Polymorph's sends the Assist button. Each read keeps the pet's victim and stance; the melee step's read ends
+        /// his attack, the last read ends the pet.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
         {
             Pet* pet = p->GetPet();
             if (!atRead)
             {
-                if (k == kAssistStep)
+                if (k == kAssistStep || k == kPolymorphStep)
                 {
                     PetAction(p, kAssistButton);
                 }
-                else if (k == kDefensiveStep || k == kLastStep)
+                else if (k == kDefensiveStep || k == kMeleeStep)
                 {
                     PetAction(p, kDefensiveButton);
                 }
@@ -23024,7 +23034,7 @@ namespace Harness
                 {
                     PetAction(p, kPassiveButton);
                 }
-                if (k == kLastStep)
+                if (k == kMeleeStep)
                 {
                     Creature* a = Get(st.targets[kCamelA]);
                     const bool started = a && p->Attack(a, true);
@@ -23039,9 +23049,12 @@ namespace Harness
             m_victims[k] = VictimOf(st, pet);
             m_stances[k] = StanceOf(pet);
             m_rec.Note("the pet's victim " + m_victims[k] + ", its stance " + m_stances[k]);
-            if (k == kLastStep)
+            if (k == kMeleeStep)
             {
                 p->AttackStop();
+            }
+            else if (k == kLastStep)
+            {
                 EndPet(p);
             }
         }
@@ -23059,10 +23072,11 @@ namespace Harness
             }
             const std::string value = "victim=" + victims + ",stance=" + m_stances[kAssistStep] + "," +
                                       m_stances[kDefensiveStep] + "," + m_stances[kPassiveStep] + "," +
-                                      m_stances[kLastStep];
+                                      m_stances[kMeleeStep] + "," + m_stances[kPolymorphStep];
             const std::string detail = "wanted the Assist pet at A from the Frostbolt's hit, on A through a candidate "
                                        "dropped by a hit on A, at B three seconds after the hits on B began, kept on B "
-                                       "in Defensive, and idle in Defensive while he attacks A unattacked)";
+                                       "in Defensive, idle in Defensive while he attacks A unattacked, and idle in "
+                                       "Assist when his Polymorph lands on B)";
             return value == kWanted ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
@@ -23076,16 +23090,22 @@ namespace Harness
         }
 
         static constexpr uint32 kIceLance = 30455;
+        static constexpr uint32 kPolymorph = 118;
         static constexpr uint32 kCamelA = 0;
         static constexpr uint32 kCamelB = 1;
         static constexpr uint32 kReadMs = 1000;
-        static constexpr uint32 kSteps = 13;
+        /// Polymorph's 1.7 s cast and 0.7 s more, so the next step's read comes 1 s after it lands.
+        static constexpr uint32 kPolymorphEveryMs = 2400;
+        static constexpr uint32 kSteps = 15;
         static constexpr uint32 kAssistStep = 0;
         static constexpr uint32 kDefensiveStep = 8;
         static constexpr uint32 kPassiveStep = 11;
-        static constexpr uint32 kLastStep = 12;
+        static constexpr uint32 kMeleeStep = 12;
+        static constexpr uint32 kPolymorphStep = 13;
+        static constexpr uint32 kLastStep = 14;
 
-        const std::string kWanted = "victim=-,-,A,A,A,A,A,B,B,B,B,-,-,stance=assist,defensive,passive,defensive";
+        const std::string kWanted =
+            "victim=-,-,A,A,A,A,A,B,B,B,B,-,-,-,-,stance=assist,defensive,passive,defensive,assist";
         std::vector<std::string> m_victims;
         std::vector<std::string> m_stances;
     };
