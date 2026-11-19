@@ -431,9 +431,9 @@ struct CheckProcContext
 {
     CheckProcContext(Unit const& ownerUnit, Unit const* victimUnit, SpellEntry const& spellEntry,
                      AuraHandle const& holder, SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags,
-                     uint32 eventDamage)
+                     uint32 eventDamage, uint32 eventAbsorbed = 0)
         : owner(ownerUnit), victim(victimUnit), spell(spellEntry), aura(holder), procSpell(triggeringSpell),
-          procFlag(flags), procEx(extraFlags), damage(eventDamage)
+          procFlag(flags), procEx(extraFlags), damage(eventDamage), absorbed(eventAbsorbed)
     {
         owner.AssertSpellSeamOwner();
     }
@@ -446,6 +446,8 @@ struct CheckProcContext
     uint32 procFlag;                                ///< the event's PROC_FLAG_* mask
     uint32 procEx;                                  ///< the event's PROC_EX_* mask
     uint32 damage;                                  ///< the event's damage or heal
+    uint32 absorbed;                                ///< the part of the hit the owner's absorbs took, when the owner
+                                                    ///< is the one hit; 0 otherwise
 };
 
 /// OnProc's context. Value: SpellAuraProcResult. After the effects of a proc that succeeded, the engine drops one of
@@ -471,6 +473,9 @@ struct OnProcContext
     /// player caster with a proc cooldown has `spellId` on cooldown; a player caster then gets that cooldown.
     /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     bool CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// Whether the cooldown store of the unit that holds the aura holds `spellId` on cooldown now: a player's spell
+    /// and category cooldowns; a unit that is not a player keeps none there.
+    bool OnCooldown(uint32 spellId) const;
 
     Unit& caster;                                   ///< the unit that holds the aura
     Unit* victim;                                   ///< the other unit of the event; NULL when there is none
@@ -564,13 +569,14 @@ struct DummyAuraContext
         Aura* m_aura;                               ///< this aura effect, the trigger of CastTriggeredByAura
 };
 
-/// AfterCast's context: the cast that just finished, what it hit and where it was aimed. Value: void.
+/// AfterCast's context: the cast that just finished, what it hit, where it was aimed and the item it was cast from.
+/// Value: void.
 struct AfterCastContext
 {
     AfterCastContext(Unit& casterUnit, SpellEntry const& spellEntry, uint32 enemies, Unit* explicitTarget,
-                     bool destinationSet, float x, float y, float z)
+                     bool destinationSet, float x, float y, float z, uint32 itemEntry)
         : caster(casterUnit), spell(spellEntry), enemiesHit(enemies), target(explicitTarget),
-          hasDestination(destinationSet), destX(x), destY(y), destZ(z)
+          hasDestination(destinationSet), destX(x), destY(y), destZ(z), castItemEntry(itemEntry)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -578,6 +584,9 @@ struct AfterCastContext
     /// The caster casts `spellId` at the point, triggered, with this cast's spell as the trigger and no triggering
     /// aura.
     void CastTriggeredAt(float x, float y, float z, uint32 spellId);
+    /// The caster casts `spellId` at `to`, triggered, with this cast's spell as the trigger and no triggering aura.
+    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
 
     Unit& caster;                                   ///< the caster
     SpellEntry const& spell;                        ///< the spell cast
@@ -588,6 +597,8 @@ struct AfterCastContext
     bool hasDestination;                            ///< whether the cast carried a destination
     float destX, destY, destZ;                      ///< the destination when hasDestination; the explicit target's
                                                     ///< position otherwise; else the caster's
+    uint32 castItemEntry;                           ///< the entry of the item the cast started from, kept when a
+                                                    ///< spent last charge destroyed it; 0 for a cast from no item
 };
 
 /// Launch's context: the cast that goes off. Value: void.

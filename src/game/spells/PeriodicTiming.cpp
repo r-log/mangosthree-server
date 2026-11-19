@@ -68,6 +68,43 @@ namespace Spells
         return RoundToEven(hasted);
     }
 
+    HastedTicks HastedPeriodAndDuration(int32 period, int32 duration, bool ticksAtApply, float castHaste)
+    {
+        HastedTicks timing;
+        timing.period = HastedPeriod(period, castHaste);
+        timing.duration = HastedDurationDirect(duration, castHaste);
+        timing.ticks = TickCount(duration, period, FirstTickDelay(period, ticksAtApply));
+        timing.lastTick = 0;
+        if (timing.ticks && timing.period > 0)
+        {
+            const int64 periods = int64(FirstTickDelay(timing.period, ticksAtApply)) + int64(timing.ticks - 1) * timing.period;
+            timing.lastTick = int32(periods < int64(timing.duration) ? periods : int64(timing.duration));
+        }
+        return timing;
+    }
+
+    int32 TimeToNextTick(uint32 ticksDealt, int32 period, int32 firstTickDelay, uint32 heldTicks, int32 lastTick)
+    {
+        if (!ticksDealt || !heldTicks || ticksDealt + 1 != heldTicks)
+        {
+            return period;
+        }
+        // the time of the tick just dealt, counted from the apply
+        const int64 dealtAt = int64(firstTickDelay) + int64(ticksDealt - 1) * period;
+        const int64 left = int64(lastTick) - dealtAt;
+        if (left < 0)
+        {
+            return 0;
+        }
+        return left < int64(period) ? int32(left) : period;
+    }
+
+    uint32 HeldTickCount(int32 duration, int32 period, int32 firstTickDelay, uint32 heldTicks, int32 lastTick)
+    {
+        const uint32 ticks = TickCount(duration, period, firstTickDelay);
+        return heldTicks && ticks + 1 == heldTicks && lastTick <= duration ? heldTicks : ticks;
+    }
+
     int32 FirstTickDelay(int32 period, bool ticksAtApply)
     {
         return ticksAtApply ? 0 : period;
@@ -107,5 +144,16 @@ namespace Spells
             return int32(int64(amount) * fromMiddle / (int64(ticks) - 1));
         }
         return int32(int64(amount) * 7 * fromMiddle / 100);
+    }
+
+    uint32 PercentOfMaximumTick(uint32 maximum, int32 amount, float exactAmount)
+    {
+        const float percent = int32(exactAmount) == amount ? exactAmount : float(amount);
+        if (percent <= 0.0f)
+        {
+            return 0;
+        }
+        const uint64 thousandths = uint64(RoundToEven(percent * 1000.0f));
+        return uint32(uint64(maximum) * thousandths / 100000);
     }
 }

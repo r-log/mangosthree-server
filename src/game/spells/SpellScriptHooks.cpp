@@ -188,6 +188,11 @@ void AfterCastContext::CastTriggeredAt(float x, float y, float z, uint32 spellId
     caster.CastSpell(x, y, z, spellId, true, NULL, NULL, ObjectGuid(), &spell);
 }
 
+void AfterCastContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
+{
+    CastTriggeredSpell(caster, to, spellId, basePoints, NULL, NULL, ObjectGuid(), &spell);
+}
+
 void CastStartContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
 {
     CastTriggeredSpell(caster, to, spellId, basePoints, NULL, NULL, ObjectGuid(), NULL);
@@ -218,4 +223,9 @@ bool OnProcContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoi
         m_cooldowns.AddSpellCooldown(spellId, 0, time(NULL) + cooldown);
     }
     return true;
+}
+
+bool OnProcContext::OnCooldown(uint32 spellId) const
+{
+    return m_cooldowns.HasSpellCooldown(spellId, time(NULL));
 }

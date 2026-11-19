@@ -524,6 +524,19 @@ TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
     }
 }
 
+TEST(SpellTables_IncantersAbsorptionCountsManaShieldAndMageWardAlone)
+{
+    CHECK(CountsForIncantersAbsorption(543));
+    CHECK(CountsForIncantersAbsorption(1463));
+
+    // Ice Barrier (11426), the creatures' Mana Shields (17740, 17741, 56778), Incanter's Absorption's own buff (44413)
+    // and any other id count nothing.
+    for (uint32 spellId : { 11426u, 17740u, 17741u, 56778u, 44413u, 0u, 12345u })
+    {
+        CHECK(!CountsForIncantersAbsorption(spellId));
+    }
+}
+
 TEST(SpellTables_TheDeathPreventionRowsAreCheatDeathGuardianSpiritAndCauterize)
 {
     // Cauterize: effect 0 holds the chance (50/100), effect 1 the health percent (40); 87023 heals through its effect 1;

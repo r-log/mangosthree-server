@@ -84,16 +84,13 @@ static int32 HastedSpellDuration(SpellEntry const* spellInfo, Unit const* caster
 }
 
 /**
- * @brief Calculates the effective spell duration for a caster.
- *
- * The combo points and the duration modifiers apply first; then a spell whose periodic effect the caster's haste
- * shortens lasts a whole number of hasted periods, or a hasted duration for a spell whose duration itself is hasted.
+ * @brief Calculates a spell's duration for a caster before his haste: the combo points and the duration modifiers.
  *
  * @param spellInfo The spell entry.
  * @param caster The unit casting the spell.
- * @return The adjusted duration in milliseconds.
+ * @return The duration in milliseconds; -1 for a spell that does not run out.
  */
-int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster)
+int32 UnhastedSpellDuration(SpellEntry const* spellInfo, Unit const* caster)
 {
     int32 duration = GetSpellDuration(spellInfo);
 
@@ -116,7 +113,28 @@ int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster)
                 duration = 0;
             }
         }
+    }
 
+    return duration;
+}
+
+/**
+ * @brief Calculates the effective spell duration for a caster.
+ *
+ * The combo points and the duration modifiers apply first (UnhastedSpellDuration); then a spell whose periodic effect
+ * the caster's haste shortens lasts a whole number of hasted periods, or a hasted duration for a spell whose duration
+ * itself is hasted.
+ *
+ * @param spellInfo The spell entry.
+ * @param caster The unit casting the spell.
+ * @return The adjusted duration in milliseconds.
+ */
+int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster)
+{
+    int32 duration = UnhastedSpellDuration(spellInfo, caster);
+
+    if (duration != -1 && caster)
+    {
         duration = HastedSpellDuration(spellInfo, caster, duration);
     }
 
