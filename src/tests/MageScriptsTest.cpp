@@ -27,25 +27,26 @@
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles, the pairing of Arcane Missiles Aurastate
 /// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
-/// Arcane damage spell, Ignite's munching leaves against the roll-over, Clearcasting used up only by a spell its cost
-/// modifier makes cheaper, the slows Torment the Weak counts and its multiplier, Nether Vortex's Slow and its
-/// refusals, Invocation's buff from a Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker
-/// when damage breaks a Polymorph, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the
-/// removal of Hot Streak's buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals,
-/// the frozen query, Shatter's crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two
-/// spell lists those scripts hold against the class masks of the talents, Blink's target count, Living Bomb's exits at
-/// the dummy aura hook, Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its
-/// rows at the aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's
-/// stacking with the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of
-/// its spread at the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook,
-/// Glyph of Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's
-/// apply and its after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a
-/// level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update
-/// fields allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the
-/// client's data holds them, and a holder put in the creature's holder map where a script asks whether it holds an
-/// aura. The cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown
-/// sinks the test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of
-/// three auras whose apply and removal change nothing on the unit.
+/// Arcane damage spell, Arcane Potency's buffs spent only by a spell that deals or triggers damage, Ignite's munching
+/// leaves against the roll-over, Clearcasting used up only by a spell its cost modifier makes cheaper, the slows
+/// Torment the Weak counts and its multiplier, Nether Vortex's Slow and its refusals, Invocation's buff from a
+/// Counterspell that interrupted a cast alone, Improved Polymorph's stun and marker when damage breaks a Polymorph, the
+/// count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the removal of Hot Streak's buff,
+/// Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals, the frozen query, Shatter's
+/// crit factor and the damage-done multipliers of Frostburn, Shatter and Ice Lance, the two spell lists those scripts
+/// hold against the class masks of the talents, Blink's target count, Living Bomb's exits at the dummy aura hook,
+/// Pyromaniac's leaves (a Frostfire Bolt burning only with its periodic damage among them) and its rows at the
+/// aura-apply and aura-remove hooks, Combustion's exits at the dummy-effect hook, its tick and its DoT's stacking with
+/// the auras of its icon, Impact's cleared Fire Blast cooldown, which DoTs Impact spreads, the exits of its spread at
+/// the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of
+/// Frostfire's hit without Molten Fury and its tick, and Frostfire Bolt's effect taken off at its holder's apply and
+/// its after-hit exits; the orb's rows are counted here and tested in MageOrbTest. A body that casts, reads a level or
+/// creates an item needs a live unit and a spell; the proc scripts' refusals run on bare Creatures (update fields
+/// allocated; no map, template or AI), with the effect rows the scripts read added to the effect store as the client's
+/// data holds them, and a holder put in the creature's holder map where a script asks whether it holds an aura. The
+/// cooldown Impact clears is a player's: a player on a session with no socket, in no world, whose cooldown sinks the
+/// test installs. Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three
+/// auras whose apply and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -151,6 +152,10 @@ namespace
     // The id the check-proc script of Arcane Blast's buff holds: the buff, which only the end of the mage's own cast of
     // an Arcane damage spell other than Arcane Blast and Arcane Explosion spends.
     uint32 const ARCANE_BLAST_BUFF_IDS[] = { 36032 };
+
+    // The ids the check-proc script of Arcane Potency's buffs holds: the buff of each rank, whose charges a spell that
+    // neither deals nor triggers damage never spends.
+    uint32 const ARCANE_POTENCY_BUFF_IDS[] = { 57529, 57531 };
 
     // The ids Torment the Weak's script holds at the damage-done hook: its three ranks, which the engine runs it for
     // as dummy auras of the caster.
@@ -613,11 +618,12 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Shield and Nether Vortex. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane Missiles
     // at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook and the seven forms of Polymorph
     // at the aura-remove hook. The orb: Flame Orb at the dummy-effect hook, and the orb's scan at the target and
-    // dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Fingers of Frost, Brain Freeze and Invocation's
-    // two ranks also at the check-proc hook. 143 rows, 140 keys and 3 defaults, none twice.
+    // dummy-effect hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost,
+    // Brain Freeze and Invocation's two ranks also at the check-proc hook. 145 rows, 142 keys and 3 defaults, none
+    // twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(143));
-    CHECK_EQ(registry.Count(), std::size_t(140));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(145));
+    CHECK_EQ(registry.Count(), std::size_t(142));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -626,7 +632,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(23));
-    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(12));
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(14));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
@@ -656,7 +662,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 62, 62, 0 },
-        { &Mage::RegisterArcane, 23, 23, 0 },
+        { &Mage::RegisterArcane, 25, 25, 0 },
         { &Mage::RegisterOrb, 3, 3, 0 },
     };
     for (PerFile const& file : files)
@@ -668,8 +674,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(143));
-    CHECK_EQ(registry.Count(), std::size_t(140));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(145));
+    CHECK_EQ(registry.Count(), std::size_t(142));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -680,7 +686,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(140));
+    CHECK_EQ(mine.size(), std::size_t(142));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -839,7 +845,8 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
              (sizeof(IMPACT_IDS) + sizeof(CLEARCASTING_IDS) + sizeof(ARCANE_BLAST_BUFF_IDS) +
-              sizeof(FINGERS_OF_FROST_IDS) + sizeof(BRAIN_FREEZE_IDS) + sizeof(INVOCATION_IDS)) / sizeof(uint32));
+              sizeof(ARCANE_POTENCY_BUFF_IDS) + sizeof(FINGERS_OF_FROST_IDS) + sizeof(BRAIN_FREEZE_IDS) +
+              sizeof(INVOCATION_IDS)) / sizeof(uint32));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129 applies
     // no aura) and 28682 (absent from the client's data). Arcane Blast's buff (36032) holds no proc script: its
@@ -1168,6 +1175,57 @@ TEST(MageScripts_ArcaneBlastBuffDropsEveryEventButAnOwnCastsEnd)
     SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(36032, noSpell);
     CHECK(outcome.IsReturn());
     CHECK(!outcome.GetValue());
+}
+
+TEST(MageScripts_ArcanePotencyBuffsDropTheEventsOfSpellsThatDealOrTriggerNoDamage)
+{
+    // The rows: both buffs at the check-proc hook, one body of their own, the same in the game's table; no proc script.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<CheckProcHook>(registry, ARCANE_POTENCY_BUFF_IDS);
+    CHECK(registry.Find<CheckProcHook>(57529) == registry.Find<CheckProcHook>(57531));
+    CHECK(registry.Find<CheckProcHook>(57531) != registry.Find<CheckProcHook>(36032));
+    for (uint32 buffId : ARCANE_POTENCY_BUFF_IDS)
+    {
+        CHECK(registry.Find<OnProcHook>(buffId) == NULL);
+    }
+
+    AddDamageCheckRows();
+    AddTriggerCheckRows();
+    BareCreature mage;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    SpellRowStorage buffRow;
+    SpellRowStorage eventRow;
+    for (uint32 buffId : ARCANE_POTENCY_BUFF_IDS)
+    {
+        // The end of a cast of a spell that deals no damage and triggers none that does is dropped, as the cast of
+        // Arcane Blast's buff (36032) is: Slow's auras, a confuse, a stun, a trigger of a stun alone.
+        for (uint32 spellId : { ROW_SLOW_AURAS, ROW_CONFUSE, ROW_STUN, ROW_TRIGGERS_STUN })
+        {
+            SpellEntry const& event = SpellRow(eventRow, spellId);
+            CHECK(!Mage::DealsOrTriggersDamage(event));
+            CheckProcContext ctx(mage, NULL, SpellRow(buffRow, buffId), AuraHandle(holder), &event, 0x10000,
+                                 PROC_EX_CAST_END, 0);
+            SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(buffId, ctx);
+            CHECK(outcome.IsReturn());
+            CHECK(!outcome.GetValue());
+        }
+
+        // The end of a cast of a spell that deals damage, or of a channel whose missile does, and an event with no
+        // spell go on to the engine's proc handling.
+        for (uint32 spellId : { ROW_DIRECT_DAMAGE, ROW_PERIODIC_DAMAGE_WITH_DUMMY, ROW_MISSILE_CHANNEL })
+        {
+            SpellEntry const& event = SpellRow(eventRow, spellId);
+            CHECK(Mage::DealsOrTriggersDamage(event));
+            CheckProcContext ctx(mage, NULL, SpellRow(buffRow, buffId), AuraHandle(holder), &event, 0x10000,
+                                 PROC_EX_CAST_END, 0);
+            CHECK(registry.Dispatch<CheckProcHook>(buffId, ctx).IsContinue());
+        }
+        CheckProcContext noSpell(mage, NULL, SpellRow(buffRow, buffId), AuraHandle(holder), NULL, 0x10000,
+                                 PROC_EX_CAST_END, 0);
+        CHECK(registry.Dispatch<CheckProcHook>(buffId, noSpell).IsContinue());
+    }
 }
 
 TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)

@@ -160,6 +160,20 @@ namespace
         return SpellHandlerOutcome<bool>::Return(false);
     }
 
+    /// 57529, 57531: Arcane Potency's buffs: an event of a spell that neither deals nor triggers damage
+    /// (Mage::DealsOrTriggersDamage) is dropped and spends no charge, such as the cast of Arcane Blast's buff (36032),
+    /// which Arcane Blast triggers and whose class mask the buffs' crit modifier names. Every other event goes on to
+    /// the engine's proc handling, which spends a charge at the end of a cast of a spell the modifier names.
+    SpellHandlerOutcome<bool> ArcanePotencyBuffCheckProc(CheckProcContext& ctx)
+    {
+        SpellEntry const* const spell = ctx.procSpell;
+        if (spell && !Mage::DealsOrTriggersDamage(*spell))
+        {
+            return SpellHandlerOutcome<bool>::Return(false);
+        }
+        return SpellHandlerOutcome<bool>::Continue();
+    }
+
     uint32 const TORMENT_THE_WEAK[] = { 29447, 55339, 55340 };
     uint32 const SLOW = 31589;
 
@@ -253,6 +267,7 @@ namespace
     uint32 const ARCANE_MISSILES_BUFFS[] = { ARCANE_MISSILES_BUFF };
     uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
     uint32 const ARCANE_BLAST_BUFF[] = { 36032 };
+    uint32 const ARCANE_POTENCY_BUFFS[] = { 57529, 57531 };
     uint32 const NETHER_VORTEX[] = { 86181, 86209 };
     uint32 const INVOCATION[] = { 84722, 84723 };
     uint32 const POLYMORPH[] = { 118, 28271, 28272, 61025, 61305, 61721, 61780 };
@@ -379,6 +394,7 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffRemove);
     rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
     rows += RegisterRanks<CheckProcHook>(registry, ARCANE_BLAST_BUFF, &ArcaneBlastBuffCheckProc);
+    rows += RegisterRanks<CheckProcHook>(registry, ARCANE_POTENCY_BUFFS, &ArcanePotencyBuffCheckProc);
     rows += RegisterRanks<DamageDoneHook>(registry, TORMENT_THE_WEAK, &TormentTheWeakDamageDone);
     rows += RegisterRanks<OnProcHook>(registry, NETHER_VORTEX, &NetherVortexProc);
     rows += RegisterRanks<CheckProcHook>(registry, INVOCATION, &InvocationCheckProc);
