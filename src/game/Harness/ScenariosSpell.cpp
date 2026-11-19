@@ -157,6 +157,10 @@
 // place of the earlier, two that land a few updates apart both feed it, and Pyroblast! leaves Clearcasting on.
 // 1028 Clearcasting on a Fire mage is used up by a Fireball and kept through Blood Fury, the free Flamestrike and
 // Blizzard's damage, none of which it makes cheaper.
+// 996 a staged Frost mage's Deep Freeze at a target immune to stuns deals its damage once, with Frostburn and the
+// glyph, uses one Fingers of Frost charge, and the damage's crit chance takes Shatter's factor at a frozen target
+// alone. 1000 a staged Frost mage's mastery is 0 without the Mastery passive, his rating and Frost Specialization's -6
+// included, and 2 points and his rating's with it; Frostburn follows it.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -172,8 +176,8 @@
 // 1105 a staged Arcane mage's Polymorph that damage breaks stuns the Camel for Improved Polymorph's rank and marks it,
 // a second break while the mark holds stuns nothing, and a Polymorph that runs out, is dispelled or is removed stuns
 // nothing and marks nothing.
-// The guard of 931-938, 941-978, 980-995, 998-999, 1025-1028, 1100-1101 and 1103-1105 (Qualify) fingerprints every
-// spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1025-1028, 1100-1101 and 1103-1105 (Qualify) fingerprints
+// every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -4009,12 +4013,12 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-995,
-     * 998-999, 1025-1028, 1100-1101, 1103-1105): a human mage staged to level 85 with the scenario's talents, glyphs,
+     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
+     * 998-1000, 1025-1028, 1100-1101, 1103-1105): a human mage staged to level 85 with the scenario's talents, glyphs,
      * spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged
-     * (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249) staged to level TargetLevel() (85
-     * unless the scenario sets its own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the
-     * scenario's steps, in order:
+     * (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249, or the creature TargetEntry names)
+     * staged to level TargetLevel() (85 unless the scenario sets its own) ten yards in front of him
+     * (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him when he does not hold it, by a triggered self-cast or, when CasterAuraPut()
      *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
@@ -4105,7 +4109,7 @@ namespace Harness
                 plan.takesDamage = plan.takesDamage || steps[i].swing || steps[i].blow || steps[i].swingAtMs;
                 if (steps[i].kill)
                 {
-                    ++plan.kills[kCamel];
+                    ++plan.kills[TargetEntry()];
                 }
             }
             for (size_t i = 0; i < prints.size(); ++i)
@@ -4142,7 +4146,7 @@ namespace Harness
             plan.spells.insert(later.begin(), later.end());
             std::string templateOk;
             QuestPreCheck pre;
-            if (!Qualify(prints, { kCamel }, plan, templateOk, &pre))
+            if (!Qualify(prints, { TargetEntry() }, plan, templateOk, &pre))
             {
                 return;
             }
@@ -4159,10 +4163,10 @@ namespace Harness
             for (uint32 camel = 0; camel < TargetCount(); ++camel)
             {
                 const float ty = P0.y + (float(camel) - float(TargetCount() - 1) / 2.0f) * kTargetSpacing;
-                Creature* spawned = SpawnTarget(kCamel, TargetLevel(), tx, ty, Ground(tx, ty, P0.z), 3.14159f);
+                Creature* spawned = SpawnTarget(TargetEntry(), TargetLevel(), tx, ty, Ground(tx, ty, P0.z), 3.14159f);
                 if (!spawned)
                 {
-                    Verdict(Invalid("the target (50249) did not spawn"));
+                    Verdict(Invalid("the target (" + U(TargetEntry()) + ") did not spawn"));
                     return;
                 }
                 if (const uint32 targetAura = TargetAura())
@@ -4178,10 +4182,10 @@ namespace Harness
             {
                 const float ex = tx + extra[camel].first;
                 const float ey = firstY + extra[camel].second;
-                Creature* spawned = SpawnTarget(kCamel, TargetLevel(), ex, ey, Ground(ex, ey, P0.z), 3.14159f);
+                Creature* spawned = SpawnTarget(TargetEntry(), TargetLevel(), ex, ey, Ground(ex, ey, P0.z), 3.14159f);
                 if (!spawned)
                 {
-                    Verdict(Invalid("the target (50249) did not spawn"));
+                    Verdict(Invalid("the target (" + U(TargetEntry()) + ") did not spawn"));
                     return;
                 }
                 if (const uint32 targetAura = TargetAura())
@@ -4561,6 +4565,8 @@ namespace Harness
         virtual uint32 TargetAura() const { return 0; }
         /// The level the Camels are spawned at; 85 by default.
         virtual uint32 TargetLevel() const { return 85; }
+        /// The creature entry the Camels are spawned from; the Camel (50249) by default.
+        virtual uint32 TargetEntry() const { return kCamel; }
         /// The creature entry of a pet built for him after he is staged (Scenario::BuildOwnedPet), kPetOffset yards to
         /// his side; 0 for none.
         virtual uint32 PetEntry() const { return 0; }
@@ -15140,6 +15146,431 @@ namespace Harness
         }
     };
 
+    /**
+     * S996 `mage-frost-deep-freeze`: Deep Freeze (44572) at a target its stun cannot hold, for a staged Frost mage with
+     * Shatter 2 (12982), Glyph of Deep Freeze (696, its aura 63090), the Mastery passive (86473) and kMasteryRating
+     * mastery rating; Deep Freeze and Frost Nova (122) learned. His target is a Felflame Infernal (1) (35262), a
+     * creature of the world database that runs no AI, binds no script and whose template is immune to stuns, snares and
+     * charms alone (MechanicImmuneMask 0xC01), spawned at its template's level 82 (the world database's class level
+     * stats for its class and expansion hold no damage above level 83); the notes call it the Camel. Before each cast
+     * he takes Precision (13843, +6% spell hit), so no cast misses, and the crit aura at -100, so none crits. Each
+     * Fingers of Frost charge is a wait at whose act he casts 44544 at himself, triggered. Steps: two charges; Deep
+     * Freeze at the Infernal, whose stun the Infernal is immune to, so Deep Freeze Immunity State (71761) casts Deep
+     * Freeze's damage (71757) at it; a wait at whose act the scenario reads Unit::SpellDamageBonusDone of kDoneBase for
+     * 71757 at the Infernal before and after his mastery rating is raised by kRatingGain (taken back after), then rolls
+     * Unit::IsSpellCrit for 71757 at it kRolls times with the crit aura at kRollCritPoints; Frost Nova, its cooldown
+     * taken off first; a wait at whose act the rolls are made again at the Infernal Frost Nova froze.
+     *
+     * `deepFreeze`: `hits=<71757 damage logs in Deep Freeze's windows>,damage=<the first one's amount>,stun=<1 when the
+     * Infernal held 44572 at Deep Freeze's read>,stacks=<44544's stack at the second charge's read and at Deep
+     * Freeze's>,glyph=<his damage modifier for 71757 on 100, at the stage>,frostburn=<Frostburn's amount before and
+     * after the rating>,done=<the two SpellDamageBonusDone reads>,sheet=<his frost crit chance at the first
+     * rolls>,unfrozen=,frozen=<the share of each set of rolls that crit>`, the last three in hundredths of a percent.
+     * OK at `hits=1`, `stun=0`, `stacks=2,1`, `glyph=120`, the second done read over the first at (100 + Frostburn
+     * after) over (100 + Frostburn before) within a unit of each, the Infernal unfrozen at the first rolls and frozen
+     * at the second, `unfrozen` within kRollTolerance of `sheet` and `frozen` of three times it: the Infernal takes
+     * Deep Freeze's damage once and no stun, Frostburn and the glyph raise that damage, Deep Freeze uses one charge,
+     * and Shatter multiplies the damage's crit chance at a frozen target alone.
+     */
+    class MageFrostDeepFreeze : public MageProcScenario
+    {
+    public:
+        MageFrostDeepFreeze() : MageProcScenario("mage-frost-deep-freeze", 996, "deepFreeze") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11158, 1 } }; }
+        std::vector<uint32> Spells() const override { return { kDeepFreeze, kFrostNova, kMasteryPassive }; }
+        std::vector<uint32> Glyphs() const override { return { kGlyphOfDeepFreezeSlot }; }
+        int32 MasteryRating() const override { return kMasteryRating; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 TargetEntry() const override { return kInfernal; }
+        uint32 TargetLevel() const override { return kInfernalLevel; }
+        uint32 CastEveryMs() const override { return 1600; }
+        uint32 CastReadMs() const override { return 1200; }
+        uint32 Watched() const override { return kFingersOfFrost; }
+        bool NotesBeforeStep() const override { return true; }
+
+        std::vector<ModifierRead> Modifiers() const override
+        {
+            return { { kDeepFreezeDamage, SPELLMOD_DAMAGE, 100.0f } };
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step charge = Wait(300);
+            charge.spell = kFingersOfFrost;
+            Step deepFreeze = AuraCast(kDeepFreeze, 1600);
+            deepFreeze.refusal = true;
+            Step nova = Cast(kFrostNova, false);
+            nova.clearCooldown = true;
+            return { charge, charge, deepFreeze, Wait(300), nova, Wait(300) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 44572: 26 fields, fnv 8e0a4500
+                { 44572, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 12 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 122: 49 fields, fnv 2ec0d9e1
+                { 122, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 18 }, { "eff0.EffectBonusCoefficient", 1044750795 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 3 }, { "eff0.EffectRadiusIndex_1", 32 }, { "eff0.EffectRealPointsPerLevel", 1056964608 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_1", 32 }, { "eff1.ImplicitTarget_0", 22 }, { "eff1.ImplicitTarget_1", 15 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 44544: 26 fields, fnv 65bc81c5
+                { 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 86473: 26 fields, fnv d7de8265
+                { 86473, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 318 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At a step's act: a wait that names a spell casts it at him, triggered; at the wait after Deep Freeze, the
+        /// done reads (ReadDone) and the rolls (Roll); at the last wait, the rolls again. At each read: the stack of
+        /// 44544 he holds, whether the Infernal holds Deep Freeze's stun, and the Infernal's health set back to its
+        /// maximum.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            Seen& seen = st.seen[k];
+            if (!atRead)
+            {
+                if (st.steps[k].wait && st.steps[k].spell)
+                {
+                    p->CastSpell(p, st.steps[k].spell, true);
+                }
+                else if (k == kDoneStep)
+                {
+                    ReadDone(seen, p, target);
+                    Roll(seen, p, target);
+                }
+                else if (k == kFrozenRollStep)
+                {
+                    Roll(seen, p, target);
+                }
+                return;
+            }
+            SpellAuraHolder* holder = p->GetSpellAuraHolder(kFingersOfFrost);
+            seen.reads["stack"] = holder ? int64(holder->GetStackAmount()) : 0;
+            seen.reads["stun"] = target->HasAura(kDeepFreeze) ? 1 : 0;
+            target->SetHealth(target->GetMaxHealth());
+        }
+
+        std::string Own(St const& st) const override
+        {
+            std::vector<uint32> const hits = st.seen.size() > kDeepFreezeStep ?
+                                             HitsOf(st, kDeepFreezeStep, kDeepFreezeDamage) : std::vector<uint32>();
+            const int64 stun = Kept(st, kDeepFreezeStep, "stun");
+            const int64 stackBefore = Kept(st, kDeepFreezeStep - 1, "stack");
+            const int64 stackAfter = Kept(st, kDeepFreezeStep, "stack");
+            const int64 glyph = st.modifiers.empty() ? kNone : int64(std::lround(st.modifiers[0]));
+            const int64 frostburnBefore = Kept(st, kDoneStep, "frostburnBefore");
+            const int64 frostburnAfter = Kept(st, kDoneStep, "frostburnAfter");
+            const int64 doneBefore = Kept(st, kDoneStep, "doneBefore");
+            const int64 doneAfter = Kept(st, kDoneStep, "doneAfter");
+            const int64 sheet = Kept(st, kDoneStep, "sheet");
+            const int64 unfrozen = Kept(st, kDoneStep, "share");
+            const int64 frozen = Kept(st, kFrozenRollStep, "share");
+            const bool states = Kept(st, kDoneStep, "rollFrozen") == 0 && Kept(st, kFrozenRollStep, "rollFrozen") == 1;
+            const int64 spread = doneAfter * (100 + frostburnBefore) - doneBefore * (100 + frostburnAfter);
+            const bool doneOk = frostburnBefore > 0 && frostburnAfter > frostburnBefore && doneBefore > 0 &&
+                                (spread < 0 ? -spread : spread) <= (100 + frostburnBefore) + (100 + frostburnAfter);
+            auto within = [](int64 value, int64 wanted)
+            {
+                return value >= 0 && (value > wanted ? value - wanted : wanted - value) <= kRollTolerance;
+            };
+            const bool rollsOk = states && sheet > 0 && within(unfrozen, sheet) &&
+                                 within(frozen, std::min<int64>(10000, 3 * sheet));
+            auto shown = [](int64 v) { return v == kNone ? std::string("none") : std::to_string(v); };
+            const std::string value = "hits=" + U(uint32(hits.size())) + ",damage=" +
+                                      (hits.empty() ? std::string("none") : U(hits[0])) + ",stun=" + shown(stun) +
+                                      ",stacks=" + shown(stackBefore) + "," + shown(stackAfter) + ",glyph=" +
+                                      shown(glyph) + ",frostburn=" + shown(frostburnBefore) + "," +
+                                      shown(frostburnAfter) + ",done=" + shown(doneBefore) + "," + shown(doneAfter) +
+                                      ",sheet=" + shown(sheet) + ",unfrozen=" + shown(unfrozen) + ",frozen=" +
+                                      shown(frozen);
+            const bool ok = hits.size() == 1 && stun == 0 && stackBefore == 2 && stackAfter == 1 && glyph == 120 &&
+                            doneOk && rollsOk;
+            const std::string detail = "wanted one hit of 71757 and no stun at the immune Infernal, the stack 2 then "
+                                       "1, the damage modifier 120, the second done read over the first at (100 + "
+                                       "Frostburn after) over (100 + Frostburn before), the rolls at the sheet chance "
+                                       "at the unfrozen Infernal and three times it at the frozen one, within " +
+                                       U(uint32(kRollTolerance)) + ")";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kInfernal = 35262;
+        static constexpr uint32 kInfernalLevel = 82;
+        static constexpr uint32 kDeepFreeze = 44572;
+        static constexpr uint32 kDeepFreezeDamage = 71757;
+        static constexpr uint32 kFingersOfFrost = 44544;
+        static constexpr uint32 kFrostNova = 122;
+        static constexpr uint32 kFrostburn = 76613;
+        static constexpr uint32 kMasteryPassive = 86473;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kGlyphOfDeepFreezeSlot = 696;
+        static constexpr int32 kMasteryRating = 1500;
+        static constexpr int32 kRatingGain = 1000;
+        static constexpr uint32 kDoneBase = 100000;
+        static constexpr uint32 kRolls = 2000;
+        static constexpr int32 kRollCritPoints = 20;
+        static constexpr int64 kRollTolerance = 350;
+        static constexpr uint32 kDeepFreezeStep = 2;
+        static constexpr uint32 kDoneStep = 3;
+        static constexpr uint32 kFrozenRollStep = 5;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+
+        /// The amounts of his damage logs of `spell` that came in step k's windows, in the order they came.
+        std::vector<uint32> HitsOf(St const& st, uint32 k, uint32 spell) const
+        {
+            std::vector<std::string> const windows = StepWindows(k);
+            Trace::Roles const roles = RolesAt(st, st.steps[k].target);
+            std::vector<uint32> amounts;
+            for (Recorder::Seen const& packet : m_rec.Packets())
+            {
+                if (packet.opcode != SMSG_SPELLNONMELEEDAMAGELOG || packet.payload.empty() ||
+                    std::find(windows.begin(), windows.end(), packet.window) == windows.end())
+                {
+                    continue;
+                }
+                std::vector<std::string> fields = Trace::CombatLogFields(SMSG_SPELLNONMELEEDAMAGELOG,
+                                                                         &packet.payload[0], packet.payload.size(),
+                                                                         roles);
+                uint32 logged = 0, amount = 0, crit = 0, absorbed = 0, resisted = 0;
+                if (fields.size() == 1 &&
+                    sscanf(fields[0].c_str(), "hit self.hit.%u=%u/%u/%u/%u", &logged, &amount, &crit, &absorbed,
+                           &resisted) == 5 &&
+                    logged == spell)
+                {
+                    amounts.push_back(amount);
+                }
+            }
+            return amounts;
+        }
+
+        /// Frostburn's effect-0 amount on him; kNone when he holds none.
+        static int64 FrostburnAmount(Player* p)
+        {
+            Aura const* frostburn = p->GetAura(kFrostburn, EFFECT_INDEX_0);
+            return frostburn ? int64(frostburn->GetModifier()->m_amount) : kNone;
+        }
+
+        /// Unit::SpellDamageBonusDone of kDoneBase for Deep Freeze's damage at the Infernal, with Frostburn's amount,
+        /// before and after his mastery rating is raised by kRatingGain; the rating is taken back after.
+        void ReadDone(Seen& seen, Player* p, Creature* target)
+        {
+            SpellEntry const* damage = sSpellStore.LookupEntry(kDeepFreezeDamage);
+            if (!damage)
+            {
+                return;
+            }
+            seen.reads["frostburnBefore"] = FrostburnAmount(p);
+            seen.reads["doneBefore"] = p->SpellDamageBonusDone(target, damage, kDoneBase, SPELL_DIRECT_DAMAGE, 1);
+            p->ApplyRatingMod(CR_MASTERY, kRatingGain, true);
+            seen.reads["frostburnAfter"] = FrostburnAmount(p);
+            seen.reads["doneAfter"] = p->SpellDamageBonusDone(target, damage, kDoneBase, SPELL_DIRECT_DAMAGE, 1);
+            p->ApplyRatingMod(CR_MASTERY, kRatingGain, false);
+            m_rec.Note("71757 done on " + U(kDoneBase) + ": " + std::to_string(seen.reads["doneBefore"]) +
+                       " with Frostburn " + std::to_string(seen.reads["frostburnBefore"]) + ", " +
+                       std::to_string(seen.reads["doneAfter"]) + " with Frostburn " +
+                       std::to_string(seen.reads["frostburnAfter"]) + " after " + std::to_string(kRatingGain) +
+                       " more mastery rating; the Camel " + (target->IsFrozen() ? "frozen" : "not frozen"));
+        }
+
+        /// kRolls rolls of Unit::IsSpellCrit for Deep Freeze's damage at the Infernal, with the crit aura held at
+        /// kRollCritPoints for them and put back as it was after; kept with his frost crit chance at the rolls and the
+        /// Infernal's frozen state.
+        void Roll(Seen& seen, Player* p, Creature* target)
+        {
+            SpellEntry const* damage = sSpellStore.LookupEntry(kDeepFreezeDamage);
+            if (!damage)
+            {
+                return;
+            }
+            Aura const* critAura = p->GetAura(kCritAura, EFFECT_INDEX_0);
+            int32 points = critAura ? critAura->GetModifier()->m_amount : 0;
+            if (critAura)
+            {
+                p->RemoveAurasDueToSpell(kCritAura);
+            }
+            int32 rollPoints = kRollCritPoints;
+            p->CastCustomSpell(p, kCritAura, &rollPoints, NULL, NULL, true);
+            float const sheet = p->GetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_FROST);
+            uint32 crits = 0;
+            for (uint32 roll = 0; roll < kRolls; ++roll)
+            {
+                crits += p->IsSpellCrit(target, damage, SPELL_SCHOOL_MASK_FROST) ? 1 : 0;
+            }
+            p->RemoveAurasDueToSpell(kCritAura);
+            if (points)
+            {
+                p->CastCustomSpell(p, kCritAura, &points, NULL, NULL, true);
+            }
+            seen.reads["rollFrozen"] = target->IsFrozen() ? 1 : 0;
+            seen.reads["sheet"] = int64(std::lround(sheet * 100.0f));
+            seen.reads["share"] = int64(crits) * 10000 / kRolls;
+            m_rec.Note(std::string("the Camel ") + (target->IsFrozen() ? "frozen" : "not frozen") +
+                       "; his frost crit chance " + std::to_string(seen.reads["sheet"]) +
+                       " hundredths of a percent with the crit aura at " + std::to_string(kRollCritPoints) + "; of " +
+                       U(kRolls) + " IsSpellCrit rolls for 71757 " + U(crits) + " crit");
+        }
+    };
+
+    /**
+     * S1000 `mage-frost-mastery`: a staged Frost mage's mastery and Frostburn (76613), the Frost tree's mastery effect,
+     * with and without the Mastery passive (86473). Staged with Shatter 2 (12982), so the stage teaches the Frost
+     * tree's spells, Frostburn and Frost Specialization (84669, whose MASTERY aura is -6) among them, and not the
+     * passive. Steps, waits each: the stage as it is; the passive learned (Player::learnSpell); the passive unlearned
+     * (Player::removeSpell); kRatingGain mastery rating added (Player::ApplyRatingMod) without it; the passive learned
+     * again. At each read the scenario notes his mastery (PLAYER_MASTERY), Frostburn's effect-0 amount, the points his
+     * mastery rating gives and whether he holds the passive.
+     *
+     * `mastery`: `points=<his mastery at each read, in hundredths>,frostburn=<Frostburn's amount at each read>,held=<1
+     * at each read where he held 86473>`. OK at `points=0,200,0,0,<200 and the rating's points>`, Frostburn at each
+     * read kFrostburnPerPoint times the mastery, truncated (`0,5,0,0,...`), within one, and `held=0,1,0,0,1`: his
+     * mastery counts once he holds the passive, its 8 less Frost Specialization's 6 and his rating, and is 0 without
+     * it, rating and all.
+     */
+    class MageFrostMastery : public MageProcScenario
+    {
+    public:
+        MageFrostMastery() : MageProcScenario("mage-frost-mastery", 1000, "mastery") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11158, 1 } }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kMasteryPassive }; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Wait(300), Wait(300), Wait(300), Wait(300), Wait(300) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 86473: 26 fields, fnv d7de8265
+                { 86473, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 318 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At a step's act: the passive learned, unlearned, the rating added or the passive learned again, by the
+        /// step. At each read: his mastery, Frostburn's amount, his rating's points and whether he holds the passive.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead)
+            {
+                if (k == kLearnStep || k == kRelearnStep)
+                {
+                    p->learnSpell(kMasteryPassive, false);
+                }
+                else if (k == kUnlearnStep)
+                {
+                    p->removeSpell(kMasteryPassive);
+                }
+                else if (k == kRatingStep)
+                {
+                    p->ApplyRatingMod(CR_MASTERY, kRatingGain, true);
+                }
+                return;
+            }
+            Seen& seen = st.seen[k];
+            Aura const* frostburn = p->GetAura(kFrostburn, EFFECT_INDEX_0);
+            seen.reads["points"] = int64(std::lround(p->GetFloatValue(PLAYER_MASTERY) * 100.0f));
+            seen.reads["frostburn"] = frostburn ? int64(frostburn->GetModifier()->m_amount) : kNone;
+            seen.reads["rating"] = int64(std::lround(p->GetRatingBonusValue(CR_MASTERY) * 100.0f));
+            seen.reads["held"] = p->HasAura(kMasteryPassive) ? 1 : 0;
+            m_rec.Note("his mastery " + std::to_string(seen.reads["points"]) + " hundredths, Frostburn " +
+                       std::to_string(seen.reads["frostburn"]) + ", his rating's points " +
+                       std::to_string(seen.reads["rating"]) + " hundredths, the Mastery passive " +
+                       (seen.reads["held"] ? "held" : "not held"));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            std::string points, frostburn, held;
+            bool ok = st.seen.size() == kReads;
+            for (uint32 k = 0; k < st.seen.size(); ++k)
+            {
+                const int64 point = Kept(st, k, "points");
+                const int64 amount = Kept(st, k, "frostburn");
+                const int64 holds = Kept(st, k, "held");
+                const int64 counted = k == kRelearnStep ? 200 + Kept(st, k, "rating") : k == kLearnStep ? 200 : 0;
+                const int64 wantedAmount = int64(kFrostburnPerPoint * float(counted) / 100.0f);
+                const int64 wantedHeld = k == kLearnStep || k == kRelearnStep ? 1 : 0;
+                ok = ok && point != kNone && amount >= 0 &&
+                     (point > counted ? point - counted : counted - point) <= 1 &&
+                     (amount > wantedAmount ? amount - wantedAmount : wantedAmount - amount) <= 1 &&
+                     holds == wantedHeld;
+                points += (k ? "," : "") + std::to_string(point);
+                frostburn += (k ? "," : "") + std::to_string(amount);
+                held += (k ? "," : "") + std::to_string(holds);
+            }
+            ok = ok && Kept(st, kRatingStep, "rating") > 0;
+            const std::string value = "points=" + points + ",frostburn=" + frostburn + ",held=" + held;
+            const std::string detail = "wanted his mastery 0 without the Mastery passive, rating and all, and 2 points "
+                                       "and his rating's with it, Frostburn 2.5 a point truncated, each within one, "
+                                       "held 0,1,0,0,1)";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kMasteryPassive = 86473;
+        static constexpr uint32 kFrostburn = 76613;
+        static constexpr int32 kRatingGain = 1000;
+        /// Frostburn's effect-0 bonus coefficient in the client's data: its amount per point of mastery.
+        static constexpr float kFrostburnPerPoint = 2.5f;
+        static constexpr uint32 kLearnStep = 1;
+        static constexpr uint32 kUnlearnStep = 2;
+        static constexpr uint32 kRatingStep = 3;
+        static constexpr uint32 kRelearnStep = 4;
+        static constexpr uint32 kReads = 5;
+        static constexpr int64 kNone = -1;
+
+        /// A read kept by ReadOwn for step k, kNone when the step kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return kNone;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? kNone : i->second;
+        }
+    };
+
     // ---- the Arcane mage scenarios (1100-1199) ----
 
     /**
@@ -17075,6 +17506,8 @@ namespace Harness
         r.Register(new MageFrostPetOwnerHit("mage-pet-owner-hit-uncapped", 946, false));
         r.Register(new MageFireFlameOrbOwnerHit("mage-fire-flame-orb-owner-hit-uncapped", 947, false));
         r.Register(new MageFrostShatter());
+        r.Register(new MageFrostDeepFreeze());
+        r.Register(new MageFrostMastery());
         r.Register(new MagePolymorphDamage());
         r.Register(new MageThresholdPreventedDamage());
         r.Register(new MageFrostProcRows());

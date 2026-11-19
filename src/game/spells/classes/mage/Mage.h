@@ -380,9 +380,9 @@ namespace Mage
 
     /// How `spell`, cast by `caster` at `target` with the cast time `castTime` its timer started at, counts the target
     /// for damage of `damageType`: REALLY_FROZEN when the target holds the frozen aura state; else, for a hit, FINGERS
-    /// for Deep Freeze's damage (71757, cast only at a target a stun cannot hold) and for a spell that uses a Fingers
-    /// of Frost charge (UsesFingers); else NOT_FROZEN, and always NOT_FROZEN for a periodic effect (DOT) at a target
-    /// that is not frozen. Defined in Frost.cpp.
+    /// for a spell that uses a Fingers of Frost charge (UsesFingers); else NOT_FROZEN, and always NOT_FROZEN for a
+    /// periodic effect (DOT) at a target that is not frozen. Deep Freeze's damage (71757) counts the target by its
+    /// own state alone. Defined in Frost.cpp.
     FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
                               DamageEffectType damageType, uint32 castTime);
 
