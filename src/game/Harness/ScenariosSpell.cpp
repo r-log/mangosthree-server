@@ -186,7 +186,13 @@
 // Arcane Blasts that take one hit with its crit chance; Presence of Mind makes an Arcane Blast instant and refuses
 // Arcane Power and is refused by it; Arcane Missiles! cast during the channel stays through its missiles.
 // 1107 a staged Arcane mage with Improved Blink gets its speed from Blink and not from Arcane Brilliance or Mage Armor.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1011, 1025-1028, 1100-1105 and 1107 (Qualify) fingerprints every
+// 1106 a staged Arcane mage's Mana Shield and Mage Ward give Incanter's Absorption's buff at 20% of what they absorb,
+// an absorb while it runs adds the old buff's share of the time it has left, Ice Barrier's absorb gives none, a Mana
+// Shield that damage uses up knocks back the Camels within 6 yards and not one at 10, a cancelled one knocks back none,
+// and the Mana Gem's spell gives Improved Mana Gem's buff at 2% of his maximum mana on both of its effects.
+// 1108 a staged Arcane mage's Invisibility fades in over 3 s, with Prismatic Cloak 3 makes him invisible at once, and
+// ends either way when he casts a spell.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1011, 1025-1028 and 1100-1108 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4024,7 +4030,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1011, 1025-1028, 1100-1105, 1107): a human mage staged to level 85 with the scenario's talents, glyphs,
+     * 998-1000, 1011, 1025-1028, 1100-1108): a human mage staged to level 85 with the scenario's talents, glyphs,
      * spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged
      * (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249, or the creature TargetEntry names)
      * staged to level TargetLevel() (85 unless the scenario sets its own) ten yards in front of him
@@ -18477,6 +18483,482 @@ namespace Harness
         }
     };
 
+    /**
+     * S1106 `mage-arcane-absorbs`: Incanter's Absorption (44395, rank 2 of 2) and Improved Mana Gem (31585, rank 2 of
+     * 2) on a staged Arcane mage. Incanter's Absorption: what his Mana Shield (1463) or his Mage Ward (543) absorbs
+     * gives him 44413, spell damage at 20% of the amount, for 10 s; an absorb while 44413 runs gives the new share plus
+     * the old buff's amount times the time it has left over its full duration, for another 10 s; what any other shield
+     * absorbs, Ice Barrier (11426) among them, gives nothing; and when damage uses his Mana Shield up he casts 86261,
+     * which knocks back every enemy within 6 yards of him, while a Mana Shield he cancels knocks back nothing. Improved
+     * Mana Gem: the Mana Gem's spell, Replenish Mana (5405), gives him 83098 for 15 s, both of its effects (spell
+     * damage and healing done) at 2% of his maximum mana. Staged with Improved Counterspell (11255, rank 1 of 2, an
+     * Arcane talent that touches none of these spells), so the stage learns the Arcane tree's spells; Incanter's
+     * Absorption 2, Improved Mana Gem 2, Mana Shield and Mage Ward learned through Player::learnSpell, as the stage
+     * learns its spells (the two talents stand on rows that ask for points this stage does not spend). Once staged, his
+     * Offensive State (79684) and Mana Adept (76547) are taken off. Camel A stands kNearYards ahead of him, Camel B
+     * kSideYards to A's side (5 yards from him) and Camel C kFarYards beyond A (10 yards from him). Each shield is his
+     * triggered self-cast; each blow is Camel A's, of kHit damage (kBreak for the last), physical at Mana Shield and
+     * Ice Barrier and fire at Mage Ward, which takes fire, frost and arcane damage alone. Steps, kEveryMs apart unless
+     * named:
+     *  1. Mana Shield;  2. a blow, which the shield absorbs whole;
+     *  3. Mana Shield cancelled as the client's right-click does; right after it, 44413 taken off him by call;
+     *  4. Mage Ward;  5. a blow, which the ward absorbs whole, kComboGapMs before the next step;
+     *  6. a blow while 44413 runs, which the ward absorbs whole;
+     *  7. a wait: right after it, Mage Ward and 44413 taken off him by call and Ice Barrier learned;
+     *  8. Ice Barrier;  9. a blow, which the barrier absorbs whole;
+     * 10. Mana Shield, its cooldown taken off by call first; right after it, Ice Barrier and 44413 taken off by call;
+     * 11. a blow of kBreak, which uses the shield up;
+     * 12. a wait, kSettleMs long: right after it, his mana set to half his maximum by call;
+     * 13. Replenish Mana.
+     * Right after each step acts and at its read, the scenario keeps the distance from him to each Camel; at each read,
+     * the amount of 44413, the time it has left, its full duration, the amounts of 83098's two effects and his maximum
+     * mana.
+     *
+     * `absorbs`: `shield=<44413 at step 2's read>,ward=<at step 5's read>,again=<at step 6's read>/<the combination
+     * wanted>,barrier=<at step 9's read, 0 for none>,cancel=<A><B><C>,break=<A><B><C>,gem=<83098 effect 0>/<effect
+     * 1>@<2% of his maximum mana>`, each Camel's digit 1 when its distance from him moved by more than a yard: for
+     * `cancel` from step 3's act to step 4's read, for `break` from step 11's act to step 12's read. 86261 is a
+     * triggered spell with no visual, which sends no SMSG_SPELL_GO, so its knockback is read from the distances alone.
+     * The combination wanted is kShare plus int(step 5's buff amount x the time it had left at step 6's blow / its full
+     * duration), that time being the time left at step 5's read less the time from that read to the blow. OK at
+     * shield=kShare, ward=kShare, again within kComboSlack of the combination wanted and above kShare, barrier=0,
+     * cancel=000, break=110 and both of 83098's effects at 2% of his maximum mana.
+     */
+    class MageArcaneAbsorbs : public MageProcScenario
+    {
+    public:
+        MageArcaneAbsorbs() : MageProcScenario("mage-arcane-absorbs", 1106, "absorbs") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kIncanters, kImprovedManaGem, kManaShield, kMageWard }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kIceBarrier }; }
+        uint32 CastEveryMs() const override { return kEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 Watched() const override { return kBuff; }
+        float TargetDistance() const override { return kNearYards; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override
+        {
+            return { { 0.0f, kSideYards }, { kFarYards, 0.0f } };
+        }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kIncanters) + (p.HasAura(kIncanters) ? " on him" : " not on him") + ", " + U(kImprovedManaGem) +
+                       (p.HasAura(kImprovedManaGem) ? " on him" : " not on him") + "; maximum mana " + U(p.GetMaxPower(POWER_MANA)));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step shieldAgain = SelfAura(kManaShield);
+            shieldAgain.clearCooldown = true;
+            return { SelfAura(kManaShield), Blow(kHit, SPELL_SCHOOL_MASK_NORMAL, kEveryMs), SelfRemoval(kManaShield, kEveryMs),
+                     SelfAura(kMageWard), Blow(kHit, SPELL_SCHOOL_MASK_FIRE, kComboGapMs), Blow(kHit, SPELL_SCHOOL_MASK_FIRE, kEveryMs),
+                     Wait(kEveryMs), SelfAura(kIceBarrier), Blow(kHit, SPELL_SCHOOL_MASK_NORMAL, kEveryMs), shieldAgain,
+                     Blow(kBreak, SPELL_SCHOOL_MASK_NORMAL, kEveryMs), Wait(kSettleMs), SelfAura(kReplenishMana) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 1463: 26 fields, fnv b44f9850
+                { 1463, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAmplitude", 1065353216 }, { "eff0.EffectAura", 97 }, { "eff0.EffectBasePoints", 120 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 543: 49 fields, fnv 94d386bd
+                { 543, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 165 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 84 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAmplitude", 1065353216 }, { "eff1.EffectAura", 74 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 4 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 11426: 26 fields, fnv 89b76b89
+                { 11426, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 438 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.EffectRealPointsPerLevel", 1077097267 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44395: 26 fields, fnv 8e2712b3
+                { 44395, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 20 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44413: 26 fields, fnv 62a500e4
+                { 44413, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 13 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 86261: 26 fields, fnv 83649f23
+                { 86261, { { "eff0.present", 1 }, { "eff0.Effect", 98 }, { "eff0.EffectBasePoints", 60 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 193 }, { "eff0.EffectRadiusIndex_1", 29 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31585: 26 fields, fnv 7221007d
+                { 31585, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectMiscValue_1", 3 }, { "eff0.EffectSpellClassMask.Flags", 4043439104 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 5405: 26 fields, fnv 3e48a6cf
+                { 5405, { { "eff0.present", 1 }, { "eff0.Effect", 30 }, { "eff0.EffectBasePoints", 389 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 21 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83098: 49 fields, fnv 90dfddf8
+                { 83098, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 13 }, { "eff0.EffectBasePoints", 175 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 135 }, { "eff1.EffectBasePoints", 175 }, { "eff1.EffectBonusCoefficient", 1065353216 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 126 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead)
+            {
+                Act(k, p);
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            const std::string at = atRead ? "" : "act.";
+            std::string text;
+            for (uint32 camel = 0; camel < kCamels; ++camel)
+            {
+                Creature* c = camel < st.targets.size() ? Get(st.targets[camel]) : NULL;
+                const int64 distance = c ? DistanceOf(p, c) : -1;
+                reads[at + kCamelNames[camel]] = distance;
+                text += std::string(camel ? ", " : "") + kCamelNames[camel] + " " + std::to_string(distance);
+            }
+            if (!atRead)
+            {
+                m_rec.Note("right after the step acts: the Camels' distances from him in hundredths of a yard: " + text);
+                return;
+            }
+            SpellAuraHolder* buff = p->GetSpellAuraHolder(kBuff);
+            Aura const* buffAura = p->GetAura(kBuff, EFFECT_INDEX_0);
+            Aura const* gemDamage = p->GetAura(kGemBuff, EFFECT_INDEX_0);
+            Aura const* gemHealing = p->GetAura(kGemBuff, EFFECT_INDEX_1);
+            reads["buff"] = buffAura ? int64(buffAura->GetModifier()->m_amount) : 0;
+            reads["left"] = buff ? int64(buff->GetAuraDuration()) : -1;
+            reads["full"] = buff ? int64(buff->GetAuraMaxDuration()) : -1;
+            reads["gem0"] = gemDamage ? int64(gemDamage->GetModifier()->m_amount) : 0;
+            reads["gem1"] = gemHealing ? int64(gemHealing->GetModifier()->m_amount) : 0;
+            reads["maxMana"] = int64(p->GetMaxPower(POWER_MANA));
+            m_rec.Note("at the read: the Camels' distances from him in hundredths of a yard: " + text + "; " + U(kBuff) + " at " +
+                       std::to_string(reads["buff"]) + ", " + std::to_string(reads["left"]) + " of " + std::to_string(reads["full"]) +
+                       " ms left; " + U(kGemBuff) + " at " + std::to_string(reads["gem0"]) + "/" + std::to_string(reads["gem1"]) +
+                       "; shields on him: " + U(kManaShield) + " " + HolderOf(p, kManaShield) + ", " + U(kMageWard) + " " +
+                       HolderOf(p, kMageWard) + ", " + U(kIceBarrier) + " " + HolderOf(p, kIceBarrier) + "; mana " +
+                       U(p->GetPower(POWER_MANA)) + " of " + U(p->GetMaxPower(POWER_MANA)) + "; energized by " + U(kReplenishMana) +
+                       ": " + EnergizeAmounts(k, kReplenishMana));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const int64 shield = Kept(st, kShieldHit, "buff");
+            const int64 ward = Kept(st, kWardHit, "buff");
+            const int64 again = Kept(st, kAgainHit, "buff");
+            const int64 barrier = Kept(st, kBarrierHit, "buff");
+            const int64 left = Kept(st, kWardHit, "left");
+            const int64 full = Kept(st, kWardHit, "full");
+            const int64 leftAtBlow = left - int64(kComboGapMs - kSwingReadMs);
+            const int64 combined = full > 0 && leftAtBlow > 0 ? kShare + ward * leftAtBlow / full : -1;
+            const bool againOk = combined > kShare && again > kShare && again >= combined - kComboSlack &&
+                                 again <= combined + kComboSlack;
+            const std::string cancel = Moved(st, kCancelStep, kWardStep);
+            const std::string knock = Moved(st, kBreakHit, kSettleStep);
+            const int64 maxMana = Kept(st, kGemStep, "maxMana");
+            const int64 gemWanted = maxMana > 0 ? maxMana * kGemPercent / 100 : -1;
+            const int64 gemDamage = Kept(st, kGemStep, "gem0");
+            const int64 gemHealing = Kept(st, kGemStep, "gem1");
+            const std::string value = "shield=" + std::to_string(shield) + ",ward=" + std::to_string(ward) + ",again=" +
+                                      std::to_string(again) + "/" + std::to_string(combined) + ",barrier=" +
+                                      std::to_string(barrier) + ",cancel=" + cancel + ",break=" + knock + ",gem=" +
+                                      std::to_string(gemDamage) + "/" + std::to_string(gemHealing) + "@" +
+                                      std::to_string(gemWanted);
+            const bool ok = shield == kShare && ward == kShare && againOk && barrier == 0 && cancel == "000" &&
+                            knock == "110" && gemWanted > 0 && gemDamage == gemWanted && gemHealing == gemWanted;
+            return (ok ? "OK(" : "BUG(") + value + "; 44413's amount at the reads of steps 2, 5, 6 and 9, the combination " +
+                   "wanted from step 5's read (" + std::to_string(left) + " of " + std::to_string(full) + " ms left there, " +
+                   std::to_string(leftAtBlow) + " at step 6's blow), the Camels A, B and C moved by more than a yard " +
+                   "after the cancel and after the break, " + U(kKnockBack) + "'s knockback with no SMSG_SPELL_GO of its " +
+                   "own, and 83098's two effects against 2% of his maximum mana)";
+        }
+
+    private:
+        static constexpr uint32 kIncanters = 44395;
+        static constexpr uint32 kImprovedManaGem = 31585;
+        static constexpr uint32 kManaShield = 1463;
+        static constexpr uint32 kMageWard = 543;
+        static constexpr uint32 kIceBarrier = 11426;
+        static constexpr uint32 kReplenishMana = 5405;
+        static constexpr uint32 kBuff = 44413;
+        static constexpr uint32 kKnockBack = 86261;
+        static constexpr uint32 kGemBuff = 83098;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kHit = 1000;
+        static constexpr uint32 kBreak = 4000;
+        static constexpr int64 kShare = 200;
+        static constexpr int64 kComboSlack = 5;
+        static constexpr int64 kGemPercent = 2;
+        static constexpr int64 kMovedHundredths = 100;
+        static constexpr float kNearYards = 4.0f;
+        static constexpr float kSideYards = 3.0f;
+        static constexpr float kFarYards = 6.0f;
+        static constexpr uint32 kEveryMs = 1500;
+        static constexpr uint32 kReadMs = 400;
+        static constexpr uint32 kComboGapMs = 2000;
+        static constexpr uint32 kSettleMs = 1500;
+        static constexpr uint32 kCamels = 3;
+        static constexpr uint32 kShieldHit = 1;
+        static constexpr uint32 kCancelStep = 2;
+        static constexpr uint32 kWardStep = 3;
+        static constexpr uint32 kWardHit = 4;
+        static constexpr uint32 kAgainHit = 5;
+        static constexpr uint32 kBarrierLearn = 6;
+        static constexpr uint32 kBarrierHit = 8;
+        static constexpr uint32 kShieldAgain = 9;
+        static constexpr uint32 kBreakHit = 10;
+        static constexpr uint32 kSettleStep = 11;
+        static constexpr uint32 kGemStep = 12;
+        static constexpr size_t kSteps = 13;
+        static constexpr char const* kCamelNames[kCamels] = { "A", "B", "C" };
+
+        /// A read ReadOwn kept for step k; -1 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, std::string const& name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        /// The distance from `p` to `c` on the ground, in hundredths of a yard, rounded.
+        static int64 DistanceOf(Player* p, Creature* c)
+        {
+            const float dx = c->Where().X() - p->Where().X();
+            const float dy = c->Where().Y() - p->Where().Y();
+            return int64(std::sqrt(dx * dx + dy * dy) * 100.0f + 0.5f);
+        }
+
+        /// One digit per Camel, A, B and C: 1 when its distance from him moved by more than kMovedHundredths from the
+        /// act of step `from` to the read of step `to`, 0 when not, `?` when either was not read.
+        static std::string Moved(St const& st, uint32 from, uint32 to)
+        {
+            std::string out;
+            for (uint32 camel = 0; camel < kCamels; ++camel)
+            {
+                const int64 before = Kept(st, from, std::string("act.") + kCamelNames[camel]);
+                const int64 after = Kept(st, to, kCamelNames[camel]);
+                const int64 moved = after > before ? after - before : before - after;
+                out += before < 0 || after < 0 ? "?" : moved > kMovedHundredths ? "1" : "0";
+            }
+            return out;
+        }
+
+        /// What step k does besides the base's step, right after it acts: the holders taken off him, Ice Barrier
+        /// learned and his mana set.
+        void Act(uint32 k, Player* p)
+        {
+            std::vector<uint32> off;
+            switch (k)
+            {
+                case kCancelStep:
+                    off = { kBuff };
+                    break;
+                case kBarrierLearn:
+                    off = { kMageWard, kBuff };
+                    break;
+                case kShieldAgain:
+                    off = { kIceBarrier, kBuff };
+                    break;
+                case kSettleStep:
+                    p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA) / 2);
+                    m_rec.Note("his mana set to half his maximum by call: " + U(p->GetPower(POWER_MANA)) + " of " +
+                               U(p->GetMaxPower(POWER_MANA)));
+                    return;
+                default:
+                    return;
+            }
+            for (uint32 spell : off)
+            {
+                const bool held = p->HasAura(spell);
+                p->RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off by call" : " was not on him"));
+            }
+            if (k == kBarrierLearn)
+            {
+                p->learnSpell(kIceBarrier, false);
+                m_rec.Note("he learns " + U(kIceBarrier) + (p->HasSpell(kIceBarrier) ? " (known)" : " (unknown)"));
+            }
+        }
+    };
+
+    /**
+     * S1108 `mage-arcane-prismatic-cloak`: Prismatic Cloak (54354, rank 3 of 3) on a staged Arcane mage: its -3000 ms
+     * on Invisibility's fade (66, 3 s) takes the fade to nothing, so Invisibility makes him invisible at once
+     * ("Instantly makes the caster invisible"): the fade's holder, with no time to run, expires at his next update and
+     * casts Invisibility (32612). Without the talent the fade runs its 3 s first. Either way 32612 ends when he casts a
+     * spell. Staged with Improved Counterspell (11255, rank 1 of 2, an Arcane talent that touches none of these
+     * spells), so the stage learns the Arcane tree's spells; Invisibility and Fire Blast (2136) learned through
+     * Player::learnSpell, as the stage learns its spells. Once staged, his Offensive State (79684) and Mana Adept
+     * (76547) are taken off. Before each cast at the Camel he takes Precision (13843, +6% spell hit), so nothing
+     * misses, and the crit aura at -100, so nothing crits. Steps, kEveryMs apart unless named:
+     *  1. the fade, cast by him at himself, kFadeEveryMs before the next step, read kReadMs after it;
+     *  2. a wait, read after the fade has run out;
+     *  3. Fire Blast at the Camel, its cooldown taken off by call first;
+     *  4. a wait: right after it, he learns Prismatic Cloak 3 through Player::learnSpell;
+     *  5. the fade again, its cooldown taken off by call first;
+     *  6. Fire Blast at the Camel, its cooldown taken off by call first.
+     * Right after each step acts and at its read, the scenario keeps whether he holds 66 and 32612, and right after it
+     * acts the full duration of his 66.
+     *
+     * `cloak`: `plain=<66><32612> at step 1's read/<66><32612> at step 2's read,acted=<32612 at step 3's read>,
+     * cloak=<66><32612> at step 5's read,acted=<32612 at step 6's read>,length=<66's full duration right after step
+     * 1>/<right after step 5>`, each digit 1 for held. OK at plain=10/01,acted=0,cloak=01,acted=0,length=3000/0.
+     */
+    class MageArcanePrismaticCloak : public MageProcScenario
+    {
+    public:
+        MageArcanePrismaticCloak() : MageProcScenario("mage-arcane-prismatic-cloak", 1108, "cloak") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kFade, kFireBlast }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kPrismaticCloak }; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 CastEveryMs() const override { return kEveryMs; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 Watched() const override { return kInvisible; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kPrismaticCloak) + (p.HasAura(kPrismaticCloak) ? " on him" : " not on him"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step blast = Cast(kFireBlast, false);
+            blast.clearCooldown = true;
+            Step fadeAgain = SelfAura(kFade);
+            fadeAgain.clearCooldown = true;
+            return { SelfAura(kFade, kFadeEveryMs), Wait(kEveryMs), blast, Wait(kEveryMs), fadeAgain, blast };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 66: 49 fields, fnv a17ad32c
+                { 66, { { "eff0.present", 0 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 1000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 35009 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.EffectBasePoints", 100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectIndex", 2 } } },
+                { 35009, { { "absent", 1 } } },
+                // 32612: 72 fields, fnv c904b48b
+                { 32612, { { "eff0.present", 1 }, { "eff0.Effect", 176 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 18 }, { "eff1.EffectBasePoints", 340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRealPointsPerLevel", 1084227584 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 335 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 54354: 49 fields, fnv c0d8ce3e
+                { 54354, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 87 }, { "eff0.EffectBasePoints", -6 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.EffectSpellClassMask.Flags", 538972160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", -3000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 1 }, { "eff1.EffectSpellClassMask.Flags", 1125899906842624 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 2136: 26 fields, fnv 30ec504c
+                { 2136, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 23 }, { "eff0.EffectBonusCoefficient", 1054582243 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead && k == kLearnStep)
+            {
+                p->learnSpell(kPrismaticCloak, false);
+                m_rec.Note("he learns " + U(kPrismaticCloak) + (p->HasSpell(kPrismaticCloak) ? " (known, " : " (unknown, ") +
+                           (p->HasAura(kPrismaticCloak) ? "its aura on him)" : "no aura)"));
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            const std::string at = atRead ? "" : "act.";
+            reads[at + "fade"] = p->HasAura(kFade) ? 1 : 0;
+            reads[at + "invisible"] = p->HasAura(kInvisible) ? 1 : 0;
+            if (!atRead)
+            {
+                reads["length"] = HolderDuration(p, kFade);
+            }
+            m_rec.Note(std::string(atRead ? "at the read" : "right after the step acts") + ": " + U(kFade) + " " + HolderOf(p, kFade) +
+                       (atRead ? std::string() : ", its full duration " + std::to_string(reads["length"])) + "; " + U(kInvisible) +
+                       " " + HolderOf(p, kInvisible));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const std::string plain = Held(st, kFadeStep) + "/" + Held(st, kAfterFadeStep);
+            const std::string actedPlain = Num(Kept(st, kFirstBlast, "invisible"));
+            const std::string cloak = Held(st, kCloakStep);
+            const std::string actedCloak = Num(Kept(st, kSecondBlast, "invisible"));
+            const std::string length = Num(Kept(st, kFadeStep, "length")) + "/" + Num(Kept(st, kCloakStep, "length"));
+            const std::string value = "plain=" + plain + ",acted=" + actedPlain + ",cloak=" + cloak + ",acted=" + actedCloak +
+                                      ",length=" + length;
+            const bool ok = plain == "10/01" && actedPlain == "0" && cloak == "01" && actedCloak == "0" && length == "3000/0";
+            return (ok ? "OK(" : "BUG(") + value + "; whether he holds 66 and 32612 at the reads of steps 1, 2 and 5, " +
+                   "32612 at the reads of the Fire Blasts, and 66's full duration right after steps 1 and 5; right after " +
+                   "step 5: 66 " + Num(Kept(st, kCloakStep, "act.fade")) + ", 32612 " + Num(Kept(st, kCloakStep, "act.invisible")) + ")";
+        }
+
+    private:
+        static constexpr uint32 kFade = 66;
+        static constexpr uint32 kInvisible = 32612;
+        static constexpr uint32 kFireBlast = 2136;
+        static constexpr uint32 kPrismaticCloak = 54354;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kEveryMs = 1500;
+        static constexpr uint32 kReadMs = 400;
+        static constexpr uint32 kFadeEveryMs = 3200;
+        static constexpr uint32 kFadeStep = 0;
+        static constexpr uint32 kAfterFadeStep = 1;
+        static constexpr uint32 kFirstBlast = 2;
+        static constexpr uint32 kLearnStep = 3;
+        static constexpr uint32 kCloakStep = 4;
+        static constexpr uint32 kSecondBlast = 5;
+        static constexpr size_t kSteps = 6;
+
+        /// A read ReadOwn kept for step k; -1 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        static std::string Num(int64 v)
+        {
+            return std::to_string(v);
+        }
+
+        /// Whether he held 66 and whether he held 32612 at step k's read, as two digits.
+        static std::string Held(St const& st, uint32 k)
+        {
+            return Num(Kept(st, k, "fade")) + Num(Kept(st, k, "invisible"));
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -18558,5 +19040,7 @@ namespace Harness
         r.Register(new MageArcaneImprovedPolymorph());
         r.Register(new MageArcaneClearcasting());
         r.Register(new MageArcaneBlink());
+        r.Register(new MageArcaneAbsorbs());
+        r.Register(new MageArcanePrismaticCloak());
     }
 }
