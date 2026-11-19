@@ -1843,8 +1843,9 @@ TEST(MageScripts_ImprovedManaGemGivesTheRanksPercentOfMaximumMana)
 
     // The script stands for Replenish Mana at the after-cast hook, in the game's table too; the talent's ranks, its
     // buff and Conjure Mana Gem hold no after-cast row. A Mana Gem's cast by a caster without the talent, and by one
-    // whose rank's holder holds no aura, casts nothing; so do Energy Cloak's cast and a cast from no item of a caster
-    // who holds the talent.
+    // whose rank's holder holds no aura, casts nothing. A smoke case: Energy Cloak's cast and a cast from no item of
+    // that caster cast nothing too, but the rank's empty holder gives a percent of 0 and the test's store holds no
+    // 83098, so these cases cannot tell the item check from none; the next test's leaf and scenario 1106 pin it.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();

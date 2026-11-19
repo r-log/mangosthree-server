@@ -203,7 +203,8 @@
 // 1106 a staged Arcane mage's Mana Shield and Mage Ward give Incanter's Absorption's buff at 20% of what they absorb,
 // an absorb while it runs adds the old buff's share of the time it has left, Ice Barrier's absorb gives none, a Mana
 // Shield that damage uses up knocks back the Camels within 6 yards and not one at 10, a cancelled one knocks back none,
-// and the Mana Gem's spell gives Improved Mana Gem's buff at 2% of his maximum mana on both of its effects.
+// the use of his Mana Gem gives Improved Mana Gem's buff at 2% of his maximum mana on both of its effects, also with
+// its last charge, and the use of Energy Cloak, which casts the same spell, gives none.
 // 1108 a staged Arcane mage's Invisibility fades in over 3 s, with Prismatic Cloak 3 makes him invisible at once, and
 // ends either way when he casts a spell.
 // The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1014, 1025-1028 and 1100-1108 (Qualify) fingerprints
