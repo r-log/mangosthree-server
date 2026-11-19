@@ -1823,8 +1823,9 @@ TEST(MageScripts_ImprovedManaGemGivesTheRanksPercentOfMaximumMana)
     CHECK_EQ(Mage::ImprovedManaGemAmount(4294967295u, 2), int32(85899345));
 
     // The script stands for Replenish Mana at the after-cast hook, in the game's table too; the talent's ranks, its
-    // buff and Conjure Mana Gem hold no after-cast row. A caster without the talent, and one whose rank's holder holds
-    // no aura, cast nothing.
+    // buff and Conjure Mana Gem hold no after-cast row. A Mana Gem's cast by a caster without the talent, and by one
+    // whose rank's holder holds no aura, casts nothing; so do Energy Cloak's cast and a cast from no item of a caster
+    // who holds the talent.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -1836,14 +1837,36 @@ TEST(MageScripts_ImprovedManaGemGivesTheRanksPercentOfMaximumMana)
     BareCreature caster;
     SpellRowStorage row;
     SpellEntry const& replenishMana = SpellRow(row, 5405);
-    AfterCastContext noTalent(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f);
+    AfterCastContext noTalent(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f, 36799);
     CHECK(registry.Dispatch<AfterCastHook>(5405, noTalent).IsContinue());
     HolderStorage talentStorage;
     caster.HoldAura(31585, EmptyHolder(talentStorage));
-    AfterCastContext emptyRank(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f);
+    AfterCastContext emptyRank(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f, 36799);
     CHECK(registry.Dispatch<AfterCastHook>(5405, emptyRank).IsContinue());
+    for (uint32 itemEntry : { 9397u, 0u })
+    {
+        AfterCastContext notAGem(caster, replenishMana, 0, NULL, false, 0.0f, 0.0f, 0.0f, itemEntry);
+        CHECK(registry.Dispatch<AfterCastHook>(5405, notAGem).IsContinue());
+    }
     CHECK(!caster.HasAura(83098));
     CHECK_EQ(caster.GetSpellAuraHolderMap().size(), std::size_t(1));
+}
+
+TEST(MageScripts_ImprovedManaGemComesFromTheManaGemsAlone)
+{
+    // "Mana gained from your Mana Gem": the Mana Gem and the six older conjured gems of its cooldown category, the
+    // items of the 15595 client that cast Replenish Mana (5405) besides Energy Cloak.
+    for (uint32 itemEntry : { 36799u, 5514u, 5513u, 8007u, 8008u, 22044u, 33312u })
+    {
+        CHECK(Mage::IsManaGem(itemEntry));
+    }
+
+    // Energy Cloak, a rare cloak whose use casts 5405 too, a cast from no item, a Healthstone (5512) and a Conjured
+    // Mana Strudel (43523), a conjured item that restores mana with another spell.
+    for (uint32 itemEntry : { 9397u, 0u, 5512u, 43523u })
+    {
+        CHECK(!Mage::IsManaGem(itemEntry));
+    }
 }
 
 TEST(MageScripts_PyromaniacCountsTheMagesFireDamageOverTime)
@@ -2592,7 +2615,7 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
     SpellEntry const& blastWave = SpellRow(row, 11113);
 
     // Two enemies hit by a caster without Improved Flamestrike: nothing.
-    AfterCastContext noTalent(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f);
+    AfterCastContext noTalent(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f, 0);
     CHECK(body(noTalent).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
 
@@ -2602,18 +2625,18 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
     caster.HoldAura(84674, EmptyHolder(talentStorage));
     for (uint32 enemies : { 0u, 1u })
     {
-        AfterCastContext few(caster, blastWave, enemies, &aimedAt, true, 10.0f, 20.0f, 5.0f);
+        AfterCastContext few(caster, blastWave, enemies, &aimedAt, true, 10.0f, 20.0f, 5.0f, 0);
         CHECK(body(few).IsContinue());
         CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
     }
-    AfterCastContext pointless(caster, blastWave, 2, NULL, false, 0.0f, 0.0f, 0.0f);
+    AfterCastContext pointless(caster, blastWave, 2, NULL, false, 0.0f, 0.0f, 0.0f, 0);
     CHECK(body(pointless).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
 
     // A smoke case: two enemies hit with rank 2 held and a point runs the chance and the cast of 88148 at the point.
     // The test's store holds no 88148, so the cast ends at its lookup and builds nothing, and this case cannot tell
     // an attempt from none; scenario 980 pins the cast itself. The caster holds only the talent afterwards.
-    AfterCastContext two(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f);
+    AfterCastContext two(caster, blastWave, 2, &aimedAt, true, 10.0f, 20.0f, 5.0f, 0);
     CHECK(body(two).IsContinue());
     CHECK(caster.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
     CHECK_EQ(caster.GetSpellAuraHolderMap().size(), std::size_t(1));

@@ -31,6 +31,9 @@
 #include "DBCStores.h"
 #include "Log.h"
 
+#include <algorithm>
+#include <iterator>
+
 namespace
 {
     typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
@@ -93,12 +96,18 @@ namespace
 
     uint32 const IMPROVED_MANA_GEM[] = { 31584, 31585 };
     uint32 const IMPROVED_MANA_GEM_BUFF = 83098;
+    uint32 const MANA_GEMS[] = { 5513, 5514, 8007, 8008, 22044, 33312, 36799 };
 
-    /// 5405: Replenish Mana, the Mana Gem's spell: once its cast is over, a mage who knows a rank of Improved Mana Gem
-    /// casts 83098 on himself, both of its effects (spell damage and healing done) at the rank's percent of his maximum
-    /// mana (Mage::ImprovedManaGemAmount). A caster without the talent casts nothing.
+    /// 5405: Replenish Mana, the Mana Gem's spell: once its cast from a Mana Gem (Mage::IsManaGem) is over, a mage who
+    /// knows a rank of Improved Mana Gem casts 83098 on himself, both of its effects (spell damage and healing done) at
+    /// the rank's percent of his maximum mana (Mage::ImprovedManaGemAmount). A cast from any other item or from no item,
+    /// and a caster without the talent, cast nothing.
     SpellHandlerOutcome<void> ReplenishManaAfterCast(AfterCastContext& ctx)
     {
+        if (!Mage::IsManaGem(ctx.castItemEntry))
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
         int32 percent = 0;
         for (uint32 rank : IMPROVED_MANA_GEM)
         {
@@ -426,6 +435,11 @@ int32 Mage::ImprovedManaGemAmount(uint32 maxMana, int32 percent)
         return 0;
     }
     return int32(uint64(maxMana) * uint64(percent) / 100);
+}
+
+bool Mage::IsManaGem(uint32 itemEntry)
+{
+    return std::find(std::begin(MANA_GEMS), std::end(MANA_GEMS), itemEntry) != std::end(MANA_GEMS);
 }
 
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)

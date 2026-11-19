@@ -341,6 +341,12 @@ namespace Mage
     /// `maxMana`, truncated; 0 for a percent of 0 or less. Defined in Arcane.cpp.
     int32 ImprovedManaGemAmount(uint32 maxMana, int32 percent);
 
+    /// Whether `itemEntry` is a mage's Mana Gem, the only item whose Replenish Mana (5405) gives Improved Mana Gem's
+    /// buff: the Mana Gem (36799) and the older conjured gems that share its cooldown category (Mana Agate 5514, Mana
+    /// Jade 5513, Mana Citrine 8007, Mana Ruby 8008, Mana Emerald 22044, Mana Sapphire 33312); never Energy Cloak
+    /// (9397), the other item that casts 5405, and never 0, a cast from no item. Defined in Arcane.cpp.
+    bool IsManaGem(uint32 itemEntry);
+
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
     /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.
