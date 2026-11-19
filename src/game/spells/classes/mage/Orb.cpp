@@ -42,12 +42,12 @@
 
 namespace
 {
-    /// The orbs of the mage's spells, one row each: Flame Orb, and Frostfire Orb, whose hit is 84721 for an owner who
-    /// knows its second rank (84727).
+    /// The orbs of the mage's spells, one row each: Flame Orb, and Frostfire Orb, which never explodes and whose hit is
+    /// 84721 for an owner who knows its second rank (84727).
     Mage::OrbSpells const ORBS[] =
     {
         { 82731, 84765, 44214, 82690, 82734, 82739, 82736, 83619, { 18459, 18460, 54734 }, 0, 0 },
-        { 92283, 84714, 45322, 84717, 84718, 95969, 82736, 83619, { 18459, 18460, 54734 }, 84721, 84727 },
+        { 92283, 84714, 45322, 84717, 84718, 95969, 82736, 0, { 0, 0, 0 }, 84721, 84727 },
     };
 
     /// The name the orb's creature AI is registered under.

@@ -297,10 +297,10 @@ TEST(MageOrb_TheSecondRowNamesTheSpellsAndTheCreatureOfFrostfireOrb)
     CHECK_EQ(orb->scanSpell, uint32(84718));
     CHECK_EQ(orb->hitSpell, uint32(95969));
     CHECK_EQ(orb->snareSpell, uint32(82736));
-    CHECK_EQ(orb->explosionSpell, uint32(83619));
-    CHECK_EQ(orb->explosionTalents[0], uint32(18459));
-    CHECK_EQ(orb->explosionTalents[1], uint32(18460));
-    CHECK_EQ(orb->explosionTalents[2], uint32(54734));
+    CHECK_EQ(orb->explosionSpell, uint32(0));
+    CHECK_EQ(orb->explosionTalents[0], uint32(0));
+    CHECK_EQ(orb->explosionTalents[1], uint32(0));
+    CHECK_EQ(orb->explosionTalents[2], uint32(0));
     CHECK_EQ(orb->rankHitSpell, uint32(84721));
     CHECK_EQ(orb->rankHitTalent, uint32(84727));
 
