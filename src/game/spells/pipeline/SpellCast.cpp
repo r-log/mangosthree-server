@@ -121,6 +121,7 @@ void Spell::SpellStart(SpellCastTargets const* targets, Aura* triggeredByAura)
     if (m_CastItem)
     {
         m_CastItemGuid = m_CastItem->GetObjectGuid();
+        m_castItemEntry = m_CastItem->GetEntry();
     }
 
     m_castPositionX = m_caster->Where().X();
@@ -1162,7 +1163,7 @@ void Spell::finish(bool ok)
     }
 
     // the cast's script once it is over, when the spell has one: the units it hit that the caster is not friendly to,
-    // and the point it was aimed at
+    // the point it was aimed at and the item it was cast from
     if (SpellHandlerRegistry::Game().Find<AfterCastHook>(m_spellInfo->ID))
     {
         uint32 enemiesHit = 0;
@@ -1189,7 +1190,7 @@ void Spell::finish(bool ok)
             m_targets.getDestination(destX, destY, destZ);
         }
         AfterCastContext afterCast(*m_caster, *m_spellInfo, enemiesHit, explicitTarget, hasDestination, destX, destY,
-                                   destZ);
+                                   destZ, m_castItemEntry);
         SpellHandlerRegistry::Game().Dispatch<AfterCastHook>(m_spellInfo->ID, afterCast);
     }
 

@@ -32,6 +32,8 @@
 #include "SharedDefines.h"
 #include "Arbiter.h"
 
+#include <list>
+
 class WorldObject;
 class GameObject;
 class Unit;
@@ -256,6 +258,14 @@ class CreatureAI
          * @param pSpell Spell with which we hit pTarget
          */
         virtual void SpellHitTarget(Unit* /*pTarget*/, const SpellEntry* /*pSpell*/) {}
+
+        /**
+         * Asked by a script of a spell the creature casts, once the unit targets of one of its effects are filled: the
+         * AI may remove units from them. Keeps every unit by default.
+         * @param pSpell The spell the creature casts
+         * @param targets The unit targets of the effect
+         */
+        virtual void FilterSpellTargets(const SpellEntry* /*pSpell*/, std::list<Unit*>& /*targets*/) {}
 
         /**
          * Called when the creature is target of hostile action: swing, hostile spell landed, fear/etc)
