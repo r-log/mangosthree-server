@@ -813,8 +813,13 @@ bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ow
     }
 }
 
-bool CountsPreventedDamage(uint32 auraType)
+bool CountsPreventedDamage(uint32 auraType, uint32 auraInterruptFlags, uint32 charges)
 {
+    if (auraType == SPELL_AURA_MOD_STUN)
+    {
+        return !charges && (auraInterruptFlags & AURA_INTERRUPT_FLAG_DAMAGE2) &&
+               !(auraInterruptFlags & AURA_INTERRUPT_FLAG_DAMAGE);
+    }
     return auraType == SPELL_AURA_MOD_FEAR || auraType == SPELL_AURA_MOD_ROOT ||
            auraType == SPELL_AURA_MOD_PACIFY_SILENCE;
 }

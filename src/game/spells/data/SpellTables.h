@@ -94,9 +94,11 @@ bool DamageBreaksAuras(uint32 attributesEx4);
 bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ownSpell, uint32 procAttributesEx4,
                         uint32 auraInterruptFlags, uint32 auraType);
 
-/// Whether an aura of `auraType` breaks on damage past a threshold and counts the damage a hit's absorbs and the
-/// victim's damage-reduction effects took (ThresholdDamage): a fear, a root or a pacify-silence.
-bool CountsPreventedDamage(uint32 auraType);
+/// Whether an aura of `auraType` whose aura interrupt flags are `auraInterruptFlags`, on a holder with `charges`
+/// charges, breaks on damage by a chance past a threshold and counts the damage a hit's absorbs and the victim's
+/// damage-reduction effects took (ThresholdDamage): a fear, a root or a pacify-silence, and a stun whose flags hold
+/// AURA_INTERRUPT_FLAG_DAMAGE2 and not AURA_INTERRUPT_FLAG_DAMAGE on a holder with no charges (Ring of Frost's freeze).
+bool CountsPreventedDamage(uint32 auraType, uint32 auraInterruptFlags, uint32 charges);
 
 /// The damage a threshold effect counts for a hit: the `damage` that got through plus the `absorbed` part, taken back
 /// to before the victim's damage-reduction effects, whose product is `reductionMultiplier`, rounded to the nearest

@@ -398,7 +398,8 @@ TEST(SpellTables_AStunBreaksOnDamageOnlyWhenItsInterruptFlagsSaySo)
     CHECK(!BreaksOnDamageProc(0, true, 0, false, 0, kWyvernStingFlags, SPELL_AURA_MOD_STUN));
     CHECK(!BreaksOnDamageProc(500, true, 0, false, kMoltenArmorHitEx4, kWyvernStingFlags, SPELL_AURA_MOD_STUN));
 
-    // Ring of Frost (no AURA_INTERRUPT_FLAG_DAMAGE, no charges) and a stun with no flags at all
+    // Ring of Frost (no AURA_INTERRUPT_FLAG_DAMAGE, no charges: it breaks by a chance, CountsPreventedDamage) and a
+    // stun with no flags at all
     CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, kRingOfFrostFlags, SPELL_AURA_MOD_STUN));
     CHECK(!BreaksOnDamageProc(500, true, 0, false, 0, 0, SPELL_AURA_MOD_STUN));
 
@@ -420,17 +421,36 @@ TEST(SpellTables_NoOtherAuraTypeBreaksOnAnyDamage)
 
 TEST(SpellTables_TheThresholdEffectsAreFearRootAndPacifySilenceAndNoOther)
 {
-    // Fear, Entangling Roots and Frost Nova, and Hex's pacify-silence
-    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_FEAR));
-    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_ROOT));
-    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_PACIFY_SILENCE));
+    // Fear, Entangling Roots and Frost Nova, and Hex's pacify-silence, whatever their flags and charges
+    for (uint32 auraType : { uint32(SPELL_AURA_MOD_FEAR), uint32(SPELL_AURA_MOD_ROOT),
+                             uint32(SPELL_AURA_MOD_PACIFY_SILENCE) })
+    {
+        CHECK(CountsPreventedDamage(auraType, 0, 0));
+        CHECK(CountsPreventedDamage(auraType, kWyvernStingFlags, 0));
+        CHECK(CountsPreventedDamage(auraType, kRingOfFrostFlags, 1));
+    }
 
-    // Polymorph's confuse and transform, Wyvern Sting's stun, a pacify and no aura
-    for (uint32 auraType : { uint32(SPELL_AURA_MOD_CONFUSE), uint32(SPELL_AURA_TRANSFORM), uint32(SPELL_AURA_MOD_STUN),
+    // Polymorph's confuse (whose flags hold AURA_INTERRUPT_FLAG_DAMAGE2 alone too) and transform, a pacify and no aura
+    for (uint32 auraType : { uint32(SPELL_AURA_MOD_CONFUSE), uint32(SPELL_AURA_TRANSFORM),
                              uint32(SPELL_AURA_MOD_PACIFY), uint32(SPELL_AURA_NONE) })
     {
-        CHECK(!CountsPreventedDamage(auraType));
+        CHECK(!CountsPreventedDamage(auraType, kPolymorphFlags, 0));
+        CHECK(!CountsPreventedDamage(auraType, kRingOfFrostFlags, 0));
     }
+}
+
+TEST(SpellTables_AStunWhoseFlagsHoldOnlyTheSecondDamageFlagIsAThresholdEffect)
+{
+    // Ring of Frost's freeze: AURA_INTERRUPT_FLAG_DAMAGE2 and not AURA_INTERRUPT_FLAG_DAMAGE, no charges
+    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_STUN, kRingOfFrostFlags, 0));
+    CHECK(CountsPreventedDamage(SPELL_AURA_MOD_STUN, AURA_INTERRUPT_FLAG_DAMAGE2, 0));
+
+    // the same stun on a holder with charges spends them; Wyvern Sting's stun and a stun that holds both flags break
+    // on any damage (BreaksOnDamageProc); a stun with neither flag never breaks on damage
+    CHECK(!CountsPreventedDamage(SPELL_AURA_MOD_STUN, kRingOfFrostFlags, 1));
+    CHECK(!CountsPreventedDamage(SPELL_AURA_MOD_STUN, kWyvernStingFlags, 0));
+    CHECK(!CountsPreventedDamage(SPELL_AURA_MOD_STUN, AURA_INTERRUPT_FLAG_DAMAGE | AURA_INTERRUPT_FLAG_DAMAGE2, 0));
+    CHECK(!CountsPreventedDamage(SPELL_AURA_MOD_STUN, 0, 0));
 }
 
 TEST(SpellTables_AThresholdEffectCountsTheDamageAbsorbsAndReductionEffectsTook)
