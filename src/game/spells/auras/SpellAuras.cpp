@@ -1447,6 +1447,14 @@ void Aura::TriggerSpell()
         return;
     }
 
+    uint32 tickAmount = m_modifier.m_amount > 0 ? uint32(m_modifier.m_amount) : 0;
+    PeriodicTickContext tickCtx(*GetTarget(), GetCaster(), *GetSpellProto(), m_effIndex, AuraHandle(*GetHolder()),
+                                tickAmount, true);
+    if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
+    {
+        return;
+    }
+
     // generic casting code with custom spells and target/caster customs
     uint32 trigger_spell_id = m_spellEffect->EffectTriggerSpell;
 
@@ -2910,6 +2918,12 @@ void SpellAuraHolder::_AddSpellAuraHolder()
         if (getDiminishGroup() != DIMINISHING_NONE)
         {
             m_target->ApplyDiminishingAura(getDiminishGroup(), true);
+            DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                      m_target->GetTypeId() == TYPEID_PLAYER);
+            if (shared != DIMINISHING_NONE)
+            {
+                m_target->ApplyDiminishingAura(shared, true);
+            }
         }
 
         // Update Seals information
@@ -3012,6 +3026,12 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
     if (getDiminishGroup() != DIMINISHING_NONE)
     {
         m_target->ApplyDiminishingAura(getDiminishGroup(), false);
+        DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                  m_target->GetTypeId() == TYPEID_PLAYER);
+        if (shared != DIMINISHING_NONE)
+        {
+            m_target->ApplyDiminishingAura(shared, false);
+        }
     }
 
     SetAuraFlags(AFLAG_NONE);

@@ -74,8 +74,10 @@ struct SpellEntry;
  *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras. It is the
  *   boosts' moment; a dummy effect's own body runs on DummyAura.
  * - PeriodicTick: `Aura::PeriodicTick`, for a damage or a heal tick, before the target's steps (its taken bonus, the
- *   crit, its absorb and resist), and `Aura::PeriodicDummyTick`, before its family switch. Return() ends the tick with
- *   nothing dealt. A body may change the amount; a body that removes the ticking aura must Return().
+ *   crit, its absorb and resist), `Aura::PeriodicDummyTick`, before its family switch, and `Aura::TriggerSpell`, for
+ *   the tick of a periodic trigger whose aura has a caster and a trigger target, before its trigger spell is looked
+ *   up, with `dummy` true and the effect's amount. Return() ends the tick with nothing dealt or cast. A body may change
+ *   the amount; a body that removes the ticking aura must Return().
  * - CheckProc: `Unit::ProcDamageAndSpellFor`, after the proc event accepted a holder. Return(false) drops the holder
  *   from this proc. Return(true) keeps it, and for a holder with no spell_proc_event row its effects then skip
  *   Aura::CanProcFrom (their class mask and the hit's kind, which refuses a hit that dealt nothing), as the core's
@@ -420,7 +422,8 @@ struct PeriodicTickContext
     SpellEffectIndex effIndex;                      ///< the ticking effect
     AuraHandle aura;                                ///< the aura's holder
     uint32& amount;                                 ///< the tick's damage or heal, which a body may change
-    bool dummy;                                     ///< true for the tick of a dummy aura, which deals nothing
+    bool dummy;                                     ///< true for the tick of a dummy aura or of a periodic trigger,
+                                                    ///< which deal nothing
 };
 
 /// CheckProc's context. Value: bool.
@@ -691,8 +694,8 @@ struct AuraRemoveHook
     typedef AuraRemoveContext Context;
 };
 
-/// `Aura::PeriodicTick`, before the target's steps (its taken bonus, the crit, its absorb), and
-/// `Aura::PeriodicDummyTick`. Return() ends the tick.
+/// `Aura::PeriodicTick`, before the target's steps (its taken bonus, the crit, its absorb),
+/// `Aura::PeriodicDummyTick`, and `Aura::TriggerSpell`, before the trigger spell is looked up. Return() ends the tick.
 struct PeriodicTickHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_PERIODIC_TICK;

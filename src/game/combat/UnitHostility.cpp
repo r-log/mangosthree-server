@@ -347,6 +347,34 @@ bool Unit::IsFriendlyTo(Unit const* unit) const
 }
 
 /**
+ * @brief Checks whether a player sees a unit as a friend, as the client does when it picks a spell's friendly or
+ * hostile visual.
+ *
+ * @param viewer The player who sees the unit.
+ * @param unit The unit seen.
+ * @return True if the viewer is friendly to the unit and, with another player behind the unit, the two faction
+ * templates are friendly as well; otherwise, false.
+ */
+bool SeesAsFriend(Player const& viewer, Unit const& unit)
+{
+    if (!viewer.IsFriendlyTo(&unit))
+    {
+        return false;
+    }
+
+    // a player behind the unit: the faction templates decide too, whatever the PvP flag
+    Player const* player = unit.GetCharmerOrOwnerPlayerOrPlayerItself();
+    if (!player || player == &viewer)
+    {
+        return true;
+    }
+
+    FactionTemplateEntry const* mine = viewer.getFactionTemplateEntry();
+    FactionTemplateEntry const* theirs = unit.getFactionTemplateEntry();
+    return mine && theirs && (mine->IsFriendlyTo(*theirs) || theirs->IsFriendlyTo(*mine));
+}
+
+/**
  * @brief Checks whether this unit is intrinsically hostile to players.
  *
  * @return True if the faction template is hostile to players; otherwise, false.
