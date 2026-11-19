@@ -25,14 +25,19 @@
 
 #include "spells/classes/mage/Mage.h"
 #include "spells/pipeline/Spell.h"
+#include "spells/data/SpellMgr.h"
 #include "spells/SpellModMgr.h"
 #include "entities/Unit.h"
 #include "entities/Creature.h"
+#include "entities/Pet.h"
 #include "DBCStores.h"
 #include "Utilities/Util.h"
 
 #include <algorithm>
 #include <iterator>
+#include <limits>
+#include <utility>
+#include <vector>
 
 namespace
 {
@@ -55,6 +60,14 @@ namespace
     uint32 const EARLY_FROST_RANK_TWO = 83050;
     uint32 const EARLY_FROST_LOCKOUT_RANK_ONE = 83162;
     uint32 const EARLY_FROST_LOCKOUT_RANK_TWO = 83239;
+    uint32 const PIERCING_CHILL_RANK_ONE = 83156;
+    uint32 const PIERCING_CHILL_RANK_TWO = 83157;
+    uint32 const PIERCING_CHILL_CHILL = 83154;
+    uint32 const PERMAFROST_PET_HEAL = 91394;
+    uint32 const IMPROVED_CONE_OF_COLD_RANK_ONE = 11190;
+    uint32 const IMPROVED_CONE_OF_COLD_RANK_TWO = 12489;
+    uint32 const IMPROVED_CONE_OF_COLD_FREEZE_ONE = 83301;
+    uint32 const IMPROVED_CONE_OF_COLD_FREEZE_TWO = 83302;
 
     /// Fingers of Frost's text: "Ice Lance deals 25% more damage" while a charge is up. No field of the data holds it.
     int32 const ICE_LANCE_FINGERS_PERCENT = 25;
@@ -79,6 +92,15 @@ namespace
     {
         SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
         return spell ? spell->CalculateSimpleValue(index) : 0;
+    }
+
+    /// The radius in yards of effect `index` of spell `spellId` in the spell store; 0 when the store lacks the spell,
+    /// the effect or its radius.
+    float EffectRadius(uint32 spellId, SpellEffectIndex index)
+    {
+        SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
+        SpellEffectEntry const* effect = spell ? spell->GetSpellEffect(index) : NULL;
+        return effect ? GetSpellRadius(sSpellRadiusStore.LookupEntry(effect->GetRadiusIndex())) : 0.0f;
     }
 
     /// The cast time in ms that the caster's cast of `spell` in one of his current spell slots started with, when that
@@ -226,11 +248,105 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    /// 116: Frostbolt: after a hit that was a critical strike, for a caster who knows Piercing Chill (83157, or 83156):
+    /// of the enemies within the chill's radius (effect 0 of 83154) of the target, the talent's count nearest to the
+    /// target, the target never among them (Mage::NearestOthers), each get the chill (83154), cast at each one through
+    /// the talent's aura. Nothing for a heal or a hit that was no crit.
+    SpellHandlerOutcome<void> FrostboltAfterHit(AfterHitContext& ctx)
+    {
+        if (ctx.heal || !ctx.crit)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        uint32 const talent = ctx.caster.HasAura(PIERCING_CHILL_RANK_TWO) ? PIERCING_CHILL_RANK_TWO :
+                              ctx.caster.HasAura(PIERCING_CHILL_RANK_ONE) ? PIERCING_CHILL_RANK_ONE : 0;
+        int32 const count = Mage::PiercingChillCount(talent);
+        if (count <= 0)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        std::list<Unit*> others;
+        ctx.EnemiesAround(ctx.target, EffectRadius(PIERCING_CHILL_CHILL, EFFECT_INDEX_0), others);
+        Mage::NearestOthers(others, &ctx.target, ctx.target, count);
+        for (Unit* other : others)
+        {
+            ctx.CastTriggeredByAura(*other, PIERCING_CHILL_CHILL, talent, EFFECT_INDEX_0);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 83154: Piercing Chill: of the units the engine found for an effect, keeps the cast's explicit target alone,
+    /// once, and makes the list final; empties it for a cast with no unit target or one the engine did not find.
+    SpellHandlerOutcome<void> PiercingChillTargets(SelectTargetsContext& ctx)
+    {
+        bool const found = ctx.castTarget &&
+                           std::find(ctx.targets.begin(), ctx.targets.end(), ctx.castTarget) != ctx.targets.end();
+        ctx.targets.clear();
+        if (found)
+        {
+            ctx.targets.push_back(ctx.castTarget);
+        }
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    /// 11175, 12569, 12571: Permafrost: its dummy effect's proc heals the caster's pet through 91394 for the effect's
+    /// percent of the hit's damage (Mage::PermafrostHeal), cast at the pet with that heal as its value
+    /// (Mage::CastProcSpell). FAILED, with nothing cast, when he has no living pet or the heal is 0.
+    ProcOutcome PermafrostProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
+        {
+            return ProcOutcome::Continue();
+        }
+        Pet* pet = ctx.caster.GetPet();
+        if (!pet || !pet->IsAlive())
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        int32 const heal = Mage::PermafrostHeal(ctx.damage, ctx.triggerAmount);
+        if (heal <= 0)
+        {
+            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
+        }
+        int32 const basePoints[MAX_EFFECT_INDEX] = { heal, 0, 0 };
+        return ProcOutcome::Return(Mage::CastProcSpell(ctx, *pet, PERMAFROST_PET_HEAL, basePoints));
+    }
+
+    /// 120: Cone of Cold: after its damage, for a caster who knows Improved Cone of Cold (12489, or 11190), the living
+    /// unit it hit casts the rank's freeze (Mage::ImprovedConeOfColdFreeze) on itself, for the caster. A unit immune to
+    /// the freeze as a spell of the caster's is not frozen: the freeze shows Immune at it instead. Nothing for a heal.
+    SpellHandlerOutcome<void> ConeOfColdAfterHit(AfterHitContext& ctx)
+    {
+        if (ctx.heal || !ctx.target.IsAlive())
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        uint32 const talent = ctx.caster.HasAura(IMPROVED_CONE_OF_COLD_RANK_TWO) ? IMPROVED_CONE_OF_COLD_RANK_TWO :
+                              ctx.caster.HasAura(IMPROVED_CONE_OF_COLD_RANK_ONE) ? IMPROVED_CONE_OF_COLD_RANK_ONE : 0;
+        uint32 const freeze = Mage::ImprovedConeOfColdFreeze(talent);
+        SpellEntry const* freezeSpell = freeze ? sSpellStore.LookupEntry(freeze) : NULL;
+        if (!freezeSpell)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        if (ctx.target.IsImmuneToSpell(freezeSpell, false))
+        {
+            ctx.ShowImmune(ctx.target, freeze);
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        ctx.CastTriggeredFrom(ctx.target, ctx.target, freeze);
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     uint32 const DEEP_FREEZE_IMMUNITY[] = { 71761 };
     uint32 const FINGERS_OF_FROST[] = { 44543, 44545, 83074 };
     uint32 const BRAIN_FREEZE[] = { 44546, 44548, 44549 };
     uint32 const FROST_LAUNCHES[] = { 30455, 44572, 44614, 133 };
     uint32 const FROSTBOLT_CAST_START[] = { FROSTBOLT };
+    uint32 const FROSTBOLT_HIT[] = { 116 };
+    uint32 const PIERCING_CHILL_CHILLS[] = { 83154 };
+    uint32 const PERMAFROST[] = { 11175, 12569, 12571 };
+    uint32 const CONE_OF_COLD_HIT[] = { 120 };
 }
 
 uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
@@ -243,6 +359,10 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     rows += RegisterRanks<CheckProcHook>(registry, BRAIN_FREEZE, &ChillSourceCheckProc);
     rows += RegisterRanks<LaunchHook>(registry, FROST_LAUNCHES, &FrostLaunch);
     rows += RegisterRanks<CastStartHook>(registry, FROSTBOLT_CAST_START, &FrostboltCastStart);
+    rows += RegisterRanks<AfterHitHook>(registry, FROSTBOLT_HIT, &FrostboltAfterHit);
+    rows += RegisterRanks<SelectTargetsHook>(registry, PIERCING_CHILL_CHILLS, &PiercingChillTargets);
+    rows += RegisterRanks<OnProcHook>(registry, PERMAFROST, &PermafrostProc);
+    rows += RegisterRanks<AfterHitHook>(registry, CONE_OF_COLD_HIT, &ConeOfColdAfterHit);
     return rows;
 }
 
@@ -327,4 +447,67 @@ uint32 Mage::EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockou
         return 0;
     }
     return knowsRankTwo ? EARLY_FROST_LOCKOUT_RANK_TWO : knowsRankOne ? EARLY_FROST_LOCKOUT_RANK_ONE : 0;
+}
+
+int32 Mage::PiercingChillCount(uint32 talentSpell)
+{
+    if (talentSpell != PIERCING_CHILL_RANK_ONE && talentSpell != PIERCING_CHILL_RANK_TWO)
+    {
+        return 0;
+    }
+    return EffectValue(talentSpell, EFFECT_INDEX_0);
+}
+
+void Mage::NearestOthers(std::list<Unit*>& targets, Unit const* excluded, WorldObject const& from, int32 count)
+{
+    std::vector<std::pair<float, Unit*> > byDistance;
+    for (Unit* unit : targets)
+    {
+        if (!unit || unit == excluded)
+        {
+            continue;
+        }
+        bool listed = false;
+        for (std::pair<float, Unit*> const& kept : byDistance)
+        {
+            listed = listed || kept.second == unit;
+        }
+        if (!listed)
+        {
+            byDistance.push_back(std::make_pair(from.Where().DistanceTo(unit->Where()), unit));
+        }
+    }
+    std::stable_sort(byDistance.begin(), byDistance.end(),
+                     [](std::pair<float, Unit*> const& a, std::pair<float, Unit*> const& b)
+                     {
+                         return a.first < b.first;
+                     });
+    targets.clear();
+    for (std::size_t i = 0; count > 0 && i < byDistance.size() && i < std::size_t(count); ++i)
+    {
+        targets.push_back(byDistance[i].second);
+    }
+}
+
+int32 Mage::PermafrostHeal(uint32 damage, int32 percent)
+{
+    if (percent <= 0)
+    {
+        return 0;
+    }
+    int64 const heal = int64(damage) * percent / 100;
+    return heal > std::numeric_limits<int32>::max() ? std::numeric_limits<int32>::max() : int32(heal);
+}
+
+uint32 Mage::ImprovedConeOfColdFreeze(uint32 talentSpell)
+{
+    switch (talentSpell)
+    {
+        case IMPROVED_CONE_OF_COLD_RANK_ONE:
+            return IMPROVED_CONE_OF_COLD_FREEZE_ONE;
+        case IMPROVED_CONE_OF_COLD_RANK_TWO:
+            return IMPROVED_CONE_OF_COLD_FREEZE_TWO;
+        default:
+            return 0;
+    }
 }
