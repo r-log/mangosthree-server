@@ -25,10 +25,10 @@
 
 /// Tests of the mage's ring (spells/classes/mage/Ring.cpp): its table row, the creature it names, its band, the time
 /// it takes to form, the units it takes, the removals that leave the marker, its rows at the periodic-tick, target and
-/// aura-remove hooks with its creature AI's factory, the exits of its scripts, and the diminishing-returns group its
-/// freeze shares with Deep Freeze (SpellMgr). The spells the leaves read are put into the stores as the client's data
-/// holds them, once for the rest of the run; no other test reads them. The units are bare creatures (update fields
-/// allocated; no map, template or AI).
+/// aura-remove hooks with its creature AI's factory, the exits of its scripts, the summon a second cast makes while the
+/// first cast's aura holds (SpellTables), and the diminishing-returns group its freeze shares with Deep Freeze
+/// (SpellMgr). The spells the leaves read are put into the stores as the client's data holds them, once for the rest of
+/// the run; no other test reads them. The units are bare creatures (update fields allocated; no map, template or AI).
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -366,6 +366,16 @@ TEST(MageRing_TheScriptsEndTheTickAndLeaveWhatNoRingCast)
         AuraRemoveContext removed(mage, &mage, SpellRow(row, 82691), AuraHandle(holder), mode);
         CHECK(registry.Dispatch<AuraRemoveHook>(82691, removed).IsContinue());
         CHECK(!mage.HasAura(91264));
+    }
+}
+
+TEST(MageRing_ASecondCastSummonsItsRingWhileTheMageHoldsTheFirstCastsAura)
+{
+    // Ring of Frost alone; its freeze, its marker, Flame Orb's summon and no spell keep the cancelled summon.
+    CHECK(SummonsPastOwnAura(82676));
+    for (uint32 spellId : { 82691u, 91264u, 82731u, 0u })
+    {
+        CHECK(!SummonsPastOwnAura(spellId));
     }
 }
 

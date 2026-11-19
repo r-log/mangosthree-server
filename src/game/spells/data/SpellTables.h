@@ -70,6 +70,10 @@ bool MayTargetTaxiFlyer(uint32 spellId);
 /// Deep Freeze (44572) and Ring of Frost's freeze (82691).
 bool SharesDiminishingReturns(uint32 spellId);
 
+/// Whether a spell's summon effect summons while its caster still holds the spell's aura from an earlier cast: Ring of
+/// Frost (82676), whose second ring ends the first. Any other spell's summon is cancelled then.
+bool SummonsPastOwnAura(uint32 spellId);
+
 /// How many targets may carry `spellId` from one caster at a time; 0 when the spell has no such limit.
 uint32 AuraTargetLimit(uint32 spellId);
 
