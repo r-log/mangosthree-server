@@ -2606,8 +2606,13 @@ void Unit::SetDeathState(DeathState s)
 //======================================================================
 //======================================================================
 
-int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProto, SpellEffectIndex effect_index, int32 const* effBasePoints)
+int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProto, SpellEffectIndex effect_index, int32 const* effBasePoints,
+                                 float* exactValue)
 {
+    float unusedExact = 0.0f;
+    float& exact = exactValue ? *exactValue : unusedExact;
+    exact = 0.0f;
+
     SpellEffectEntry const* spellEffect = spellProto->GetSpellEffect(effect_index);
     if (!spellEffect)
     {
@@ -2619,6 +2624,7 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
         case SPELL_AURA_MOUNTED:
             if (MountCapabilityEntry const* mountCapability = GetMountCapability(uint32(spellEffect->EffectMiscValue_1)))
             {
+                exact = float(mountCapability->ID);
                 return int32(mountCapability->ID);
             }
             break;
@@ -2634,7 +2640,8 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
     {
         if (float const masteryCoefficient = MasteryCoefficient(spellProto, spellEffect))
         {
-            return int32(Combat::MasteryAmount(masteryCoefficient, GetFloatValue(PLAYER_MASTERY)));
+            exact = Combat::MasteryAmount(masteryCoefficient, GetFloatValue(PLAYER_MASTERY));
+            return int32(exact);
         }
     }
 
@@ -2734,21 +2741,32 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
         value += (int32)(comboDamage * comboPoints);
     }
 
+    exact = float(value);
+
     if (SpellModMgr* modOwner = GetSpellMods())
     {
         modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_ALL_EFFECTS, value);
 
+        SpellModOp effectOp = SPELLMOD_EFFECT1;
         switch (effect_index)
         {
             case EFFECT_INDEX_0:
-                modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_EFFECT1, value);
+                effectOp = SPELLMOD_EFFECT1;
                 break;
             case EFFECT_INDEX_1:
-                modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_EFFECT2, value);
+                effectOp = SPELLMOD_EFFECT2;
                 break;
             case EFFECT_INDEX_2:
-                modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_EFFECT3, value);
+                effectOp = SPELLMOD_EFFECT3;
                 break;
+        }
+        modOwner->ApplySpellMod(spellProto->ID, effectOp, value);
+
+        // the same modifiers applied to a float keep the fraction the integer value drops
+        if (exactValue)
+        {
+            modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_ALL_EFFECTS, exact);
+            modOwner->ApplySpellMod(spellProto->ID, effectOp, exact);
         }
     }
 
@@ -2758,6 +2776,7 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
             (spellEffect->Effect != SPELL_EFFECT_APPLY_AURA || spellEffect->EffectAura != SPELL_AURA_MOD_DECREASE_SPEED))
     {
         value = int32(value * 0.25f * exp(level * (70 - spellLevel) / 1000.0f));
+        exact = float(exact * 0.25f * exp(level * (70 - spellLevel) / 1000.0f));
     }
 
     return value;

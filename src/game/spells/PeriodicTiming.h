@@ -26,8 +26,8 @@
 /**
  * @file PeriodicTiming.h
  * @brief The timing of a periodic effect as the 4.3.4 client computes it: the period and the duration a caster's
- * haste gives, the time to an aura's first tick, the number of ticks it deals, and how an amount is spread over
- * those ticks. Pure functions over numbers.
+ * haste gives, the time to an aura's first tick, the number of ticks it deals, how an amount is spread over those
+ * ticks, and the tick that restores a percent of a maximum. Pure functions over numbers.
  *
  * Every float-to-int rounding here is to the nearest integer with ties to even, the client's conversion; every
  * integer division truncates toward zero.
@@ -134,6 +134,20 @@ namespace Spells
      *         `7 * (ticks - 1)` is above 100.
      */
     int32 DecliningTickOffset(int32 amount, int32 ticks, int32 tick);
+
+    /**
+     * @brief The amount of a tick that restores a percent of a maximum (SPELL_AURA_OBS_MOD_MANA).
+     *
+     * The percent keeps the fraction its spell modifiers gave it, to a thousandth of a point: Mage Armor's 3% raised
+     * 20% by Glyph of Mage Armor restores 3.6%. A whole percent restores `maximum * percent / 100`, truncated.
+     *
+     * @param maximum The maximum the percent is of.
+     * @param amount The aura's integer amount.
+     * @param exactAmount The aura's amount with its fraction; read only while it truncates to `amount`.
+     * @return `maximum * thousandths / 100000`, truncated, with the percent's thousandths rounded to the nearest, ties
+     *         to even; 0 when the percent is not above 0.
+     */
+    uint32 PercentOfMaximumTick(uint32 maximum, int32 amount, float exactAmount);
 }
 
 #endif

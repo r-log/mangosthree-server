@@ -582,6 +582,8 @@ class  Aura
         Modifier m_modifier;
         float m_modifierValue;                              // what a spell modifier of this aura adds (ModifierValue)
         int32 m_tickAmountBeforeDone;                       // the tick amount before the done-side step (GetTickAmountBeforeDone)
+        float m_exactAmount;                                // the amount with the fraction its spell modifiers gave
+                                                            // it, for a percent-of-maximum-mana tick; else the amount
 
         SpellEffectEntry const* m_spellEffect;
         time_t m_applyTime;
