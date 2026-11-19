@@ -15603,7 +15603,7 @@ namespace Harness
      * takes Precision (13843, +6% spell hit), so no missile misses a level-85 Camel, and the crit aura at -100, so none
      * crits. Steps, kShortMs apart unless named:
      *  1. Arcane Missiles at the Camel without Arcane Missiles!: refused; then he selects the Camel, as a client does
-     *     before it casts at it, since the channel sends its missiles at his selection;
+     *     before it casts at it;
      *  2. Arcane Missiles! cast by him at himself, triggered;
      *  3. Arcane Missiles at the Camel, kCastEveryMs before the next step: three missiles, 0.75 s apart over 2.25 s;
      *  4. a wait, at whose start he learns Improved Arcane Missiles 2 (83515) and Missile Barrage 2 (54486) through
@@ -15906,8 +15906,7 @@ namespace Harness
      * one step 20 casts and the mana a cast spends moves no damage. The Camel stands kDistance yards ahead, inside
      * Arcane Explosion's 10 yards. Before each cast at the Camel he takes Precision (13843, +6% spell hit), so nothing
      * misses, and the crit aura at -100, so nothing crits. Steps, kEveryMs apart unless named:
-     *  1. Arcane Explosion, with no stack on him; then he selects the Camel, as a client does before it casts at it,
-     *     since Arcane Missiles sends its missiles at his selection;
+     *  1. Arcane Explosion, with no stack on him; then he selects the Camel, as a client does before it casts at it;
      *  2-3. Arcane Blast twice; 4. the Camel's health set to its maximum, kHealthMs before the next step;
      *  5-6. Arcane Blast twice; 7. the Camel's health again;
      *  8. Arcane Blast, the fifth: four stacks when it starts;
@@ -17798,7 +17797,7 @@ namespace Harness
      * Spell::DoAllEffectOnTarget makes one at a hit, so the chance that a roll the row lets through never passes is
      * 0.6^40, below one in a billion. Steps, kEveryMs apart unless named:
      *  1. Arcane Brilliance cast by him at himself, triggered (it casts 79057 on him); then he selects the first Camel,
-     *     as a client does before it casts at it, since Arcane Missiles sends its missiles at his selection;
+     *     as a client does before it casts at it;
      *  2. Mage Armor;
      *  3. a wait, kWaitMs, at whose act he takes kCalls helpful-spell hit procs of Mage Armor and kCalls of Arcane
      *     Brilliance at himself, with no damage;

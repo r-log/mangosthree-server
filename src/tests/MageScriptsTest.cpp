@@ -1088,6 +1088,33 @@ TEST(MageScripts_ArcaneMissilesAurastateFollowsArcaneMissilesBuff)
     CHECK(target.HasAura(79683));
 }
 
+TEST(MageScripts_ArcaneMissilesAimAtTheUnitTheChannelStartedOn)
+{
+    // The missiles' implicit target 77 is his channel object while Arcane Missiles (5143) is his channel, whatever his
+    // target; a channel object of another channel, one that is no unit, or none, with no channel of 5143 cast, is none.
+    const ObjectGuid camelA(HIGHGUID_UNIT, uint32(50249), uint32(1));
+    const ObjectGuid camelB(HIGHGUID_UNIT, uint32(50249), uint32(2));
+    const ObjectGuid bobber(HIGHGUID_GAMEOBJECT, uint32(35591), uint32(3));
+    BareCreature mage;
+    mage.SetTargetGuid(camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+
+    mage.SetUInt32Value(UNIT_CHANNEL_SPELL, 5143);
+    mage.SetChannelObjectGuid(camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    mage.SetTargetGuid(camelB);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    mage.SetTargetGuid(ObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143) == camelA);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 47758).IsEmpty());
+
+    mage.SetTargetGuid(camelB);
+    mage.SetChannelObjectGuid(bobber);
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+    mage.SetChannelObjectGuid(ObjectGuid());
+    CHECK(SingleEnemyTargetAura::ChannelTargetOf(mage, 5143).IsEmpty());
+}
+
 TEST(MageScripts_ArcaneBlastBuffEndsOnlyAtTheCastOfAnotherArcaneDamageSpell)
 {
     // The end of the mage's own cast of an Arcane damage spell ends the buff: Arcane Missiles (5143), Arcane Barrage
