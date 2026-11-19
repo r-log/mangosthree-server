@@ -57,6 +57,7 @@
 #include "MotionMaster.h"
 #include <random>
 #include "spells/handlers/SpellEffectObjectCombatHandlers.h"
+#include "spells/SpellScriptQueries.h"
 
 /**
  * @brief Adds flat threat from the caster to the unit target.
@@ -558,6 +559,29 @@ void Spell::EffectApplyGlyph(SpellEffectEntry const* effect)
         }
     }
 
+}
+
+/**
+ * @brief Reads the primary talent tree and the glyph slots of a player's active specialization.
+ *
+ * @param unit The unit read; any unit but a player reads all 0.
+ * @return The specialization's primary tree and glyphs.
+ */
+Spells::SpecializationView Spells::ActiveSpecialization(Unit const& unit)
+{
+    SpecializationView view;
+    Player const* player = unit.ToPlayer();
+    if (!player)
+    {
+        return view;
+    }
+    uint8 const spec = player->GetTalentMgr().ActiveSpec();
+    view.primaryTree = player->GetTalentMgr().PrimaryTree(spec);
+    for (uint8 slot = 0; slot < MAX_GLYPH_SLOT_INDEX; ++slot)
+    {
+        view.glyphs[slot] = player->GetGlyphMgr().GetGlyph(spec, slot);
+    }
+    return view;
 }
 
 /**

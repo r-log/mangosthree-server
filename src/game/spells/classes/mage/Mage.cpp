@@ -345,5 +345,6 @@ uint32 RegisterMageScripts(SpellHandlerRegistry& registry)
     registered += Mage::RegisterFrost(registry);
     registered += Mage::RegisterArcane(registry);
     registered += Mage::RegisterOrb(registry);
+    registered += Mage::RegisterImages(registry);
     return registered;
 }

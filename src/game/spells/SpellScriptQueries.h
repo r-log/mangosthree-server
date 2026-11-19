@@ -33,9 +33,11 @@
 
 /**
  * @file SpellScriptQueries.h
- * @brief What a spell script reads of the auras on a unit, and copies between units, without the aura headers.
+ * @brief What a spell script reads of the auras on a unit, and copies between units, without the aura headers, and
+ * what it reads of a player's specialization without the player headers.
  *
- * The bodies sit in spells/auras/SpellScriptQueries.cpp, beside the aura holders they read.
+ * The bodies sit in spells/auras/SpellScriptQueries.cpp, beside the aura holders they read;
+ * Spells::ActiveSpecialization's sits in spells/pipeline/SpellEffectObjectCombat.cpp, beside the glyph effect.
  */
 
 /// One periodic damage effect of a holder on a unit, as a script reads it.
@@ -102,6 +104,17 @@ namespace Spells
      * only triggers another is not counted by what it triggers.
      */
     bool DealsDamage(SpellEntry const& spell);
+
+    /// What a spell script reads of a player's active specialization.
+    struct SpecializationView
+    {
+        uint32 primaryTree = 0;                     ///< the primary talent tree (TalentTab.dbc); 0 for none chosen
+        uint32 glyphs[MAX_GLYPH_SLOT_INDEX] = {};   ///< the glyph of each slot (GlyphProperties.dbc); 0 for none
+    };
+
+    /// The primary talent tree and the glyph slots of `unit`'s active specialization when `unit` is a player; all 0 for
+    /// any other unit.
+    SpecializationView ActiveSpecialization(Unit const& unit);
 }
 
 /// The script word of effect `eff` of the first holder of `spellId` on `unit` that is not deleted, whoever cast it;
