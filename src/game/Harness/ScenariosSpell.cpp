@@ -216,7 +216,8 @@
 // 1111 a staged Arcane mage's Arcane Power adds 20% damage and 10% cost for 15 s, refuses Presence of Mind and is
 // refused by it; under Glyph of Arcane Power, Blink and Mana Shield start no global cooldown and Mirror Image's is 0;
 // Improved Arcane Explosion's first rank makes Arcane Explosion's global cooldown 1.25 s, hasted and held at 1.0 s,
-// and its second 1.0 s, unhasted; Arcane Flows and Glyph of Mana Shield shorten their spells' cooldowns.
+// and its second 1.0 s, neither hasted nor slowed; Arcane Flows and Glyph of Mana Shield shorten their spells'
+// cooldowns.
 // 1112 a staged Arcane mage's hasted Arcane Missiles keep their three missiles in a shorter channel, and his
 // Evocation gives him 15% of his mana four times, hasted in a shorter channel too, and 10% of
 // his health each tick with its glyph; Mana Shield absorbs its amount at one mana a point; Mage Armor gives 3% of his
@@ -19851,9 +19852,13 @@ namespace Harness
      * 17. a wait, kShortMs, at which Improved Arcane Explosion 1 is unlearned and 2 (90788: -500 ms) learned;
      * 18. Arcane Explosion; 19. a wait, kShortMs, at which Power Infusion and the rating are taken off;
      * 20. Arcane Explosion;
-     * 21. Arcane Power, kShortMs; 22. Blink, kQuickMs; 23. Mana Shield, kQuickMs after Blink, kEndMs to the end; right
-     *     after it acts the global cooldown Mirror Image (55342) would take, read through the engine's own rule
-     *     (GcdOf), since Mirror Image's Initialize Images (58836) holds a spell_script_target row the guard refuses.
+     * 21. a wait, kShortMs, at which Slow (31589: cast speed -30%) is put on him as PutReadyAura puts it, the Camel its
+     *     caster; 22. Arcane Explosion, right after which his cast-haste field is kept and Slow taken off him;
+     * 23. Arcane Power, kShortMs; 24. Blink, kQuickMs; 25. Mana Shield, kQuickMs after Blink, kEndMs to the end; right
+     *     after it acts the global cooldown a cast of Mirror Image (55342) starts, as the engine's own
+     *     Spell::TriggerGlobalCooldown starts it on him for a cast of it that is never prepared (GlobalCooldownProbe),
+     *     his running one cancelled first; Mirror Image itself is not cast, since its Initialize Images (58836) holds a
+     *     spell_script_target row the guard refuses.
      * Right after each cast acts the scenario keeps his global cooldown (GcdNow); right after step 5 also the seconds
      * left on his cooldown of Mana Shield; at step 2's read Arcane Power's full duration; at step 8's read whether he
      * holds Presence of Mind. Every cast's read is kReadMs after it, and a hit that lands later is read from the step's
@@ -19865,12 +19870,13 @@ namespace Harness
      * Evocation's (12051) 240 s and Mana Shield's 12 s.
      *
      * `cooldowns`: `power=<3 over 1>/<6 over 1>@cost<3's cost in percent of 1's>/<Arcane Power's
-     * duration>,refused=<4>/<9>, pom=<Presence of Mind at 8's read>,gcd=<5,6,11,22,23>/<Mirror
-     * Image's>,explosion=<12,14,16,18,20>,quick=<the results of 6 and 23>,flows=<the five cooldown
-     * reads>,shield=<seconds left after 5>/<5's cost>:<11's cost>`. OK at power x1.20/x1.20 (within kRatioSlack)
-     * @cost110/15000, refused CASTER_AURASTATE/CASTER_AURASTATE, pom 1, gcd 0,1500,1500,0,0/0, explosion
-     * 1250,1041,1000,1000,1000, quick none,none, flows 90000/90000/135000/120000/10000, shield 10 (9 when a wall-clock
-     * second turned) with equal costs (0 and 0).
+     * duration>,refused=<4>/<9>, pom=<Presence of Mind at 8's read>,gcd=<5,6,11,24,25>/<Mirror
+     * Image's>,explosion=<12,14,16,18,20,22>/x<his cast-haste field at 22>,quick=<the results of 6 and 25>,flows=<the
+     * five cooldown reads>,shield=<seconds left after 5>/<5's cost>:<11's cost>`. OK at power x1.20/x1.20 (within
+     * kRatioSlack) @cost110/15000, refused CASTER_AURASTATE/CASTER_AURASTATE, pom 1, gcd 0,1500,1500,0,0/0, explosion
+     * 1250,1041,1000,1000,1000,1000/x1.300 (under Slow the second rank's 1.0 s stays: a rule that slowed it would give
+     * 1300), quick none,none, flows 90000/90000/135000/120000/10000, shield 10 (9 when a wall-clock second turned) with
+     * equal costs (0 and 0).
      */
     class MageArcaneCooldowns : public MageArcaneProofScenario
     {
@@ -19924,8 +19930,8 @@ namespace Harness
             lastShield.everyMs = kEndMs;
             return { blast, power, blast, presenceRefused, firstShield, blast, SelfRemoval(kArcanePower, kShortMs), presence,
                      powerRefused, SelfRemoval(kPresenceOfMind, kShortMs), shield, explosion, Wait(kShortMs), explosion,
-                     Wait(kShortMs), explosion, Wait(kShortMs), explosion, Wait(kShortMs), explosion, power,
-                     AuraCast(kBlink, kQuickMs), lastShield };
+                     Wait(kShortMs), explosion, Wait(kShortMs), explosion, Wait(kShortMs), explosion, Wait(kShortMs),
+                     explosion, power, AuraCast(kBlink, kQuickMs), lastShield };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -19961,6 +19967,8 @@ namespace Harness
                 { 70937, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", -2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 11 }, { "eff0.EffectSpellClassMask.Flags", 32768 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 10060: 49 fields, fnv 4b272597
                 { 10060, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 65 }, { "eff0.EffectBasePoints", 20 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 72 }, { "eff1.EffectBasePoints", -20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 126 }, { "eff1.EffectMiscValue_1", 1 }, { "eff1.ImplicitTarget_0", 21 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 31589: 72 fields, fnv b6a65259
+                { 31589, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -60 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.EffectSpellClassMask.Flags", 14684919 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 218 }, { "eff1.EffectBasePoints", -60 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 12589815 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 216 }, { "eff2.EffectBasePoints", -30 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectSpellClassMask.Flags", 4194437 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
             });
         }
 
@@ -20003,8 +20011,9 @@ namespace Harness
             }
             if (k == kLastShieldStep)
             {
-                reads["mirrorImage"] = GcdOf(p, kMirrorImage);
-                m_rec.Note("the global cooldown " + U(kMirrorImage) + " would take now: " + Num(reads["mirrorImage"]) + " ms");
+                reads["mirrorImage"] = ProbeGcd(p, kMirrorImage);
+                m_rec.Note("the global cooldown the engine starts for a cast of " + U(kMirrorImage) + " now: " +
+                           Num(reads["mirrorImage"]) + " ms");
             }
             if (k == kFirstShieldStep)
             {
@@ -20031,6 +20040,15 @@ namespace Harness
                     p->RemoveAurasDueToSpell(kPowerInfusion);
                     p->ApplyRatingMod(CR_HASTE_SPELL, kHasteRating, false);
                     NoteSpeed(*p, "Power Infusion and the rating taken off");
+                    break;
+                case kSlowStep:
+                    PutReadyAura(p, kSlow, kAuraMs, target);
+                    NoteSpeed(*p, "Slow put on him, the Camel its caster");
+                    break;
+                case kSlowedExplosionStep:
+                    reads["haste"] = int64(std::lround(p->GetFloatValue(UNIT_MOD_CAST_HASTE) * 1000.0f));
+                    p->RemoveAurasDueToSpell(kSlow);
+                    NoteSpeed(*p, "Slow taken off him");
                     break;
                 default:
                     break;
@@ -20065,6 +20083,10 @@ namespace Harness
             {
                 explosion += (explosion.empty() ? "" : ",") + Num(Kept(st, k, "gcd"));
             }
+            const int64 slowedHaste = Kept(st, kSlowedExplosionStep, "haste");
+            char slowed[32];
+            snprintf(slowed, sizeof(slowed), "/x%.3f", double(slowedHaste) / 1000.0);
+            explosion += slowedHaste >= 0 ? std::string(slowed) : std::string("/x?");
             std::string quick;
             for (uint32 k : { kQuickBlast, kLastShieldStep })
             {
@@ -20085,13 +20107,14 @@ namespace Harness
                                       explosion + ",quick=" + quick + ",flows=" + flows + ",shield=" + shield;
             const bool ok = Near(power, 1.20, kRatioSlack) && Near(quickPower, 1.20, kRatioSlack) && costPercent == 110 && duration == 15000 &&
                             refused == "CASTER_AURASTATE/CASTER_AURASTATE" && presence == 1 && gcd == "0,1500,1500,0,0/0" &&
-                            explosion == "1250,1041,1000,1000,1000" && quick == "none,none" && st.seen[kLastShieldStep].goSeen && flows == "90000/90000/135000/120000/10000" && (left == 9 || left == 10) &&
+                            explosion == "1250,1041,1000,1000,1000,1000/x1.300" && quick == "none,none" && st.seen[kLastShieldStep].goSeen && flows == "90000/90000/135000/120000/10000" && (left == 9 || left == 10) &&
                             st.seen[kFirstShieldStep].cost == st.seen[kShieldStep].cost;
             return (ok ? "OK(" : "BUG(") + value + "; power: Arcane Blast's damage under Arcane Power over without it, its cost in " +
                    "percent, Arcane Power's duration; gcd: his global cooldown right after Mana Shield, Arcane Blast and Mana Shield " +
-                   "outside Arcane Power, then Blink and Mana Shield under the glyphed Arcane Power, / the one Mirror Image would " +
-                   "take there; quick: the cast " +
-                   "results of the casts made kQuickMs after another; flows: the cooldowns of 12043, 12042, 66, 12051 and 1463 in ms)";
+                   "outside Arcane Power, then Blink and Mana Shield under the glyphed Arcane Power, / the one the engine starts " +
+                   "for a cast of Mirror Image there; explosion: the global cooldowns of the five Arcane Explosions and the one " +
+                   "under Slow / his cast-haste field there; quick: the cast " +
+                   "results of the casts made 300 ms after another; flows: the cooldowns of 12043, 12042, 66, 12051 and 1463 in ms)";
         }
 
     private:
@@ -20109,6 +20132,7 @@ namespace Harness
         static constexpr uint32 kInvisibility = 66;
         static constexpr uint32 kEvocation = 12051;
         static constexpr uint32 kPowerInfusion = 10060;
+        static constexpr uint32 kSlow = 31589;
         static constexpr uint32 kGlyphOfArcanePowerSlot = 313;
         static constexpr uint32 kGlyphOfManaShieldSlot = 871;
         static constexpr int32 kSpellPower = 20000;
@@ -20135,30 +20159,37 @@ namespace Harness
         static constexpr uint32 kRatingStep = 14;
         static constexpr uint32 kRankStep = 16;
         static constexpr uint32 kUnhasteStep = 18;
-        static constexpr uint32 kBlinkStep = 21;
-        static constexpr uint32 kLastShieldStep = 22;
-        static constexpr uint32 kExplosionSteps[5] = { 11, 13, 15, 17, 19 };
-        static constexpr size_t kSteps = 23;
+        static constexpr uint32 kSlowStep = 20;
+        static constexpr uint32 kSlowedExplosionStep = 21;
+        static constexpr uint32 kBlinkStep = 23;
+        static constexpr uint32 kLastShieldStep = 24;
+        static constexpr uint32 kExplosionSteps[6] = { 11, 13, 15, 17, 19, 21 };
+        static constexpr size_t kSteps = 25;
 
-        /// The global cooldown a cast of `spell` by him would start, in Spell::TriggerGlobalCooldown's order: the spell's
-        /// start recovery time, his global cooldown modifiers, then the haste and the 1.0 to 1.5 s hold only above one
-        /// second; 0 when none.
-        static int64 GcdOf(Player* p, uint32 spell)
+        /// A cast of a spell by him that is never prepared: Start runs the engine's own Spell::TriggerGlobalCooldown,
+        /// which starts the spell's global cooldown on him as a cast that goes starts it, and nothing else of the cast.
+        class GlobalCooldownProbe : public Spell
+        {
+        public:
+            GlobalCooldownProbe(Player* p, SpellEntry const* info) : Spell(p, info, false) {}
+
+            void Start() { TriggerGlobalCooldown(); }
+        };
+
+        /// The global cooldown a cast of `spell` by him starts, as the engine starts it (GlobalCooldownProbe), read as
+        /// GcdNow reads a cast's; his running global cooldown of the spell's category is cancelled first, so the read is
+        /// the probe's own. 0 when it starts none.
+        static int64 ProbeGcd(Player* p, uint32 spell)
         {
             SpellEntry const* info = sSpellStore.LookupEntry(spell);
             if (!info)
             {
                 return kNone;
             }
-            int32 gcd = int32(info->GetStartRecoveryTime());
-            if (SpellModMgr* mods = p->GetSpellMods())
-            {
-                mods->ApplySpellMod(info->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd);
-            }
-            const bool physical = Spells::IsPhysicalAttack(info->GetDmgClass(), info->Attributes);
-            const bool hasted = Spells::GlobalCooldownHasted(info->GetStartRecoveryCategory(), physical, gcd);
-            gcd = Spells::GlobalCooldown(gcd, hasted, p->GetFloatValue(UNIT_MOD_CAST_HASTE));
-            return gcd > 0 ? gcd : 0;
+            p->GetGlobalCooldownMgr().CancelGlobalCooldown(info);
+            GlobalCooldownProbe probe(p, info);
+            probe.Start();
+            return GcdNow(p, spell);
         }
 
         /// Notes his two cast fields after `what`.
