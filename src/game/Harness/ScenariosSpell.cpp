@@ -44,6 +44,7 @@
 #include "DBCStores.h"
 #include "Opcodes.h"
 #include "Pet.h"
+#include "UpdateData.h"
 #include "HarnessAI.h"
 #include "WorldSession.h"
 #include "WorldPacket.h"
@@ -153,7 +154,8 @@
 // player standing there as it forms, and a Camel moved in later; never one at its centre, one the pole hides from
 // it or one immune to the freeze, which shows Immune once; the player's freeze lasts 8 s and halves his Deep Freeze;
 // a dispelled freeze leaves its 3 s marker, after which the unit is frozen again; a second ring ends the first; a hit
-// breaks the freeze by a chance that grows with its damage, a shield's part counted, and a reactive hit never does.
+// breaks the freeze by a chance that grows with its damage, a shield's part counted, and a reactive hit never does;
+// the ring shows the mage and his friend the friendly ring and the hostile player the hostile one.
 // 1025 Polymorph and Wyvern Sting on the Camel break on a direct hit and on a periodic tick, not on Molten Armor's
 // hit, a heal or a hit a shield takes whole, and Hex breaks on a chance per hit.
 // 1026 a root, a fear and Hex on the Camel count the damage a shield absorbed and the damage its damage-reduction
@@ -18175,13 +18177,15 @@ namespace Harness
      * kBandYards across his line (in the band), Camel B kCentreYards the other way (inside the band's inner edge),
      * Camel W kOutsideYards that way (outside the band), Camel D kBandYards beyond C behind the pole (in the band, out
      * of the ring's sight) and Camel E kBandYards from C toward him (in the band) under Fel Rage 3 (41625: immune to
-     * the freeze's mechanic); and a second player, P, a level-85 human warrior kBandYards from C between A and E. Both
-     * players are put in the free-for-all PvP state, so P is his enemy. Steps, each acting first:
+     * the freeze's mechanic); a second player, P, a level-85 human warrior kBandYards from C between A and E; and a
+     * third, F, a human warrior kFriendBehind yards behind him. He and P are put in the free-for-all PvP state, so P is
+     * his enemy; F is not, so F is his friend. Steps, each acting first:
      *  1. a wait of kFormWaitMs: he casts 82676 at C as the cast handler starts a ground cast (a spell whose targets
      *     hold the point alone); every 100 ms from kFirstSampleMs to kLastSampleMs after it, each unit's 82691 is
      *     sampled;
      *  2. a wait of kMoveWaitMs: W moved into the band, kBandYards from C (Unit::NearTeleportTo); the ring's unit flags
-     *     and display and P's 82691 read;
+     *     and display, the display and native display of the ring's create block built for him, F and P
+     *     (Object::BuildCreateUpdateBlockForPlayer), and P's 82691 read;
      *  3. A's 82691 dispelled (Unit::RemoveAuraHolderDueToSpellByDispel), kMarkerWaitMs before the next step; A's
      *     91264 read right after;
      *  4. a wait of kStepMs, read inside the marker's 3 s: W takes the Camel's side of the proc call a Fireball (133)
@@ -18198,12 +18202,14 @@ namespace Harness
      * `ring`: `formed=<ms from the cast to A's first sampled 82691>/<P's>,centre=<B ever frozen>,walkIn=<W frozen
      * before its move>/<at the read after it>,wall=<D ever frozen>/<the sight line from C to D: blocked or clear>,
      * immune=<Immune misses of 82691 on E in the run>/<E ever frozen>,ring=<44199 not selectable>/<its display>,
+     * views=<the display>:<the native display> of its create block for him/for F/for P,
      * pvp=<P's 82691 full duration>,deepFreeze=<P's 44572 full duration>,marker=<A's 91264 full duration after the
      * dispel>/<A frozen inside it>/<A frozen after it>,rings=<44199 alive after the second cast>/<the one alive is
      * the second>,damage=<small calls that broke W's freeze>/<calls>,<big calls that broke it>/<calls>,<the absorbed
      * call broke it>/<the reactive call broke it>`, a frozen unit 1 and one never frozen 0, -1 for a duration never
-     * read, a call that broke the freeze 1. OK when formed is kFormedLow..kFormedHigh for both, centre 0, walkIn 0/1,
-     * wall 0/blocked, immune 1/0, ring 1/34997, pvp 8000, deepFreeze 2500 (half of 5000: the freeze raised the
+     * read or a field a block does not hold, `-` for a block never built, a call that broke the freeze 1. OK when
+     * formed is kFormedLow..kFormedHigh for both, centre 0, walkIn 0/1, wall 0/blocked, immune 1/0, ring 1/34997, views
+     * 38203:38203/38203:38203/34997:34997, pvp 8000, deepFreeze 2500 (half of 5000: the freeze raised the
      * diminishing returns the two share), marker 3000/0/1, rings 1/1, and damage broke the freeze on at least one
      * small call and kept it on at least one, on every big call and on the absorbed call, and not on the reactive one.
      */
@@ -18217,6 +18223,7 @@ namespace Harness
             m_read = RingRead();
             m_camels.clear();
             m_pvp = ObjectGuid();
+            m_friend = ObjectGuid();
             m_pvpStaged = false;
             m_firstRing = ObjectGuid();
             MageProcScenario::Prepare();
@@ -18264,6 +18271,16 @@ namespace Harness
                        (m_pvpStaged ? ", staged" : ", not staged") + "; both in free-for-all PvP: " +
                        (p.IsFFAPvP() && pvp->IsFFAPvP() ? "yes" : "no") + "; his enemy: " +
                        (p.IsHostileTo(pvp) ? "yes" : "no"));
+            const float fx = P0.x - kFriendBehind;
+            Player* friendly = SpawnPlayer(fx, P0.y, Ground(fx, P0.y, P0.z), 0.0f);
+            if (!friendly)
+            {
+                m_rec.Note("the third player did not spawn");
+                return;
+            }
+            m_friend = friendly->GetObjectGuid();
+            m_rec.Note(std::string("the third player: in free-for-all PvP: ") + (friendly->IsFFAPvP() ? "yes" : "no") +
+                       "; his friend: " + (friendly->IsFriendlyTo(&p) ? "yes" : "no"));
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -18343,10 +18360,14 @@ namespace Harness
         {
             const int32 immune = int32(ImmuneShown(st));
             auto formedOk = [](int32 ms) { return ms >= kFormedLow && ms <= kFormedHigh; };
+            const std::string friendlyView = U(kFriendlyDisplay) + ":" + U(kFriendlyDisplay);
+            const std::string hostileView = U(kHostileDisplay) + ":" + U(kHostileDisplay);
             const bool ok = formedOk(m_read.formedA) && formedOk(m_read.formedP) && !m_read.centre &&
                             !m_read.walkerBefore && m_read.walkerAfter && !m_read.wall && m_read.wallBlocked &&
                             immune == 1 && !m_read.immuneFrozen && m_read.notSelectable == 1 &&
-                            m_read.display == int32(kHostileDisplay) && m_read.pvp == kPvpMs &&
+                            m_read.display == int32(kHostileDisplay) && m_read.ownerView == friendlyView &&
+                            m_read.friendView == friendlyView && m_read.enemyView == hostileView &&
+                            m_read.pvp == kPvpMs &&
                             m_read.deepFreeze == kDiminishedDeepFreezeMs && m_read.marker == kMarkerMs &&
                             !m_read.frozenInMarker && m_read.refrozen && m_read.rings == 1 && m_read.secondIsNew &&
                             m_read.smallBreaks >= 1 && m_read.smallBreaks < int32(kProcHits) &&
@@ -18358,7 +18379,8 @@ namespace Harness
                 Bit(m_read.walkerAfter) + ",wall=" + Bit(m_read.wall) + "/" +
                 (m_read.wallBlocked ? "blocked" : "clear") + ",immune=" + std::to_string(immune) + "/" +
                 Bit(m_read.immuneFrozen) + ",ring=" + std::to_string(m_read.notSelectable) + "/" +
-                std::to_string(m_read.display) + ",pvp=" + std::to_string(m_read.pvp) + ",deepFreeze=" +
+                std::to_string(m_read.display) + ",views=" + m_read.ownerView + "/" + m_read.friendView + "/" +
+                m_read.enemyView + ",pvp=" + std::to_string(m_read.pvp) + ",deepFreeze=" +
                 std::to_string(m_read.deepFreeze) + ",marker=" + std::to_string(m_read.marker) + "/" +
                 Bit(m_read.frozenInMarker) + "/" + Bit(m_read.refrozen) + ",rings=" + std::to_string(m_read.rings) +
                 "/" + Bit(m_read.secondIsNew) + ",damage=" + std::to_string(m_read.smallBreaks) + "/" +
@@ -18366,7 +18388,8 @@ namespace Harness
                 std::to_string(m_read.absorbedBreak) + "/" + std::to_string(m_read.reactiveBreak);
             const std::string detail = "A and P frozen from the ring's first formed tick, the centre, the wall and the "
                                        "immune Camel left alone with one Immune miss, the walker frozen in the band, "
-                                       "the ring not selectable with the hostile display, P frozen 8 s, Deep Freeze "
+                                       "the ring not selectable with the hostile display, sent to him and F as the "
+                                       "friendly ring and to P as the hostile ring, P frozen 8 s, Deep Freeze "
                                        "halved, the marker 3 s after a dispel, one ring after the second cast, and "
                                        "the freeze broken by a chance on small hits, always on big and absorbed ones, "
                                        "never on a reactive one";
@@ -18387,6 +18410,7 @@ namespace Harness
         static constexpr uint32 kSmallHit = 720;
         static constexpr uint32 kBigHit = 2000;
         static constexpr uint32 kHostileDisplay = 34997;
+        static constexpr uint32 kFriendlyDisplay = 38203;
         static constexpr uint32 kLevel = 85;
         static constexpr float kPoleX = -3112.07f;
         static constexpr float kPoleY = -234.49f;
@@ -18395,6 +18419,7 @@ namespace Harness
         static constexpr float kCentreYards = 2.0f;
         static constexpr float kOutsideYards = 12.0f;
         static constexpr float kDiagonalYards = 4.24f;
+        static constexpr float kFriendBehind = 3.0f;
         static constexpr float kSecondRingAhead = 10.0f;
         static constexpr float kSecondRingAcross = -15.0f;
         static constexpr float kRingSearchRange = 60.0f;
@@ -18437,6 +18462,9 @@ namespace Harness
             bool immuneFrozen = false;      ///< E held 82691 at a sample or a read
             int32 notSelectable = -1;       ///< the ring's UNIT_FLAG_NOT_SELECTABLE, 1 or 0
             int32 display = -1;             ///< the ring's display
+            std::string ownerView = "-";    ///< the display and native display of the ring's create block for him
+            std::string friendView = "-";   ///< the same for F
+            std::string enemyView = "-";    ///< the same for P
             int32 pvp = -1;                 ///< P's 82691 full duration
             int32 deepFreeze = -1;          ///< P's 44572 full duration
             int32 marker = -1;              ///< A's 91264 full duration right after the dispel
@@ -18481,6 +18509,44 @@ namespace Harness
         static bool Frozen(Unit const* unit)
         {
             return unit && unit->HasAura(kFreeze);
+        }
+
+        /// The value the values part `values` of an update block sends for field `index`; -1 when its mask does not
+        /// name the field.
+        static int64 FieldOf(UpdateValues const& values, uint32 index)
+        {
+            auto named = [&values](uint32 field)
+            {
+                return (field >> 3) < values.mask.size() && (values.mask[field >> 3] & (1 << (field & 7))) != 0;
+            };
+            if (!named(index))
+            {
+                return -1;
+            }
+            size_t at = 0;
+            for (uint32 field = 0; field < index; ++field)
+            {
+                at += named(field) ? 1 : 0;
+            }
+            return at < values.values.size() ? int64(values.values[at]) : -1;
+        }
+
+        /// `<display>:<native display>` of the create block `ring` builds for `viewer`; `-` with no viewer or block.
+        static std::string ViewedDisplays(Creature const& ring, Player* viewer)
+        {
+            if (!viewer)
+            {
+                return "-";
+            }
+            UpdateData data(viewer->GetClientMapId());
+            ring.BuildCreateUpdateBlockForPlayer(&data, viewer);
+            if (data.GetBlocks().empty())
+            {
+                return "-";
+            }
+            UpdateValues const& values = data.GetBlocks()[0].values;
+            return std::to_string(FieldOf(values, UNIT_FIELD_DISPLAYID)) + ":" +
+                   std::to_string(FieldOf(values, UNIT_FIELD_NATIVEDISPLAYID));
         }
 
         /// The Camel of index `camel`, by the guids the first step kept; NULL when it is gone.
@@ -18642,13 +18708,18 @@ namespace Harness
                 }
                 const std::vector<Creature*> rings = Rings(p);
                 Creature* ring = rings.size() == 1 ? rings[0] : NULL;
+                Player* pvp = sPlayerRegistry.Find(m_pvp);
                 if (ring)
                 {
                     m_firstRing = ring->GetObjectGuid();
                     m_read.notSelectable = ring->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE) ? 1 : 0;
                     m_read.display = int32(ring->GetUInt32Value(UNIT_FIELD_DISPLAYID));
+                    m_read.ownerView = ViewedDisplays(*ring, p);
+                    m_read.friendView = ViewedDisplays(*ring, sPlayerRegistry.Find(m_friend));
+                    m_read.enemyView = ViewedDisplays(*ring, pvp);
+                    m_rec.Note("the ring's create block shows him " + m_read.ownerView + ", F " + m_read.friendView +
+                               ", P " + m_read.enemyView);
                 }
-                Player* pvp = sPlayerRegistry.Find(m_pvp);
                 SpellAuraHolder const* freeze = pvp ? pvp->GetSpellAuraHolder(kFreeze) : NULL;
                 m_read.pvp = freeze ? freeze->GetAuraMaxDuration() : -1;
                 m_rec.Note("W moved into the band; " + U(rings.size()) + " ring(s) near him, flags " +
@@ -18737,6 +18808,7 @@ namespace Harness
         RingRead m_read;
         std::vector<ObjectGuid> m_camels;   ///< every Camel, as St::targets holds them
         ObjectGuid m_pvp;                   ///< the second player, P
+        ObjectGuid m_friend;                ///< the third player, F
         bool m_pvpStaged = false;
         ObjectGuid m_firstRing;             ///< the ring the first cast made, read at the move step
     };
