@@ -651,7 +651,7 @@ SingleEnemyTargetAura::SingleEnemyTargetAura(SpellEntry const* spellproto, Spell
 {
     if (caster)
     {
-        m_castersTargetGuid = caster->GetTypeId() == TYPEID_PLAYER ? caster->GetSelectionGuid() : caster->GetTargetGuid();
+        m_channelTargetGuid = ChannelTargetOf(*caster, spellproto->ID);
     }
 }
 
@@ -660,13 +660,44 @@ SingleEnemyTargetAura::~SingleEnemyTargetAura()
 }
 
 /**
- * @brief Resolves the cached enemy target selected by the original caster.
+ * @brief Resolves the unit the caster's channel started on, kept when the aura was made.
  *
- * @return The cached trigger target, or null if it no longer exists.
+ * @return That unit, or null if it no longer exists.
  */
 Unit* SingleEnemyTargetAura::GetTriggerTarget() const
 {
-    return ObjectLookup::GetUnit(*(m_spellAuraHolder->GetTarget()), m_castersTargetGuid);
+    return ObjectLookup::GetUnit(*(m_spellAuraHolder->GetTarget()), m_channelTargetGuid);
+}
+
+/**
+ * @brief Finds the unit a caster's channel started on.
+ *
+ * The server leaves the channel object empty for a channel at the caster himself, so the channel's own unit target
+ * answers then.
+ *
+ * @param caster The channelling unit.
+ * @param channelSpellId The channel's spell.
+ * @return His channel object while that channel is his and the object is a unit; else the unit target of that channel
+ *         while he casts it; else an empty guid.
+ */
+ObjectGuid SingleEnemyTargetAura::ChannelTargetOf(Unit const& caster, uint32 channelSpellId)
+{
+    ObjectGuid const& channelObject = caster.GetChannelObjectGuid();
+    if (caster.GetUInt32Value(UNIT_CHANNEL_SPELL) == channelSpellId && channelObject.IsUnit())
+    {
+        return channelObject;
+    }
+
+    Spell const* channel = caster.GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+    if (channel && channel->m_spellInfo->ID == channelSpellId)
+    {
+        if (Unit const* unitTarget = channel->m_targets.getUnitTarget())
+        {
+            return unitTarget->GetObjectGuid();
+        }
+    }
+
+    return ObjectGuid();
 }
 
 /**
@@ -1443,6 +1474,14 @@ void Aura::TriggerSpell()
     Unit* triggerTarget = GetTriggerTarget();
 
     if (!casterGUID || !triggerTarget)
+    {
+        return;
+    }
+
+    uint32 tickAmount = m_modifier.m_amount > 0 ? uint32(m_modifier.m_amount) : 0;
+    PeriodicTickContext tickCtx(*GetTarget(), GetCaster(), *GetSpellProto(), m_effIndex, AuraHandle(*GetHolder()),
+                                tickAmount, true);
+    if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
     {
         return;
     }
@@ -2910,6 +2949,12 @@ void SpellAuraHolder::_AddSpellAuraHolder()
         if (getDiminishGroup() != DIMINISHING_NONE)
         {
             m_target->ApplyDiminishingAura(getDiminishGroup(), true);
+            DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                      m_target->GetTypeId() == TYPEID_PLAYER);
+            if (shared != DIMINISHING_NONE)
+            {
+                m_target->ApplyDiminishingAura(shared, true);
+            }
         }
 
         // Update Seals information
@@ -3012,6 +3057,12 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
     if (getDiminishGroup() != DIMINISHING_NONE)
     {
         m_target->ApplyDiminishingAura(getDiminishGroup(), false);
+        DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                  m_target->GetTypeId() == TYPEID_PLAYER);
+        if (shared != DIMINISHING_NONE)
+        {
+            m_target->ApplyDiminishingAura(shared, false);
+        }
     }
 
     SetAuraFlags(AFLAG_NONE);

@@ -2815,31 +2815,22 @@ SpellAuraProcResult Unit::HandleModResistanceAuraProc(Unit* /*pVictim*/, uint32 
 }
 
 /**
- * @brief Handles procs that remove an aura on incoming damage. A confuse or a stun is removed by each hit
- *        BreaksOnDamageProc accepts (Polymorph, Wyvern Sting); a fear, a root or a pacify-silence by a chance that
- *        grows with `damage`, which for them is the ThresholdDamage the proc loop counts. The holder is removed in
- *        AURA_REMOVE_BY_DAMAGE.
+ * @brief Handles procs that remove an aura on incoming damage. A fear, a root, a pacify-silence and a stun that
+ *        CountsPreventedDamage selects (Ring of Frost's freeze) are removed by a chance that grows with `damage`,
+ *        which for them is the ThresholdDamage the proc loop counts; any other confuse or stun by each hit
+ *        BreaksOnDamageProc accepts (Polymorph, Wyvern Sting). The holder is removed in AURA_REMOVE_BY_DAMAGE.
  *
- * @return SpellAuraProcResult The proc handling result. A confuse or a stun that stays answers OK, as an aura type with
- *         no proc handler does, so a holder with charges still spends one.
+ * @return SpellAuraProcResult The proc handling result. A confuse or a stun that stays without a roll answers OK, as an
+ *         aura type with no proc handler does, so a holder with charges still spends one.
  */
 SpellAuraProcResult Unit::HandleRemoveByDamageProc(Unit* /*pVictim*/, uint32 damage, Aura* triggeredByAura,
                                                    SpellEntry const* procSpell, uint32 procFlag, uint32 /*procEx*/,
                                                    uint32 /*cooldown*/)
 {
     AuraType const type = triggeredByAura->GetModifier()->m_auraname;
-    if (type == SPELL_AURA_MOD_CONFUSE || type == SPELL_AURA_MOD_STUN)
-    {
-        SpellEntry const* spellInfo = triggeredByAura->GetSpellProto();
-        if (!BreaksOnDamageProc(damage, (procFlag & PROC_FLAG_TAKEN_ANY_DAMAGE) != 0,
-                                triggeredByAura->GetHolder()->GetAuraCharges(),
-                                procSpell && procSpell->ID == spellInfo->ID, procSpell ? procSpell->AttributesExD : 0,
-                                spellInfo->GetAuraInterruptFlags(), type))
-        {
-            return SPELL_AURA_PROC_OK;
-        }
-    }
-    else
+    SpellEntry const* spellInfo = triggeredByAura->GetSpellProto();
+    uint32 const charges = triggeredByAura->GetHolder()->GetAuraCharges();
+    if (CountsPreventedDamage(type, spellInfo->GetAuraInterruptFlags(), charges))
     {
         // the chance to remove the aura: the damage taken over 25 x the holder's level - 150, or over 50 to level 8
         uint32 max_dmg = getLevel() > 8 ? 25 * getLevel() - 150 : 50;
@@ -2848,6 +2839,12 @@ SpellAuraProcResult Unit::HandleRemoveByDamageProc(Unit* /*pVictim*/, uint32 dam
         {
             return SPELL_AURA_PROC_FAILED;
         }
+    }
+    else if (!BreaksOnDamageProc(damage, (procFlag & PROC_FLAG_TAKEN_ANY_DAMAGE) != 0, charges,
+                                 procSpell && procSpell->ID == spellInfo->ID, procSpell ? procSpell->AttributesExD : 0,
+                                 spellInfo->GetAuraInterruptFlags(), type))
+    {
+        return SPELL_AURA_PROC_OK;
     }
 
     triggeredByAura->SetInUse(true);
@@ -3132,8 +3129,8 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
 
     if (!procTriggered.empty())
     {
-        // the damage a victim's fear, root or pacify-silence counts: the hit's before its absorbs and before the
-        // victim's damage-reduction effects, for the school the damage-taken code reads
+        // the damage a victim's threshold effects count (CountsPreventedDamage): the hit's before its absorbs and
+        // before the victim's damage-reduction effects, for the school the damage-taken code reads
         uint32 const schoolMask = procSpell ? procSpell->SchoolMask : uint32(GetMeleeDamageSchoolMask());
         uint32 const thresholdDamage = isVictim
             ? ThresholdDamage(damage, absorb, ReductionEffectsMultiplier(*this, procSpell, attType, schoolMask))
@@ -3175,7 +3172,11 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                     continue;
                 }
 
-                uint32 const effectDamage = CountsPreventedDamage(spellEffect->EffectAura) ? thresholdDamage : damage;
+                uint32 const effectDamage =
+                    CountsPreventedDamage(spellEffect->EffectAura,
+                                          triggeredByHolder->GetSpellProto()->GetAuraInterruptFlags(),
+                                          triggeredByHolder->GetAuraCharges())
+                    ? thresholdDamage : damage;
 
                 if (procSpell)
                 {
