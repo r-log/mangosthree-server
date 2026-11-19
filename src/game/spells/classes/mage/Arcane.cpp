@@ -31,25 +31,12 @@
 #include "DBCStores.h"
 #include "Log.h"
 
+#include <algorithm>
+#include <iterator>
+
 namespace
 {
     typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
-
-    /// 29441, 29444: Magic Absorption: a mana user gets back the aura's percent of his maximum mana through 29442.
-    ProcOutcome MagicAbsorptionProc(OnProcContext& ctx)
-    {
-        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_DUMMY))
-        {
-            return ProcOutcome::Continue();
-        }
-        if (ctx.caster.GetPowerType() != POWER_MANA)
-        {
-            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
-        }
-
-        int32 const basePoints[MAX_EFFECT_INDEX] = { int32(ctx.triggerAmount * ctx.caster.GetMaxPower(POWER_MANA) / 100), 0, 0 };
-        return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 29442, basePoints));
-    }
 
     /// 31571, 31572: Arcane Potency: casts the buff of the aura's rank (GetArcanePotencyProcSpell) on the owner.
     ProcOutcome ArcanePotencyProc(OnProcContext& ctx)
@@ -85,6 +72,57 @@ namespace
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
         }
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, ctx.caster, 37436));
+    }
+
+    uint32 const INCANTERS_ABSORPTION[] = { 44394, 44395 };
+    uint32 const INCANTERS_ABSORPTION_KNOCKBACK = 86261;
+
+    /// 1463: Mana Shield: when damage used up its last point and the mage knows a rank of Incanter's Absorption, he
+    /// casts 86261, which knocks back the enemies within 6 yards of him (Mage::IncantersAbsorptionKnocksBack). A shield
+    /// that is cancelled, runs out or is dispelled casts nothing. The removal's boosts run.
+    SpellHandlerOutcome<void> ManaShieldAuraRemove(AuraRemoveContext& ctx)
+    {
+        bool knowsTalent = false;
+        for (uint32 rank : INCANTERS_ABSORPTION)
+        {
+            knowsTalent = knowsTalent || ctx.target.HasAura(rank);
+        }
+        if (Mage::IncantersAbsorptionKnocksBack(ctx.mode, knowsTalent))
+        {
+            ctx.CastTriggered(ctx.target, INCANTERS_ABSORPTION_KNOCKBACK);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    uint32 const IMPROVED_MANA_GEM[] = { 31584, 31585 };
+    uint32 const IMPROVED_MANA_GEM_BUFF = 83098;
+    uint32 const MANA_GEMS[] = { 5513, 5514, 8007, 8008, 22044, 33312, 36799 };
+
+    /// 5405: Replenish Mana, the Mana Gem's spell: once its cast from a Mana Gem (Mage::IsManaGem) is over, a mage who
+    /// knows a rank of Improved Mana Gem casts 83098 on himself, both of its effects (spell damage and healing done) at
+    /// the rank's percent of his maximum mana (Mage::ImprovedManaGemAmount). A cast from any other item or from no item,
+    /// and a caster without the talent, cast nothing.
+    SpellHandlerOutcome<void> ReplenishManaAfterCast(AfterCastContext& ctx)
+    {
+        if (!Mage::IsManaGem(ctx.castItemEntry))
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        int32 percent = 0;
+        for (uint32 rank : IMPROVED_MANA_GEM)
+        {
+            if (SpellAuraHolder* holder = ctx.caster.GetSpellAuraHolder(rank))
+            {
+                percent = AuraHandle(*holder).Amount(EFFECT_INDEX_0);
+            }
+        }
+        int32 const amount = Mage::ImprovedManaGemAmount(ctx.caster.GetMaxPower(POWER_MANA), percent);
+        if (amount > 0)
+        {
+            int32 const basePoints[MAX_EFFECT_INDEX] = { amount, amount, 0 };
+            ctx.CastTriggered(ctx.caster, IMPROVED_MANA_GEM_BUFF, basePoints);
+        }
+        return SpellHandlerOutcome<void>::Continue();
     }
 
     uint32 const ARCANE_MISSILES_BUFF = 79683;
@@ -214,6 +252,18 @@ namespace
         return ProcOutcome::Return(Mage::CastProcSpell(ctx, *ctx.victim, SLOW));
     }
 
+    /// 54646: Focus Magic: its proc-trigger effect (1, Focus Magic's buff 54648) casts nothing. Cast by the unit Focus
+    /// Magic is on, the buff, whose one effect is at its caster, would land on that unit; the mage's own cast of it at
+    /// himself comes from the crit-chance effect's proc (FocusMagicBuffCaster), so effect 0 goes on to it.
+    ProcOutcome FocusMagicProc(OnProcContext& ctx)
+    {
+        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
+        {
+            return ProcOutcome::Continue();
+        }
+        return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
+    }
+
     uint32 const COUNTERSPELL = 2139;
 
     /// 84722, 84723: Invocation: answers true for a hit of the mage's Counterspell that interrupted a spell its target
@@ -258,17 +308,18 @@ namespace
         SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED,
         SPELL_AURA_MOD_MELEE_ATTACK_SPEED, SPELL_AURA_MOD_RANGED_ATTACK_SPEED,
         SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_HASTE_SPELLS,
-        SPELL_AURA_HASTE_ALL
+        SPELL_AURA_HASTE_ALL, SPELL_AURA_SLOW_ALL
     };
 
-    uint32 const MAGIC_ABSORPTION[] = { 29441, 29444 };
     uint32 const ARCANE_POTENCY[] = { 31571, 31572 };
     uint32 const MANA_SHIELD[] = { 1463 };
+    uint32 const REPLENISH_MANA[] = { 5405 };
     uint32 const ARCANE_MISSILES_BUFFS[] = { ARCANE_MISSILES_BUFF };
     uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
     uint32 const ARCANE_BLAST_BUFF[] = { 36032 };
     uint32 const ARCANE_POTENCY_BUFFS[] = { 57529, 57531 };
     uint32 const NETHER_VORTEX[] = { 86181, 86209 };
+    uint32 const FOCUS_MAGIC[] = { 54646 };
     uint32 const INVOCATION[] = { 84722, 84723 };
     uint32 const POLYMORPH[] = { 118, 28271, 28272, 61025, 61305, 61721, 61780 };
 }
@@ -385,11 +436,31 @@ uint32 Mage::ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool 
     return knowsRankOne ? IMPROVED_POLYMORPH_STUN_RANK_ONE : 0;
 }
 
+bool Mage::IncantersAbsorptionKnocksBack(AuraRemoveMode mode, bool knowsTalent)
+{
+    return mode == AURA_REMOVE_BY_SHIELD_BREAK && knowsTalent;
+}
+
+int32 Mage::ImprovedManaGemAmount(uint32 maxMana, int32 percent)
+{
+    if (percent <= 0)
+    {
+        return 0;
+    }
+    return int32(uint64(maxMana) * uint64(percent) / 100);
+}
+
+bool Mage::IsManaGem(uint32 itemEntry)
+{
+    return std::find(std::begin(MANA_GEMS), std::end(MANA_GEMS), itemEntry) != std::end(MANA_GEMS);
+}
+
 uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
 {
-    uint32 rows = RegisterRanks<OnProcHook>(registry, MAGIC_ABSORPTION, &MagicAbsorptionProc);
-    rows += RegisterRanks<OnProcHook>(registry, ARCANE_POTENCY, &ArcanePotencyProc);
+    uint32 rows = RegisterRanks<OnProcHook>(registry, ARCANE_POTENCY, &ArcanePotencyProc);
     rows += RegisterRanks<OnProcHook>(registry, MANA_SHIELD, &ManaShieldProc);
+    rows += RegisterRanks<AuraRemoveHook>(registry, MANA_SHIELD, &ManaShieldAuraRemove);
+    rows += RegisterRanks<AfterCastHook>(registry, REPLENISH_MANA, &ReplenishManaAfterCast);
     rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffApply);
     rows += RegisterRanks<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffRemove);
     rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
@@ -397,6 +468,7 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     rows += RegisterRanks<CheckProcHook>(registry, ARCANE_POTENCY_BUFFS, &ArcanePotencyBuffCheckProc);
     rows += RegisterRanks<DamageDoneHook>(registry, TORMENT_THE_WEAK, &TormentTheWeakDamageDone);
     rows += RegisterRanks<OnProcHook>(registry, NETHER_VORTEX, &NetherVortexProc);
+    rows += RegisterRanks<OnProcHook>(registry, FOCUS_MAGIC, &FocusMagicProc);
     rows += RegisterRanks<CheckProcHook>(registry, INVOCATION, &InvocationCheckProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, POLYMORPH, &PolymorphRemove);
     return rows;

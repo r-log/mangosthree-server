@@ -312,6 +312,19 @@ namespace
         42385,  // Alcaz Survey Aura
     };
 
+    /// The spells whose control effect also counts in the shared diminishing-returns group.
+    constexpr uint32 SHARED_DIMINISHING[] =
+    {
+        44572,  // Deep Freeze
+        82691,  // Ring of Frost (the freeze)
+    };
+
+    /// The spells that summon while their caster still holds the aura of an earlier cast of the same spell.
+    constexpr uint32 SUMMONS_PAST_OWN_AURA[] =
+    {
+        82676,  // Ring of Frost: a second ring ends the first
+    };
+
     /// The spells whose cast an aura triggered starts the procs of the unit it is cast for and of the units it hits, as
     /// a cast of that unit's own does.
     constexpr uint32 PROC_STARTING_TRIGGERED_CASTS[] =
@@ -337,6 +350,13 @@ namespace
     constexpr SpellAnswer AURA_TARGET_LIMITS[] =
     {
         { 44457, 3 },       // Living Bomb: "Limit 3 targets."
+    };
+
+    /// The creatures spells summon that show the viewers friendly to their summoner another display, by creature
+    /// entry (the row's key), and that display.
+    constexpr SpellAnswer FRIENDLY_VIEWER_DISPLAYS[] =
+    {
+        { 44199, 38203 },   // Ring of Frost's ring: the friendly ring
     };
 
     constexpr SpellAnswer ARCANE_POTENCY[] =
@@ -407,6 +427,13 @@ namespace
     {
         31641,
         31642,
+    };
+
+    /// The shields whose absorbs Incanter's Absorption counts: Mage Ward and Mana Shield.
+    constexpr uint32 INCANTERS_ABSORPTION_SHIELDS[] =
+    {
+        543,
+        1463,
     };
 
     /// The death-prevention auras. The chance and the percent are read from the holder's effects the row names; the
@@ -682,8 +709,11 @@ namespace
     static_assert(SortedBySpellId(MAX_STACK_AT_CREATE_AURAS), "max-stack ids are sorted, each once");
     static_assert(SortedBySpellId(OVERLOAD_SPELLS), "overload ids are sorted, each once");
     static_assert(SortedBySpellId(TAXI_FLYER_TARGETS), "taxi flyer ids are sorted, each once");
+    static_assert(SortedBySpellId(SHARED_DIMINISHING), "shared diminishing ids are sorted, each once");
+    static_assert(SortedBySpellId(SUMMONS_PAST_OWN_AURA), "summon-past-own-aura ids are sorted, each once");
     static_assert(SortedBySpellId(PROC_STARTING_TRIGGERED_CASTS), "proc-starting triggered cast ids are sorted, each once");
     static_assert(SortedBySpellId(AURA_TARGET_LIMITS), "aura target limit rows are sorted, each once");
+    static_assert(SortedBySpellId(FRIENDLY_VIEWER_DISPLAYS), "friendly viewer display rows are sorted, each once");
     static_assert(SortedBySpellId(ARCANE_POTENCY), "Arcane Potency rows are sorted, each once");
     static_assert(SortedBySpellId(SECOND_WIND), "Second Wind rows are sorted, each once");
     static_assert(SortedBySpellId(RAPID_RECUPERATION), "Rapid Recuperation rows are sorted, each once");
@@ -695,6 +725,7 @@ namespace
     static_assert(SortedBySpellId(HOLY_SHOCK_OF_HEAL), "Holy Shock rows are sorted, each once");
     static_assert(SortedBySpellId(DEEP_WOUNDS_WEAPON_PERCENT), "Deep Wounds rows are sorted, each once");
     static_assert(SortedBySpellId(BLAZING_SPEED_RANKS), "Blazing Speed ranks are sorted, each once");
+    static_assert(SortedBySpellId(INCANTERS_ABSORPTION_SHIELDS), "Incanter's Absorption shields are sorted, each once");
     static_assert(SortedBySpellId(DEATH_PREVENTION), "death-prevention rows are sorted, each once");
     static_assert(SortedBySpellId(SHADOWFLAME_DOT), "Shadowflame rows are sorted, each once");
     static_assert(SortedBySpellId(STARFALL_STAR), "Starfall rows are sorted, each once");
@@ -765,6 +796,27 @@ bool MayTargetTaxiFlyer(uint32 spellId)
     return Holds(TAXI_FLYER_TARGETS, spellId);
 }
 
+bool SharesDiminishingReturns(uint32 spellId)
+{
+    return Holds(SHARED_DIMINISHING, spellId);
+}
+
+bool SummonsPastOwnAura(uint32 spellId)
+{
+    return Holds(SUMMONS_PAST_OWN_AURA, spellId);
+}
+
+bool HasViewerDisplay(uint32 creatureEntry)
+{
+    return AnswerOf(FRIENDLY_VIEWER_DISPLAYS, creatureEntry) != 0;
+}
+
+uint32 ViewerDisplayId(uint32 creatureEntry, uint32 display, bool friendlyToSummoner)
+{
+    uint32 const friendly = AnswerOf(FRIENDLY_VIEWER_DISPLAYS, creatureEntry);
+    return friendly && friendlyToSummoner ? friendly : display;
+}
+
 bool TriggeredCastStartsProcs(uint32 spellId)
 {
     return Holds(PROC_STARTING_TRIGGERED_CASTS, spellId);
@@ -800,8 +852,13 @@ bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ow
     }
 }
 
-bool CountsPreventedDamage(uint32 auraType)
+bool CountsPreventedDamage(uint32 auraType, uint32 auraInterruptFlags, uint32 charges)
 {
+    if (auraType == SPELL_AURA_MOD_STUN)
+    {
+        return !charges && (auraInterruptFlags & AURA_INTERRUPT_FLAG_DAMAGE2) &&
+               !(auraInterruptFlags & AURA_INTERRUPT_FLAG_DAMAGE);
+    }
     return auraType == SPELL_AURA_MOD_FEAR || auraType == SPELL_AURA_MOD_ROOT ||
            auraType == SPELL_AURA_MOD_PACIFY_SILENCE;
 }
@@ -873,6 +930,11 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId)
 bool IsBlazingSpeedRank(uint32 spellId)
 {
     return Holds(BLAZING_SPEED_RANKS, spellId);
+}
+
+bool CountsForIncantersAbsorption(uint32 spellId)
+{
+    return Holds(INCANTERS_ABSORPTION_SHIELDS, spellId);
 }
 
 DeathPreventionRow const* DeathPreventionFor(uint32 spellId)

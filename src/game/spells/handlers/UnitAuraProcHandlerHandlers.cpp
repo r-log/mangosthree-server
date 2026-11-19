@@ -1921,19 +1921,27 @@ static SpellHandlerOutcome<SpellAuraProcResult> HasteAuraProcRogue13877(HasteAur
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 }
 
-/// 54646: Focus Magic: triggers 54648 on the aura's caster; fails without a caster
+Unit* FocusMagicBuffCaster(Unit const& holder, Unit* focusCaster)
+{
+    if (!focusCaster || focusCaster == &holder || !focusCaster->IsAlive() || focusCaster->FindMap() != holder.FindMap())
+    {
+        return NULL;
+    }
+    return focusCaster;
+}
+
+/// 54646: Focus Magic: the mage who cast it casts its buff (54648) at himself, triggered by the aura
+/// (FocusMagicBuffCaster), and the proc ends; fails without him
 static SpellHandlerOutcome<SpellAuraProcResult> SpellCritChanceAuraProcMage54646(SpellCritChanceAuraProcContext& ctx)
 {
-        // Focus Magic
-    Unit* caster = ctx.triggeredByAura->GetCaster();
-    if (!caster)
+    Unit* mage = FocusMagicBuffCaster(*ctx.unit, ctx.triggeredByAura->GetCaster());
+    if (!mage)
     {
         return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
     }
 
-    ctx.triggered_spell_id = 54648;
-    ctx.target = caster;
-    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+    mage->CastSpell(mage, 54648, true, NULL, ctx.triggeredByAura);
+    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
 }
 
 /// 23780: Aegis of Preservation: triggers 23781

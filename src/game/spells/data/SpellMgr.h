@@ -920,6 +920,11 @@ bool IsDiminishingReturnsGroupDurationLimited(DiminishingGroup group);
 DiminishingReturnsType GetDiminishingReturnsGroupType(DiminishingGroup group);
 int32 GetDiminishingReturnsLimitDuration(DiminishingGroup group, SpellEntry const* spellproto);
 
+/// The group a control effect of `spellproto` whose own group is `own` also counts in on its target:
+/// DIMINISHING_SHARED for a spell of SharesDiminishingReturns that has a group of its own, on a player target
+/// (`targetIsPlayer`); DIMINISHING_NONE for any other spell or target.
+DiminishingGroup GetSharedDiminishingGroup(SpellEntry const* spellproto, DiminishingGroup own, bool targetIsPlayer);
+
 SpellEntry const* GetSpellEntryByDifficulty(uint32 id, Difficulty difficulty, bool isRaid);
 
 /// The mastery coefficient of one effect of a mastery spell: its EffectBonusCoefficient when the spell carries

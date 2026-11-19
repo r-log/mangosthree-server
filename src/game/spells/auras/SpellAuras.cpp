@@ -551,12 +551,26 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
         modOwner->ApplySpellMod(spellproto->ID, SPELLMOD_ACTIVATION_TIME, m_modifier.periodictime);
     }
 
-    // the caster's cast haste shortens the period after the spell modifiers, as the client's Spell_C_GetAuraPeriod does
+    // the caster's cast haste shortens the period after the spell modifiers, as the client's Spell_C_GetAuraPeriod does;
+    // a spell whose duration the haste shortens too keeps the ticks it deals without haste, its last one at the latest
+    // at the end of its hasted duration
     if (m_modifier.periodictime && spellproto->HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC) &&
         !spellproto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS))
     {
         const float castHaste = caster ? caster->GetFloatValue(UNIT_MOD_CAST_HASTE) : 1.0f;
-        m_modifier.periodictime = uint32(Spells::HastedPeriod(int32(m_modifier.periodictime), castHaste));
+        if (caster && spellproto->HasAttribute(SPELL_ATTR_EX8_HASTE_AFFECTS_DURATION))
+        {
+            const Spells::HastedTicks timing = Spells::HastedPeriodAndDuration(int32(m_modifier.periodictime),
+                UnhastedSpellDuration(spellproto, caster), spellproto->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY),
+                castHaste);
+            m_modifier.periodictime = uint32(timing.period);
+            m_heldTicks = timing.ticks;
+            m_lastTick = timing.lastTick;
+        }
+        else
+        {
+            m_modifier.periodictime = uint32(Spells::HastedPeriod(int32(m_modifier.periodictime), castHaste));
+        }
     }
 
     // Start periodic on next tick or at aura apply
@@ -651,7 +665,7 @@ SingleEnemyTargetAura::SingleEnemyTargetAura(SpellEntry const* spellproto, Spell
 {
     if (caster)
     {
-        m_castersTargetGuid = caster->GetTypeId() == TYPEID_PLAYER ? caster->GetSelectionGuid() : caster->GetTargetGuid();
+        m_channelTargetGuid = ChannelTargetOf(*caster, spellproto->ID);
     }
 }
 
@@ -660,13 +674,44 @@ SingleEnemyTargetAura::~SingleEnemyTargetAura()
 }
 
 /**
- * @brief Resolves the cached enemy target selected by the original caster.
+ * @brief Resolves the unit the caster's channel started on, kept when the aura was made.
  *
- * @return The cached trigger target, or null if it no longer exists.
+ * @return That unit, or null if it no longer exists.
  */
 Unit* SingleEnemyTargetAura::GetTriggerTarget() const
 {
-    return ObjectLookup::GetUnit(*(m_spellAuraHolder->GetTarget()), m_castersTargetGuid);
+    return ObjectLookup::GetUnit(*(m_spellAuraHolder->GetTarget()), m_channelTargetGuid);
+}
+
+/**
+ * @brief Finds the unit a caster's channel started on.
+ *
+ * The server leaves the channel object empty for a channel at the caster himself, so the channel's own unit target
+ * answers then.
+ *
+ * @param caster The channelling unit.
+ * @param channelSpellId The channel's spell.
+ * @return His channel object while that channel is his and the object is a unit; else the unit target of that channel
+ *         while he casts it; else an empty guid.
+ */
+ObjectGuid SingleEnemyTargetAura::ChannelTargetOf(Unit const& caster, uint32 channelSpellId)
+{
+    ObjectGuid const& channelObject = caster.GetChannelObjectGuid();
+    if (caster.GetUInt32Value(UNIT_CHANNEL_SPELL) == channelSpellId && channelObject.IsUnit())
+    {
+        return channelObject;
+    }
+
+    Spell const* channel = caster.GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+    if (channel && channel->m_spellInfo->ID == channelSpellId)
+    {
+        if (Unit const* unitTarget = channel->m_targets.getUnitTarget())
+        {
+            return unitTarget->GetObjectGuid();
+        }
+    }
+
+    return ObjectGuid();
 }
 
 /**
@@ -738,7 +783,8 @@ void Aura::SetModifier(AuraType t, int32 a, uint32 pt, int32 miscValue)
 
 uint32 Aura::GetAuraMaxTicks() const
 {
-    return Spells::TickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay);
+    return Spells::HeldTickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay, m_heldTicks,
+                                 m_lastTick);
 }
 
 void Aura::SetLoadedState(int32 damage, uint32 periodicTime)
@@ -746,6 +792,7 @@ void Aura::SetLoadedState(int32 damage, uint32 periodicTime)
     m_modifier.m_amount = damage;
     m_tickAmountBeforeDone = damage;
     m_modifier.periodictime = periodicTime;
+    m_heldTicks = 0;
     const bool ticksAtApply = GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY);
     m_firstTickDelay = Spells::FirstTickDelay(int32(periodicTime), ticksAtApply);
     m_periodicTimer = m_firstTickDelay;
@@ -769,8 +816,9 @@ void Aura::Update(uint32 diff)
         if (m_periodicTimer <= 0) // tick also at m_periodicTimer==0 to prevent lost last tick in case max m_duration == (max m_periodicTimer)*N
         {
             // update before applying (aura can be removed in TriggerSpell or PeriodicTick calls)
-            m_periodicTimer += m_modifier.periodictime;
             ++m_periodicTick;                               // for some infinity auras in some cases can overflow and reset
+            m_periodicTimer += Spells::TimeToNextTick(m_periodicTick, int32(m_modifier.periodictime), m_firstTickDelay,
+                                                      m_heldTicks, m_lastTick);
             PeriodicTick();
         }
     }
@@ -1443,6 +1491,14 @@ void Aura::TriggerSpell()
     Unit* triggerTarget = GetTriggerTarget();
 
     if (!casterGUID || !triggerTarget)
+    {
+        return;
+    }
+
+    uint32 tickAmount = m_modifier.m_amount > 0 ? uint32(m_modifier.m_amount) : 0;
+    PeriodicTickContext tickCtx(*GetTarget(), GetCaster(), *GetSpellProto(), m_effIndex, AuraHandle(*GetHolder()),
+                                tickAmount, true);
+    if (SpellHandlerRegistry::Game().Dispatch<PeriodicTickHook>(GetId(), tickCtx).IsReturn())
     {
         return;
     }
@@ -2910,6 +2966,12 @@ void SpellAuraHolder::_AddSpellAuraHolder()
         if (getDiminishGroup() != DIMINISHING_NONE)
         {
             m_target->ApplyDiminishingAura(getDiminishGroup(), true);
+            DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                      m_target->GetTypeId() == TYPEID_PLAYER);
+            if (shared != DIMINISHING_NONE)
+            {
+                m_target->ApplyDiminishingAura(shared, true);
+            }
         }
 
         // Update Seals information
@@ -3012,6 +3074,12 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
     if (getDiminishGroup() != DIMINISHING_NONE)
     {
         m_target->ApplyDiminishingAura(getDiminishGroup(), false);
+        DiminishingGroup const shared = GetSharedDiminishingGroup(m_spellProto, getDiminishGroup(),
+                                                                  m_target->GetTypeId() == TYPEID_PLAYER);
+        if (shared != DIMINISHING_NONE)
+        {
+            m_target->ApplyDiminishingAura(shared, false);
+        }
     }
 
     SetAuraFlags(AFLAG_NONE);
