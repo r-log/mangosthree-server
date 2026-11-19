@@ -171,6 +171,7 @@ set(SRC_GRP_TESTS
     SpellScriptHooksTest.cpp
     MageScriptsTest.cpp
     MageOrbTest.cpp
+    PetAssistTest.cpp
     CreatureHoverTest.cpp
     SpellProcEventRowsTest.cpp
     RaidBuffTest.cpp
