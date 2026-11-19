@@ -364,6 +364,9 @@ struct AuraApplyContext
     /// The target casts `spellId` at `to`, triggered, for the aura's caster, as the holder's boosts cast: with no
     /// triggering spell. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// `from` casts `spellId` at `to`, triggered, as its own cast: with no triggering spell and no other original
+    /// caster.
+    void CastTriggeredFrom(Unit& from, Unit& to, uint32 spellId);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
 
