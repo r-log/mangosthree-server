@@ -313,8 +313,8 @@ namespace
     }
 
     /// 120: Cone of Cold: after its damage, for a caster who knows Improved Cone of Cold (12489, or 11190), the living
-    /// unit it hit casts the rank's freeze (Mage::ImprovedConeOfColdFreeze) on itself, for the caster, unless the unit
-    /// is immune to the freeze as a spell of the caster's. Nothing for a heal.
+    /// unit it hit casts the rank's freeze (Mage::ImprovedConeOfColdFreeze) on itself, for the caster. A unit immune to
+    /// the freeze as a spell of the caster's is not frozen: the freeze shows Immune at it instead. Nothing for a heal.
     SpellHandlerOutcome<void> ConeOfColdAfterHit(AfterHitContext& ctx)
     {
         if (ctx.heal || !ctx.target.IsAlive())
@@ -325,8 +325,13 @@ namespace
                               ctx.caster.HasAura(IMPROVED_CONE_OF_COLD_RANK_ONE) ? IMPROVED_CONE_OF_COLD_RANK_ONE : 0;
         uint32 const freeze = Mage::ImprovedConeOfColdFreeze(talent);
         SpellEntry const* freezeSpell = freeze ? sSpellStore.LookupEntry(freeze) : NULL;
-        if (!freezeSpell || ctx.target.IsImmuneToSpell(freezeSpell, false))
+        if (!freezeSpell)
         {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        if (ctx.target.IsImmuneToSpell(freezeSpell, false))
+        {
+            ctx.ShowImmune(ctx.target, freeze);
             return SpellHandlerOutcome<void>::Continue();
         }
         ctx.CastTriggeredFrom(ctx.target, ctx.target, freeze);

@@ -138,6 +138,11 @@ void AfterHitContext::EnemiesAround(Unit const& center, float radius, std::list<
     }
 }
 
+void AfterHitContext::ShowImmune(Unit& to, uint32 spellId)
+{
+    caster.SendSpellMiss(&to, spellId, SPELL_MISS_IMMUNE);
+}
+
 void AfterHitContext::RemoveAura(Unit& from, uint32 spellId)
 {
     from.RemoveAurasDueToSpell(spellId);

@@ -318,6 +318,9 @@ struct AfterHitContext
     /// caster's line of sight, as Spell::CheckTarget asks. `center` itself among them when it qualifies. Empty when
     /// `center` is in no world.
     void EnemiesAround(Unit const& center, float radius, std::list<Unit*>& out) const;
+    /// Tells the units around the caster that `to` is immune to his `spellId`, as the engine tells a spell its target
+    /// is immune to (Unit::SendSpellMiss, SPELL_MISS_IMMUNE); nothing is cast.
+    void ShowImmune(Unit& to, uint32 spellId);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
 

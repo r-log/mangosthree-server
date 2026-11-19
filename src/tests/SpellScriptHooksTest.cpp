@@ -24,12 +24,12 @@
  */
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
-/// target and script word, the target context's cast target, the after-hit context's search around a unit in no world
-/// and its cast through an aura the caster lacks, the after-cast context's count and point, the aura handle's reads,
-/// its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the
-/// holder's script words, the holder copy's answer for a unit holding none and the period, tick time, duration and
-/// amount a copy keeps, the low-health multiplier a script query answers from the caster's class-script auras, and the
-/// game table, whose only hook rows are the mage's scripts.
+/// target and script word, the target context's cast target, the after-hit context's search around a unit in no world,
+/// its cast through an aura the caster lacks and its Immune notice, the after-cast context's count and point, the aura
+/// handle's reads, its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to,
+/// RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and the period, tick
+/// time, duration and amount a copy keeps, the low-health multiplier a script query answers from the caster's
+/// class-script auras, and the game table, whose only hook rows are the mage's scripts.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -52,6 +52,7 @@
 
 #include "TestHarness.h"
 #include "spells/SpellScriptHooks.h"
+#include "combat/CombatNotices.h"
 #include "spells/SpellScriptQueries.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/pipeline/Spell.h"
@@ -1636,3 +1637,45 @@ TEST(SpellScriptHooks_AnAfterHitContextFindsNoEnemyAroundAUnitInNoWorldAndNeedsT
     CHECK(target.GetSpellAuraHolderMap().empty());
 }
 
+namespace
+{
+    // Notices that keep the spell misses they are told, in place of the session's.
+    class MissNotices : public CombatNotices
+    {
+        public:
+            void SpellMiss(Unit& caster, Unit& target, uint32 spellId, SpellMissInfo missInfo) override
+            {
+                ++misses;
+                lastCaster = &caster;
+                lastTarget = &target;
+                lastSpell = spellId;
+                lastMiss = missInfo;
+            }
+
+            uint32 misses = 0;
+            Unit* lastCaster = NULL;
+            Unit* lastTarget = NULL;
+            uint32 lastSpell = 0;
+            SpellMissInfo lastMiss = SPELL_MISS_NONE;
+    };
+}
+
+TEST(SpellScriptHooks_AnAfterHitContextShowsImmuneAsTheEngineDoesAndCastsNothing)
+{
+    BareCreature caster;
+    BareCreature target;
+    SpellEntry const& spell = HookSpell();
+    AfterHitContext afterHit(caster, target, spell, 1200, false, 0, 0, false);
+
+    // The miss goes out as Unit::SendSpellMiss tells it: the caster's spell at the unit, immune; nothing is cast.
+    MissNotices notices;
+    CombatNotices* previous = CombatNotices::Install(&notices);
+    afterHit.ShowImmune(target, kOtherSpell);
+    CombatNotices::Install(previous);
+    CHECK_EQ(notices.misses, uint32(1));
+    CHECK(notices.lastCaster == &caster);
+    CHECK(notices.lastTarget == &target);
+    CHECK_EQ(notices.lastSpell, kOtherSpell);
+    CHECK_EQ(uint32(notices.lastMiss), uint32(SPELL_MISS_IMMUNE));
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}
