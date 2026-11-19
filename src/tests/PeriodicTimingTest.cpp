@@ -27,11 +27,13 @@
 /// (Spell_C_GetAuraPeriod, round(period * castHaste)), the duration as a whole number of hasted periods, the hasted
 /// duration of a channel, the time to an aura's first tick after its apply or its load, the tick count of an aura from
 /// its first tick, the ticks a loaded aura had dealt before it was saved, the per-tick amount of a refreshed
-/// damage-over-time effect that carries its remaining damage, and the ticks of a declining effect, which sum to the
-/// per-tick amount times the tick count as the client's tooltip total does. Every float-to-int rounding is to the nearest, ties to even, as the client's conversion is; every
-/// integer division truncates toward zero, as the server's does. The periods and durations are the 4.3.4 DBC's for the
-/// spells named: Pyroblast and Living Bomb 3000 over 12000, Combustion 1000 over 10000, Frostfire Bolt 3000 over 9000,
-/// Mind Flay 3000, Arcane Missiles 2250, Rejuvenation 3000 over 12000, Wild Growth 1000 over 7000.
+/// damage-over-time effect that carries its remaining damage, the ticks of a declining effect, which sum to the
+/// per-tick amount times the tick count as the client's tooltip total does, and the tick that restores a percent of a
+/// maximum with the fraction its spell modifiers gave it (Mage Armor's 3% raised 20% by its glyph: 3.6%). Every
+/// float-to-int rounding is to the nearest, ties to even, as the client's conversion is; every integer division
+/// truncates toward zero, as the server's does. The periods and durations are the 4.3.4 DBC's for the spells named:
+/// Pyroblast and Living Bomb 3000 over 12000, Combustion 1000 over 10000, Frostfire Bolt 3000 over 9000, Mind Flay
+/// 3000, Arcane Missiles 2250, Rejuvenation 3000 over 12000, Wild Growth 1000 over 7000.
 
 #include "TestHarness.h"
 
@@ -468,4 +470,42 @@ TEST(PeriodicTiming_EveryDecliningEffectSumsToItsTotalWithoutANegativeTick)
             CHECK(falls);
         }
     }
+}
+
+TEST(PeriodicTiming_GlyphedMageArmorRestoresThreePointSixPercent)
+{
+    // Mage Armor's 3 with Glyph of Mage Armor's +20%, as SpellModMgr::ApplySpellMod adds it to a float
+    const float glyphed = 3.0f + (3.0f * 20.0f / 100.0f + 0.0f);
+    CHECK_EQ(int32(glyphed), int32(3));
+    CHECK_EQ(Spells::PercentOfMaximumTick(100000, 3, glyphed), uint32(3600));
+    CHECK_EQ(Spells::PercentOfMaximumTick(98765, 3, glyphed), uint32(3555));     // 3555.54
+    CHECK_EQ(Spells::PercentOfMaximumTick(155000, 3, glyphed), uint32(5580));
+    CHECK_EQ(Spells::PercentOfMaximumTick(155000, 3, 3.0f), uint32(4650));
+}
+
+TEST(PeriodicTiming_AWholePercentRestoresWhatTheIntegerAmountDid)
+{
+    const uint32 maxima[] = { 0, 1, 99, 100, 101, 12345, 98765, 100000, 155000, 4000000 };
+    for (uint32 maximum : maxima)
+    {
+        for (int32 percent = 1; percent <= 100; ++percent)
+        {
+            const uint32 whole = maximum * uint32(percent) / 100;
+            CHECK_EQ(Spells::PercentOfMaximumTick(maximum, percent, float(percent)), whole);
+        }
+    }
+}
+
+TEST(PeriodicTiming_AnAmountSetAfterItsFractionRestoresItsWholePercent)
+{
+    // the fraction belongs to the amount it truncates to; a script's or a stack's new amount is whole
+    CHECK_EQ(Spells::PercentOfMaximumTick(100000, 5, 3.6f), uint32(5000));
+    CHECK_EQ(Spells::PercentOfMaximumTick(100000, 0, 3.6f), uint32(0));
+}
+
+TEST(PeriodicTiming_APercentNotAbove0RestoresNothing)
+{
+    CHECK_EQ(Spells::PercentOfMaximumTick(100000, 0, 0.0f), uint32(0));
+    CHECK_EQ(Spells::PercentOfMaximumTick(100000, -3, -3.6f), uint32(0));
+    CHECK_EQ(Spells::PercentOfMaximumTick(0, 3, 3.6f), uint32(0));
 }

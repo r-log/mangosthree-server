@@ -4064,7 +4064,15 @@ class Unit : public WorldObject
         void _RemoveAllAuraMods();
         void _ApplyAllAuraMods();
 
-        int32 CalculateSpellDamage(Unit const* target, SpellEntry const* spellProto, SpellEffectIndex effect_index, int32 const* basePoints = NULL);
+        /**
+         * The value of an effect of a spell this unit casts at `target`: its base points, scaled, with the unit's
+         * spell modifiers of the effect.
+         * @param exactValue when given, receives the value with the fraction the integer value drops: the spell
+         * modifiers applied to a float (Glyph of Mage Armor's +20% makes Mage Armor's 3 into 3.6, which returns 3)
+         * @return the value, truncated toward zero
+         */
+        int32 CalculateSpellDamage(Unit const* target, SpellEntry const* spellProto, SpellEffectIndex effect_index,
+                                   int32 const* basePoints = NULL, float* exactValue = NULL);
 
         uint32 CalcNotIgnoreAbsorbDamage(uint32 damage, SpellSchoolMask damageSchoolMask, SpellEntry const* spellInfo = NULL);
         uint32 CalcNotIgnoreDamageReduction(uint32 damage, SpellSchoolMask damageSchoolMask);

@@ -145,4 +145,15 @@ namespace Spells
         }
         return int32(int64(amount) * 7 * fromMiddle / 100);
     }
+
+    uint32 PercentOfMaximumTick(uint32 maximum, int32 amount, float exactAmount)
+    {
+        const float percent = int32(exactAmount) == amount ? exactAmount : float(amount);
+        if (percent <= 0.0f)
+        {
+            return 0;
+        }
+        const uint64 thousandths = uint64(RoundToEven(percent * 1000.0f));
+        return uint32(uint64(maximum) * thousandths / 100000);
+    }
 }

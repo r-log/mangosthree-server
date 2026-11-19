@@ -466,7 +466,7 @@ pAuraHandler AuraHandler[TOTAL_AURAS] =
 };
 
 Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster, Item* castItem) :
-    m_modifierValue(0.0f), m_tickAmountBeforeDone(0), m_periodicTimer(0), m_firstTickDelay(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
+    m_modifierValue(0.0f), m_tickAmountBeforeDone(0), m_exactAmount(0.0f), m_periodicTimer(0), m_firstTickDelay(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
     m_effIndex(eff), m_positive(false), m_isPeriodic(false), m_isAreaAura(false),
     m_isPersistent(false), m_in_use(0), m_spellAuraHolder(holder)
 {
@@ -483,13 +483,16 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
     m_applyTime = time(NULL);
 
     int32 damage;
+    float exactDamage = 0.0f;
     if (!caster)
     {
         damage = m_currentBasePoints;
     }
     else
     {
-        damage = caster->CalculateSpellDamage(target, spellproto, m_effIndex, &m_currentBasePoints);
+        // a percent-of-maximum-mana tick keeps the fraction the spell modifiers give its percent
+        float* const exact = m_spellEffect->EffectAura == SPELL_AURA_OBS_MOD_MANA ? &exactDamage : NULL;
+        damage = caster->CalculateSpellDamage(target, spellproto, m_effIndex, &m_currentBasePoints, exact);
 
         if (!damage && castItem && castItem->GetItemSuffixFactor())
         {
@@ -524,6 +527,13 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
 
     AuraAmountContext amountCtx(caster, *target, *spellproto, m_effIndex, damage);
     SpellHandlerRegistry::Game().Dispatch<AuraAmountHook>(spellproto->ID, amountCtx);
+
+    // the fraction is kept only for the amount it was taken from; an amount set since is whole
+    if (int32(exactDamage) != damage)
+    {
+        exactDamage = float(damage);
+    }
+    m_exactAmount = exactDamage * float(holder->GetStackAmount());
 
     damage *= holder->GetStackAmount();
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Aura: construct Spellid : %u, Aura : %u Target : %d Damage : %d", spellproto->ID, m_spellEffect->EffectAura, m_spellEffect->ImplicitTarget_0, damage);
@@ -2348,10 +2358,9 @@ void Aura::PeriodicTick()
                 return;
             }
 
-            // ignore non positive values (can be result apply spellmods to aura damage
-            uint32 amount = m_modifier.m_amount > 0 ? m_modifier.m_amount : 0;
-
-            uint32 pdamage = uint32(target->GetMaxPower(POWER_MANA) * amount / 100);
+            // the percent keeps the fraction its spell modifiers gave it; a percent not above 0 restores nothing
+            uint32 pdamage = Spells::PercentOfMaximumTick(target->GetMaxPower(POWER_MANA), m_modifier.m_amount,
+                                                          m_exactAmount);
 
             DETAIL_FILTER_LOG(LOG_FILTER_PERIODIC_AFFECTS, "PeriodicTick: %s energize %s for %u mana inflicted by %u",
                               GetCasterGuid().GetString().c_str(), target->GetGuidStr().c_str(), pdamage, GetId());

@@ -226,7 +226,7 @@
 // 1112 a staged Arcane mage's hasted Arcane Missiles keep their three missiles in a shorter channel, and his
 // Evocation gives him 15% of his mana four times, hasted in a shorter channel too, and 10% of
 // his health each tick with its glyph; Mana Shield absorbs its amount at one mana a point; Mage Armor gives 3% of his
-// mana every 5 s, his glyphed tick recorded, and shortens a harmful magic effect on him by 35%.
+// mana every 5 s, 3.6% with its glyph, and shortens a harmful magic effect on him by 35%.
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
 // Magic goes on another mage and not on him, that mage's hit that does not crit gives him no 54648, and his crit gives
 // him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
@@ -20696,8 +20696,8 @@ namespace Harness
      * one at 1667/5000, the client's pair, with four health ticks of 10% of his maximum health; Arcane Missiles' three
      * missiles at 617/1850; the shield's amount in its
      * band; the first blow takes kSmallBlow mana and leaves the amount less kSmallBlow, the second takes what was left
-     * and leaves no shield; Mage Armor's tick is 3% (one point either side; the glyphed tick is recorded, not judged);
-     * and Slow lasts 15000 then 9750.
+     * and leaves no shield; Mage Armor's tick is 3% and the glyphed one 3.6% (one point either side); and Slow lasts
+     * 15000 then 9750.
      */
     class MageArcaneMana : public MageArcaneProofScenario
     {
@@ -20868,7 +20868,8 @@ namespace Harness
             const int64 glyphMax = Kept(st, kSecondArmor, "maxMana");
             const uint32 armorWant = uint32(armorMax * 3 / 100);
             const uint32 glyphWant = uint32(glyphMax * 36 / 1000);
-            ok = ok && armor.size() == 1 && InBand(armor[0], armorWant, armorWant);
+            ok = ok && armor.size() == 1 && InBand(armor[0], armorWant, armorWant) && glyph.size() == 1 &&
+                 InBand(glyph[0], glyphWant, glyphWant);
 
             const int64 magicBefore = Kept(st, kFirstSlowStep, "slow");
             const int64 magicAfter = Kept(st, kLastSlowStep, "slow");
