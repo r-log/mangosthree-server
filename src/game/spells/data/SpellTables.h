@@ -119,6 +119,10 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId);
 /// Whether a spell is a rank of Blazing Speed.
 bool IsBlazingSpeedRank(uint32 spellId);
 
+/// Whether what a shield of `spellId` absorbs counts toward Incanter's Absorption: Mage Ward (543) and Mana Shield
+/// (1463) alone.
+bool CountsForIncantersAbsorption(uint32 spellId);
+
 /// How a death-prevention aura saves its bearer from a killing blow.
 enum DeathPreventionShape
 {

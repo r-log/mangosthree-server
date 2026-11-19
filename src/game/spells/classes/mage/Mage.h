@@ -330,6 +330,16 @@ namespace Mage
     /// Arcane.cpp.
     uint32 ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo, bool targetMarked);
 
+    /// Whether a mage whose Mana Shield is removed in `mode` knocks back the enemies around him for Incanter's
+    /// Absorption: only when damage used up the shield's last point (AURA_REMOVE_BY_SHIELD_BREAK) and he knows a rank
+    /// of the talent (`knowsTalent`); never for a shield that is cancelled, runs out or is dispelled. Defined in
+    /// Arcane.cpp.
+    bool IncantersAbsorptionKnocksBack(AuraRemoveMode mode, bool knowsTalent);
+
+    /// The amount of each of Improved Mana Gem's two effects for one use of the Mana Gem: `percent` percent of
+    /// `maxMana`, truncated; 0 for a percent of 0 or less. Defined in Arcane.cpp.
+    int32 ImprovedManaGemAmount(uint32 maxMana, int32 percent);
+
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
     /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.

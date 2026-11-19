@@ -557,6 +557,9 @@ struct AfterCastContext
     /// The caster casts `spellId` at the point, triggered, with this cast's spell as the trigger and no triggering
     /// aura.
     void CastTriggeredAt(float x, float y, float z, uint32 spellId);
+    /// The caster casts `spellId` at `to`, triggered, with this cast's spell as the trigger and no triggering aura.
+    /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
 
     Unit& caster;                                   ///< the caster
     SpellEntry const& spell;                        ///< the spell cast

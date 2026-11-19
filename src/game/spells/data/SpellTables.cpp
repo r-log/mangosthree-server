@@ -409,6 +409,13 @@ namespace
         31642,
     };
 
+    /// The shields whose absorbs Incanter's Absorption counts: Mage Ward and Mana Shield.
+    constexpr uint32 INCANTERS_ABSORPTION_SHIELDS[] =
+    {
+        543,
+        1463,
+    };
+
     /// The death-prevention auras. The chance and the percent are read from the holder's effects the row names; the
     /// follow-up is cast by the bearer on himself, and its cooldown on him is the lockout between two saves.
     constexpr DeathPreventionRow DEATH_PREVENTION[] =
@@ -695,6 +702,7 @@ namespace
     static_assert(SortedBySpellId(HOLY_SHOCK_OF_HEAL), "Holy Shock rows are sorted, each once");
     static_assert(SortedBySpellId(DEEP_WOUNDS_WEAPON_PERCENT), "Deep Wounds rows are sorted, each once");
     static_assert(SortedBySpellId(BLAZING_SPEED_RANKS), "Blazing Speed ranks are sorted, each once");
+    static_assert(SortedBySpellId(INCANTERS_ABSORPTION_SHIELDS), "Incanter's Absorption shields are sorted, each once");
     static_assert(SortedBySpellId(DEATH_PREVENTION), "death-prevention rows are sorted, each once");
     static_assert(SortedBySpellId(SHADOWFLAME_DOT), "Shadowflame rows are sorted, each once");
     static_assert(SortedBySpellId(STARFALL_STAR), "Starfall rows are sorted, each once");
@@ -873,6 +881,11 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId)
 bool IsBlazingSpeedRank(uint32 spellId)
 {
     return Holds(BLAZING_SPEED_RANKS, spellId);
+}
+
+bool CountsForIncantersAbsorption(uint32 spellId)
+{
+    return Holds(INCANTERS_ABSORPTION_SHIELDS, spellId);
 }
 
 DeathPreventionRow const* DeathPreventionFor(uint32 spellId)
