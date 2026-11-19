@@ -96,6 +96,18 @@ bool GlobalCooldownMgr::HasGlobalCooldown(SpellEntry const* spellInfo) const
 }
 
 /**
+ * @brief The duration of the global cooldown last started in a spell's start recovery category.
+ *
+ * @param spellInfo The spell whose recovery category is read.
+ * @return The duration in milliseconds; 0 when none was started or it was cancelled.
+ */
+uint32 GlobalCooldownMgr::GetGlobalCooldown(SpellEntry const* spellInfo) const
+{
+    GlobalCooldownList::const_iterator itr = m_GlobalCooldowns.find(spellInfo->GetStartRecoveryCategory());
+    return itr != m_GlobalCooldowns.end() ? itr->second.duration : 0;
+}
+
+/**
  * @brief Starts a global cooldown category timer.
  *
  * @param spellInfo The spell whose recovery category is used.
