@@ -232,7 +232,8 @@
 // him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
 // 1114 a staged Arcane mage's Mirror Image summons (the Arcane images' and those without the glyph) give him three
 // images each, his guardians of his level that look like him and take 75% of his spell power; they cast their
-// spells at the Camel he selects, Arcane Blast or Frostbolt with Fire Blast, never swing, and go after 30 s.
+// spells at the Camel he selects, Arcane Blast or Frostbolt with Fire Blast, never swing, and go after 30 s; a third
+// summon's images cast nothing at the Camel he polymorphs right after it, and the Polymorph holds.
 // The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1016, 1025-1028 and 1100-1114 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
@@ -22567,7 +22568,7 @@ namespace Harness
      * Mana Adept are taken off. The Camel stands kDistance yards ahead and casts Hit Me (100446) on itself at its
      * spawn, so no image's spell misses it. Mirror Image itself (55342) is not cast: its Initialize Images (58836)
      * holds spell_script_target rows, which the guard refuses; he casts the summon its dummy effect chooses, triggered,
-     * at himself. Two runs of four steps, the second 32 s after the first:
+     * at himself. Three runs of four steps, each 32 s after the one before:
      *  1. the summon, right after which he selects the Camel, as a client does before it casts at it, and he and each
      *     image of the run take the crit aura at kNoCrit, so no hit crits; read kReadMs after; kWindowMs to step 2;
      *  2. 3. the Camel's health set to its maximum, kWindowMs and then kEndMs - 2 x kWindowMs apart, so it lives
@@ -22575,14 +22576,16 @@ namespace Harness
      *  4. a wait kEndMs after the summon, kTailMs to the next run.
      * Run A, the Arcane images: 88091, whose 88087, 88085 and 88089 summon 47243, which casts Arcane Blast (88084).
      * Run B, the images without the glyph: 58832, whose 58833, 58831 and 58834 summon 31216, which casts Frostbolt
-     * (59638) and Fire Blast (59637). Right after the summon the scenario keeps the run's images (his guardians of the
-     * run's creature) and his spell power of each school they cast (Unit::SpellBaseDamageBonusDone). At the summon's
-     * read, for each image: its owner, its level, its look (the cloned flag, his display and his name) and the spell
-     * power its spells take from him (Pet::GetBonusDamage), wanted at 75% of his of the school it casts. From the
-     * summon step's windows (kWindowMs): the SMSG_SPELL_GO of the images' spells, each image's first damage log of its
-     * run's spell, and for run B each image's Fire Blasts; from the run's four steps' windows the images' melee swings
-     * (SMSG_ATTACKERSTATEUPDATE); right after step 2 whether the Camel holds 59638; right after step 4 the images still
-     * in the world. A first hit's band at level 85 (the class-8 spell scaling 937.33): Arcane Blast
+     * (59638) and Fire Blast (59637). Run C, the same summon, right after which he casts Polymorph (118) at the Camel,
+     * triggered, before the images' first update. Right after the summon the scenario keeps the run's images (his
+     * guardians of the run's creature) and his spell power of each school they cast (Unit::SpellBaseDamageBonusDone).
+     * At the summon's read, for each image: its owner, its level, its look (the cloned flag, his display and his name)
+     * and the spell power its spells take from him (Pet::GetBonusDamage), wanted at 75% of his of the school it casts.
+     * From the summon step's windows (kWindowMs): the SMSG_SPELL_GO of the images' spells, each image's first damage
+     * log of its run's spell, and for run B each image's Fire Blasts; from the run's four steps' windows the images'
+     * melee swings (SMSG_ATTACKERSTATEUPDATE), and for run C the GOs of their spells; right after step 2 whether the
+     * Camel holds 59638, for run C 118; right after step 4 the images still in the world, for run C also whether the
+     * Camel holds 118. A first hit's band at level 85 (the class-8 spell scaling 937.33): Arcane Blast
      * int(0.259 x 937.33) = 242 with the spread int(242.77 x 0.15) = 36 halved either side, 224..260, plus int(the
      * bonus x 0.275); Frostbolt int(0.235 x 937.33) = 220 with the spread 22 halved, 209..231, plus int(the bonus x
      * 0.25).
@@ -22590,9 +22593,12 @@ namespace Harness
      * `images`: `arcane=[count:<images>,owner:<his>,look:<cloned as him>,level:<at 85>,sp:<bonus of each>@<wanted>,
      * casts:<88084 GOs>,first:<each first 88084 hit>@<band>,melee:<swings>,end:<in the world at step 4>],frost=[` the
      * same with `casts:<59638 and 59637 GOs>`, `fireBlast:<each image's 59637 GOs>` after it and `slow:<59638 on the
-     * Camel at step 2>` before `melee` `]`. OK when each run counts three images, all his, cloned as him, at 85 and at
-     * the wanted spell power, at least kMinCasts casts, each first hit in its band and no crit, no swing and none in
-     * the world at step 4; and for run B at least one Fire Blast of each image and the slow.
+     * Camel at step 2>` before `melee` `]`, then `,sheep=[count:<images>,owner:<his>,casts:<59638 and 59637 GOs of the
+     * run's images over its four steps>,held:<118 on the Camel at step 2>/<at step 4>,melee:<swings>,end:<in the world
+     * at step 4>]`. OK when runs A and B each count three images, all his, cloned as him, at 85 and at the wanted spell
+     * power, at least kMinCasts casts, each first hit in its band and no crit, no swing and none in the world at step
+     * 4, and for run B at least one Fire Blast of each image and the slow; and run C counts three images, all his, no
+     * cast, the Polymorph held at steps 2 and 4, no swing and none in the world at step 4.
      */
     class MageArcaneImages : public MageArcaneProofScenario
     {
@@ -22664,6 +22670,8 @@ namespace Harness
                 { 58834, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 31216 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 50 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 59638: 49 fields, fnv f158fec8
                 { 59638, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 162 }, { "eff0.EffectBonusCoefficient", 1048576000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 7 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 33 }, { "eff1.EffectBasePoints", -50 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 11 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 118: 49 fields, fnv ffbe2272
+                { 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                 // 59637: 26 fields, fnv c6bb4056
                 { 59637, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 87 }, { "eff0.EffectBonusCoefficient", 1041865114 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
             });
@@ -22702,6 +22710,11 @@ namespace Harness
                 const uint32 fireBlast = kFireBlasts[run];
                 reads["want"] = Share(p->SpellBaseDamageBonusDone(SchoolOf(kSpells[run])));
                 reads["wantFire"] = fireBlast ? Share(p->SpellBaseDamageBonusDone(SchoolOf(fireBlast))) : kNone;
+                if (run == kSheepRun)
+                {
+                    p->CastSpell(target, kPolymorph, true);
+                    m_rec.Note("he polymorphs the Camel: " + HolderOf(target, kPolymorph));
+                }
                 m_rec.Note("he selects the Camel; his guardians of " + U(creature) + ": " + U(uint32(images.size())) +
                            "; he and each takes " + U(kCritAura) + " at " + Num(kNoCrit) +
                            "; 75% of his spell power of " + U(kSpells[run]) + "'s school " + Num(reads["want"]) +
@@ -22744,6 +22757,12 @@ namespace Harness
                 reads["level"] = level;
                 return;
             }
+            if (step == kSlowStep && !atRead && run == kSheepRun)
+            {
+                reads["sheep"] = target->HasAura(kPolymorph) ? 1 : 0;
+                m_rec.Note("the Camel's " + U(kPolymorph) + ": " + HolderOf(target, kPolymorph));
+                return;
+            }
             if (step == kSlowStep && !atRead)
             {
                 reads["slow"] = target->HasAura(kFrostbolt) ? 1 : 0;
@@ -22760,6 +22779,11 @@ namespace Harness
                 }
                 reads["end"] = alive;
                 m_rec.Note("of the run's " + U(uint32(images.size())) + " images " + Num(alive) + " in the world");
+                if (run == kSheepRun)
+                {
+                    reads["sheepEnd"] = target->HasAura(kPolymorph) ? 1 : 0;
+                    m_rec.Note("the Camel's " + U(kPolymorph) + ": " + HolderOf(target, kPolymorph));
+                }
             }
         }
 
@@ -22773,33 +22797,37 @@ namespace Harness
             std::string value;
             for (uint32 run = 0; run < kRuns; ++run)
             {
-                value += (run ? "," : "") + std::string(kRunNames[run]) + "=[" + RunText(st, run, ok) + "]";
+                value += (run ? "," : "") + std::string(kRunNames[run]) + "=[" +
+                         (run == kSheepRun ? SheepText(st, run, ok) : RunText(st, run, ok)) + "]";
             }
             return (ok ? "OK(" : "BUG(") + value + "; count, owner, look and level count the images; sp the bonus of " +
-                   "each @ 75% of his spell power; casts the images' GOs in the 12 s after the summon; first each " +
-                   "image's first hit @ its band; melee their swings over the run; end the images in the world 31 s " +
-                   "after the summon)";
+                   "each @ 75% of his spell power; casts the images' GOs in the 12 s after the summon, for sheep " +
+                   "over the run; first each image's first hit @ its band; held his Polymorph on the Camel 12 s and " +
+                   "31 s after the summon; melee their swings over the run; end the images in the world 31 s after " +
+                   "the summon)";
         }
 
     private:
-        static constexpr uint32 kRuns = 2;
+        static constexpr uint32 kRuns = 3;
+        static constexpr uint32 kSheepRun = 2;
         static constexpr uint32 kStepsPerRun = 4;
         static constexpr uint32 kSummonStep = 0;
         static constexpr uint32 kSlowStep = 1;
         static constexpr uint32 kEndStep = 3;
         static constexpr size_t kImages = 3;
-        static constexpr uint32 kSummons[kRuns] = { 88091, 58832 };
-        static constexpr uint32 kCreatures[kRuns] = { 47243, 31216 };
-        static constexpr uint32 kSpells[kRuns] = { 88084, 59638 };
-        static constexpr uint32 kFireBlasts[kRuns] = { 0, 59637 };
-        static constexpr char const* kRunNames[kRuns] = { "arcane", "frost" };
-        static constexpr int64 kBandLow[kRuns] = { 224, 209 };
-        static constexpr int64 kBandHigh[kRuns] = { 260, 231 };
-        static constexpr float kCoefficients[kRuns] = { 0.275f, 0.25f };
-        static constexpr uint32 kMinCasts[kRuns] = { 9, 12 };
+        static constexpr uint32 kSummons[kRuns] = { 88091, 58832, 58832 };
+        static constexpr uint32 kCreatures[kRuns] = { 47243, 31216, 31216 };
+        static constexpr uint32 kSpells[kRuns] = { 88084, 59638, 59638 };
+        static constexpr uint32 kFireBlasts[kRuns] = { 0, 59637, 59637 };
+        static constexpr char const* kRunNames[kRuns] = { "arcane", "frost", "sheep" };
+        static constexpr int64 kBandLow[kRuns] = { 224, 209, 209 };
+        static constexpr int64 kBandHigh[kRuns] = { 260, 231, 231 };
+        static constexpr float kCoefficients[kRuns] = { 0.275f, 0.25f, 0.25f };
+        static constexpr uint32 kMinCasts[kRuns] = { 9, 12, 0 };
         static constexpr uint32 kNetherwindTalent = 9200;
         static constexpr uint32 kHitMe = 100446;
         static constexpr uint32 kFrostbolt = 59638;
+        static constexpr uint32 kPolymorph = 118;
         static constexpr int32 kSpellPower = 10000;
         static constexpr int64 kSharePercent = 75;
         static constexpr int32 kNoCrit = -100;
@@ -23025,6 +23053,49 @@ namespace Harness
             text += ",melee:" + U(melee) + ",end:" + Num(end);
             ok = ok && runOk;
             return text;
+        }
+
+        /// The value of the run whose Camel he polymorphs, `ok` cleared when a read is not the wanted one: the run's
+        /// images, his, their casts of their spells and their swings over the run's four steps, the Polymorph on the
+        /// Camel at steps 2 and 4, and the images in the world at step 4.
+        std::string SheepText(St const& st, uint32 run, bool& ok) const
+        {
+            const uint32 k = run * kStepsPerRun;
+            uint32 casts = 0;
+            uint32 melee = 0;
+            for (uint32 step = k; step < k + kStepsPerRun; ++step)
+            {
+                for (std::string const& window : StepWindows(step))
+                {
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_SPELL_GO))
+                    {
+                        uint64 caster = 0;
+                        uint32 spell = 0;
+                        if (GoOf(seen->payload, caster, spell) && ImageIndex(run, caster) >= 0 &&
+                            (spell == kSpells[run] || spell == kFireBlasts[run]))
+                        {
+                            ++casts;
+                        }
+                    }
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_ATTACKERSTATEUPDATE))
+                    {
+                        uint64 attacker = 0;
+                        if (SwingAttackerOf(seen->payload, attacker) && ImageIndex(run, attacker) >= 0)
+                        {
+                            ++melee;
+                        }
+                    }
+                }
+            }
+            const int64 count = Kept(st, k, "count");
+            const int64 owner = Kept(st, k, "owner");
+            const int64 held = Kept(st, k + kSlowStep, "sheep");
+            const int64 heldEnd = Kept(st, k + kEndStep, "sheepEnd");
+            const int64 end = Kept(st, k + kEndStep, "end");
+            ok = ok && count == int64(kImages) && owner == int64(kImages) && casts == 0 && held == 1 && heldEnd == 1 &&
+                 melee == 0 && end == 0;
+            return "count:" + Num(count) + ",owner:" + Num(owner) + ",casts:" + U(casts) + ",held:" + Num(held) + "/" +
+                   Num(heldEnd) + ",melee:" + U(melee) + ",end:" + Num(end);
         }
     };
 
