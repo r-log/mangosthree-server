@@ -224,9 +224,10 @@ struct CheckCastContext
 struct SelectTargetsContext
 {
     SelectTargetsContext(Unit& casterUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
-                         uint32 implicitTargetMode, std::list<Unit*>& unitTargets, uint32& maxTargetCount)
+                         uint32 implicitTargetMode, std::list<Unit*>& unitTargets, uint32& maxTargetCount,
+                         Unit* castTargetUnit = NULL)
         : caster(casterUnit), spell(spellEntry), effIndex(effectIndex), targetMode(implicitTargetMode),
-          targets(unitTargets), maxTargets(maxTargetCount)
+          targets(unitTargets), maxTargets(maxTargetCount), castTarget(castTargetUnit)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -238,6 +239,7 @@ struct SelectTargetsContext
     std::list<Unit*>& targets;                      ///< the effect's unit list, which a body may change
     uint32& maxTargets;                             ///< the most targets the cut after the hook keeps, 0 for no cut,
                                                     ///< which a body may change
+    Unit* castTarget;                               ///< the cast's explicit unit target; NULL when it has none
 };
 
 /// EffectValue's context. Value: void.
@@ -303,6 +305,22 @@ struct AfterHitContext
     /// The caster casts `spellId` at `to`, triggered by this spell. `basePoints`, when given, holds
     /// MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// The caster casts `spellId` at `to`, triggered by his own aura of `auraSpellId` at `auraEffect`, as a proc of
+    /// that aura casts: the aura's spell is the trigger and its caster the original caster, so the cast's hits start
+    /// no procs, while its cast end does. False, and nothing cast, when he holds no such aura.
+    bool CastTriggeredByAura(Unit& to, uint32 spellId, uint32 auraSpellId, SpellEffectIndex auraEffect);
+    /// `from` casts `spellId` at `to`, triggered, with this context's caster as the original caster and this spell as
+    /// the trigger. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
+    void CastTriggeredFrom(Unit& from, Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// Fills `out`, cleared first, with the units an area spell of the caster that strikes enemies takes within
+    /// `radius` yards of `center`, as the area fill of SPELL_TARGETS_AOE_DAMAGE takes them: alive and attackable, no
+    /// totem, in the caster's phase, not friendly to a player-controlled caster (hostile to any other), then in the
+    /// caster's line of sight, as Spell::CheckTarget asks. `center` itself among them when it qualifies. Empty when
+    /// `center` is in no world.
+    void EnemiesAround(Unit const& center, float radius, std::list<Unit*>& out) const;
+    /// Tells the units around the caster that `to` is immune to his `spellId`, as the engine tells a spell its target
+    /// is immune to (Unit::SendSpellMiss, SPELL_MISS_IMMUNE); nothing is cast.
+    void ShowImmune(Unit& to, uint32 spellId);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
 

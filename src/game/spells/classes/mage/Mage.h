@@ -47,12 +47,12 @@
  * Flamestrike's (ImprovedFlamestrikeChance), the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick)
  * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
- * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze) and Early Frost's (EarlyFrostLockout).
- * Orb.cpp holds the orb a mage's Flame
- * Orb summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
- * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
- * and OrbCostShare). Each file registers its rows through one function of namespace Mage: a table per legacy site of
- * SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
+ * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal) and Improved Cone of Cold's
+ * (ImprovedConeOfColdFreeze). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts and its
+ * leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead,
+ * OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Each file registers its rows through one
+ * function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations and the orb's. Returns the rows
@@ -434,6 +434,22 @@ namespace Mage
     /// (83050, `knowsRankTwo`), else 83162 for one who knows the first (83049, `knowsRankOne`); 0 for a mage who knows
     /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frost.cpp.
     uint32 EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp);
+    /// How many other enemies a Frostbolt crit chills for a mage who knows `talentSpell` (Piercing Chill, 83156 or
+    /// 83157): that spell's effect 0 value in the spell store (1 or 2); 0 for any other spell, or when the store lacks
+    /// it. Defined in Frost.cpp.
+    int32 PiercingChillCount(uint32 talentSpell);
+
+    /// Keeps in `targets` the `count` units nearest to `from`, nearest first, each once, `excluded` never among them;
+    /// units at the same distance keep their order. Empties it for a count of 0 or below. Defined in Frost.cpp.
+    void NearestOthers(std::list<Unit*>& targets, Unit const* excluded, WorldObject const& from, int32 count);
+
+    /// The heal Permafrost gives the pet from a hit of `damage` at `percent`: damage * percent / 100, truncated; 0 for
+    /// a percent of 0 or below. Defined in Frost.cpp.
+    int32 PermafrostHeal(uint32 damage, int32 percent);
+
+    /// The freeze a Cone of Cold hit puts on its target for a mage who knows `talentSpell` (Improved Cone of Cold):
+    /// 83301 (2 s) for 11190, 83302 (4 s) for 12489, 0 for any other spell. Defined in Frost.cpp.
+    uint32 ImprovedConeOfColdFreeze(uint32 talentSpell);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
