@@ -112,6 +112,133 @@ TEST(PeriodicTiming_AChannelsDurationIsHastedItself)
     CHECK_EQ(Spells::HastedDurationDirect(2250, 0.8f), int32(1800));
 }
 
+TEST(PeriodicTiming_AHastedEvocationKeepsItsFourTicksInsideItsShorterChannel)
+{
+    // Evocation: 2000 over 6000 in the client's data, a tick at its apply, so ticks at 0, 2000, 4000 and 6000
+    Spells::HastedTicks plain = Spells::HastedPeriodAndDuration(2000, 6000, true, 1.0f);
+    CHECK_EQ(plain.period, int32(2000));
+    CHECK_EQ(plain.duration, int32(6000));
+    CHECK_EQ(plain.ticks, uint32(4));
+    CHECK_EQ(plain.lastTick, int32(6000));
+
+    // Power Infusion's 20%: the multiplier 100 / 120; 2000 x 0.8333 = 1666.67 -> 1667 and 6000 x 0.8333 = 5000, the
+    // client's pair; the periods alone give the fourth tick at 3 x 1667 = 5001, past the channel, so it comes at 5000
+    const float powerInfusion = 100.0f / 120.0f;
+    Spells::HastedTicks hasted = Spells::HastedPeriodAndDuration(2000, 6000, true, powerInfusion);
+    CHECK_EQ(hasted.period, int32(1667));
+    CHECK_EQ(hasted.duration, int32(5000));
+    CHECK_EQ(hasted.ticks, uint32(4));
+    CHECK_EQ(hasted.lastTick, int32(5000));
+    CHECK_EQ(Spells::TickCount(5000, 1667, 0), uint32(3));
+    CHECK_EQ(Spells::HeldTickCount(5000, 1667, 0, hasted.ticks, hasted.lastTick), uint32(4));
+    CHECK_EQ(Spells::TimeToNextTick(1, 1667, 0, 4, 5000), int32(1667));
+    CHECK_EQ(Spells::TimeToNextTick(2, 1667, 0, 4, 5000), int32(1667));
+    CHECK_EQ(Spells::TimeToNextTick(3, 1667, 0, 4, 5000), int32(1666));
+
+    // 25% haste: 1600 over 4800, the periods end with the channel
+    hasted = Spells::HastedPeriodAndDuration(2000, 6000, true, 0.8f);
+    CHECK_EQ(hasted.period, int32(1600));
+    CHECK_EQ(hasted.duration, int32(4800));
+    CHECK_EQ(hasted.lastTick, int32(4800));
+    CHECK_EQ(Spells::TimeToNextTick(3, 1600, 0, hasted.ticks, hasted.lastTick), int32(1600));
+
+    // 10% haste: 2000 x 0.909091 = 1818.18 -> 1818 and 6000 x 0.909091 = 5454.55 -> 5455; the periods end at 5454,
+    // inside the channel, and the fourth tick keeps their time
+    hasted = Spells::HastedPeriodAndDuration(2000, 6000, true, 1.0f / 1.1f);
+    CHECK_EQ(hasted.period, int32(1818));
+    CHECK_EQ(hasted.duration, int32(5455));
+    CHECK_EQ(hasted.ticks, uint32(4));
+    CHECK_EQ(hasted.lastTick, int32(5454));
+    CHECK_EQ(Spells::HeldTickCount(5455, 1818, 0, hasted.ticks, hasted.lastTick), uint32(4));
+    CHECK_EQ(Spells::TimeToNextTick(3, 1818, 0, hasted.ticks, hasted.lastTick), int32(1818));
+}
+
+TEST(PeriodicTiming_HastedArcaneMissilesKeepTheirMissilesInsideTheirShorterChannel)
+{
+    // Arcane Missiles: 750 over 2250 in the client's data, the first missile one period after the apply: three
+    Spells::HastedTicks plain = Spells::HastedPeriodAndDuration(750, 2250, false, 1.0f);
+    CHECK_EQ(plain.period, int32(750));
+    CHECK_EQ(plain.duration, int32(2250));
+    CHECK_EQ(plain.ticks, uint32(3));
+    CHECK_EQ(plain.lastTick, int32(2250));
+
+    // Power Infusion's 20%: 625 over 1875, the periods end with the channel
+    Spells::HastedTicks hasted = Spells::HastedPeriodAndDuration(750, 2250, false, 100.0f / 120.0f);
+    CHECK_EQ(hasted.period, int32(625));
+    CHECK_EQ(hasted.duration, int32(1875));
+    CHECK_EQ(hasted.lastTick, int32(1875));
+
+    // 10% haste: 750 x 0.909091 = 681.82 -> 682 and 2250 x 0.909091 = 2045.45 -> 2045; the third missile would come
+    // at 3 x 682 = 2046, so it comes at 2045, 681 after the second
+    hasted = Spells::HastedPeriodAndDuration(750, 2250, false, 1.0f / 1.1f);
+    CHECK_EQ(hasted.period, int32(682));
+    CHECK_EQ(hasted.duration, int32(2045));
+    CHECK_EQ(hasted.ticks, uint32(3));
+    CHECK_EQ(hasted.lastTick, int32(2045));
+    CHECK_EQ(Spells::TickCount(2045, 682, 682), uint32(2));
+    CHECK_EQ(Spells::HeldTickCount(2045, 682, 682, hasted.ticks, hasted.lastTick), uint32(3));
+    CHECK_EQ(Spells::TimeToNextTick(1, 682, 682, hasted.ticks, hasted.lastTick), int32(682));
+    CHECK_EQ(Spells::TimeToNextTick(2, 682, 682, hasted.ticks, hasted.lastTick), int32(681));
+
+    // Power Infusion and 173 spell haste rating at level 85, the harness mage's of 1112: the multiplier 0.82222539;
+    // 750 x it = 616.67 -> 617 and 2250 x it = 1850.00 -> 1850; the third missile at 1850, not 1851
+    hasted = Spells::HastedPeriodAndDuration(750, 2250, false, 0.82222539f);
+    CHECK_EQ(hasted.period, int32(617));
+    CHECK_EQ(hasted.duration, int32(1850));
+    CHECK_EQ(hasted.ticks, uint32(3));
+    CHECK_EQ(hasted.lastTick, int32(1850));
+    CHECK_EQ(Spells::TimeToNextTick(2, 617, 617, hasted.ticks, hasted.lastTick), int32(616));
+
+    // Improved Arcane Missiles 2 and Missile Barrage 2: 500 over 2500, five missiles; with Power Infusion 417 over
+    // 2083, the fifth at 2083 rather than 5 x 417 = 2085
+    hasted = Spells::HastedPeriodAndDuration(500, 2500, false, 100.0f / 120.0f);
+    CHECK_EQ(hasted.period, int32(417));
+    CHECK_EQ(hasted.duration, int32(2083));
+    CHECK_EQ(hasted.ticks, uint32(5));
+    CHECK_EQ(hasted.lastTick, int32(2083));
+    CHECK_EQ(Spells::TickCount(2083, 417, 417), uint32(4));
+    CHECK_EQ(Spells::HeldTickCount(2083, 417, 417, hasted.ticks, hasted.lastTick), uint32(5));
+    CHECK_EQ(Spells::TimeToNextTick(4, 417, 417, hasted.ticks, hasted.lastTick), int32(415));
+}
+
+TEST(PeriodicTiming_AHastedChannelOfAPartPeriodKeepsTheTicksItsPeriodsGive)
+{
+    // 5000 over 2000, the first tick one period after the apply: ticks at 2000 and 4000, two. At 25% haste 1600 over
+    // 4000: two and a half periods, still two ticks, the second at 3200, its periods' time
+    Spells::HastedTicks hasted = Spells::HastedPeriodAndDuration(2000, 5000, false, 0.8f);
+    CHECK_EQ(hasted.period, int32(1600));
+    CHECK_EQ(hasted.duration, int32(4000));
+    CHECK_EQ(hasted.ticks, uint32(2));
+    CHECK_EQ(hasted.lastTick, int32(3200));
+    CHECK_EQ(Spells::HeldTickCount(4000, 1600, 1600, hasted.ticks, hasted.lastTick), uint32(2));
+    CHECK_EQ(Spells::TimeToNextTick(1, 1600, 1600, hasted.ticks, hasted.lastTick), int32(1600));
+}
+
+TEST(PeriodicTiming_NoHasteNoDurationOrAnotherAuraKeepsItsPlainTicks)
+{
+    // a multiplier below the client's gate changes nothing
+    Spells::HastedTicks unhasted = Spells::HastedPeriodAndDuration(2000, 6000, true, 0.0f);
+    CHECK_EQ(unhasted.period, int32(2000));
+    CHECK_EQ(unhasted.duration, int32(6000));
+    CHECK_EQ(unhasted.ticks, uint32(4));
+    CHECK_EQ(unhasted.lastTick, int32(6000));
+    // a duration that does not run out: no tick count and no last tick
+    Spells::HastedTicks endless = Spells::HastedPeriodAndDuration(2000, -1, false, 0.8f);
+    CHECK_EQ(endless.duration, int32(-1));
+    CHECK_EQ(endless.ticks, uint32(0));
+    CHECK_EQ(endless.lastTick, int32(0));
+    // an aura that holds no last tick ticks every period and counts its periods
+    for (uint32 dealt = 1; dealt <= 5; ++dealt)
+    {
+        CHECK_EQ(Spells::TimeToNextTick(dealt, 1667, 0, 0, 0), int32(1667));
+    }
+    CHECK_EQ(Spells::HeldTickCount(5000, 1667, 0, 0, 0), uint32(3));
+    // past its last tick a held aura ticks every period again
+    CHECK_EQ(Spells::TimeToNextTick(4, 1667, 0, 4, 5000), int32(1667));
+    // a holder cut below the held last tick keeps the ticks its periods give
+    CHECK_EQ(Spells::HeldTickCount(4000, 1667, 0, 4, 5000), uint32(3));
+}
+
 TEST(PeriodicTiming_EachRoundingTakesATieToTheEvenInteger)
 {
     // 4001 x 0.5 = 2000.5 -> 2000 and 4003 x 0.5 = 2001.5 -> 2002, for the period and for a channel's duration

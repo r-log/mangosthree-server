@@ -66,6 +66,24 @@ bool IsOverloadIgnoringCastTime(uint32 spellId);
 /// Whether a spell may target a player on a taxi flight.
 bool MayTargetTaxiFlyer(uint32 spellId);
 
+/// Whether the control effect of a spell also counts in the one shared diminishing-returns group besides its own group:
+/// Deep Freeze (44572) and Ring of Frost's freeze (82691).
+bool SharesDiminishingReturns(uint32 spellId);
+
+/// Whether a spell's summon effect summons while its caster still holds the spell's aura from an earlier cast: Ring of
+/// Frost (82676), whose second ring ends the first. Any other spell's summon is cancelled then.
+bool SummonsPastOwnAura(uint32 spellId);
+
+/// Whether a creature a spell summons shows the viewers friendly to its summoner a display of its own
+/// (ViewerDisplayId): Ring of Frost's ring (44199).
+bool HasViewerDisplay(uint32 creatureEntry);
+
+/// The display a viewer is sent for a creature whose display field holds `display`: for a creature of
+/// HasViewerDisplay, its friendly display when the viewer is friendly to its summoner (`friendlyToSummoner`), else
+/// `display`; Ring of Frost's ring shows 38203 (the friendly ring) to the mage's friends and its own display (34997,
+/// the hostile ring) to the rest. `display` for any other creature.
+uint32 ViewerDisplayId(uint32 creatureEntry, uint32 display, bool friendlyToSummoner);
+
 /// How many targets may carry `spellId` from one caster at a time; 0 when the spell has no such limit.
 uint32 AuraTargetLimit(uint32 spellId);
 
@@ -90,9 +108,11 @@ bool DamageBreaksAuras(uint32 attributesEx4);
 bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ownSpell, uint32 procAttributesEx4,
                         uint32 auraInterruptFlags, uint32 auraType);
 
-/// Whether an aura of `auraType` breaks on damage past a threshold and counts the damage a hit's absorbs and the
-/// victim's damage-reduction effects took (ThresholdDamage): a fear, a root or a pacify-silence.
-bool CountsPreventedDamage(uint32 auraType);
+/// Whether an aura of `auraType` whose aura interrupt flags are `auraInterruptFlags`, on a holder with `charges`
+/// charges, breaks on damage by a chance past a threshold and counts the damage a hit's absorbs and the victim's
+/// damage-reduction effects took (ThresholdDamage): a fear, a root or a pacify-silence, and a stun whose flags hold
+/// AURA_INTERRUPT_FLAG_DAMAGE2 and not AURA_INTERRUPT_FLAG_DAMAGE on a holder with no charges (Ring of Frost's freeze).
+bool CountsPreventedDamage(uint32 auraType, uint32 auraInterruptFlags, uint32 charges);
 
 /// The damage a threshold effect counts for a hit: the `damage` that got through plus the `absorbed` part, taken back
 /// to before the victim's damage-reduction effects, whose product is `reductionMultiplier`, rounded to the nearest
@@ -118,6 +138,10 @@ uint32 GetDeepWoundsWeaponDamagePercent(uint32 rankSpellId);
 
 /// Whether a spell is a rank of Blazing Speed.
 bool IsBlazingSpeedRank(uint32 spellId);
+
+/// Whether what a shield of `spellId` absorbs counts toward Incanter's Absorption: Mage Ward (543) and Mana Shield
+/// (1463) alone.
+bool CountsForIncantersAbsorption(uint32 spellId);
 
 /// How a death-prevention aura saves its bearer from a killing blow.
 enum DeathPreventionShape

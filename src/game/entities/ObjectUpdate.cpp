@@ -47,6 +47,7 @@
 #include "TemporarySummon.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
+#include "spells/data/SpellTables.h"
 
 /**
  * @file ObjectUpdate.cpp
@@ -240,6 +241,15 @@ namespace
         Map* on = static_cast<WorldObject const*>(obj)->GetMap();
         TransportMap* hull = on ? on->AsTransport() : NULL;
         return hull ? hull->Vessel() : NULL;
+    }
+
+    /// Whether `viewer` sees the unit that summoned `creature`, found on the creature's map, as a friend
+    /// (SeesAsFriend); false when no such unit is on it.
+    bool FriendlyToSummoner(Creature const& creature, Player const& viewer)
+    {
+        Map* map = creature.FindMap();
+        Unit const* summoner = map ? map->GetUnit(creature.GetSummonerGuid()) : NULL;
+        return summoner && SeesAsFriend(viewer, *summoner);
     }
 }
 
@@ -521,6 +531,13 @@ void Object::CollectValuesUpdate(uint8 updatetype, UpdateMask* updateMask, Playe
                     }
 
                     out.values.push_back(send_value);
+                }
+                // A creature with a viewer display shows it to the viewers friendly to its summoner
+                else if ((index == UNIT_FIELD_DISPLAYID || index == UNIT_FIELD_NATIVEDISPLAYID) && creature &&
+                         HasViewerDisplay(creature->GetEntry()))
+                {
+                    out.values.push_back(ViewerDisplayId(creature->GetEntry(), m_uint32Values[index],
+                                                         FriendlyToSummoner(*creature, *target)));
                 }
                 else
                 {
