@@ -23364,7 +23364,7 @@ namespace Harness
         {
             Step snare = Wait(kWaitMs);
             snare.spell = kHamstring;
-            return { CastStruckAt(kFrostbolt, kSwingAtMs), snare, AuraCast(kIcyVeins, kAuraEveryMs),
+            return { CastStruckAt(kFrostbolt, kSwingAtMs), snare, AuraCast(kIcyVeins, 0),
                      CastStruckAt(kFrostbolt, kSwingAtMs) };
         }
 
@@ -23441,7 +23441,6 @@ namespace Harness
         static constexpr int32 kAuraMs = 60000;
         static constexpr uint32 kSwingAtMs = 500;
         static constexpr uint32 kWaitMs = 1000;
-        static constexpr uint32 kAuraEveryMs = 1600;
         static constexpr uint32 kControlStep = 0;
         static constexpr uint32 kSnareStep = 1;
         static constexpr uint32 kIcyVeinsStep = 2;
@@ -23495,8 +23494,8 @@ namespace Harness
 
         std::vector<Step> Steps() const override
         {
-            return { AuraCast(kFrostArmor, kAuraEveryMs), Swing(), Swing(), Swing(),
-                     AuraCast(kIceBarrier, kAuraEveryMs), CastStruckAt(kFrostbolt, kSwingAtMs), Wait(kTickWaitMs) };
+            return { AuraCast(kFrostArmor, 0), Swing(), Swing(), Swing(), AuraCast(kIceBarrier, 0),
+                     CastStruckAt(kFrostbolt, kSwingAtMs), Wait(kTickWaitMs) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -23621,7 +23620,6 @@ namespace Harness
         static constexpr uint32 kGlyphOfFrostArmorSlot = 948;
         static constexpr uint32 kGlyphOfArmorsSlot = 923;
         static constexpr uint32 kSwingAtMs = 500;
-        static constexpr uint32 kAuraEveryMs = 2000;
         static constexpr uint32 kTickWaitMs = 5500;
         static constexpr int64 kManaPercent = 2;
         static constexpr uint32 kArmorStep = 0;
