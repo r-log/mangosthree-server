@@ -101,6 +101,9 @@ namespace
     // Brain Freeze's ranks, which the check-proc hook holds with Fingers of Frost's body.
     uint32 const BRAIN_FREEZE_IDS[] = { 44546, 44548, 44549 };
 
+    // Permafrost's ranks, whose dummy effect's proc heals the caster's pet.
+    uint32 const PERMAFROST_IDS[] = { 11175, 12569, 12571 };
+
     // The ids the Frost launch script holds at the launch hook: Ice Lance, Deep Freeze and Frostfire Bolt, which use
     // Fingers of Frost's charges, and Fireball, which uses Brain Freeze's buff with Frostfire Bolt.
     uint32 const FROST_LAUNCH_IDS[] = { 30455, 44572, 44614, 133 };
@@ -826,7 +829,7 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
 
-    // Each talent's ids share one body, and each talent has its own: 23 ids in 13 bodies, the same in the game's table.
+    // Each talent's ids share one body, and each talent has its own: 26 ids in 14 bodies, the same in the game's table.
     std::set<SpellHandler<OnProcHook>::Function> bodies;
     bodies.insert(OneProcBody(registry, MAGIC_ABSORPTION_IDS));
     bodies.insert(OneProcBody(registry, IGNITE_IDS));
@@ -841,15 +844,17 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
     bodies.insert(OneProcBody(registry, FINGERS_OF_FROST_IDS));
     bodies.insert(OneProcBody(registry, IMPACT_IDS));
     bodies.insert(OneProcBody(registry, NETHER_VORTEX_IDS));
-    CHECK_EQ(bodies.size(), std::size_t(13));
+    bodies.insert(OneProcBody(registry, PERMAFROST_IDS));
+    CHECK_EQ(bodies.size(), std::size_t(14));
     std::size_t const ids = sizeof(MAGIC_ABSORPTION_IDS) / sizeof(uint32) + sizeof(IGNITE_IDS) / sizeof(uint32) +
                             sizeof(MASTER_OF_ELEMENTS_IDS) / sizeof(uint32) +
                             sizeof(ARCANE_POTENCY_IDS) / sizeof(uint32) + sizeof(HOT_STREAK_IDS) / sizeof(uint32) +
                             sizeof(BLAZING_SPEED_IDS) / sizeof(uint32) + sizeof(MANA_SHIELD_IDS) / sizeof(uint32) +
                             sizeof(PERSISTENT_SHIELD_IDS) / sizeof(uint32) + sizeof(OFFENSIVE_STATE_IDS) / sizeof(uint32) +
                             sizeof(DEEP_FREEZE_IMMUNITY_IDS) / sizeof(uint32) + sizeof(FINGERS_OF_FROST_IDS) / sizeof(uint32) +
-                            sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(NETHER_VORTEX_IDS) / sizeof(uint32);
-    CHECK_EQ(ids, std::size_t(23));
+                            sizeof(IMPACT_IDS) / sizeof(uint32) + sizeof(NETHER_VORTEX_IDS) / sizeof(uint32) +
+                            sizeof(PERMAFROST_IDS) / sizeof(uint32);
+    CHECK_EQ(ids, std::size_t(26));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
     CHECK_EQ(game.CountAt(CheckProcHook::Key),
@@ -1516,8 +1521,9 @@ TEST(MageScripts_BlinkKeepsOneTarget)
         CHECK(registry.Find<SelectTargetsHook>(spellId) != NULL);
         CHECK(game.Find<SelectTargetsHook>(spellId) == registry.Find<SelectTargetsHook>(spellId));
     }
+    // The target hook also holds Piercing Chill's chill (83154).
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key),
-             sizeof(BLINK_IDS) / sizeof(uint32) + sizeof(ORB_TARGET_IDS) / sizeof(uint32));
+             sizeof(BLINK_IDS) / sizeof(uint32) + sizeof(ORB_TARGET_IDS) / sizeof(uint32) + 1);
 
     // Blink sets the count the cut after the hook keeps to one and continues, so the cut runs; the list is untouched.
     BareCreature caster;
@@ -2881,7 +2887,7 @@ TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(registry.Find<AfterHitHook>(kFrostfireBolt) != NULL);
     CHECK(game.Find<AfterHitHook>(kFrostfireBolt) == registry.Find<AfterHitHook>(kFrostfireBolt));
-    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(3));
 
     // A heal, and a hit on a target that holds no Frostfire Bolt of the caster, change nothing.
     BareCreature caster;
@@ -4137,7 +4143,6 @@ namespace
 
     uint32 const FROSTBOLT_AND_CONE_OF_COLD_IDS[] = { 116, 120 };
     uint32 const PIERCING_CHILL_CHILL_IDS[] = { 83154 };
-    uint32 const PERMAFROST_IDS[] = { 11175, 12569, 12571 };
 }
 
 TEST(MageScripts_PiercingChillsCountIsTheRanksEffectValue)
