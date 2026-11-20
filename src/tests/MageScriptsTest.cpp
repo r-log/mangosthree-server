@@ -32,6 +32,7 @@
 /// Torment the Weak counts and its multiplier, Nether Vortex's Slow and its refusals, Focus Magic's buff cast by its
 /// mage at himself and its proc-trigger effect that casts nothing, Invocation's buff from a Counterspell that
 /// interrupted a cast alone, Improved Polymorph's stun and marker when damage breaks a Polymorph,
+/// the damage over time auras Glyph of Polymorph takes off a Polymorph's target and its rows at the aura-apply hook,
 /// Incanter's Absorption's knockback when damage breaks a Mana Shield, Improved Mana Gem's amount after the Mana Gem's
 /// spell, the count of crits in a row, Hot Streak's chance and streak, the Tier 10 bonus at the removal of Hot Streak's
 /// buff, Molten Shields' Blazing Speed at the removal of a Mage Ward and the script's refusals, the frozen query,
@@ -87,7 +88,7 @@ namespace
     // The labels the class files register at each mage site, in their tables' order.
     uint32 const TRIGGER_SPELL_IDS[] = { 66 };
     uint32 const EFFECT_DUMMY_IDS[] = { 32826, 38194, 42955, 1459, 61316 };
-    uint32 const DUMMY_PROC_IDS[] = { 56372, 56375, 64411 };
+    uint32 const DUMMY_PROC_IDS[] = { 56372, 64411 };
 
     // The ids each proc script holds at the proc hook: every mage spell with the talent's icon (or class mask) and an
     // aura of the type the script stands for, in the client's data.
@@ -197,8 +198,9 @@ namespace
     // interrupted a cast gives.
     uint32 const INVOCATION_IDS[] = { 84722, 84723 };
 
-    // The ids Improved Polymorph's script holds at the aura-remove hook: every form of Polymorph a mage casts, the
-    // spells of the Arcane skill line with Polymorph's class mask and a confuse and a transform aura.
+    // The ids Improved Polymorph's script holds at the aura-remove hook and Glyph of Polymorph's at the aura-apply
+    // hook: every form of Polymorph a mage casts, the spells of the Arcane skill line with Polymorph's class mask and a
+    // confuse and a transform aura.
     uint32 const POLYMORPH_IDS[] = { 118, 28271, 28272, 61025, 61305, 61721, 61780 };
 
     // The id Incanter's Absorption's script holds at the aura-remove hook: Mana Shield, whose break by damage knocks
@@ -643,10 +645,10 @@ namespace
 TEST(MageScripts_TheTableRegistersEveryRowOnce)
 {
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
-    // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
-    // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook, Persistent Shield and Offensive State at the proc hook, and Invisibility's state (32612) at the
-    // aura-apply and aura-remove hooks. Fire: Living Bomb at the dummy aura
+    // and the two raid buffs at the dummy-effect site; Glyph of Ice Block and Blessing of Ancient Kings at the dummy
+    // proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at the target hook,
+    // Persistent Shield and Offensive State at the proc hook, and Invisibility's state (32612) at the aura-apply and
+    // aura-remove hooks. Fire: Living Bomb at the dummy aura
     // hook, Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the
     // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
     // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the
@@ -657,21 +659,21 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield,
     // Nether Vortex and Focus Magic. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane
     // Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of
-    // Polymorph and Mana Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orbs: Flame Orb
-    // and Frostfire Orb at the dummy-effect hook, and each orb's scan at the target and dummy-effect hooks. The ring:
-    // Ring of Frost at the periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact,
-    // Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two
-    // ranks and Reactive Barrier's two ranks also at the check-proc hook. 167 rows, 164 keys and 3 defaults, none
-    // twice.
+    // Polymorph at the aura-apply and aura-remove hooks, Mana Shield at the aura-remove hook and Replenish Mana at the
+    // after-cast hook. The orbs: Flame Orb and Frostfire Orb at the dummy-effect hook, and each orb's scan at the
+    // target and dummy-effect hooks. The ring: Ring of Frost at the periodic-tick hook, and the ring's freeze at the
+    // target and aura-remove hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of
+    // Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two ranks also at the check-proc hook. 173
+    // rows, 170 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(167));
-    CHECK_EQ(registry.Count(), std::size_t(164));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(173));
+    CHECK_EQ(registry.Count(), std::size_t(170));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(SpellEffectDummyMageSite::Key), std::size_t(5));
-    CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(27));
     CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(16));
@@ -679,7 +681,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(14));
+    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(21));
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(24));
     CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(6));
@@ -703,10 +705,10 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     };
     PerFile const files[] =
     {
-        { &Mage::RegisterClassWide, 17, 14, 3 },
+        { &Mage::RegisterClassWide, 16, 13, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 75, 75, 0 },
-        { &Mage::RegisterArcane, 26, 26, 0 },
+        { &Mage::RegisterArcane, 33, 33, 0 },
         { &Mage::RegisterOrb, 6, 6, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
     };
@@ -719,8 +721,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(167));
-    CHECK_EQ(registry.Count(), std::size_t(164));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(173));
+    CHECK_EQ(registry.Count(), std::size_t(170));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -731,7 +733,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(164));
+    CHECK_EQ(mine.size(), std::size_t(170));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -743,7 +745,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
-    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(2));
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
     CheckRowsInTheGame<CastStartHook>(registry, FROSTBOLT_CAST_START_IDS);
     CheckRowsInTheGame<AuraApplyHook>(registry, ICE_BARRIER_IDS);
@@ -778,8 +780,8 @@ TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
         CHECK(key.second != 12847u && key.second != 12848u);
     }
 
-    // The Glyphs of Ice Block and Polymorph and Blessing of Ancient Kings each have their own body at the dummy proc
-    // site: 3 labels in 3 bodies, and no Ignite rank among them.
+    // Glyph of Ice Block and Blessing of Ancient Kings each have their own body at the dummy proc site: 2 labels in 2
+    // bodies, and no Ignite rank among them.
     typedef SpellHandler<DummyAuraProcMageSite>::Function ProcBody;
     for (uint32 spellId : IGNITE_IDS)
     {
@@ -791,7 +793,7 @@ TEST(MageScripts_TheIgniteRanksShareOneBodyAtTheProcHook)
         procBodies.insert(registry.Find<DummyAuraProcMageSite>(spellId));
     }
     CHECK(procBodies.count(NULL) == 0);
-    CHECK_EQ(procBodies.size(), std::size_t(3));
+    CHECK_EQ(procBodies.size(), std::size_t(2));
 
     // No mage file holds a label at the boost site; 74396, which the client's data lacks, is a key of no site.
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(0));
@@ -2173,7 +2175,7 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
              sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
              sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32) +
              sizeof(INVISIBILITY_IDS) / sizeof(uint32) +
-             sizeof(ICE_BARRIER_IDS) / sizeof(uint32));
+             sizeof(ICE_BARRIER_IDS) / sizeof(uint32) + sizeof(POLYMORPH_IDS) / sizeof(uint32));
 
     // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
     // the call before the add, and a removal by re-application or with no caster, change nothing and let the holder's
@@ -4423,6 +4425,99 @@ TEST(MageScripts_PolymorphsRemovalRunsImprovedPolymorph)
     CHECK(registry.Dispatch<AuraRemoveHook>(118, broken).IsContinue());
     CHECK(!camel.HasAura(83047));
     CHECK(!camel.HasAura(87515));
+}
+
+TEST(MageScripts_GlyphOfPolymorphTakesOffTheDamageOverTimeAurasAloneForAGlyphedCaster)
+{
+    // For a caster who holds the glyph: periodic damage, a periodic health leech and periodic damage of a percent of
+    // the target's maximum health, and no other aura type. For a caster without it: none.
+    AuraType const removed[] =
+    {
+        SPELL_AURA_PERIODIC_DAMAGE, SPELL_AURA_PERIODIC_LEECH, SPELL_AURA_PERIODIC_DAMAGE_PERCENT,
+    };
+    uint32 taken = 0;
+    for (uint32 type = 0; type < uint32(TOTAL_AURAS); ++type)
+    {
+        bool damageOverTime = false;
+        for (AuraType dot : removed)
+        {
+            damageOverTime = damageOverTime || type == uint32(dot);
+        }
+        CHECK(Mage::GlyphOfPolymorphRemoves(type, true) == damageOverTime);
+        CHECK(!Mage::GlyphOfPolymorphRemoves(type, false));
+        taken += Mage::GlyphOfPolymorphRemoves(type, true) ? 1 : 0;
+    }
+    CHECK_EQ(taken, uint32(3));
+
+    // The periodic auras that deal the target no damage stay: a periodic heal, a mana leech, a health funnel, a power
+    // burn, a periodic trigger and a periodic dummy; so do Polymorph's own confuse and transform.
+    AuraType const kept[] =
+    {
+        SPELL_AURA_PERIODIC_HEAL, SPELL_AURA_PERIODIC_MANA_LEECH, SPELL_AURA_PERIODIC_HEALTH_FUNNEL,
+        SPELL_AURA_POWER_BURN_MANA, SPELL_AURA_PERIODIC_TRIGGER_SPELL, SPELL_AURA_PERIODIC_DUMMY,
+        SPELL_AURA_MOD_CONFUSE, SPELL_AURA_TRANSFORM,
+    };
+    for (AuraType type : kept)
+    {
+        CHECK(!Mage::GlyphOfPolymorphRemoves(type, true));
+    }
+}
+
+TEST(MageScripts_PolymorphsApplyRunsGlyphOfPolymorph)
+{
+    // The rows: the seven forms at the aura-apply hook, one body, the same in the game's table. The glyph holds no row
+    // at the dummy proc site, the proc hook, the check-proc hook or the aura-apply hook.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CheckRowsInTheGame<AuraApplyHook>(registry, POLYMORPH_IDS);
+    SpellHandler<AuraApplyHook>::Function const polymorph = registry.Find<AuraApplyHook>(118);
+    CHECK(polymorph != NULL);
+    for (uint32 spellId : POLYMORPH_IDS)
+    {
+        CHECK(registry.Find<AuraApplyHook>(spellId) == polymorph);
+    }
+    CHECK(game.Find<DummyAuraProcMageSite>(56375) == NULL);
+    CHECK(game.Find<OnProcHook>(56375) == NULL);
+    CHECK(game.Find<CheckProcHook>(56375) == NULL);
+    CHECK(game.Find<AuraApplyHook>(56375) == NULL);
+
+    // The script lets the holder's boosts run every time. A Polymorph whose caster holds no glyph, one with no caster,
+    // and the call before the add take nothing off: the Camel's damage over time lists keep their entries. A glyphed
+    // caster's Polymorph landing on a Camel with no damage over time aura finds nothing to take off.
+    AuraType const damageOverTime[] =
+    {
+        SPELL_AURA_PERIODIC_DAMAGE, SPELL_AURA_PERIODIC_LEECH, SPELL_AURA_PERIODIC_DAMAGE_PERCENT,
+    };
+    BareCreature mage;
+    BareCreature camel;
+    for (AuraType type : damageOverTime)
+    {
+        camel.MarkAuraType(type);
+    }
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    AuraApplyContext unglyphed(camel, &mage, SpellRow(row, 118), AuraHandle(holder), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(118, unglyphed).IsContinue());
+    AuraApplyContext noCaster(camel, NULL, SpellRow(row, 118), AuraHandle(holder), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(118, noCaster).IsContinue());
+    HolderStorage glyphStorage;
+    mage.HoldAura(56375, EmptyHolder(glyphStorage));
+    CHECK(mage.HasAura(56375));
+    AuraApplyContext beforeAdd(camel, &mage, SpellRow(row, 61305), AuraHandle(holder), false);
+    CHECK(registry.Dispatch<AuraApplyHook>(61305, beforeAdd).IsContinue());
+    for (AuraType type : damageOverTime)
+    {
+        CHECK(camel.HasAuraType(type));
+    }
+    BareCreature clean;
+    AuraApplyContext landed(clean, &mage, SpellRow(row, 118), AuraHandle(holder), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(118, landed).IsContinue());
+    for (AuraType type : damageOverTime)
+    {
+        CHECK(!clean.HasAuraType(type));
+    }
 }
 
 namespace
