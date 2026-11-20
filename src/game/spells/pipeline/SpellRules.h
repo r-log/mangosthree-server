@@ -68,9 +68,9 @@ namespace Spells
     /// `dmgClass` is melee or ranged, or its `attributes` hold SPELL_ATTR_RANGED or SPELL_ATTR_ABILITY.
     bool IsPhysicalAttack(uint32 dmgClass, uint32 attributes);
 
-    /// Whether the caster's haste shortens a global cooldown of `modified` ms, the spell's start recovery time after its
-    /// modifiers: the spell's start recovery category is kHastedGlobalCooldownCategory, it is no physical attack and
-    /// `modified` is above 1000.
+    /// Whether the caster's haste shortens a global cooldown of `modified` ms, the spell's start recovery time after
+    /// its modifiers: the spell's start recovery category is kHastedGlobalCooldownCategory, it is no physical attack
+    /// and `modified` is above 1000.
     bool GlobalCooldownHasted(uint32 startRecoveryCategory, bool physicalAttack, int32 modified);
 
     /// The global cooldown in ms from `modified`, the spell's start recovery time after its modifiers: when

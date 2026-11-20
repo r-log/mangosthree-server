@@ -1381,10 +1381,10 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     // Streak's buff's, Mage Ward's, Mana Shield's, Ice Barrier's, Invisibility's state's, Pyromaniac's ten, Arcane
     // Missiles!'s and the seven forms of Polymorph's and the ring's freeze's, the periodic-tick hook Ring of Frost's,
     // the dummy-effect hook Combustion's, Impact's spread, Flame Orb's, Frostfire Orb's, the orbs' scans', Mirror
-    // Image's and Clone Me!'s, the after-cast hook Blast Wave's and Replenish Mana's, the launch hook Ice Lance's, Deep
-    // Freeze's, Frostfire Bolt's, Fireball's and Ice Block's, the cast-start hook Frostbolt's, and the after-hit hook
-    // Frostbolt's, Cone of Cold's, Blizzard's damage's and Frostfire Bolt's (MageScriptsTest names their ids); no other
-    // hook holds a row.
+    // Image's and Clone Me!'s, the after-cast hook Blast Wave's, Replenish Mana's and the Water Elemental's Freeze's,
+    // the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's, Fireball's and Ice Block's, the cast-start hook
+    // Frostbolt's, and the after-hit hook Frostbolt's, Cone of Cold's, Blizzard's damage's and Frostfire Bolt's
+    // (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
@@ -1404,11 +1404,11 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(24));
     CHECK_EQ(game.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(8));
-    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(2));
+    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(3));
     CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(5));
     CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(4));
-    CHECK_EQ(game.Count(), std::size_t(1390));
+    CHECK_EQ(game.Count(), std::size_t(1391));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 
