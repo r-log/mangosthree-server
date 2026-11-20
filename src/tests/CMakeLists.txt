@@ -171,6 +171,7 @@ set(SRC_GRP_TESTS
     SpellScriptHooksTest.cpp
     MageScriptsTest.cpp
     MageOrbTest.cpp
+    PetAssistTest.cpp
     MageRingTest.cpp
     MageImagesTest.cpp
     CreatureHoverTest.cpp
@@ -720,7 +721,7 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME class_logic
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/class_logic.py
             --root ${CMAKE_SOURCE_DIR} --check
-            --gate legacy_sites=83 --gate legacy_rows=1225 --gate family_mentions=304
+            --gate legacy_sites=83 --gate legacy_rows=1224 --gate family_mentions=304
             --gate icon_compares=199 --gate mask_literals=292 --gate family_switches=32)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")

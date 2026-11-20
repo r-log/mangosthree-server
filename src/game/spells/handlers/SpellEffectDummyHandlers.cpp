@@ -25,6 +25,7 @@
 
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
+#include "spells/classes/mage/Mage.h"
 #include "spells/pipeline/Spell.h"
 #include "maps/CellImpl.h"
 #include "maps/GridMap.h"
@@ -3450,8 +3451,8 @@ static SpellHandlerOutcome<void> EffectDummyGenericConflagration(SpellEffectDumm
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// 11958: Cold Snap: for a player caster, every frost mage spell on cooldown with a recovery time, but Cold Snap
-/// itself, is made ready; the effect ends
+/// 11958: Cold Snap: for a player caster, every spell on cooldown that Mage::ColdSnapResets names (a frost mage spell
+/// with a recovery time, but Cold Snap itself, and the Frostfire Orb) is made ready; the effect ends
 static SpellHandlerOutcome<void> EffectDummyMageColdSnap(SpellEffectDummyMageContext& ctx)
 {
     Player* casterPlayer = ctx.m_caster->ToPlayer();
@@ -3466,9 +3467,8 @@ static SpellHandlerOutcome<void> EffectDummyMageColdSnap(SpellEffectDummyMageCon
     {
         SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
 
-        if (spellInfo->GetSpellFamilyName() == SPELLFAMILY_MAGE &&
-            (GetSpellSchoolMask(spellInfo) & SPELL_SCHOOL_MASK_FROST) &&
-            spellInfo->ID != 11958 && GetSpellRecoveryTime(spellInfo) > 0)
+        if (spellInfo && Mage::ColdSnapResets(spellInfo->ID, spellInfo->GetSpellFamilyName(),
+                                              GetSpellSchoolMask(spellInfo), GetSpellRecoveryTime(spellInfo)))
         {
             ctx.m_caster->RemoveSpellCooldown((itr++)->first, true);
         }

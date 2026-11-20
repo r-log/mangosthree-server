@@ -30,6 +30,7 @@
 #include "combat/WeaponDamage.h"
 #include "Log.h"
 #include "combat/CombatNotices.h"
+#include "ai/PetAssist.h"
 #include "ObjectMgr.h"
 #include "GridMap.h"
 #include "ObjectGuid.h"
@@ -114,6 +115,11 @@ void Unit::AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType, bool ext
     SendAttackStateUpdate(&damageInfo);
     ProcDamageAndSpell(damageInfo.target, damageInfo.procAttacker, damageInfo.procVictim, damageInfo.procEx,
                        damageInfo.damage, damageInfo.attackType, NULL, damageInfo.absorb);
+    if (damageInfo.hitOutCome != MELEE_HIT_EVADE && damageInfo.hitOutCome != MELEE_HIT_MISS &&
+        damageInfo.hitOutCome != MELEE_HIT_DODGE && damageInfo.hitOutCome != MELEE_HIT_PARRY)
+    {
+        Pets::NotifyOwnerAttacked(*this, *damageInfo.target);
+    }
     DealMeleeDamage(&damageInfo, true);
 
     if (GetTypeId() == TYPEID_PLAYER)

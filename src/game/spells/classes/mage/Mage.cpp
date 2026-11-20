@@ -30,6 +30,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
 #include "entities/Unit.h"
+#include "entities/Pet.h"
 #include "DBCStores.h"
 #include "Log.h"
 #include "Utilities/Util.h"
@@ -154,19 +155,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56372(DummyAura
     return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
 }
 
-/// 56375: Glyph of Polymorph: removes the periodic damage auras from a living victim
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56375(DummyAuraProcContext& ctx)
-{
-    if (!ctx.pVictim || !ctx.pVictim->IsAlive())
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE);
-    ctx.pVictim->RemoveSpellsCausingAura(SPELL_AURA_PERIODIC_DAMAGE_PERCENT);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-}
-
 /// 64411: Blessing of Ancient Kings: after a positive spell, triggers 64413 for 15 percent of the damage
 static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAuraProcContext& ctx)
 {
@@ -232,6 +220,33 @@ namespace
     uint32 const BLINK[] = { 38194 };
     uint32 const PERSISTENT_SHIELD[] = { 26467 };
     uint32 const OFFENSIVE_STATE[] = { 79684 };
+    uint32 const INVISIBILITY[] = { 32612 };
+    uint32 const PET_INVISIBILITY = 96243;
+
+    /// 32612: Invisibility: when it lands on the mage, his living pet casts its own Invisibility (96243) on itself.
+    /// The call before the holder is added does nothing.
+    SpellHandlerOutcome<void> InvisibilityAuraApply(AuraApplyContext& ctx)
+    {
+        if (ctx.real)
+        {
+            Pet* pet = ctx.target.GetPet();
+            if (pet && pet->IsAlive())
+            {
+                ctx.CastTriggeredFrom(*pet, *pet, PET_INVISIBILITY);
+            }
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 32612: Invisibility: when it leaves the mage, for any reason, his pet's Invisibility (96243) goes with it.
+    SpellHandlerOutcome<void> InvisibilityAuraRemove(AuraRemoveContext& ctx)
+    {
+        if (Pet* pet = ctx.target.GetPet())
+        {
+            ctx.RemoveAura(*pet, PET_INVISIBILITY);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
 }
 
 uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
@@ -253,7 +268,6 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
     static Row<DummyAuraProcMageSite> const dummyAuraProcMage[] =
     {
         { 56372, &DummyAuraProcMage56372 },
-        { 56375, &DummyAuraProcMage56375 },
         { 64411, &DummyAuraProcMage64411 },
     };
 
@@ -263,6 +277,8 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
     rows += RegisterRanks<SelectTargetsHook>(registry, BLINK, &BlinkSelectTargets);
     rows += RegisterRanks<OnProcHook>(registry, PERSISTENT_SHIELD, &PersistentShieldProc);
     rows += RegisterRanks<OnProcHook>(registry, OFFENSIVE_STATE, &OffensiveStateProc);
+    rows += RegisterRanks<AuraApplyHook>(registry, INVISIBILITY, &InvisibilityAuraApply);
+    rows += RegisterRanks<AuraRemoveHook>(registry, INVISIBILITY, &InvisibilityAuraRemove);
     registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);

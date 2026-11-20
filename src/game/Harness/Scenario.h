@@ -246,7 +246,8 @@ namespace Harness
          * player, his faction, its stats for his level, react defensive, its create spells (the
          * action bar, the family passives, the owner's pet auras -- memory only), active, added to
          * the map, its MotionMaster initialised, and its factory AI dropped from under a recording
-         * decorator; then Unit::SetPet on the owner. NULL (and a logged ERR) when there is no map,
+         * decorator, or kept under it when `keepAI` is set, so the pet acts on its own; then
+         * Unit::SetPet on the owner. NULL (and a logged ERR) when there is no map,
          * no owner or no template, or Pet::Create fails. Its order is load-bearing (SetOwnerGuid
          * before AIM_Initialize and InitStatsForLevel; SetActiveObjectState before Map::Add): the
          * reasons are written at player-owned-pet-possession's use of it (ScenariosControl.cpp).
@@ -256,7 +257,7 @@ namespace Harness
          * PR 2), verbatim but for the entry and the place, so the spell family builds its pet the
          * same way.
          */
-        Pet* BuildOwnedPet(Player* owner, uint32 entry, float x, float y, float o);
+        Pet* BuildOwnedPet(Player* owner, uint32 entry, float x, float y, float o, bool keepAI = false);
         /// A creature from the world database (S8's patroller), on the harness map.
         Creature* Find(uint32 lowGuid, uint32 entry);
         Creature* Get(ObjectGuid guid) const;

@@ -269,6 +269,69 @@ bool Spells::DealsDamage(SpellEntry const& spell)
     return false;
 }
 
+bool Spells::BreaksOnDamage(SpellEntry const& spell)
+{
+    uint32 const damageTakenProcFlags = PROC_FLAG_TAKEN_MELEE_HIT | PROC_FLAG_TAKEN_MELEE_SPELL_HIT |
+                                        PROC_FLAG_TAKEN_RANGED_HIT | PROC_FLAG_TAKEN_RANGED_SPELL_HIT |
+                                        PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT | PROC_FLAG_ON_TAKE_PERIODIC |
+                                        PROC_FLAG_TAKEN_ANY_DAMAGE;
+    SpellProcEventEntry const* const procEvent = sSpellMgr.GetSpellProcEvent(spell.ID);
+    uint32 const procFlags = procEvent && procEvent->procFlags ? procEvent->procFlags : spell.GetProcFlags();
+    bool const procsOnDamage = (procFlags & damageTakenProcFlags) != 0;
+    uint32 const interruptFlags = spell.GetAuraInterruptFlags();
+    uint32 const charges = spell.GetProcCharges();
+
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        SpellEffectEntry const* const effect = spell.GetSpellEffect(SpellEffectIndex(i));
+        if (!effect || effect->EffectAura == SPELL_AURA_NONE)
+        {
+            continue;
+        }
+        if (interruptFlags & AURA_INTERRUPT_FLAG_DAMAGE)
+        {
+            return true;
+        }
+        if (!procsOnDamage)
+        {
+            continue;
+        }
+        switch (effect->EffectAura)
+        {
+            case SPELL_AURA_MOD_CONFUSE:
+            case SPELL_AURA_MOD_FEAR:
+            case SPELL_AURA_MOD_ROOT:
+            case SPELL_AURA_MOD_PACIFY_SILENCE:
+                return true;
+            case SPELL_AURA_MOD_STUN:
+                if (charges || CountsPreventedDamage(SPELL_AURA_MOD_STUN, interruptFlags, charges))
+                {
+                    return true;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    return false;
+}
+
+bool Spells::CountsAsOwnerAttack(SpellEntry const& spell)
+{
+    return DealsDamage(spell) || !BreaksOnDamage(spell);
+}
+
+bool Spells::AutocastsByDefault(bool harmful, bool dealsDamage, uint32 recoveryMs, uint32 categoryRecoveryMs)
+{
+    return harmful && dealsDamage && recoveryMs == 0 && categoryRecoveryMs == 0;
+}
+
+ActiveStates Spells::PetSpellAutocastDefault(SpellEntry const& spell)
+{
+    return AutocastsByDefault(!IsPositiveSpell(&spell), DealsDamage(spell), spell.GetRecoveryTime(),
+                              spell.GetCategoryRecoveryTime()) ? ACT_ENABLED : ACT_DISABLED;
+}
+
 bool Spells::HeldByControlDamageBreaks(Unit const& unit)
 {
     for (AuraType const type : { SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_STUN })

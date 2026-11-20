@@ -42,10 +42,12 @@
 
 namespace
 {
-    /// The orbs of the mage's spells, one row each: Flame Orb.
+    /// The orbs of the mage's spells, one row each: Flame Orb, and Frostfire Orb, which never explodes and whose hit is
+    /// 84721 for an owner who knows its second rank (84727).
     Mage::OrbSpells const ORBS[] =
     {
-        { 82731, 84765, 44214, 82690, 82734, 82739, 82736, 83619, { 18459, 18460, 54734 } },
+        { 82731, 84765, 44214, 82690, 82734, 82739, 82736, 83619, { 18459, 18460, 54734 }, 0, 0 },
+        { 92283, 84714, 45322, 84717, 84718, 95969, 82736, 0, { 0, 0, 0 }, 84721, 84727 },
     };
 
     /// The name the orb's creature AI is registered under.
@@ -85,7 +87,8 @@ namespace
         return owner;
     }
 
-    /// 82731: Flame Orb: the mage casts the summon of his orb (84765), triggered. The script ends the effect.
+    /// 82731, 92283: Flame Orb and Frostfire Orb: the mage casts the summon of his orb (84765, 84714), triggered. The
+    /// script ends the effect.
     SpellHandlerOutcome<void> FlameOrbEffect(DummyEffectContext& ctx)
     {
         Mage::OrbSpells const* orb = Mage::OrbSpellsFor(ctx.spell.ID);
@@ -96,7 +99,7 @@ namespace
         return SpellHandlerOutcome<void>::Return();
     }
 
-    /// 82734: the orb's scan: of the enemies within its radius keeps the closest one the orb may strike and sees
+    /// 82734, 84718: the orb's scan: of the enemies within its radius keeps the closest one the orb may strike and sees
     /// (Mage::KeepClosestOrbTarget), or none. Sight is taken from the enemy to the orb, as the hit's target check takes
     /// it (Spell::CheckTarget).
     SpellHandlerOutcome<void> OrbScanTargets(SelectTargetsContext& ctx)
@@ -106,14 +109,15 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 82734: the orb's scan, for the enemy it kept. On its first enemy the orb snares itself (82736) and counts
-    /// that scan as scan 0. While it holds the snare, each scan with an enemy counts one more, and on the scans
+    /// 82734, 84718: the orb's scan, for the enemy it kept. On its first enemy the orb snares itself (82736) and
+    /// counts that scan as scan 0. While it holds the snare, each scan with an enemy counts one more, and on the scans
     /// Mage::OrbHitDue names (scan 0 and every second scan of the 500 ms aura after it, for the 30 scans the snare
-    /// lasts) the orb casts its hit (82739) at the enemy, with its summoner as the original caster, when its
+    /// lasts) the orb casts the hit Mage::OrbHitSpellFor picks for its summoner (82739; 95969, or 84721 for a summoner
+    /// who knows the Frostfire Orb's second rank) at the enemy, with its summoner as the original caster, when its
     /// summoner is alive and in the world on its map (Mage::OrbOwnerActs). The aura's period carries its remainder
     /// from tick to tick, so the hits keep one second apart on any update rate. The count is the script word of
-    /// effect 0 of the orb's own aura (82690), and the word of its effect 1 is 1 once an enemy was found. An orb
-    /// without that aura does nothing. The script ends the effect.
+    /// effect 0 of the orb's own aura (82690, 84717), and the word of its effect 1 is 1 once an enemy was found. An
+    /// orb without that aura does nothing. The script ends the effect.
     SpellHandlerOutcome<void> OrbScanEffect(DummyEffectContext& ctx)
     {
         Creature* orb = ctx.caster.ToCreature();
@@ -148,7 +152,8 @@ namespace
         {
             return SpellHandlerOutcome<void>::Return();
         }
-        orb->CastSpell(ctx.target, spells->hitSpell, true, NULL, NULL, summoner->GetObjectGuid());
+        uint32 const hit = Mage::OrbHitSpellFor(*spells, *summoner);
+        orb->CastSpell(ctx.target, hit, true, NULL, NULL, summoner->GetObjectGuid());
         return SpellHandlerOutcome<void>::Return();
     }
 
@@ -538,6 +543,15 @@ bool Mage::IsOrbCreature(uint32 creatureEntry)
     return false;
 }
 
+uint32 Mage::OrbHitSpellFor(OrbSpells const& spells, Unit const& owner)
+{
+    if (spells.rankHitSpell && spells.rankHitTalent && owner.HasAura(spells.rankHitTalent))
+    {
+        return spells.rankHitSpell;
+    }
+    return spells.hitSpell;
+}
+
 Unit* Mage::ClosestOrbTarget(WorldObject const& from, std::list<Unit*> const& candidates,
                              std::function<bool(Unit const&)> const& sees)
 {
@@ -614,7 +628,7 @@ int32 Mage::OrbCostShare(uint32 procSpellId, Unit const& mage)
 {
     for (OrbSpells const& orb : ORBS)
     {
-        if (!procSpellId || orb.hitSpell != procSpellId)
+        if (!procSpellId || (orb.hitSpell != procSpellId && orb.rankHitSpell != procSpellId))
         {
             continue;
         }
