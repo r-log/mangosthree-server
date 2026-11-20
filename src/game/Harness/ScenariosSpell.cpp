@@ -23714,8 +23714,9 @@ namespace Harness
      * image's Fire Blasts; from the run's four steps' windows the images' melee swings (SMSG_ATTACKERSTATEUPDATE), for
      * run C the GOs of their spells, and for run D each image's Fireball GOs and the SMSG_POWER_UPDATE of its mana;
      * right after step 2 whether the Camel holds 59638 (runs A and B), for run C 118; right after step 4 the images
-     * still in the world, for run C also whether the Camel holds 118. A first hit's band at level 85 (the class-8
-     * spell scaling 937.33): Arcane Blast
+     * still in the world, for run C also whether the Camel holds 118, which is then taken off it, so run D's images
+     * find a Camel no crowd control holds. A first hit's band at level 85 (the class-8 spell scaling 937.33):
+     * Arcane Blast
      * int(0.259 x 937.33) = 242 with the spread int(242.77 x 0.15) = 36 halved either side, 224..260, plus int(the
      * bonus x 0.275); Frostbolt int(0.235 x 937.33) = 220 with the spread 22 halved, 209..231, plus int(the bonus x
      * 0.25).
@@ -23929,6 +23930,8 @@ namespace Harness
                 {
                     reads["sheepEnd"] = target->HasAura(kPolymorph) ? 1 : 0;
                     m_rec.Note("the Camel's " + U(kPolymorph) + ": " + HolderOf(target, kPolymorph));
+                    target->RemoveAurasDueToSpell(kPolymorph);
+                    m_rec.Note("the Camel's " + U(kPolymorph) + " taken off: " + HolderOf(target, kPolymorph));
                 }
             }
         }
