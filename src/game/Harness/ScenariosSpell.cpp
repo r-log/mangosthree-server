@@ -206,6 +206,9 @@
 // with its glyphs lasts an hour, cuts his physical damage taken by 15%, chills the Camel that hits him and gives 2%
 // mana every 5 s; Ice Barrier absorbs 8069 and 0.87 of his spell power, and a hit it absorbs whole does not push his
 // cast back.
+// 1029 a staged Frost mage with Improved Freeze 3: his Water Elemental's Freeze, sent as the client's pet bar sends a
+// cast at a point, freezes the two Camels around the point and gives him two charges of Fingers of Frost through one
+// roll for the cast; cast at a point where no enemy stands, it gives none.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -253,7 +256,7 @@
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
 // Magic goes on another mage and not on him, that mage's hit that does not crit gives him no 54648, and his crit gives
 // him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1028, 1100-1113 and 1115 (Qualify) fingerprints every spell a
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1113 and 1115 (Qualify) fingerprints every spell a
 // scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4158,7 +4161,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1028, 1100-1113, 1115): a human mage staged to level 85 with the scenario's talents,
+     * 998-1000, 1010-1029, 1100-1113, 1115): a human mage staged to level 85 with the scenario's talents,
      * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
      * staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
@@ -23165,11 +23168,12 @@ namespace Harness
     };
 
     /**
-     * What 1018 and 1019 share: a staged Frost mage (Piercing Ice 3, Shatter 2, kSpellPower spell power) with a Water
-     * Elemental (510) built for him that keeps its pet AI (PetRunsAI), so it attacks on its own; each Camel
-     * holds Hit Me (100446), so neither his casts nor the pet's miss; the mage's casts may not crit. The pet's stance
-     * is set as the client's stance buttons send it (PetAction: CMSG_PET_ACTION to the pet action handler). The pet
-     * is ended at the last step's read, owner guid first, as ScenariosControl.cpp's EndPet ends one.
+     * What 1018, 1019 and 1029 share: a staged Frost mage (Piercing Ice 3, Shatter 2, kSpellPower spell power, unless
+     * the scenario stages its own talents) with a Water Elemental (510) built for him that keeps its pet AI unless the
+     * scenario says otherwise (PetRunsAI), so it attacks on its own; each Camel holds Hit Me (100446), so neither his
+     * casts nor the pet's miss; the mage's casts may not crit. The pet's stance is set as the client's stance buttons
+     * send it (PetAction: CMSG_PET_ACTION to the pet action handler). The pet is ended at the last step's read, owner
+     * guid first, as ScenariosControl.cpp's EndPet ends one.
      */
     class MageFrostPetScenario : public MageProcScenario
     {
@@ -23694,6 +23698,191 @@ namespace Harness
             "victim=-,-,A,A,A,A,A,B,B,B,B,-,-,-,-,stance=assist,defensive,passive,defensive,assist";
         std::vector<std::string> m_victims;
         std::vector<std::string> m_stances;
+    };
+
+    /**
+     * S1029 `mage-frost-improved-freeze`: a staged Frost mage's Water Elemental (MageFrostPetScenario) casts Freeze
+     * (33395) at a point for him with Improved Freeze 3 (86314). Staged: Piercing Ice 3, Shatter 2, Ice Floes 3 and
+     * Improved Cone of Cold 2 (the ten points the third tier asks), then Improved Freeze 3. The pet runs no AI and
+     * learns its spells as a summoned one does (PetLearnsSpells), so Freeze is on its bar and it casts nothing of its
+     * own. Camel A stands ten yards in front of him and Camel B six yards to A's side (ExtraTargets). Each step is a
+     * wait whose act sends the pet's Freeze as the 4.3.4 client's pet bar sends a cast at a point (PetCastAtPoint):
+     *  1. at a point twenty yards to A's other side, where no unit stands within Freeze's eight yards;
+     *  2. at the point between A and B, three yards from each, the pet's cooldown of Freeze taken off by call first
+     *     (the stepped clock never runs out a cooldown that ends on time(NULL)).
+     * Each read, 300 ms after the act, keeps which Camels hold Freeze and the frozen state, and his Fingers of Frost
+     * (44544) stacks; the last read ends the pet.
+     *
+     * `improvedFreeze`: `casts=<the pet's Freeze casts (SPELL_GO of 33395) in step 1's windows>/<in step
+     * 2's>,freeze=<the Camels frozen by Freeze at step 1's read, `+`-joined, none for none>/<at step 2's>,fingers=<his
+     * 44544 stacks at step 1's read>/<at step 2's>,grants=<his 44544 casts (SPELL_GO) in step 1's windows>/<in step
+     * 2's>`. OK at `casts=1/1,freeze=none/A+B,fingers=0/2,grants=0/2`: both Freezes go off, the one at the empty point
+     * freezes nothing and gives nothing, and the one that hits both Camels freezes them and gives him two charges
+     * through one roll of the third rank's 100%, two casts of the buff, not one roll and two casts for each Camel hit.
+     */
+    class MageFrostImprovedFreeze : public MageFrostPetScenario
+    {
+    public:
+        MageFrostImprovedFreeze() : MageFrostPetScenario("mage-frost-improved-freeze", 1029, "improvedFreeze") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 11157, 2 }, { 11158, 1 }, { 9846, 2 }, { 11325, 1 }, { 11371, 2 } };
+        }
+        bool PetRunsAI() const override { return false; }
+        bool PetLearnsSpells() const override { return true; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override { return { { 0.0f, kCamelSpacing } }; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { Wait(kStepMs), Wait(kStepMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            std::vector<SpellPrint> prints = FrostPetPrints();
+            // 86314: 26 fields, fnv dcb52228
+            prints.push_back({ 86314, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 512 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } });
+            // 44544: 26 fields, fnv 65bc81c5
+            prints.push_back({ 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } });
+            return prints;
+        }
+
+        /// Each act sends the pet's Freeze at its step's point; each read keeps the Camels Freeze froze and his
+        /// Fingers of Frost stacks, and the last read ends the pet.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            Creature* a = Get(st.targets[kCamelA]);
+            Creature* b = st.targets.size() > kCamelB ? Get(st.targets[kCamelB]) : NULL;
+            if (!a || !b)
+            {
+                m_rec.Note("a Camel is gone; nothing done");
+                return;
+            }
+            if (!atRead)
+            {
+                const float x = a->Where().X();
+                const float y = k == kEmptyStep ? a->Where().Y() - kEmptyOffset
+                                                : (a->Where().Y() + b->Where().Y()) / 2.0f;
+                if (k == kHitStep)
+                {
+                    if (Pet* pet = p->GetPet())
+                    {
+                        SpellEntry const* freeze = sSpellStore.LookupEntry(kFreeze);
+                        pet->m_CreatureSpellCooldowns.erase(kFreeze);
+                        if (freeze)
+                        {
+                            pet->m_CreatureCategoryCooldowns.erase(freeze->GetCategory());
+                        }
+                        m_rec.Note("the pet's cooldown of " + U(kFreeze) + " taken off by call");
+                    }
+                }
+                PetCastAtPoint(p, kFreeze, x, y, Ground(x, y, a->Where().Z()), uint8(k + 1));
+                return;
+            }
+            Seen& seen = st.seen[k];
+            seen.reads["frozenA"] = FrozenByFreeze(a) ? 1 : 0;
+            seen.reads["frozenB"] = FrozenByFreeze(b) ? 1 : 0;
+            SpellAuraHolder* fingers = p->GetSpellAuraHolder(kFingers);
+            seen.reads["fingers"] = fingers ? fingers->GetStackAmount() : 0;
+            m_rec.Note("Camel A " + std::string(FrozenByFreeze(a) ? "frozen" : "not frozen") + ", its " +
+                       U(kFreeze) + " " + HolderOf(a, kFreeze) + "; Camel B " +
+                       (FrozenByFreeze(b) ? "frozen" : "not frozen") + ", its " + U(kFreeze) + " " +
+                       HolderOf(b, kFreeze) + "; his " + U(kFingers) + " " + HolderOf(p, kFingers));
+            if (k + 1 == st.steps.size())
+            {
+                EndPet(p);
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps || st.seen.size() != kSteps)
+            {
+                return "BUG(the steps did not run)";
+            }
+            std::string casts, freeze, fingers, grants;
+            for (uint32 k = 0; k < kSteps; ++k)
+            {
+                std::string frozen;
+                if (Kept(st, k, "frozenA") == 1)
+                {
+                    frozen = "A";
+                }
+                if (Kept(st, k, "frozenB") == 1)
+                {
+                    frozen += (frozen.empty() ? "" : "+") + std::string("B");
+                }
+                const std::vector<uint32>& fired = st.seen[k].triggered;
+                const char* sep = k ? "/" : "";
+                casts += sep + U(uint64(std::count(fired.begin(), fired.end(), kFreeze)));
+                freeze += sep + (frozen.empty() ? std::string("none") : frozen);
+                fingers += sep + std::to_string(Kept(st, k, "fingers"));
+                grants += sep + U(uint64(std::count(fired.begin(), fired.end(), kFingers)));
+            }
+            const std::string value = "casts=" + casts + ",freeze=" + freeze + ",fingers=" + fingers + ",grants=" +
+                                      grants;
+            const std::string detail = "wanted both of the pet's Freezes cast, the one at the empty point freezing "
+                                       "nothing and giving no charge, and the one that hits both Camels freezing them "
+                                       "and giving him two charges through one roll)";
+            return value == kWanted ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        /// The pet's cast of `spell` at the point (x, y, z) as the 4.3.4 client sends it from the pet bar (Spell_C.cpp,
+        /// the CMSG_PET_CAST_SPELL branch of the cast packet's writer, then SpellPutCastTargets in SpellCast.cpp): the
+        /// pet's guid (uint64), the cast count (uint8), the spell id (uint32), the cast flags (uint8, 0), then the
+        /// targets as WriteCastTargets writes them, here TARGET_FLAG_DEST_LOCATION with no transport and the point. The
+        /// pet's mana is set to its maximum by call first. The packet goes to the pet cast handler itself
+        /// (PetHandlers::HandlePetCastSpell), which reads it in that order and runs its own checks before it starts the
+        /// spell.
+        void PetCastAtPoint(Player* p, uint32 spell, float x, float y, float z, uint8 castCount)
+        {
+            Pet* pet = p->GetPet();
+            if (!pet)
+            {
+                m_rec.Note("he has no pet; no pet cast sent");
+                return;
+            }
+            pet->SetPower(POWER_MANA, pet->GetMaxPower(POWER_MANA));
+            SpellCastTargets targets;
+            targets.setDestination(x, y, z);
+            WorldPacket packet(CMSG_PET_CAST_SPELL, 8 + 1 + 4 + 1 + 4 + 1 + 4 * 3);
+            packet << pet->GetObjectGuid();
+            packet << uint8(castCount);
+            packet << uint32(spell);
+            packet << uint8(0);
+            WriteCastTargets(packet, targets);
+            const float dx = x - pet->Where().X();
+            const float dy = y - pet->Where().Y();
+            char buf[256];
+            snprintf(buf, sizeof(buf), "the client's pet cast packet: cast count %u, spell %u, cast flags 0, the point "
+                     "(%.1f, %.1f, %.1f), %.1f yd from the pet; handed to the pet cast handler",
+                     uint32(castCount), spell, x, y, z, std::sqrt(dx * dx + dy * dy));
+            m_rec.Note(buf);
+            PetHandlers::HandlePetCastSpell(*SessionOf(*p), packet);
+        }
+
+        /// Whether `camel` holds the pet's Freeze and the frozen aura state.
+        static bool FrozenByFreeze(Creature* camel)
+        {
+            return camel->HasAura(kFreeze) && camel->HasAuraState(AURA_STATE_FROZEN);
+        }
+
+        static constexpr uint32 kFingers = 44544;
+        static constexpr uint32 kSteps = 2;
+        static constexpr uint32 kEmptyStep = 0;
+        static constexpr uint32 kHitStep = 1;
+        static constexpr uint32 kStepMs = 2000;
+        static constexpr uint32 kCamelA = 0;
+        static constexpr uint32 kCamelB = 1;
+        /// B's yards to A's side; the point between them is half of it from each, inside Freeze's eight yards.
+        static constexpr float kCamelSpacing = 6.0f;
+        /// The empty point's yards to A's other side, beyond Freeze's eight yards of A and of B.
+        static constexpr float kEmptyOffset = 20.0f;
+
+        const std::string kWanted = "casts=1/1,freeze=none/A+B,fingers=0/2,grants=0/2";
     };
 
     /**
@@ -24893,5 +25082,6 @@ namespace Harness
         r.Register(new MageFrostBlizzardHaste());
         r.Register(new MageFrostIcyVeins());
         r.Register(new MageFrostBarrierArmor());
+        r.Register(new MageFrostImprovedFreeze());
     }
 }
