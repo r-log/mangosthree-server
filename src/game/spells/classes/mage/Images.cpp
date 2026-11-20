@@ -26,6 +26,7 @@
 #include "spells/classes/mage/Mage.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/SpellScriptQueries.h"
+#include "spells/pipeline/Spell.h"
 #include "ai/CreatureAI.h"
 #include "entities/Creature.h"
 #include "entities/Pet.h"
@@ -141,9 +142,10 @@ namespace
     /// keeps, for its spell and its Fire Blast, 75% of his spell power of that spell's school (Mage::ImageBonusDamage).
     /// Then, while it casts nothing, it casts at the unit Mage::ImageTarget picks among his victim, his selection and
     /// his attacker, the Fire Blast when its cooldown is over (Mage::ImageSpellToCast), else its spell, with the spell
-    /// power kept for that spell; a crowd control put on its target stops no cast under way. It follows him while he
-    /// stands farther than IMAGE_FOLLOW_RANGE from it and it casts nothing, and stops when it starts a cast. It never
-    /// swings, attacks nothing by itself and evades nothing; its stance plays no part.
+    /// power kept for that spell. A cast under way at a unit that a crowd control any damage breaks at once comes to
+    /// hold is interrupted (Mage::ImageStopsCast), and the image picks its next target at once. It follows him while
+    /// he stands farther than IMAGE_FOLLOW_RANGE from it and it casts nothing, and stops when it starts a cast. It
+    /// never swings, attacks nothing by itself and evades nothing; its stance plays no part.
     class ImageAI : public CreatureAI
     {
         public:
@@ -172,7 +174,13 @@ namespace
                 m_fireBlastMs = m_fireBlastMs > int32(diff) ? m_fireBlastMs - int32(diff) : 0;
                 if (m_creature->IsNonMeleeSpellCasted(false))
                 {
-                    return;
+                    Unit* castTarget = CastTarget();
+                    if (!Mage::ImageStopsCast(castTarget != NULL,
+                                              castTarget && Spells::HeldByControlDamageBreaks(*castTarget)))
+                    {
+                        return;
+                    }
+                    m_creature->InterruptNonMeleeSpells(false);
                 }
                 Map* map = m_creature->FindMap();
                 Unit* selection = map ? map->GetUnit(owner->GetSelectionGuid()) : NULL;
@@ -223,6 +231,16 @@ namespace
             {
                 Map* map = m_creature->FindMap();
                 return map ? map->GetPet(m_creature->GetObjectGuid()) : NULL;
+            }
+
+            /// The unit the image's cast under way is aimed at, looked up on its map by the cast's unit target; NULL
+            /// when it casts nothing, or at no unit its map holds.
+            Unit* CastTarget() const
+            {
+                Spell const* cast = m_creature->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+                Map* map = m_creature->FindMap();
+                ObjectGuid const target = cast ? cast->m_targets.getUnitTargetGuid() : ObjectGuid();
+                return map && !target.IsEmpty() ? map->GetUnit(target) : NULL;
             }
 
             /// The image's start: its row, by its creature, Clone Me! cast at it by `owner`, and the spell power its
@@ -333,6 +351,11 @@ uint32 Mage::ImageSpellToCast(ImageRow const& row, int32 fireBlastLeftMs)
 bool Mage::ImageMayStrike(bool attackable, bool friendly, bool damageBreaks)
 {
     return attackable && !friendly && !damageBreaks;
+}
+
+bool Mage::ImageStopsCast(bool castsAtUnit, bool damageBreaks)
+{
+    return castsAtUnit && damageBreaks;
 }
 
 Unit* Mage::ImageTarget(Unit* victim, Unit* selection, Unit* attacker, std::function<bool(Unit&)> const& mayStrike)

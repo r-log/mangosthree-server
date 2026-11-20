@@ -25,11 +25,11 @@
 
 /// Tests of the images of the mage's Mirror Image (spells/classes/mage/Images.cpp): their table rows, which images are
 /// a mage's own, the summon the glyph and the primary tree choose, the glyph slots' read, the spell power an image
-/// takes, the spell it casts next, the units it may strike and the one it casts at, Mirror Image's and Clone Me!'s rows
-/// at the dummy-effect hook and Initialize Images' at the target hook with the images' creature AI, Clone Me!'s weapons
-/// on a player's image, and what a script reads of a player's specialization (Spells::ActiveSpecialization) and of a
-/// unit's crowd control (Spells::HeldByControlDamageBreaks). The units are bare creatures (update fields allocated; no
-/// map, template, aura or AI) and a player on a session with no socket.
+/// takes, the spell it casts next, the units it may strike, the casts it interrupts and the unit it casts at, Mirror
+/// Image's and Clone Me!'s rows at the dummy-effect hook and Initialize Images' at the target hook with the images'
+/// creature AI, Clone Me!'s weapons on a player's image, and what a script reads of a player's specialization
+/// (Spells::ActiveSpecialization) and of a unit's crowd control (Spells::HeldByControlDamageBreaks). The units are
+/// bare creatures (update fields allocated; no map, template, aura or AI) and a player on a session with no socket.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -231,6 +231,25 @@ TEST(MageImages_AnImageStrikesAnAttackableUnitNotFriendlyAndNotUnderABreakableCo
     CHECK(!Mage::ImageMayStrike(true, true, false));
     CHECK(!Mage::ImageMayStrike(true, false, true));
     CHECK(!Mage::ImageMayStrike(false, true, true));
+}
+
+TEST(MageImages_AnImageInterruptsACastAtAUnitABreakableControlNowHolds)
+{
+    // A cast at a unit that a crowd control any damage breaks now holds (a Polymorph put on it mid-cast) is
+    // interrupted.
+    CHECK(Mage::ImageStopsCast(true, true));
+
+    // A cast at a free unit goes on; a cast at no unit, or at one gone from the image's map, is left alone.
+    CHECK(!Mage::ImageStopsCast(true, false));
+    CHECK(!Mage::ImageStopsCast(false, true));
+    CHECK(!Mage::ImageStopsCast(false, false));
+
+    // The rule of the start check: at a unit it may attack and that is not friendly, the image interrupts a cast
+    // exactly when it would not start one.
+    for (bool held : { false, true })
+    {
+        CHECK(Mage::ImageStopsCast(true, held) == !Mage::ImageMayStrike(true, false, held));
+    }
 }
 
 TEST(MageImages_AUnitWithNoAuraIsHeldByNoControl)

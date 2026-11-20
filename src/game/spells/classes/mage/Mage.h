@@ -57,9 +57,9 @@
  * mage's Ring of Frost summons: its creature AI, its scripts and its leaves (RingSpellsFor, IsRingCreature, RingInBand,
  * RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and RingMarkerOnRemove). Images.cpp holds the images a mage's
  * Mirror Image summons: their creature AI, Mirror Image's, Clone Me!'s and Initialize Images' scripts and their leaves
- * (ImageRowFor, IsOwnImage, ImageSummonSpell, HoldsGlyph, ImageBonusDamage, ImageSpellToCast, ImageMayStrike and
- * ImageTarget). Each file registers its rows through one function of namespace Mage: a table per legacy site of
- * SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * (ImageRowFor, IsOwnImage, ImageSummonSpell, HoldsGlyph, ImageBonusDamage, ImageSpellToCast, ImageMayStrike,
+ * ImageStopsCast and ImageTarget). Each file registers its rows through one function of namespace Mage: a table per
+ * legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's, the ring's and the
@@ -306,6 +306,11 @@ namespace Mage
     /// and not held by a crowd control that any damage breaks at once (`damageBreaks`,
     /// Spells::HeldByControlDamageBreaks). Defined in Images.cpp.
     bool ImageMayStrike(bool attackable, bool friendly, bool damageBreaks);
+
+    /// Whether an image interrupts the cast it has under way: one aimed at a unit (`castsAtUnit`) that a crowd control
+    /// any damage breaks at once now holds (`damageBreaks`, Spells::HeldByControlDamageBreaks), the rule
+    /// ImageMayStrike applies before a cast starts. Defined in Images.cpp.
+    bool ImageStopsCast(bool castsAtUnit, bool damageBreaks);
 
     /// The unit an image casts at: of its mage's victim, his selection and the unit that attacks him, in that order,
     /// the first `mayStrike` accepts; NULL when none does. Defined in Images.cpp.
