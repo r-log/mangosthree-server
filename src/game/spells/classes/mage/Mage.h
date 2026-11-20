@@ -49,9 +49,9 @@
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
  * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
  * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
- * (ImprovedConeOfColdFreeze), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice Barrier's
- * (GlyphedBarrierAmount), Reactive Barrier's (ReactiveBarrierTriggers) and Cold Snap's (ColdSnapResets). Orb.cpp holds
- * the orbs a mage's Flame Orb and Frostfire Orb summon: their creature AI, their scripts and their leaves
+ * (ImprovedConeOfColdFreeze), Ice Shards' (IceShardsChill), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice
+ * Barrier's (GlyphedBarrierAmount), Reactive Barrier's (ReactiveBarrierTriggers) and Cold Snap's (ColdSnapResets).
+ * Orb.cpp holds the orbs a mage's Flame Orb and Frostfire Orb summon: their creature AI, their scripts and their leaves
  * (OrbSpellsFor, IsOrbCreature, OrbHitSpellFor, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue,
  * OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Ring.cpp holds the ring a
  * mage's Ring of Frost summons: its creature AI, its scripts and its leaves (RingSpellsFor, IsRingCreature, RingInBand,
@@ -539,6 +539,10 @@ namespace Mage
     /// The freeze a Cone of Cold hit puts on its target for a mage who knows `talentSpell` (Improved Cone of Cold):
     /// 83301 (2 s) for 11190, 83302 (4 s) for 12489, 0 for any other spell. Defined in Frost.cpp.
     uint32 ImprovedConeOfColdFreeze(uint32 talentSpell);
+
+    /// The chill a Blizzard hit puts on its target for a mage who knows `talentSpell` (Ice Shards): 12484 (-25%,
+    /// 2 s) for 11185, 12485 (-40%, 2 s) for 12487, 0 for any other spell. Defined in Frost.cpp.
+    uint32 IceShardsChill(uint32 talentSpell);
 
     /// The freeze an Ice Barrier removed in `mode` casts for a mage who knows Shattered Barrier: 83073 (4 s) for the
     /// second rank (54787, `knowsRankTwo`), else 55080 (2 s) for the first (44745, `knowsRankOne`); 0 unless damage

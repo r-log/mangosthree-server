@@ -116,7 +116,7 @@ struct SpellEntry;
  *   reckoned; before the caster's cast-end proc, and for an immediate spell before its effects. It runs whatever the
  *   cast's targets did with it: a miss, an immunity or a reflect at the launch, or none of them yet for a delayed
  *   spell. Its cast time is the one the cast's timer started at, 0 for a cast that went off as it started. Return()
- *   is the same as Continue(). A body may remove the caster's auras and stacks.
+ *   is the same as Continue(). A body may remove the caster's auras and stacks and end his cooldowns.
  * - CastStart: `Spell::Prepare`, once per cast the caster begins himself (never a triggered one), only for a spell with
  *   a row: after its cast time is set, its cast bar sent and its global cooldown started, and before an instant cast
  *   goes off. A cast that is interrupted or cancelled later has run it. Return() is the same as Continue(). A body may
