@@ -185,7 +185,7 @@
 // yards of him and not the third; replaced, dispelled, cancelled or run out it roots none; Glyph of Ice Barrier adds
 // 30% to the whole absorb. 1016 Reactive Barrier casts the free Ice Barrier for a swing that leaves him below half
 // health, also when he was below half already and when an absorb took the swing whole, and never while Ice Barrier's
-// cooldown runs.
+// cooldown runs; a spell's hit an absorb takes whole while he is below half casts it too.
 // 1017 a staged Frost mage's Flame Orb button casts the Frostfire Orb, whose hits are frostfire, chill their target
 // at the talent's second rank only and never ignite; Cold Snap makes it ready again, and it skips a polymorphed enemy.
 // 1018 a staged Frost mage's fresh Water Elemental starts with Waterbolt's autocast on and Freeze's off, takes the
@@ -17360,16 +17360,19 @@ namespace Harness
      *  4. a wait, at which Ice Barrier's cooldown is taken off him by call (the stepped clock never runs it out);
      *  5. at 40%: the barrier takes the swing whole, its cooldown ready;
      *  6. his barrier cancelled as the client's right-click does; 7. a wait, at which the cooldown is taken off again;
-     *  8. at 40%, with no barrier on him.
+     *  8. at 40%, with no barrier on him;
+     *  9. a wait, at which the cooldown is taken off again, his health is set to 40% and the Camel casts Fire Blast
+     *     (2136: instant, no travel) at him, triggered: the barrier step 8 cast takes the spell's hit whole.
      * Right after each step acts the scenario keeps his health, whether he holds Ice Barrier and the buff, whether Ice
      * Barrier is on cooldown for him and whether his mana is at its maximum.
      *
      * `reactive`: `casts=<per step, + when an SMSG_SPELL_GO of 11426 came in its windows> buff=<per step, + when an
      * SMSG_AURA_UPDATE put 86347 on him in its windows> barrier=<per step, + when he held 11426 right after it>
      * cooldown=<per step, + when 11426 was on cooldown for him right after it> fell=<per swing, the health it took>`.
-     * OK at casts=-+--+--+ buff=-+--+--+ barrier=-++++--+ cooldown=-++-++-+, with 86347 on him right after no step,
-     * his mana at its maximum right after every step, the swings of steps 1, 2 and 8 taking health and those of steps
-     * 3 and 5 none, and his health below half right after steps 2, 3, 5 and 8 and at half or above right after step 1.
+     * OK at casts=-+--+--++ buff=-+--+--++ barrier=-++++--++ cooldown=-++-++-++, with 86347 on him right after no step,
+     * his mana at its maximum right after every step, the swings of steps 1, 2 and 8 taking health and those of steps 3
+     * and 5 none, Fire Blast at step 9 taking none, and his health below half right after steps 2, 3, 5, 8 and 9 and at
+     * half or above right after step 1.
      */
     class MageFrostReactiveBarrier : public MageProcScenario
     {
@@ -17392,7 +17395,8 @@ namespace Harness
         {
             return { SwingAt(kFull, kSwingEveryMs), SwingAt(kJustAboveHalf, kSwingEveryMs),
                      SwingAt(kBelowHalf, kSwingEveryMs), Wait(kShortMs), SwingAt(kBelowHalf, kSwingEveryMs),
-                     SelfRemoval(kIceBarrier, kShortMs), Wait(kShortMs), SwingAt(kBelowHalf, kSwingEveryMs) };
+                     SelfRemoval(kIceBarrier, kShortMs), Wait(kShortMs), SwingAt(kBelowHalf, kSwingEveryMs),
+                     Wait(kShortMs) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -17419,20 +17423,30 @@ namespace Harness
                 { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 71757: 26 fields, fnv 73f2d232
                 { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 2136: 26 fields, fnv 30ec504c
+                { 2136, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 23 }, { "eff0.EffectBonusCoefficient", 1054582243 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
             };
         }
 
-        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             if (atRead)
             {
                 return;
             }
             std::map<std::string, int64>& reads = st.seen[k].reads;
-            if (k == kFirstClearStep || k == kSecondClearStep)
+            if (k == kFirstClearStep || k == kSecondClearStep || k == kSpellStep)
             {
                 p->RemoveSpellCooldown(kIceBarrier, true);
                 m_rec.Note("his cooldown of " + U(kIceBarrier) + " taken off by call");
+            }
+            if (k == kSpellStep)
+            {
+                p->SetHealth(p->GetMaxHealth() * kBelowHalf / 1000);
+                reads["healthSet"] = p->GetHealth();
+                m_rec.Note("his health set to " + U(p->GetHealth()) + "; the Camel casts " + U(kFireBlast) +
+                           " at him, triggered");
+                target->CastSpell(p, kFireBlast, true);
             }
             Aura const* barrier = p->GetAura(kIceBarrier, EFFECT_INDEX_0);
             reads["health"] = p->GetHealth();
@@ -17470,13 +17484,15 @@ namespace Harness
                     fell += (fell.empty() ? "" : ",") + std::to_string(Fell(st, k));
                 }
             }
+            const bool spellTookNone = Kept(st, kSpellStep, "healthSet") > 0 &&
+                                       Kept(st, kSpellStep, "health") == Kept(st, kSpellStep, "healthSet");
             const bool falls = Fell(st, kFullStep) > 0 && Fell(st, kCrossStep) > 0 && Fell(st, kBareStep) > 0 &&
-                               Fell(st, kCoolingStep) == 0 && Fell(st, kAbsorbedStep) == 0;
+                               Fell(st, kCoolingStep) == 0 && Fell(st, kAbsorbedStep) == 0 && spellTookNone;
             const bool halves = Kept(st, kFullStep, "belowHalf") == 0 && Kept(st, kCrossStep, "belowHalf") == 1 &&
                                 Kept(st, kCoolingStep, "belowHalf") == 1 && Kept(st, kAbsorbedStep, "belowHalf") == 1 &&
-                                Kept(st, kBareStep, "belowHalf") == 1;
-            const bool ok = casts == "-+--+--+" && buff == "-+--+--+" && barrier == "-++++--+" &&
-                            cooldown == "-++-++-+" && !buffKept && fullMana && falls && halves;
+                                Kept(st, kBareStep, "belowHalf") == 1 && Kept(st, kSpellStep, "belowHalf") == 1;
+            const bool ok = casts == "-+--+--++" && buff == "-+--+--++" && barrier == "-++++--++" &&
+                            cooldown == "-++-++-++" && !buffKept && fullMana && falls && halves;
             const std::string value = "casts=" + casts + " buff=" + buff + " barrier=" + barrier + " cooldown=" +
                                       cooldown + " fell=" + fell;
             const std::string detail = std::string("86347 ") +
@@ -17484,7 +17500,9 @@ namespace Harness
                                        "; his mana " +
                                        (fullMana ? "at its maximum after every step" : "short after a step") +
                                        "; his health " +
-                                       (halves ? "below half where wanted" : "not below half where wanted");
+                                       (halves ? "below half where wanted" : "not below half where wanted") +
+                                       "; Fire Blast at step 9 " +
+                                       (spellTookNone ? "took none of his health" : "took some of his health");
             return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
         }
 
@@ -17494,7 +17512,8 @@ namespace Harness
         static constexpr uint32 kReactiveBarrierTwo = 86304;
         static constexpr uint32 kReactiveBuff = 86347;
         static constexpr uint32 kHitMe = 100446;
-        static constexpr int32 kSpellPower = 10000;
+        static constexpr uint32 kFireBlast = 2136;
+        static constexpr int32 kSpellPower = 20000;
         static constexpr uint32 kFull = 1000;
         static constexpr uint32 kJustAboveHalf = 505;
         static constexpr uint32 kBelowHalf = 400;
@@ -17507,7 +17526,8 @@ namespace Harness
         static constexpr uint32 kAbsorbedStep = 4;
         static constexpr uint32 kSecondClearStep = 6;
         static constexpr uint32 kBareStep = 7;
-        static constexpr size_t kSteps = 8;
+        static constexpr uint32 kSpellStep = 8;
+        static constexpr size_t kSteps = 9;
 
         /// A read ReadOwn kept for step k; -2 when it kept none of that name.
         static int64 Kept(St const& st, uint32 k, std::string const& name)
