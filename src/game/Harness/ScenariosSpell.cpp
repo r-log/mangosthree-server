@@ -6414,16 +6414,16 @@ namespace Harness
 
     /**
      * S957 `mage-frost-ice-lance`: Ice Lance (30455) at a frozen Camel and at an unfrozen one, cast by a staged Frost
-     * mage: Early Frost 2, Piercing Ice 3, Ice Floes 3 and Improved Cone of Cold 2 (the ten points the third tier asks),
-     * then Fingers of Frost 3 (83074); Glyph of Ice Lance (322), kMasteryRating mastery rating and the Mastery passive
-     * (86473), as a level-85 Frost mage has them; Ice Lance, Frost Nova (122) and Frostbolt (116) learned. Ice Lance's
-     * done damage is multiplied when the target is frozen, or when Fingers of Frost (44544) on him lets it act as if it
-     * were. Steps: Ice Lance at the Camel; Frost Nova, which freezes it; Ice Lance at the frozen Camel; then three
-     * rounds of three Frostbolts and an Ice Lance, every Frostbolt's cast a chance for Fingers of Frost; the first
-     * Frostbolt of a round starts Early Frost's lockout, so the next two take the full cast time. One cast every 4.7 s:
-     * under the harness's seed base no Ice Lance crits, and Fingers of Frost triggers at steps 9 and 12, so the Ice
-     * Lances of steps 11 and 15 have it, and each uses the charge it finds. A Frostbolt may crit: its crit plays no part
-     * in the record.
+     * mage: Early Frost 2, Piercing Ice 3, Ice Floes 3 and Improved Cone of Cold 2 (the ten points the third tier
+     * asks), then Fingers of Frost 3 (83074); Glyph of Ice Lance (322), kMasteryRating mastery rating and the Mastery
+     * passive (86473), as a level-85 Frost mage has them; Ice Lance, Frost Nova (122) and Frostbolt (116) learned. Ice
+     * Lance's done damage is multiplied when the target is frozen, or when Fingers of Frost (44544) on him lets it act
+     * as if it were. Steps: Ice Lance at the Camel; Frost Nova, which freezes it; Ice Lance at the frozen Camel; then
+     * three rounds of three Frostbolts and an Ice Lance, every Frostbolt's cast a chance for Fingers of Frost; the
+     * first Frostbolt of a round starts Early Frost's lockout, so the next two take the full cast time. One cast every
+     * 4.7 s: under the harness's seed base no Ice Lance crits, and Fingers of Frost triggers at steps 9 and 12, so the
+     * Ice Lances of steps 11 and 15 have it, and each uses the charge it finds. A Frostbolt may crit: its crit plays no
+     * part in the record.
      *
      * `iceLance`: each Ice Lance's state when cast (`frozen`, `fingers` when 44544 was on him and the Camel not frozen,
      * else `plain`) and its amount; OK when there is a frozen one and a plain one, and each frozen or fingers one dealt
@@ -6435,7 +6435,8 @@ namespace Harness
         MageFrostIceLance() : MageFrostIceLance("mage-frost-ice-lance", 957, "iceLance") {}
 
     protected:
-        MageFrostIceLance(char const* name, int order, char const* category) : MageProcScenario(name, order, category) {}
+        MageFrostIceLance(char const* name, int order, char const* category)
+            : MageProcScenario(name, order, category) {}
 
         std::vector<std::pair<uint32, uint32> > Talents() const override
         {
@@ -6449,8 +6450,8 @@ namespace Harness
         {
             Step bolt = Cast(116, false);
             bolt.critAllowed = true;
-            return { Cast(30455, false), Cast(122, false), Cast(30455, false), bolt, bolt, bolt, Cast(30455, false), bolt, bolt, bolt,
-                     Cast(30455, false), bolt, bolt, bolt, Cast(30455, false) };
+            return { Cast(30455, false), Cast(122, false), Cast(30455, false), bolt, bolt, bolt, Cast(30455, false),
+                     bolt, bolt, bolt, Cast(30455, false), bolt, bolt, bolt, Cast(30455, false) };
         }
 
         std::vector<SpellPrint> Prints() const override
@@ -8689,7 +8690,7 @@ namespace Harness
                 const int64 mask = Kept(st, k, "mask");
                 const int64 slow = Kept(st, k, "slow");
                 stacks += (k ? "," : "") + std::to_string(stack);
-                char maskText[16];
+                char maskText[20];
                 snprintf(maskText, sizeof(maskText), "0x%llx", (unsigned long long)(mask < 0 ? 0 : mask));
                 masks += (k ? "/" : "") + std::string(maskText);
                 slows += (k ? "/" : "") + (slow == kNone ? std::string("absent") : std::to_string(slow));
@@ -16827,9 +16828,10 @@ namespace Harness
      *  6. Frostbolt at the second rank, hasted; 7. Frostbolt under its lockout, hasted;
      *  8. a wait past the lockout's end, at which Power Infusion is taken off him (his cast speed is 1 again);
      *  9. Frostbolt at the second rank; 10. Frostbolt under its lockout;
-     * 11. a wait, at which Mind Tremor (8272: a creature's cast slow, aura 65 at -20) and Icy Winds (56716: aura 65 at
-     *     -50) with the Camel as their caster, Curse of Tongues (1714: a player's cast slow, aura 216 at -30) and Power
-     *     Infusion (aura 65 at +20) are put on him as PutReadyAura puts them;
+     * 11. a wait, at which Mind Tremor (8272: a creature's cast slow, aura 65 at -20) and Icy Winds (56716: a
+     *     creature's self-buff of +75% damage done that carries aura 65 at -50) with the Camel as their caster, Curse
+     *     of Tongues (1714: a player's cast slow, aura 216 at -30) and Power Infusion (aura 65 at +20) are put on him
+     *     as PutReadyAura puts them;
      * 12. Icy Veins cast at himself.
      * Right after each Frostbolt starts the scenario keeps his global cooldown of Frostbolt
      * (GlobalCooldownMgr::GetGlobalCooldown) and the lockout he holds, with its time left and its full duration; at the
