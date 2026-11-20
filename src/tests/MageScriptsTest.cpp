@@ -43,16 +43,16 @@
 /// the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of
 /// Frostfire's hit without Molten Fury and its tick, Frostfire Bolt's effect taken off at its holder's apply and its
 /// after-hit exits, the Early Frost lockout a Frostbolt cast starts, Piercing Chill's count, its pick of the nearest
-/// others and its chill's target list, the exits of Frostbolt's and Cone of Cold's after-hit scripts, Permafrost's heal
-/// and its refusals, Improved Cone of Cold's freeze by rank, and Frost Nova's cooldown ended at Ice Block's launch with
-/// Glyph of Ice Block; the orb's rows are counted here and tested in MageOrbTest, the ring's in MageRingTest. A body
-/// that casts, reads a level or creates an item needs a live unit and a spell; the proc scripts' refusals run on bare
-/// Creatures (update fields allocated; no map, template or AI), with the effect rows the scripts read added to the
-/// effect store as the client's data holds them, and a holder put in the creature's holder map where a script asks
-/// whether it holds an aura. The cooldowns Impact and Glyph of Ice Block clear are a player's: a player on a session
-/// with no socket, in no world, whose cooldown sinks the test installs. Frostfire Bolt's apply runs
-/// on a holder made through its constructor on a bare creature, of three auras whose apply and removal change nothing
-/// on the unit.
+/// others and its chill's target list, the exits of Frostbolt's, Cone of Cold's and Blizzard's after-hit scripts,
+/// Permafrost's heal and its refusals, Improved Cone of Cold's freeze and Ice Shards' chill by rank, and Frost Nova's
+/// cooldown ended at Ice Block's launch with Glyph of Ice Block; the orb's rows are counted here and tested in
+/// MageOrbTest, the ring's in MageRingTest. A body that casts, reads a level or creates an item needs a live unit and a
+/// spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template or AI), with the
+/// effect rows the scripts read added to the effect store as the client's data holds them, and a holder put in the
+/// creature's holder map where a script asks whether it holds an aura. The cooldowns Impact and Glyph of Ice Block
+/// clear are a player's: a player on a session with no socket, in no world, whose cooldown sinks the test installs.
+/// Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three auras whose apply
+/// and removal change nothing on the unit.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
