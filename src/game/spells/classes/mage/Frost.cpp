@@ -75,6 +75,8 @@ namespace
     uint32 const SHATTERED_BARRIER_FREEZE_RANK_TWO = 83073;
     uint32 const GLYPH_OF_ICE_BARRIER = 63095;
     uint32 const REACTIVE_BARRIER_BUFF = 86347;
+    uint32 const COLD_SNAP = 11958;
+    uint32 const FROSTFIRE_ORB = 92283;
 
     /// Fingers of Frost's text: "Ice Lance deals 25% more damage" while a charge is up. No field of the data holds it.
     int32 const ICE_LANCE_FINGERS_PERCENT = 25;
@@ -615,4 +617,13 @@ bool Mage::ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damag
         return false;
     }
     return uint64(health - damage) * 2 < uint64(maxHealth);
+}
+
+bool Mage::ColdSnapResets(uint32 spellId, uint32 family, uint32 schoolMask, uint32 recoveryMs)
+{
+    if (family != SPELLFAMILY_MAGE || spellId == COLD_SNAP || recoveryMs == 0)
+    {
+        return false;
+    }
+    return (schoolMask & SPELL_SCHOOL_MASK_FROST) != 0 || spellId == FROSTFIRE_ORB;
 }

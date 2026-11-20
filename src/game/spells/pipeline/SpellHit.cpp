@@ -62,6 +62,8 @@
 #include "DisableMgr.h"
 #include "Map.h"
 #include "spells/SpellScriptHooks.h"
+#include "ai/PetAssist.h"
+#include "spells/SpellScriptQueries.h"
 
 #include <algorithm>
 
@@ -433,6 +435,10 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                 unit->AddThreat(realCaster);
                 unit->SetInCombatWith(realCaster);
                 realCaster->SetInCombatWith(unit);
+                if (Spells::CountsAsOwnerAttack(*m_spellInfo))
+                {
+                    Pets::NotifyOwnerAttacked(*realCaster, *unit);
+                }
 
                 if (Player* attackedPlayer = unit->GetCharmerOrOwnerPlayerOrPlayerItself())
                 {
