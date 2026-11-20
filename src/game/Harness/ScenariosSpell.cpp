@@ -185,6 +185,8 @@
 // 30% to the whole absorb. 1016 Reactive Barrier casts the free Ice Barrier for a swing that leaves him below half
 // health, also when he was below half already and when an absorb took the swing whole, and never while Ice Barrier's
 // cooldown runs.
+// 1017 a staged Frost mage's Flame Orb button casts the Frostfire Orb, whose hits are frostfire, chill their target
+// at the talent's second rank only and never ignite; Cold Snap makes it ready again, and it skips a polymorphed enemy.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -230,7 +232,7 @@
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
 // Magic goes on another mage and not on him, that mage's hit that does not crit gives him no 54648, and his crit gives
 // him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1016, 1025-1028 and 1100-1113 (Qualify) fingerprints every
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1017, 1025-1028 and 1100-1113 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4135,7 +4137,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1016, 1025-1028, 1100-1113): a human mage staged to level 85 with the scenario's talents,
+     * 998-1000, 1010-1017, 1025-1028, 1100-1113): a human mage staged to level 85 with the scenario's talents,
      * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
      * staged (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249, or the creature
      * TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its own) ten yards in front of
@@ -17510,6 +17512,352 @@ namespace Harness
     };
 
     /**
+     * S1017 `mage-frost-frostfire-orb`: Frostfire Orb (talent 11169: 84726 at rank 1, 84727 at rank 2) on a staged
+     * Frost mage: Piercing Ice 1 (a Frost talent, so the stage teaches the Frost tree's spells), kSpellPower spell
+     * power, Flame Orb (82731), Cold Snap (11958), Frostfire Orb's first rank, Ignite 3 (12846) and Polymorph (118)
+     * learned. Each rank's aura 332 names 92283 for the spells of class mask C 0x800, which Flame Orb carries, so the
+     * CAST_SPELL handler casts 92283 when he sends 82731 (SpellHandlers::HandleCastSpell). 92283 casts the summon
+     * 84714, which puts the Frostfire Orb 45322 at his point; the world's addon row gives it 84717, which casts its
+     * scan 84718 every 500 ms; the orb snares itself (82736) on its first enemy and hits the closest enemy once a
+     * second for the snare's 15 s: 95969 for a mage who knows rank 1, 84721 (the hit and a 2 s -40% slow) for one who
+     * knows rank 2. Beside the Camel ten yards out stands a second Camel six yards out, nearer the orb's line, as in
+     * 973; both cast Hit Me (100446) on themselves at their spawn, so no scan or hit misses them. Steps:
+     *  1. Polymorph at the second Camel;
+     *  2. Flame Orb sent as the client sends it, under the crit aura at +100, so every hit crits;
+     *  3. Cold Snap; 4. a wait, at which he unlearns the first rank (Player::removeSpell) and learns the second
+     *     (Player::learnSpell);
+     *  5. Flame Orb sent as the client sends it, under the crit aura.
+     * kOrbReadMs after each Flame Orb step acts the scenario keeps the live creatures 45322 within kOrbSearchRange of
+     * him, the slow (84721) on the first Camel, its amount and full duration, and whether the Camel holds Ignite's DoT
+     * (12654); at step 2's read and at step 3's it keeps whether he holds 92283's cooldown; once staged, whether he
+     * holds Ignite.
+     *
+     * `frostfireOrb`: `button=<the spell of the spell go of step 2's cast count>/<of step 5's> orbs=<the orbs at the
+     * two reads> hits=<95969 damage logs on the first Camel>/<84721 ones> chill=<the slow at step 2's read>/<at step
+     * 5's, amount:full duration> ignite=<held or missing>/<12654 ticks of his, and holders at the reads>
+     * coldSnap=<92283 on cooldown at step 2's read>/<at step 3's> sheep=<up or down at the end>/<orb hits on the second
+     * Camel>`. OK at `button=92283/92283 orbs=1/1 hits=15/15 chill=none/-40:2000 ignite=held/0 coldSnap=yes/no
+     * sheep=up/0` with every hit his, a crit and of school mask 20, no orb hit on any other unit, and the second rank
+     * held alone at step 4: the button casts the Frostfire Orb, its hits are frostfire and chill at rank 2 only, they
+     * never ignite, Cold Snap makes the orb ready again, and the orb skips a polymorphed enemy. Each hit's amount is
+     * noted, not judged: (228..292 + int(1197 x 0.134) = 160) x 1.25 (Frost Specialization), then x1.5 for the
+     * crit and x1.33 for the mage's passive 85801 (+33% crit damage): about 966..1126.
+     */
+    class MageFrostFrostfireOrb : public MageProcScenario
+    {
+    public:
+        MageFrostFrostfireOrb() : MageProcScenario("mage-frost-frostfire-orb", 1017, "frostfireOrb") {}
+
+        void Prepare() override
+        {
+            m_player = ObjectGuid();
+            m_camel = ObjectGuid();
+            m_igniteHeld = false;
+            m_rankTwoAlone = false;
+            m_cooldownAtOrb = kUnread;
+            m_cooldownAfterColdSnap = kUnread;
+            for (uint32 orb = 0; orb < 2; ++orb)
+            {
+                m_orbRead[orb] = false;
+                m_orbs[orb] = 0;
+                m_chillAmount[orb] = 0;
+                m_chillMax[orb] = -1;
+                m_igniteHolder[orb] = 0;
+            }
+            MageProcScenario::Prepare();
+        }
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11157, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kFlameOrb, kColdSnap, kRankOne, kIgnite, kPolymorph }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kRankTwo }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 TargetAura() const override { return kHitMe; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override { return { { -4.0f, 0.0f } }; }
+
+        void AfterStage(Player& p) override
+        {
+            m_igniteHeld = p.HasAura(kIgnite);
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { AuraCastAt(kPolymorph, 1, kPolymorphEveryMs), OrbCast(), AuraCast(kColdSnap, kColdSnapEveryMs),
+                     Wait(kLearnEveryMs), OrbCast() };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 82731: 26 fields, fnv 53501c97
+                { 82731, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 92283: 26 fields, fnv 53501c97
+                { 92283, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84714: 26 fields, fnv 23d4b5dc
+                { 84714, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 45322 }, { "eff0.EffectMiscValue_1", 3019 }, { "eff0.EffectRadiusIndex_0", 36 }, { "eff0.ImplicitTarget_0", 47 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84717: 26 fields, fnv 2fdb2c88
+                { 84717, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 84718 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84718: 26 fields, fnv af0731ee
+                { 84718, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 82736: 26 fields, fnv 63cfd739
+                { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 95969: 26 fields, fnv 8b1f0ec8
+                { 95969, { { "eff0.present", 0 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 174 }, { "eff1.EffectBonusCoefficient", 1040791372 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 22 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 84721: 72 fields, fnv d3ab6a45
+                { 84721, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 174 }, { "eff1.EffectBonusCoefficient", 1040791372 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 22 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 11958: 26 fields, fnv 1b2f1172
+                { 11958, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 118: 49 fields, fnv ffbe2272
+                { 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 100446: 72 fields, fnv d831e1e8
+                { 100446, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 49 }, { "eff0.EffectBasePoints", -10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 184 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 186 }, { "eff2.EffectBasePoints", 20 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            m_player = st.player;
+            m_camel = st.targets.empty() ? ObjectGuid() : st.targets[0];
+            if (k == kOrbOneStep || k == kOrbTwoStep)
+            {
+                const uint32 orb = k == kOrbOneStep ? 0 : 1;
+                if (!atRead)
+                {
+                    At(kOrbReadMs, [this, orb]() { ReadOrb(orb); });
+                }
+                else if (orb == 0)
+                {
+                    m_cooldownAtOrb = p->HasSpellCooldown(kFrostfireOrb) ? 1 : 0;
+                    m_rec.Note(U(kFrostfireOrb) + (m_cooldownAtOrb ? " on" : " off") + " cooldown; stored keys [" +
+                               CooldownKeys(p) + "]");
+                }
+                return;
+            }
+            if (k == kColdSnapStep && atRead)
+            {
+                m_cooldownAfterColdSnap = p->HasSpellCooldown(kFrostfireOrb) ? 1 : 0;
+                m_rec.Note(U(kFrostfireOrb) + (m_cooldownAfterColdSnap ? " on" : " off") +
+                           " cooldown after Cold Snap; stored keys [" + CooldownKeys(p) + "]");
+                return;
+            }
+            if (k == kLearnStep && !atRead)
+            {
+                p->removeSpell(kRankOne, false, false);
+                p->learnSpell(kRankTwo, false);
+                m_rankTwoAlone = p->HasAura(kRankTwo) && !p->HasAura(kRankOne);
+                m_rec.Note("he unlearns " + U(kRankOne) + " and learns " + U(kRankTwo) + ": " + U(kRankOne) +
+                           (p->HasAura(kRankOne) ? " held, " : " gone, ") + U(kRankTwo) +
+                           (p->HasAura(kRankTwo) ? " held" : " gone"));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            const uint64 camel = st.targets.empty() ? 0 : st.targets[0].GetRawValue();
+            const uint64 sheepGuid = st.targets.size() > 1 ? st.targets[1].GetRawValue() : 0;
+            const uint64 mage = st.player.GetRawValue();
+            uint32 counts[2] = { 0, 0 };
+            uint32 elsewhere = 0, onSheep = 0, ticks = 0;
+            bool hitsOk = true;
+            std::string amounts[2];
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                ticks += uint32(TickAmounts(k, kIgniteDot).size());
+                const std::vector<std::string> windows = StepWindows(k);
+                for (size_t w = 0; w < windows.size(); ++w)
+                {
+                    std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(windows[w], SMSG_SPELLNONMELEEDAMAGELOG);
+                    for (size_t i = 0; i < logs.size(); ++i)
+                    {
+                        Trace::SpellDamageLog log;
+                        if (logs[i]->payload.empty() ||
+                            !Trace::ReadSpellDamageLog(&logs[i]->payload[0], logs[i]->payload.size(), log) ||
+                            (log.spell != kRankOneHit && log.spell != kRankTwoHit))
+                        {
+                            continue;
+                        }
+                        if (log.target != camel)
+                        {
+                            ++elsewhere;
+                            onSheep += log.target == sheepGuid ? 1 : 0;
+                            continue;
+                        }
+                        const uint32 rank = log.spell == kRankOneHit ? 0 : 1;
+                        const bool crit = (log.hitInfo & 0x2) != 0;
+                        const bool his = log.attacker == mage;
+                        hitsOk = hitsOk && crit && his && log.school == kFrostfireSchool;
+                        ++counts[rank];
+                        amounts[rank] += (amounts[rank].empty() ? "" : "/") + U(log.damage) + (crit ? "c" : "") +
+                                         (his ? "" : "!") + (log.school == kFrostfireSchool ? "" : "s" + U(log.school));
+                    }
+                }
+            }
+
+            const CastPath first = CastPathOf(kOrbOneStep);
+            const CastPath second = CastPathOf(kOrbTwoStep);
+            Creature* sheep = st.targets.size() > 1 ? Get(st.targets[1]) : NULL;
+            const bool sheepUp = sheep && sheep->HasAura(kPolymorph);
+            const uint32 holders = m_igniteHolder[0] + m_igniteHolder[1];
+
+            const bool buttonOk = first.go == kFrostfireOrb && second.go == kFrostfireOrb;
+            const bool orbsOk = m_orbRead[0] && m_orbRead[1] && m_orbs[0] == 1 && m_orbs[1] == 1;
+            const bool hitsCountOk = counts[0] == kOrbHits && counts[1] == kOrbHits && hitsOk && elsewhere == 0;
+            const bool chillOk = m_chillMax[0] < 0 && m_chillAmount[1] == kChillAmount && m_chillMax[1] == kChillMs;
+            const bool igniteOk = m_igniteHeld && ticks == 0 && holders == 0;
+            const bool coldSnapOk = m_cooldownAtOrb == 1 && m_cooldownAfterColdSnap == 0;
+            const bool sheepOk = sheepUp && onSheep == 0;
+            const bool ok = buttonOk && orbsOk && hitsCountOk && chillOk && igniteOk && coldSnapOk && sheepOk &&
+                            m_rankTwoAlone;
+            const std::string value = "button=" + GoText(first) + "/" + GoText(second) +
+                                      " orbs=" + U(m_orbs[0]) + "/" + U(m_orbs[1]) +
+                                      " hits=" + U(counts[0]) + "/" + U(counts[1]) +
+                                      " chill=" + ChillText(0) + "/" + ChillText(1) +
+                                      " ignite=" + (m_igniteHeld ? "held" : "missing") + "/" + U(ticks + holders) +
+                                      " coldSnap=" + YesNo(m_cooldownAtOrb) + "/" + YesNo(m_cooldownAfterColdSnap) +
+                                      " sheep=" + (sheepUp ? "up" : "down") + "/" + U(onSheep);
+            const std::string none = "none";
+            const std::string detail = "the rank 1 hits " + (amounts[0].empty() ? none : amounts[0]) +
+                                       "; the rank 2 hits " + (amounts[1].empty() ? none : amounts[1]) + "; " +
+                                       U(elsewhere) + " orb hit(s) on other units; " + U(ticks) + " Ignite tick(s), " +
+                                       U(holders) + " Ignite holder(s) at the reads; the second rank " +
+                                       (m_rankTwoAlone ? "held alone" : "not held alone") +
+                                       " after step 4; step 5's refusal " +
+                                       (second.failed ? CastResultName(second.result) : none);
+            return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kFlameOrb = 82731;
+        static constexpr uint32 kFrostfireOrb = 92283;
+        static constexpr uint32 kOrb = 45322;
+        static constexpr uint32 kRankOne = 84726;
+        static constexpr uint32 kRankTwo = 84727;
+        static constexpr uint32 kRankOneHit = 95969;
+        static constexpr uint32 kRankTwoHit = 84721;
+        static constexpr uint32 kColdSnap = 11958;
+        static constexpr uint32 kPolymorph = 118;
+        static constexpr uint32 kIgnite = 12846;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kHitMe = 100446;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr float kOrbSearchRange = 40.0f;
+        static constexpr uint32 kPolymorphEveryMs = 2000;
+        static constexpr uint32 kOrbEveryMs = 20000;
+        static constexpr uint32 kColdSnapEveryMs = 4000;
+        static constexpr uint32 kLearnEveryMs = 1000;
+        static constexpr uint32 kOrbReadMs = 5000;
+        static constexpr uint32 kOrbHits = 15;
+        static constexpr uint8 kFrostfireSchool = uint8(SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST);
+        static constexpr int32 kChillAmount = -40;
+        static constexpr int32 kChillMs = 2000;
+        static constexpr int32 kUnread = -1;
+        static constexpr uint32 kOrbOneStep = 1;
+        static constexpr uint32 kColdSnapStep = 2;
+        static constexpr uint32 kLearnStep = 3;
+        static constexpr uint32 kOrbTwoStep = 4;
+
+        /// Flame Orb sent as the client sends it, under the crit aura, kOrbEveryMs before the next step.
+        static Step OrbCast()
+        {
+            Step orb = AuraCast(kFlameOrb, kOrbEveryMs);
+            orb.crit = true;
+            orb.asClient = true;
+            return orb;
+        }
+
+        /// The live creatures 45322 within kOrbSearchRange of `p`, found through his map's grid.
+        static uint32 CountOrbs(Player& p)
+        {
+            std::list<Creature*> found;
+            MaNGOS::AllCreaturesOfEntryInRangeCheck check(&p, kOrb, kOrbSearchRange);
+            MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(found, check);
+            Cell::VisitGridObjects(&p, searcher, kOrbSearchRange);
+            uint32 alive = 0;
+            for (Creature* orb : found)
+            {
+                alive += orb->IsAlive() ? 1 : 0;
+            }
+            return alive;
+        }
+
+        /// kOrbReadMs after Flame Orb step `orb` (0 or 1) acts: his live orbs, the slow on the first Camel with its
+        /// amount and full duration, and whether the Camel holds Ignite's DoT.
+        void ReadOrb(uint32 orb)
+        {
+            Player* p = sPlayerRegistry.Find(m_player);
+            Creature* camel = Get(m_camel);
+            m_orbRead[orb] = true;
+            m_orbs[orb] = p && p->IsInWorld() ? CountOrbs(*p) : 0;
+            SpellAuraHolder* chill = camel ? camel->GetSpellAuraHolder(kRankTwoHit) : NULL;
+            Aura const* slow = camel ? camel->GetAura(kRankTwoHit, EFFECT_INDEX_0) : NULL;
+            m_chillAmount[orb] = slow ? slow->GetModifier()->m_amount : 0;
+            m_chillMax[orb] = chill ? chill->GetAuraMaxDuration() : -1;
+            m_igniteHolder[orb] = camel && camel->GetSpellAuraHolder(kIgniteDot) ? 1 : 0;
+            const std::string noCamel = "no Camel";
+            m_rec.Note(U(kOrbReadMs) + " ms after Flame Orb " + U(orb + 1) + ": " + U(m_orbs[orb]) + " orb(s) " +
+                       U(kOrb) + "; the Camel's " + U(kRankTwoHit) + ": " +
+                       (camel ? HolderOf(camel, kRankTwoHit) : noCamel) +
+                       ", amount " + std::to_string(m_chillAmount[orb]) + ", full duration " +
+                       std::to_string(m_chillMax[orb]) + "; its " + U(kIgniteDot) + ": " +
+                       (camel ? HolderOf(camel, kIgniteDot) : noCamel));
+        }
+
+        /// The spell of a step's spell go, or `none`.
+        static std::string GoText(CastPath const& path)
+        {
+            return path.go ? U(path.go) : std::string("none");
+        }
+
+        /// The slow at Flame Orb `orb`'s read: `none`, or its amount and full duration; `unread` before the read.
+        std::string ChillText(uint32 orb) const
+        {
+            if (!m_orbRead[orb])
+            {
+                return "unread";
+            }
+            if (m_chillMax[orb] < 0)
+            {
+                return "none";
+            }
+            return std::to_string(m_chillAmount[orb]) + ":" + std::to_string(m_chillMax[orb]);
+        }
+
+        /// `yes`, `no`, or `unread` for kUnread.
+        static std::string YesNo(int32 value)
+        {
+            return value == kUnread ? "unread" : value ? "yes" : "no";
+        }
+
+        ObjectGuid m_player;
+        ObjectGuid m_camel;
+        bool m_igniteHeld = false;                  ///< he held Ignite once staged
+        bool m_rankTwoAlone = false;                ///< he held the second rank and not the first after step 4
+        int32 m_cooldownAtOrb = kUnread;            ///< 92283 on his cooldown at step 2's read
+        int32 m_cooldownAfterColdSnap = kUnread;    ///< 92283 on his cooldown at step 3's read
+        bool m_orbRead[2] = { false, false };       ///< each Flame Orb's read ran
+        uint32 m_orbs[2] = { 0, 0 };                ///< his live orbs at each read
+        int32 m_chillAmount[2] = { 0, 0 };          ///< the slow's amount on the first Camel at each read; 0 for none
+        int32 m_chillMax[2] = { -1, -1 };           ///< the slow's full duration at each read; -1 for none
+        uint32 m_igniteHolder[2] = { 0, 0 };        ///< 1 when the first Camel held Ignite's DoT at the read
+    };
+
+    /**
      * S1103 `mage-arcane-torment-vortex`: Torment the Weak (55340, rank 3 of 3) and Nether Vortex (86209, rank 2 of 2)
      * on a staged Arcane mage. Torment the Weak: his Arcane damage spells deal 6% more damage to a target that is
      * snared or slowed, by a movement-speed, an attack-speed or a cast-speed slow. Nether Vortex: when his Arcane
@@ -22636,6 +22984,7 @@ namespace Harness
         r.Register(new MageFrostEarlyFrost());
         r.Register(new MageFrostShatteredBarrier());
         r.Register(new MageFrostReactiveBarrier());
+        r.Register(new MageFrostFrostfireOrb());
         r.Register(new MageArcaneTormentVortex());
         r.Register(new MageArcaneInterrupts());
         r.Register(new MageArcaneImprovedPolymorph());

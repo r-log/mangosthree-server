@@ -154,10 +154,10 @@ namespace
     // The id Impact's spread holds at the dummy-effect hook: the spell the Impact buff casts at its Fire Blast's victim.
     uint32 const IMPACT_SPREAD_IDS[] = { 12355 };
 
-    // The orb's ids: Flame Orb and the orb's scan at the dummy-effect hook, the orb's scan at the target hook
-    // (MageOrbTest tests their bodies).
-    uint32 const ORB_DUMMY_EFFECT_IDS[] = { 82731, 82734 };
-    uint32 const ORB_TARGET_IDS[] = { 82734 };
+    // The orbs' ids: Flame Orb, Frostfire Orb and each orb's scan at the dummy-effect hook, each orb's scan at the
+    // target hook (MageOrbTest tests their bodies).
+    uint32 const ORB_DUMMY_EFFECT_IDS[] = { 82731, 82734, 92283, 84718 };
+    uint32 const ORB_TARGET_IDS[] = { 82734, 84718 };
 
     // The ring's freeze, whose targets and removal the ring's scripts hold.
     uint32 const RING_FREEZE_IDS[] = { 82691 };
@@ -652,14 +652,15 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield,
     // Nether Vortex and Focus Magic. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane
     // Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of
-    // Polymorph and Mana Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orb: Flame Orb
-    // at the dummy-effect hook, and the orb's scan at the target and dummy-effect hooks. The ring: Ring of Frost at the
-    // periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact, Clearcasting, Arcane
-    // Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and Reactive
-    // Barrier's two ranks also at the check-proc hook. 162 rows, 159 keys and 3 defaults, none twice.
+    // Polymorph and Mana Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orbs: Flame Orb
+    // and Frostfire Orb at the dummy-effect hook, and each orb's scan at the target and dummy-effect hooks. The ring:
+    // Ring of Frost at the periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact,
+    // Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two
+    // ranks and Reactive Barrier's two ranks also at the check-proc hook. 165 rows, 162 keys and 3 defaults, none
+    // twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(162));
-    CHECK_EQ(registry.Count(), std::size_t(159));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(165));
+    CHECK_EQ(registry.Count(), std::size_t(162));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -669,14 +670,14 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(27));
     CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(16));
-    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(4));
+    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(13));
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(23));
     CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(4));
+    CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
@@ -701,7 +702,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 75, 75, 0 },
         { &Mage::RegisterArcane, 26, 26, 0 },
-        { &Mage::RegisterOrb, 3, 3, 0 },
+        { &Mage::RegisterOrb, 6, 6, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
     };
     for (PerFile const& file : files)
@@ -713,8 +714,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(162));
-    CHECK_EQ(registry.Count(), std::size_t(159));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(165));
+    CHECK_EQ(registry.Count(), std::size_t(162));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -725,7 +726,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(159));
+    CHECK_EQ(mine.size(), std::size_t(162));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -1388,9 +1389,9 @@ TEST(MageScripts_IgniteBanksNothingForWhatIsNoDirectFireCritOrBelowATickAPoint)
     CHECK(outcome.IsReturn());
     CHECK_EQ(int(outcome.GetValue()), int(SPELL_AURA_PROC_FAILED));
 
-    // A crit of Molten Armor's hit, of Living Bomb's explosion, of a Flame Orb hit or of Fire Power's explosion is
-    // refused, by its id.
-    for (uint32 spellId : { 34913u, 44461u, 82739u, 83619u })
+    // A crit of Molten Armor's hit, of Living Bomb's explosion, of a Flame Orb hit, of Fire Power's explosion or of a
+    // Frostfire Orb hit of either rank is refused, by its id.
+    for (uint32 spellId : { 34913u, 44461u, 82739u, 83619u, 95969u, 84721u })
     {
         SpellRowStorage notIgniting;
         outcome = Proc(registry, owner, 12846, EFFECT_INDEX_0, holder, &SpellRow(notIgniting, spellId), PROC_EX_CRITICAL_HIT, 40,
@@ -4625,6 +4626,26 @@ TEST(MageScripts_ConeOfColdFreezesNothingForAHealOrWithoutTheTalent)
     AfterHitContext talented(mage, target, SpellRow(row, 120), 900, true, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(120, talented).IsContinue());
     CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+TEST(MageScripts_ColdSnapResetsTheFrostSpellsAndTheFrostfireOrb)
+{
+    // The client's rows: Frost Nova 122 (frost, 25 s), Ice Block 45438 (frost, 5 min), the Frostfire Orb 92283 (fire
+    // in its own row, 60 s), Flame Orb 82731 (fire, 60 s), Cold Snap 11958 (frost, 8 min), Frostbolt 116 (frost, no
+    // cooldown), Fire Blast 2136 (fire, 8 s).
+    CHECK(Mage::ColdSnapResets(122, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 25000));
+    CHECK(Mage::ColdSnapResets(45438, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 300000));
+    CHECK(Mage::ColdSnapResets(92283, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE, 60000));
+    CHECK(!Mage::ColdSnapResets(82731, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE, 60000));
+    CHECK(!Mage::ColdSnapResets(11958, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 480000));
+    CHECK(!Mage::ColdSnapResets(116, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FROST, 0));
+    CHECK(!Mage::ColdSnapResets(2136, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE, 8000));
+
+    // A mage spell whose mask holds fire and frost counts by its frost (84721, 6 s); a frost spell of another family
+    // (the death knight's Mind Freeze 47528, 10 s) and the Frostfire Orb's id under another family do not.
+    CHECK(Mage::ColdSnapResets(84721, SPELLFAMILY_MAGE, SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, 6000));
+    CHECK(!Mage::ColdSnapResets(47528, SPELLFAMILY_DEATHKNIGHT, SPELL_SCHOOL_MASK_FROST, 10000));
+    CHECK(!Mage::ColdSnapResets(92283, SPELLFAMILY_GENERIC, SPELL_SCHOOL_MASK_FIRE, 60000));
 }
 
 TEST(MageScripts_AFrostboltCastStartsTheLockoutOfTheRankTheMageKnowsUnlessOneIsUp)
