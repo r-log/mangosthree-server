@@ -224,3 +224,8 @@ bool OnProcContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoi
     }
     return true;
 }
+
+bool OnProcContext::OnCooldown(uint32 spellId) const
+{
+    return m_cooldowns.HasSpellCooldown(spellId, time(NULL));
+}

@@ -48,13 +48,15 @@
  * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
  * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
- * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal) and Improved Cone of Cold's
- * (ImprovedConeOfColdFreeze). Orb.cpp holds the orb a mage's Flame Orb summons: its creature AI, its scripts and its
- * leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead,
- * OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Ring.cpp holds the ring a mage's Ring of
- * Frost summons: its creature AI, its scripts and its leaves (RingSpellsFor, IsRingCreature, RingInBand, RingFormingMs,
- * RingFormed, RingOuterRadius, RingTakeFor and RingMarkerOnRemove). Each file registers its rows through one function
- * of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
+ * (ImprovedConeOfColdFreeze), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice Barrier's
+ * (GlyphedBarrierAmount) and Reactive Barrier's (ReactiveBarrierTriggers). Orb.cpp holds the orb a mage's Flame Orb
+ * summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
+ * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
+ * and OrbCostShare). Ring.cpp holds the ring a mage's Ring of Frost summons: its creature AI, its scripts and its
+ * leaves (RingSpellsFor, IsRingCreature, RingInBand, RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and
+ * RingMarkerOnRemove). Each file registers its rows through one function of namespace Mage: a table per legacy site
+ * of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's and the ring's.
@@ -529,6 +531,22 @@ namespace Mage
     /// The freeze a Cone of Cold hit puts on its target for a mage who knows `talentSpell` (Improved Cone of Cold):
     /// 83301 (2 s) for 11190, 83302 (4 s) for 12489, 0 for any other spell. Defined in Frost.cpp.
     uint32 ImprovedConeOfColdFreeze(uint32 talentSpell);
+
+    /// The freeze an Ice Barrier removed in `mode` casts for a mage who knows Shattered Barrier: 83073 (4 s) for the
+    /// second rank (54787, `knowsRankTwo`), else 55080 (2 s) for the first (44745, `knowsRankOne`); 0 unless damage
+    /// used up the barrier's last point (AURA_REMOVE_BY_SHIELD_BREAK), and 0 for a mage who knows neither. Defined in
+    /// Frost.cpp.
+    uint32 ShatteredBarrierFreeze(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo);
+
+    /// Ice Barrier's absorb with Glyph of Ice Barrier: `amount`, the whole absorb with its spell power part, plus
+    /// `percent` of it, truncated; `amount` as it is for a percent of 0 or less. Defined in Frost.cpp.
+    int32 GlyphedBarrierAmount(int32 amount, int32 percent);
+
+    /// Whether a hit of `damage` on a unit at `health` of `maxHealth` is one Reactive Barrier answers: it leaves the
+    /// unit alive and below half its maximum health, whatever its health before the hit. A hit of 0 (one an absorb took
+    /// whole) answers while the unit is below half; a hit of `health` or more (a killing blow) never does. Defined in
+    /// Frost.cpp.
+    bool ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damage);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.

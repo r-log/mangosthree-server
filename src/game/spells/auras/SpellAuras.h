@@ -494,22 +494,23 @@ class  Aura
         /// Writes the tick amount before the done-side step; the aura's amount is not changed.
         void SetTickAmountBeforeDone(int32 amount) { m_tickAmountBeforeDone = amount; }
         /// How many ticks the aura deals over the holder's maximum duration, its first tick m_firstTickDelay after the
-        /// apply (Spells::TickCount).
+        /// apply, its last at m_lastTick when the aura holds one (Spells::HeldTickCount).
         uint32 GetAuraMaxTicks() const;
         /// The time to the next tick, in milliseconds.
         int32 GetPeriodicTimer() const { return m_periodicTimer; }
         /// A refreshed aura's first tick comes `timeToNextTick` after its apply, the time the aura it replaces had left
-        /// to its next tick; the tick count counts from it.
+        /// to its next tick; the tick count counts from it, and every tick comes one period after the one before.
         void CarryTickTimer(int32 timeToNextTick)
         {
             m_periodicTimer = timeToNextTick;
             m_firstTickDelay = timeToNextTick;
+            m_heldTicks = 0;
         }
         uint32 GetStackAmount() const { return GetHolder()->GetStackAmount(); }
 
         /// An aura loaded from the database takes the amount and the period it was saved with; its first tick comes
-        /// one saved period after the load, or at the load for an aura that ticks at its apply, and its tick number
-        /// counts on so that its last tick is its tick count.
+        /// one saved period after the load, or at the load for an aura that ticks at its apply, every later tick one
+        /// saved period after the one before, and its tick number counts on so that its last tick is its tick count.
         void SetLoadedState(int32 damage, uint32 periodicTime);
 
         bool IsPositive() { return m_positive; }
@@ -582,6 +583,8 @@ class  Aura
         Modifier m_modifier;
         float m_modifierValue;                              // what a spell modifier of this aura adds (ModifierValue)
         int32 m_tickAmountBeforeDone;                       // the tick amount before the done-side step (GetTickAmountBeforeDone)
+        float m_exactAmount;                                // the amount with the fraction its spell modifiers gave
+                                                            // it, for a percent-of-maximum-mana tick; else the amount
 
         SpellEffectEntry const* m_spellEffect;
         time_t m_applyTime;
@@ -590,6 +593,8 @@ class  Aura
         int32 m_periodicTimer;                              // Timer for periodic auras
         int32 m_firstTickDelay;                             // the time from the apply to the first tick, for the tick count
         uint32 m_periodicTick;                              // Tick count pass (including current if use in tick code) from aura apply, used for some tick count dependent aura effects
+        uint32 m_heldTicks = 0;                             // the tick count of an aura whose last tick comes at m_lastTick (Spells::HastedPeriodAndDuration); 0 for any other
+        int32 m_lastTick = 0;                               // the time from the apply to that last tick
 
         AuraRemoveMode m_removeMode: 8;                     // Store info for know remove aura reason
 

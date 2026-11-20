@@ -431,9 +431,9 @@ struct CheckProcContext
 {
     CheckProcContext(Unit const& ownerUnit, Unit const* victimUnit, SpellEntry const& spellEntry,
                      AuraHandle const& holder, SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags,
-                     uint32 eventDamage)
+                     uint32 eventDamage, uint32 eventAbsorbed = 0)
         : owner(ownerUnit), victim(victimUnit), spell(spellEntry), aura(holder), procSpell(triggeringSpell),
-          procFlag(flags), procEx(extraFlags), damage(eventDamage)
+          procFlag(flags), procEx(extraFlags), damage(eventDamage), absorbed(eventAbsorbed)
     {
         owner.AssertSpellSeamOwner();
     }
@@ -446,6 +446,8 @@ struct CheckProcContext
     uint32 procFlag;                                ///< the event's PROC_FLAG_* mask
     uint32 procEx;                                  ///< the event's PROC_EX_* mask
     uint32 damage;                                  ///< the event's damage or heal
+    uint32 absorbed;                                ///< the part of the hit the owner's absorbs took, when the owner
+                                                    ///< is the one hit; 0 otherwise
 };
 
 /// OnProc's context. Value: SpellAuraProcResult. After the effects of a proc that succeeded, the engine drops one of
@@ -471,6 +473,9 @@ struct OnProcContext
     /// player caster with a proc cooldown has `spellId` on cooldown; a player caster then gets that cooldown.
     /// `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     bool CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// Whether the cooldown store of the unit that holds the aura holds `spellId` on cooldown now: a player's spell
+    /// and category cooldowns; a unit that is not a player keeps none there.
+    bool OnCooldown(uint32 spellId) const;
 
     Unit& caster;                                   ///< the unit that holds the aura
     Unit* victim;                                   ///< the other unit of the event; NULL when there is none

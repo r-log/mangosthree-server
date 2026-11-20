@@ -466,7 +466,7 @@ pAuraHandler AuraHandler[TOTAL_AURAS] =
 };
 
 Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster, Item* castItem) :
-    m_modifierValue(0.0f), m_tickAmountBeforeDone(0), m_periodicTimer(0), m_firstTickDelay(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
+    m_modifierValue(0.0f), m_tickAmountBeforeDone(0), m_exactAmount(0.0f), m_periodicTimer(0), m_firstTickDelay(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
     m_effIndex(eff), m_positive(false), m_isPeriodic(false), m_isAreaAura(false),
     m_isPersistent(false), m_in_use(0), m_spellAuraHolder(holder)
 {
@@ -483,13 +483,16 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
     m_applyTime = time(NULL);
 
     int32 damage;
+    float exactDamage = 0.0f;
     if (!caster)
     {
         damage = m_currentBasePoints;
     }
     else
     {
-        damage = caster->CalculateSpellDamage(target, spellproto, m_effIndex, &m_currentBasePoints);
+        // a percent-of-maximum-mana tick keeps the fraction the spell modifiers give its percent
+        float* const exact = m_spellEffect->EffectAura == SPELL_AURA_OBS_MOD_MANA ? &exactDamage : NULL;
+        damage = caster->CalculateSpellDamage(target, spellproto, m_effIndex, &m_currentBasePoints, exact);
 
         if (!damage && castItem && castItem->GetItemSuffixFactor())
         {
@@ -525,6 +528,13 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
     AuraAmountContext amountCtx(caster, *target, *spellproto, m_effIndex, damage);
     SpellHandlerRegistry::Game().Dispatch<AuraAmountHook>(spellproto->ID, amountCtx);
 
+    // the fraction is kept only for the amount it was taken from; an amount set since is whole
+    if (int32(exactDamage) != damage)
+    {
+        exactDamage = float(damage);
+    }
+    m_exactAmount = exactDamage * float(holder->GetStackAmount());
+
     damage *= holder->GetStackAmount();
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Aura: construct Spellid : %u, Aura : %u Target : %d Damage : %d", spellproto->ID, m_spellEffect->EffectAura, m_spellEffect->ImplicitTarget_0, damage);
 
@@ -551,12 +561,26 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
         modOwner->ApplySpellMod(spellproto->ID, SPELLMOD_ACTIVATION_TIME, m_modifier.periodictime);
     }
 
-    // the caster's cast haste shortens the period after the spell modifiers, as the client's Spell_C_GetAuraPeriod does
+    // the caster's cast haste shortens the period after the spell modifiers, as the client's Spell_C_GetAuraPeriod does;
+    // a spell whose duration the haste shortens too keeps the ticks it deals without haste, its last one at the latest
+    // at the end of its hasted duration
     if (m_modifier.periodictime && spellproto->HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC) &&
         !spellproto->HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS))
     {
         const float castHaste = caster ? caster->GetFloatValue(UNIT_MOD_CAST_HASTE) : 1.0f;
-        m_modifier.periodictime = uint32(Spells::HastedPeriod(int32(m_modifier.periodictime), castHaste));
+        if (caster && spellproto->HasAttribute(SPELL_ATTR_EX8_HASTE_AFFECTS_DURATION))
+        {
+            const Spells::HastedTicks timing = Spells::HastedPeriodAndDuration(int32(m_modifier.periodictime),
+                UnhastedSpellDuration(spellproto, caster), spellproto->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY),
+                castHaste);
+            m_modifier.periodictime = uint32(timing.period);
+            m_heldTicks = timing.ticks;
+            m_lastTick = timing.lastTick;
+        }
+        else
+        {
+            m_modifier.periodictime = uint32(Spells::HastedPeriod(int32(m_modifier.periodictime), castHaste));
+        }
     }
 
     // Start periodic on next tick or at aura apply
@@ -769,7 +793,8 @@ void Aura::SetModifier(AuraType t, int32 a, uint32 pt, int32 miscValue)
 
 uint32 Aura::GetAuraMaxTicks() const
 {
-    return Spells::TickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay);
+    return Spells::HeldTickCount(GetAuraMaxDuration(), int32(m_modifier.periodictime), m_firstTickDelay, m_heldTicks,
+                                 m_lastTick);
 }
 
 void Aura::SetLoadedState(int32 damage, uint32 periodicTime)
@@ -777,6 +802,7 @@ void Aura::SetLoadedState(int32 damage, uint32 periodicTime)
     m_modifier.m_amount = damage;
     m_tickAmountBeforeDone = damage;
     m_modifier.periodictime = periodicTime;
+    m_heldTicks = 0;
     const bool ticksAtApply = GetSpellProto()->HasAttribute(SPELL_ATTR_EX5_START_PERIODIC_AT_APPLY);
     m_firstTickDelay = Spells::FirstTickDelay(int32(periodicTime), ticksAtApply);
     m_periodicTimer = m_firstTickDelay;
@@ -800,8 +826,9 @@ void Aura::Update(uint32 diff)
         if (m_periodicTimer <= 0) // tick also at m_periodicTimer==0 to prevent lost last tick in case max m_duration == (max m_periodicTimer)*N
         {
             // update before applying (aura can be removed in TriggerSpell or PeriodicTick calls)
-            m_periodicTimer += m_modifier.periodictime;
             ++m_periodicTick;                               // for some infinity auras in some cases can overflow and reset
+            m_periodicTimer += Spells::TimeToNextTick(m_periodicTick, int32(m_modifier.periodictime), m_firstTickDelay,
+                                                      m_heldTicks, m_lastTick);
             PeriodicTick();
         }
     }
@@ -2331,10 +2358,9 @@ void Aura::PeriodicTick()
                 return;
             }
 
-            // ignore non positive values (can be result apply spellmods to aura damage
-            uint32 amount = m_modifier.m_amount > 0 ? m_modifier.m_amount : 0;
-
-            uint32 pdamage = uint32(target->GetMaxPower(POWER_MANA) * amount / 100);
+            // the percent keeps the fraction its spell modifiers gave it; a percent not above 0 restores nothing
+            uint32 pdamage = Spells::PercentOfMaximumTick(target->GetMaxPower(POWER_MANA), m_modifier.m_amount,
+                                                          m_exactAmount);
 
             DETAIL_FILTER_LOG(LOG_FILTER_PERIODIC_AFFECTS, "PeriodicTick: %s energize %s for %u mana inflicted by %u",
                               GetCasterGuid().GetString().c_str(), target->GetGuidStr().c_str(), pdamage, GetId());

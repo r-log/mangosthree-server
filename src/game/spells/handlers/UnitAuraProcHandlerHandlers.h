@@ -190,8 +190,9 @@ struct HasteAuraProcRogueSite
 };
 
 /// What the body of `Unit::HandleSpellCritChanceAuraProc`'s per-spell switch reads and sets: the unit, the function's
-/// parameter `triggeredByAura` and two locals. The body sets the triggered spell and its target. Built, it checks
-/// that this thread owns the unit (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
+/// parameter `triggeredByAura` and two locals. A body sets the triggered spell and its target, or casts by another
+/// unit itself and ends the proc. Built, it checks that this thread owns the unit (`Unit::AssertSpellSeamOwner`); a
+/// context with no unit checks nothing.
 struct SpellCritChanceAuraProcContext
 {
     SpellCritChanceAuraProcContext(Unit* thisUnit, Aura* const& triggeredByAuraParameter, uint32& triggeredSpellIdLocal,
@@ -212,13 +213,20 @@ struct SpellCritChanceAuraProcContext
 };
 
 /// `Unit::HandleSpellCritChanceAuraProc`, SPELLFAMILY_MAGE's `switch (triggeredByAuraSpell->ID)`. A label sets what
-/// the proc casts or fails the proc; a miss goes on after the family switch.
+/// the proc casts, casts by another unit itself and ends the proc, or fails the proc; a miss goes on after the family
+/// switch.
 struct SpellCritChanceAuraProcMageSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_SPELL_CRIT_CHANCE_AURA_PROC_MAGE;
     typedef SpellAuraProcResult Value;
     typedef SpellCritChanceAuraProcContext Context;
 };
+
+/// Focus Magic (54646): the unit that casts its buff (54648: +3% spell crit for 10 s) when it procs for `holder`, the
+/// unit Focus Magic is on, and the unit the buff lands on, since 54648's one effect is at its caster: `focusCaster`,
+/// the mage who cast Focus Magic. NULL, so the proc fails and nobody gains the buff, when he cannot be found, is dead,
+/// is on another map than `holder` (whose map's update runs the proc) or is `holder` itself.
+Unit* FocusMagicBuffCaster(Unit const& holder, Unit* focusCaster);
 
 /// What the bodies of `Unit::HandleProcTriggerSpellAuraProc`'s two per-spell switches read and set: the unit, the
 /// function's parameters and locals. The bodies set the spell to trigger, its target and its base points; the second
