@@ -45,7 +45,8 @@
 /// Frostfire's hit without Molten Fury and its tick, Frostfire Bolt's effect taken off at its holder's apply and its
 /// after-hit exits, the Early Frost lockout a Frostbolt cast starts, Piercing Chill's count, its pick of the nearest
 /// others and its chill's target list, the exits of Frostbolt's, Cone of Cold's and Blizzard's after-hit scripts,
-/// Permafrost's heal and its refusals, Improved Cone of Cold's freeze and Ice Shards' chill by rank, and Frost Nova's
+/// Permafrost's heal and its refusals, Improved Cone of Cold's freeze and Ice Shards' chill by rank, Improved Freeze's
+/// chance by rank, its one roll for a Freeze that hit an enemy and its exit at the after-cast hook, and Frost Nova's
 /// cooldown ended at Ice Block's launch with Glyph of Ice Block; the orb's rows are counted here and tested in
 /// MageOrbTest, the ring's in MageRingTest. A body that casts, reads a level or creates an item needs a live unit and a
 /// spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template or AI), with the
@@ -78,6 +79,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <functional>
 #include <list>
 #include <memory>
 #include <set>
@@ -173,6 +175,10 @@ namespace
 
     // The id the after-cast script holds: Blast Wave, which calls the free Flamestrike for Improved Flamestrike.
     uint32 const BLAST_WAVE_IDS[] = { 11113 };
+
+    // The id Improved Freeze's script holds at the after-cast hook: the Water Elemental's Freeze, whose cast that hit
+    // an enemy gives the pet's mage Fingers of Frost's charges.
+    uint32 const WATER_ELEMENTAL_FREEZE_IDS[] = { 33395 };
 
     // The id Arcane Missiles' pairing holds at the aura-apply and aura-remove hooks: Arcane Missiles!, which Arcane
     // Missiles Aurastate (79808) follows; and the id the channel's script holds at the aura-apply hook: Arcane
@@ -665,20 +671,21 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // hook, Blast Wave at the after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells
     // Frostburn's mask covers at the damage-done hook, the 26 Shatter's covers at the crit-chance hook, Ice Lance, Deep
     // Freeze, Frostfire Bolt, Fireball and Ice Block at the launch hook, Frostbolt at the cast-start hook, Frostbolt,
-    // Cone of Cold and Blizzard's damage at the after-hit hook, Piercing Chill's chill at the target hook, and Ice
-    // Barrier at the aura-apply and aura-remove hooks. At the proc hook, Fire: Ignite, Master of Elements, Hot Streak,
-    // Blazing Speed and Impact; Frost: Deep Freeze Immunity State, Fingers of Frost, Permafrost's three ranks and
-    // Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield, Nether Vortex and Focus Magic. Arcane also:
-    // Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane Missiles at the aura-apply hook, Torment the
-    // Weak's three ranks at the damage-done hook, the seven forms of Polymorph at the aura-apply and aura-remove hooks,
-    // Mana Shield at the aura-remove hook and Replenish Mana at the after-cast hook. The orbs: Flame Orb and Frostfire
-    // Orb at the dummy-effect hook, and each orb's scan at the target and dummy-effect hooks. The ring: Ring of Frost
-    // at the periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact, Clearcasting,
-    // Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and
-    // Reactive Barrier's two ranks also at the check-proc hook. 174 rows, 171 keys and 3 defaults, none twice.
+    // Cone of Cold and Blizzard's damage at the after-hit hook, Piercing Chill's chill at the target hook, the Water
+    // Elemental's Freeze at the after-cast hook, and Ice Barrier at the aura-apply and aura-remove hooks. At the proc
+    // hook, Fire: Ignite, Master of Elements, Hot Streak, Blazing Speed and Impact; Frost: Deep Freeze Immunity State,
+    // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield,
+    // Nether Vortex and Focus Magic. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane
+    // Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of
+    // Polymorph at the aura-apply and aura-remove hooks, Mana Shield at the aura-remove hook and Replenish Mana at the
+    // after-cast hook. The orbs: Flame Orb and Frostfire Orb at the dummy-effect hook, and each orb's scan at the
+    // target and dummy-effect hooks. The ring: Ring of Frost at the periodic-tick hook, and the ring's freeze at the
+    // target and aura-remove hooks. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of
+    // Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two ranks also at the check-proc hook. 175
+    // rows, 172 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(174));
-    CHECK_EQ(registry.Count(), std::size_t(171));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(175));
+    CHECK_EQ(registry.Count(), std::size_t(172));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -696,7 +703,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(24));
     CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(6));
-    CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(5));
     CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(4));
@@ -718,7 +725,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     {
         { &Mage::RegisterClassWide, 15, 12, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
-        { &Mage::RegisterFrost, 77, 77, 0 },
+        { &Mage::RegisterFrost, 78, 78, 0 },
         { &Mage::RegisterArcane, 33, 33, 0 },
         { &Mage::RegisterOrb, 6, 6, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
@@ -732,8 +739,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(174));
-    CHECK_EQ(registry.Count(), std::size_t(171));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(175));
+    CHECK_EQ(registry.Count(), std::size_t(172));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -744,7 +751,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(171));
+    CHECK_EQ(mine.size(), std::size_t(172));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -760,6 +767,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
     CheckRowsInTheGame<LaunchHook>(registry, ICE_BLOCK_LAUNCH_IDS);
     CheckRowsInTheGame<CastStartHook>(registry, FROSTBOLT_CAST_START_IDS);
+    CheckRowsInTheGame<AfterCastHook>(registry, WATER_ELEMENTAL_FREEZE_IDS);
     CheckRowsInTheGame<AuraApplyHook>(registry, ICE_BARRIER_IDS);
     CheckRowsInTheGame<AuraRemoveHook>(registry, ICE_BARRIER_IDS);
     CheckRowsInTheGame<CheckProcHook>(registry, REACTIVE_BARRIER_IDS);
@@ -2785,7 +2793,7 @@ TEST(MageScripts_ImprovedFlamestrikesChanceIsTheRanksEffectValue)
 TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
 {
     // Blast Wave holds an after-cast row, in the game's table too; the free Flamestrike and the talent's ranks hold
-    // none. The hook's other row is Replenish Mana's.
+    // none. The hook's other rows are Replenish Mana's and the Water Elemental's Freeze's.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -2794,7 +2802,9 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
         CHECK(registry.Find<AfterCastHook>(spellId) != NULL);
         CHECK(game.Find<AfterCastHook>(spellId) == registry.Find<AfterCastHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(AfterCastHook::Key), (sizeof(BLAST_WAVE_IDS) + sizeof(REPLENISH_MANA_IDS)) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(AfterCastHook::Key),
+             (sizeof(BLAST_WAVE_IDS) + sizeof(REPLENISH_MANA_IDS) + sizeof(WATER_ELEMENTAL_FREEZE_IDS)) /
+                 sizeof(uint32));
     for (uint32 spellId : { 88148u, 84673u, 84674u, 2120u })
     {
         CHECK(game.Find<AfterCastHook>(spellId) == NULL);
@@ -4829,6 +4839,116 @@ TEST(MageScripts_BlizzardChillsNothingForAHealOrWithoutTheTalent)
     AfterHitContext talented(mage, target, SpellRow(row, 42208), 900, false, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(42208, talented).IsContinue());
     CHECK(target.GetSpellAuraHolderMap().empty());
+}
+
+namespace
+{
+    // Improved Freeze's three ranks (86259, 86260, 86314) as the client's data holds them: effect 0 a dummy aura on the
+    // caster of 33, 66 and 100, the chance a Water Elemental's Freeze grants Fingers of Frost. Put into the spell and
+    // effect stores once for the rest of the run; no other test reads them.
+    void AddImprovedFreezeRanks()
+    {
+        static ServerSpell ranks[3];
+        static bool added = false;
+        if (added)
+        {
+            return;
+        }
+        added = true;
+        uint32 const ids[3] = { 86259, 86260, 86314 };
+        int32 const chance[3] = { 33, 66, 100 };
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            ranks[i].Entry().ID = ids[i];
+            ranks[i].effect.SpellID = ids[i];
+            ranks[i].effect.EffectIndex = EFFECT_INDEX_0;
+            ranks[i].effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            ranks[i].effect.EffectAura = SPELL_AURA_DUMMY;
+            ranks[i].effect.EffectBasePoints = chance[i];
+            ranks[i].effect.ImplicitTarget_0 = TARGET_SELF;
+            sSpellStore.SetEntry(ids[i], &ranks[i].Entry());
+            AddSpellEffectEntry(&ranks[i].effect);
+        }
+    }
+}
+
+TEST(MageScripts_ImprovedFreezesChanceIsTheRanksEffectValue)
+{
+    // Rank 1's effect 0 value is 33, rank 2's 66 and rank 3's 100, as the client's data holds them; the chance is read
+    // from the store. The Water Elemental's Freeze, Fingers of Frost's buff and no spell are no rank.
+    AddImprovedFreezeRanks();
+    CHECK_EQ(Mage::ImprovedFreezeChance(86259), int32(33));
+    CHECK_EQ(Mage::ImprovedFreezeChance(86260), int32(66));
+    CHECK_EQ(Mage::ImprovedFreezeChance(86314), int32(100));
+    CHECK_EQ(Mage::ImprovedFreezeChance(33395), int32(0));
+    CHECK_EQ(Mage::ImprovedFreezeChance(44544), int32(0));
+    CHECK_EQ(Mage::ImprovedFreezeChance(0), int32(0));
+}
+
+TEST(MageScripts_ImprovedFreezeRollsOnceForAFreezeThatHitsAnEnemy)
+{
+    // A roll that answers `pass`, counting the times it is asked and keeping the chance it was last asked with.
+    int rolls = 0;
+    int32 asked = 0;
+    bool pass = true;
+    std::function<bool(int32)> const roll = [&rolls, &asked, &pass](int32 chance)
+    {
+        ++rolls;
+        asked = chance;
+        return pass;
+    };
+
+    // One, two or five enemies hit: one roll for the whole cast, with the rank's chance, and two charges on a pass.
+    for (uint32 enemies : { 1u, 2u, 5u })
+    {
+        rolls = 0;
+        CHECK_EQ(Mage::ImprovedFreezeCharges(enemies, 100, roll), uint32(2));
+        CHECK_EQ(rolls, 1);
+        CHECK_EQ(asked, int32(100));
+    }
+    for (int32 chance : { 33, 66 })
+    {
+        rolls = 0;
+        CHECK_EQ(Mage::ImprovedFreezeCharges(3, chance, roll), uint32(2));
+        CHECK_EQ(rolls, 1);
+        CHECK_EQ(asked, chance);
+    }
+
+    // A roll that fails: one roll, no charge.
+    pass = false;
+    rolls = 0;
+    CHECK_EQ(Mage::ImprovedFreezeCharges(3, 33, roll), uint32(0));
+    CHECK_EQ(rolls, 1);
+
+    // A cast that hit no enemy, and a chance of 0 or less (a mage without the talent): no roll, no charge.
+    pass = true;
+    rolls = 0;
+    CHECK_EQ(Mage::ImprovedFreezeCharges(0, 100, roll), uint32(0));
+    CHECK_EQ(Mage::ImprovedFreezeCharges(2, 0, roll), uint32(0));
+    CHECK_EQ(Mage::ImprovedFreezeCharges(2, -5, roll), uint32(0));
+    CHECK_EQ(rolls, 0);
+}
+
+TEST(MageScripts_FreezeRunsOnTheAfterCastHookAndGivesNothingWithoutAnOwner)
+{
+    // The Water Elemental's Freeze holds an after-cast row, in the game's table too; the talent's ranks, Fingers of
+    // Frost's buff and Waterbolt hold none.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CheckRowsInTheGame<AfterCastHook>(registry, WATER_ELEMENTAL_FREEZE_IDS);
+    for (uint32 spellId : { 86259u, 86260u, 86314u, 44544u, 31707u })
+    {
+        CHECK(game.Find<AfterCastHook>(spellId) == NULL);
+    }
+
+    // A Freeze that hit two enemies, cast by a pet with no owner: nothing is cast and the pet holds nothing.
+    BareCreature pet;
+    SpellRowStorage row;
+    AfterCastContext twoHit(pet, SpellRow(row, 33395), 2, NULL, true, 10.0f, 20.0f, 5.0f, 0);
+    CHECK(registry.Dispatch<AfterCastHook>(33395, twoHit).IsContinue());
+    CHECK(pet.GetSpellAuraHolderMap().empty());
+    CHECK(pet.GetCurrentSpell(CURRENT_GENERIC_SPELL) == NULL);
 }
 
 TEST(MageScripts_ColdSnapResetsTheFrostSpellsAndTheFrostfireOrb)
