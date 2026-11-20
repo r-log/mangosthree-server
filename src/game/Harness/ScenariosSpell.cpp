@@ -241,8 +241,13 @@
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
 // Magic goes on another mage and not on him, that mage's hit that does not crit gives him no 54648, and his crit gives
 // him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1019, 1025-1028, 1100-1113 and 1115 (Qualify) fingerprints
-// every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
+// 1114 a staged Arcane mage's Mirror Image summons (the Arcane images' and those without the glyph) give him three
+// images each, his guardians of his level that look like him and take 75% of his spell power; they cast their
+// spells at the Camel he selects, Arcane Blast or Frostbolt with Fire Blast, never swing, and go after 30 s; a third
+// summon's images cast nothing at the Camel he polymorphs right after it, and the Polymorph holds; a fourth summon's,
+// the Fire images', base mana, Fireballs and lowest mana over their 30 s are recorded.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1019, 1025-1028 and 1100-1115 (Qualify) fingerprints every
+// spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -4146,7 +4151,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1019, 1025-1028, 1100-1113, 1115): a human mage staged to level 85 with the scenario's talents,
+     * 998-1000, 1010-1019, 1025-1028, 1100-1115): a human mage staged to level 85 with the scenario's talents,
      * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
      * staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
@@ -20400,7 +20405,7 @@ namespace Harness
     };
 
     /**
-     * What the Arcane proof scenarios share (1110-1113): the prints of the holders every staged mage carries that can
+     * What the Arcane proof scenarios share (1110-1114): the prints of the holders every staged mage carries that can
      * proc (Offensive State 79684, the Arcane Missiles! it casts and its aurastate, 71761 and its 71757), Precision
      * (13843) and the crit aura, and the reads the four scenarios make of their steps.
      */
@@ -23684,6 +23689,640 @@ namespace Harness
         std::vector<std::string> m_stances;
     };
 
+    /**
+     * S1114 `mage-arcane-images`: Mirror Image's images on a staged Arcane mage. Staged with Netherwind Presence 3
+     * (44403), so the stage names the Arcane tree, and kSpellPower spell power; once staged his Offensive State and
+     * Mana Adept are taken off. The Camel stands kDistance yards ahead and casts Hit Me (100446) on itself at its
+     * spawn, so no image's spell misses it. Mirror Image itself (55342) is not cast: its Initialize Images (58836)
+     * holds spell_script_target rows, which the guard refuses; he casts the summon its dummy effect chooses, triggered,
+     * at himself. Four runs of four steps, each 32 s after the one before:
+     *  1. the summon, right after which he selects the Camel, as a client does before it casts at it, and he and each
+     *     image of the run take the crit aura at kNoCrit, so no hit crits; read kReadMs after; kWindowMs to step 2;
+     *  2. 3. the Camel's health set to its maximum, kWindowMs and then kEndMs - 2 x kWindowMs apart, so it lives
+     *     through the images' 30 s;
+     *  4. a wait kEndMs after the summon, kTailMs to the next run.
+     * Run A, the Arcane images: 88091, whose 88087, 88085 and 88089 summon 47243, which casts Arcane Blast (88084).
+     * Run B, the images without the glyph: 58832, whose 58833, 58831 and 58834 summon 31216, which casts Frostbolt
+     * (59638) and Fire Blast (59637). Run C, the same summon, right after which he casts Polymorph (118) at the Camel,
+     * triggered, before the images' first update. Run D, the Fire images: 88092, whose 88088, 88086 and 88090 summon
+     * 47244, which casts Fireball (88082) at 16% of its base mana. Right after the summon the scenario keeps the run's
+     * images (his guardians of the run's creature) and his spell power of each school they cast
+     * (Unit::SpellBaseDamageBonusDone). At the summon's read, for each image: its owner, its level, its look (the
+     * cloned flag, his display and his name), the spell power its spells take from him (Pet::GetBonusDamage), wanted
+     * at 75% of his of the school it casts, its base mana and its mana. From the summon step's windows (kWindowMs):
+     * the SMSG_SPELL_GO of the images' spells, each image's first damage log of its run's spell, and for run B each
+     * image's Fire Blasts; from the run's four steps' windows the images' melee swings (SMSG_ATTACKERSTATEUPDATE), for
+     * run C the GOs of their spells, and for run D each image's Fireball GOs and the SMSG_POWER_UPDATE of its mana;
+     * right after step 2 whether the Camel holds 59638 (runs A and B), for run C 118; right after step 4 the images
+     * still in the world, for run C also whether the Camel holds 118, which is then taken off it, so run D's images
+     * find a Camel no crowd control holds. A first hit's band at level 85 (the class-8 spell scaling 937.33):
+     * Arcane Blast
+     * int(0.259 x 937.33) = 242 with the spread int(242.77 x 0.15) = 36 halved either side, 224..260, plus int(the
+     * bonus x 0.275); Frostbolt int(0.235 x 937.33) = 220 with the spread 22 halved, 209..231, plus int(the bonus x
+     * 0.25).
+     *
+     * `images`: `arcane=[count:<images>,owner:<his>,look:<cloned as him>,level:<at 85>,sp:<bonus of each>@<wanted>,
+     * casts:<88084 GOs>,first:<each first 88084 hit>@<band>,melee:<swings>,end:<in the world at step 4>],frost=[` the
+     * same with `casts:<59638 and 59637 GOs>`, `fireBlast:<each image's 59637 GOs>` after it and `slow:<59638 on the
+     * Camel at step 2>` before `melee` `]`, then `,sheep=[count:<images>,owner:<his>,casts:<59638 and 59637 GOs of the
+     * run's images over its four steps>,held:<118 on the Camel at step 2>/<at step 4>,melee:<swings>,end:<in the world
+     * at step 4>]`, then `,fire=[count:<images>,owner:<his>,base:<each image's base mana>,casts:<each image's 88082
+     * GOs over the run's four steps>,low:<each image's lowest mana over them>,melee:<swings>,end:<in the world at step
+     * 4>]`. OK when runs A and B each count three images, all his, cloned as him, at 85 and at the wanted spell
+     * power, at least kMinCasts casts, each first hit in its band and no crit, no swing and none in the world at step
+     * 4, and for run B at least one Fire Blast of each image and the slow; and run C counts three images, all his, no
+     * cast, the Polymorph held at steps 2 and 4, no swing and none in the world at step 4. Run D is recorded and not
+     * judged.
+     */
+    class MageArcaneImages : public MageArcaneProofScenario
+    {
+    public:
+        MageArcaneImages() : MageArcaneProofScenario("mage-arcane-images", 1114, "images") {}
+
+        void Prepare() override
+        {
+            for (std::vector<ObjectGuid>& images : m_images)
+            {
+                images.clear();
+            }
+            MageArcaneProofScenario::Prepare();
+        }
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { kNetherwindTalent, 2 } }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 TargetAura() const override { return kHitMe; }
+        float TargetDistance() const override { return kDistance; }
+        uint32 CastReadMs() const override { return kReadMs; }
+
+        void AfterStage(Player& p) override
+        {
+            TakeOff(p, { kOffensiveState, kManaAdept });
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps;
+            for (uint32 run = 0; run < kRuns; ++run)
+            {
+                steps.push_back(SelfAura(kSummons[run], kWindowMs));
+                steps.push_back(TargetHealth(100, kWindowMs));
+                steps.push_back(TargetHealth(100, kEndMs - 2 * kWindowMs));
+                steps.push_back(Wait(kTailMs));
+            }
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return ArcanePrints({
+                // 44403: 26 fields, fnv 79e078f5
+                { 44403, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 65 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 100446: 72 fields, fnv d831e1e8
+                { 100446, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 49 }, { "eff0.EffectBasePoints", -10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 184 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 186 }, { "eff2.EffectBasePoints", 20 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 88091: 72 fields, fnv 46da33c8
+                { 88091, { { "eff0.present", 1 }, { "eff0.Effect", 64 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 88087 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 64 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 88085 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 64 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectTriggerSpell", 88089 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 88087: 26 fields, fnv 9363bc81
+                { 88087, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 47243 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 49 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 88085: 26 fields, fnv 3caff98f
+                { 88085, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 47243 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 47 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 88089: 26 fields, fnv 409d113f
+                { 88089, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 47243 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 50 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 88084: 49 fields, fnv c112f908
+                { 88084, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 841 }, { "eff0.EffectBonusCoefficient", 1049414861 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 137 }, { "eff0.EffectRealPointsPerLevel", 1084227584 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 64 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.EffectTriggerSpell", 36032 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 36032: 72 fields, fnv 62406494
+                { 36032, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 536875008 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", 150 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 14 }, { "eff1.EffectSpellClassMask.Flags", 536870912 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 107 }, { "eff2.EffectBasePoints", -100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 10 }, { "eff2.EffectSpellClassMask.Flags", 536870912 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 45204: 72 fields, fnv b532b4ef
+                { 45204, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 247 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 279 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 25 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 77 }, { "eff2.EffectBasePoints", 45206 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 25 }, { "eff2.EffectIndex", 2 } } },
+                // 58832: 72 fields, fnv 556e3ab3
+                { 58832, { { "eff0.present", 1 }, { "eff0.Effect", 64 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 58833 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 64 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 58831 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 64 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectTriggerSpell", 58834 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 58833: 26 fields, fnv b4a69000
+                { 58833, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 31216 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 49 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 58831: 26 fields, fnv 5d8eba1a
+                { 58831, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 31216 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 47 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 58834: 26 fields, fnv 5f34c552
+                { 58834, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 31216 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 50 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 59638: 49 fields, fnv f158fec8
+                { 59638, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 162 }, { "eff0.EffectBonusCoefficient", 1048576000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 7 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 33 }, { "eff1.EffectBasePoints", -50 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 11 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 118: 49 fields, fnv ffbe2272
+                { 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 59637: 26 fields, fnv c6bb4056
+                { 59637, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 87 }, { "eff0.EffectBonusCoefficient", 1041865114 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 88092: 72 fields, fnv adba919c
+                { 88092, { { "eff0.present", 1 }, { "eff0.Effect", 64 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 88088 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 64 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 88086 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 64 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectTriggerSpell", 88090 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 88088: 26 fields, fnv 382720e0
+                { 88088, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 47244 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 49 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 88086: 26 fields, fnv 9b38c2fa
+                { 88086, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 47244 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 47 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 88090: 26 fields, fnv 8783a1b2
+                { 88090, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 47244 }, { "eff0.EffectMiscValue_1", 1021 }, { "eff0.EffectRadiusIndex_0", 15 }, { "eff0.ImplicitTarget_0", 50 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 88082: 26 fields, fnv 6ef155e5
+                { 88082, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 13 }, { "eff0.EffectBonusCoefficient", 1051528790 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            const uint32 run = k / kStepsPerRun;
+            const uint32 step = k % kStepsPerRun;
+            if (run >= kRuns)
+            {
+                return;
+            }
+            std::vector<ObjectGuid>& images = m_images[run];
+            if (step == kSummonStep && !atRead)
+            {
+                p->SetSelectionGuid(target->GetObjectGuid());
+                images.clear();
+                const uint32 creature = kCreatures[run];
+                p->CallForAllControlledUnits([&images, creature](Unit* unit)
+                {
+                    if (unit->GetEntry() == creature)
+                    {
+                        images.push_back(unit->GetObjectGuid());
+                    }
+                }, CONTROLLED_GUARDIANS);
+                NoCrit(p);
+                for (ObjectGuid const& guid : images)
+                {
+                    if (Pet* image = p->GetMap()->GetPet(guid))
+                    {
+                        NoCrit(image);
+                    }
+                }
+                const uint32 fireBlast = kFireBlasts[run];
+                reads["want"] = Share(p->SpellBaseDamageBonusDone(SchoolOf(kSpells[run])));
+                reads["wantFire"] = fireBlast ? Share(p->SpellBaseDamageBonusDone(SchoolOf(fireBlast))) : kNone;
+                if (run == kSheepRun)
+                {
+                    p->CastSpell(target, kPolymorph, true);
+                    m_rec.Note("he polymorphs the Camel: " + HolderOf(target, kPolymorph));
+                }
+                m_rec.Note("he selects the Camel; his guardians of " + U(creature) + ": " + U(uint32(images.size())) +
+                           "; he and each takes " + U(kCritAura) + " at " + Num(kNoCrit) +
+                           "; 75% of his spell power of " + U(kSpells[run]) + "'s school " + Num(reads["want"]) +
+                           (fireBlast ? ", of " + U(fireBlast) + "'s " + Num(reads["wantFire"]) : std::string()));
+                return;
+            }
+            if (step == kSummonStep)
+            {
+                int64 count = 0, owner = 0, look = 0, level = 0;
+                for (size_t i = 0; i < images.size() && i < kImages; ++i)
+                {
+                    Pet* image = p->GetMap()->GetPet(images[i]);
+                    if (!image || !image->IsInWorld())
+                    {
+                        m_rec.Note("image " + U(uint32(i + 1)) + " is not in the world");
+                        continue;
+                    }
+                    const bool his = image->GetOwnerGuid() == p->GetObjectGuid();
+                    const bool cloned = image->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_CLONED) &&
+                                        image->GetDisplayId() == p->GetNativeDisplayId() &&
+                                        std::string(image->GetName()) == p->GetName();
+                    ++count;
+                    owner += his ? 1 : 0;
+                    look += cloned ? 1 : 0;
+                    level += image->getLevel() == kLevel ? 1 : 0;
+                    reads["sp" + U(uint32(i))] = image->GetBonusDamage();
+                    reads["base" + U(uint32(i))] = image->GetCreateMana();
+                    reads["mana" + U(uint32(i))] = image->GetPower(POWER_MANA);
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "image %u: entry %u, %s, level %u, display %u (his %u), cloned %u, "
+                             "name %s, bonus %d, main-hand item %u, health %u, mana %u of %u, base mana %u",
+                             uint32(i + 1), image->GetEntry(), his ? "his" : "not his", image->getLevel(),
+                             image->GetDisplayId(), p->GetNativeDisplayId(),
+                             image->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_CLONED) ? 1 : 0, image->GetName(),
+                             image->GetBonusDamage(), image->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID),
+                             image->GetMaxHealth(), image->GetPower(POWER_MANA), image->GetMaxPower(POWER_MANA),
+                             image->GetCreateMana());
+                    m_rec.Note(buf);
+                }
+                reads["count"] = count;
+                reads["owner"] = owner;
+                reads["look"] = look;
+                reads["level"] = level;
+                return;
+            }
+            if (step == kSlowStep && !atRead && run == kSheepRun)
+            {
+                reads["sheep"] = target->HasAura(kPolymorph) ? 1 : 0;
+                m_rec.Note("the Camel's " + U(kPolymorph) + ": " + HolderOf(target, kPolymorph));
+                return;
+            }
+            if (step == kSlowStep && !atRead && run != kFireRun)
+            {
+                reads["slow"] = target->HasAura(kFrostbolt) ? 1 : 0;
+                m_rec.Note("the Camel's " + U(kFrostbolt) + ": " + HolderOf(target, kFrostbolt));
+                return;
+            }
+            if (step == kEndStep && !atRead)
+            {
+                int64 alive = 0;
+                for (ObjectGuid const& guid : images)
+                {
+                    Pet* image = p->GetMap()->GetPet(guid);
+                    alive += image && image->IsInWorld() ? 1 : 0;
+                }
+                reads["end"] = alive;
+                m_rec.Note("of the run's " + U(uint32(images.size())) + " images " + Num(alive) + " in the world");
+                if (run == kSheepRun)
+                {
+                    reads["sheepEnd"] = target->HasAura(kPolymorph) ? 1 : 0;
+                    m_rec.Note("the Camel's " + U(kPolymorph) + ": " + HolderOf(target, kPolymorph));
+                    target->RemoveAurasDueToSpell(kPolymorph);
+                    m_rec.Note("the Camel's " + U(kPolymorph) + " taken off: " + HolderOf(target, kPolymorph));
+                }
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != size_t(kRuns * kStepsPerRun))
+            {
+                return "BUG(" + U(uint32(st.steps.size())) + " steps, " + U(kRuns * kStepsPerRun) + " wanted)";
+            }
+            bool ok = true;
+            std::string value;
+            for (uint32 run = 0; run < kRuns; ++run)
+            {
+                value += (run ? "," : "") + std::string(kRunNames[run]) + "=[" +
+                         (run == kFireRun ? FireText(st, run)
+                                          : run == kSheepRun ? SheepText(st, run, ok) : RunText(st, run, ok)) + "]";
+            }
+            return (ok ? "OK(" : "BUG(") + value + "; count, owner, look and level count the images; sp the bonus of " +
+                   "each @ 75% of his spell power; casts the images' GOs in the 12 s after the summon, for sheep " +
+                   "over the run, for fire each image's over the run; first each image's first hit @ its band; held " +
+                   "his Polymorph on the Camel 12 s and 31 s after the summon; base each image's base mana and low " +
+                   "its lowest mana over the run; melee their swings over the run; end the images in the world 31 s " +
+                   "after the summon; fire is not judged)";
+        }
+
+    private:
+        static constexpr uint32 kRuns = 4;
+        static constexpr uint32 kSheepRun = 2;
+        static constexpr uint32 kFireRun = 3;
+        static constexpr uint32 kStepsPerRun = 4;
+        static constexpr uint32 kSummonStep = 0;
+        static constexpr uint32 kSlowStep = 1;
+        static constexpr uint32 kEndStep = 3;
+        static constexpr size_t kImages = 3;
+        static constexpr uint32 kSummons[kRuns] = { 88091, 58832, 58832, 88092 };
+        static constexpr uint32 kCreatures[kRuns] = { 47243, 31216, 31216, 47244 };
+        static constexpr uint32 kSpells[kRuns] = { 88084, 59638, 59638, 88082 };
+        static constexpr uint32 kFireBlasts[kRuns] = { 0, 59637, 59637, 0 };
+        static constexpr char const* kRunNames[kRuns] = { "arcane", "frost", "sheep", "fire" };
+        static constexpr int64 kBandLow[kRuns] = { 224, 209, 209, 0 };
+        static constexpr int64 kBandHigh[kRuns] = { 260, 231, 231, 0 };
+        static constexpr float kCoefficients[kRuns] = { 0.275f, 0.25f, 0.25f, 0.0f };
+        static constexpr uint32 kMinCasts[kRuns] = { 9, 12, 0, 0 };
+        static constexpr uint32 kNetherwindTalent = 9200;
+        static constexpr uint32 kHitMe = 100446;
+        static constexpr uint32 kFrostbolt = 59638;
+        static constexpr uint32 kPolymorph = 118;
+        static constexpr int32 kSpellPower = 10000;
+        static constexpr int64 kSharePercent = 75;
+        static constexpr int32 kNoCrit = -100;
+        static constexpr uint32 kLevel = 85;
+        static constexpr float kDistance = 20.0f;
+        static constexpr uint32 kReadMs = 1000;
+        static constexpr uint32 kWindowMs = 12000;
+        static constexpr uint32 kEndMs = 31000;
+        static constexpr uint32 kTailMs = 1000;
+        static constexpr uint32 kCritHitInfo = 0x2;
+
+        std::vector<ObjectGuid> m_images[kRuns];
+
+        /// The crit aura at kNoCrit on `unit`, by a triggered self-cast, any other holder of it taken off first.
+        static void NoCrit(Unit* unit)
+        {
+            unit->RemoveAurasDueToSpell(kCritAura);
+            int32 points = kNoCrit;
+            unit->CastCustomSpell(unit, kCritAura, &points, NULL, NULL, true);
+        }
+
+        /// The school mask of `spellId`; none when the spell store lacks it.
+        static SpellSchoolMask SchoolOf(uint32 spellId)
+        {
+            SpellEntry const* info = sSpellStore.LookupEntry(spellId);
+            return info ? GetSpellSchoolMask(info) : SPELL_SCHOOL_MASK_NONE;
+        }
+
+        /// kSharePercent of `spellPower`, truncated; 0 for none.
+        static int64 Share(int32 spellPower)
+        {
+            return spellPower > 0 ? int64(spellPower) * kSharePercent / 100 : 0;
+        }
+
+        /// The share of `bonus` a hit of coefficient `coefficient` takes, as Unit::SpellBonusWithCoeffs takes it: the
+        /// coefficient through the percent of the spell bonus modifier (none here), times the bonus in float,
+        /// truncated.
+        static int64 BonusPart(int64 bonus, float coefficient)
+        {
+            float c = coefficient * 100.0f;
+            c /= 100.0f;
+            return bonus > 0 ? int64(int32(float(bonus) * c)) : 0;
+        }
+
+        /// The guid packed at `pos` of `payload` (a mask byte, then a byte for each bit set), `pos` moved past it.
+        static bool PackedGuidAt(std::vector<uint8> const& payload, size_t& pos, uint64& guid)
+        {
+            if (pos >= payload.size())
+            {
+                return false;
+            }
+            const uint8 mask = payload[pos++];
+            guid = 0;
+            for (uint32 bit = 0; bit < 8; ++bit)
+            {
+                if ((mask >> bit) & 1u)
+                {
+                    if (pos >= payload.size())
+                    {
+                        return false;
+                    }
+                    guid |= uint64(payload[pos++]) << (bit * 8);
+                }
+            }
+            return true;
+        }
+
+        /// The caster and the spell of an SMSG_SPELL_GO payload as BuildSpellGoPacket writes them: the item-or-caster
+        /// and the caster packed, the cast count, then the spell id.
+        static bool GoOf(std::vector<uint8> const& payload, uint64& caster, uint32& spell)
+        {
+            size_t pos = 0;
+            uint64 first = 0;
+            if (!PackedGuidAt(payload, pos, first) || !PackedGuidAt(payload, pos, caster) || pos + 5 > payload.size())
+            {
+                return false;
+            }
+            ++pos;
+            spell = uint32(payload[pos]) | uint32(payload[pos + 1]) << 8 | uint32(payload[pos + 2]) << 16 |
+                    uint32(payload[pos + 3]) << 24;
+            return true;
+        }
+
+        /// The attacker of an SMSG_ATTACKERSTATEUPDATE payload as BuildAttackerStateUpdatePacket writes it: the hit
+        /// info, then the attacker packed.
+        static bool SwingAttackerOf(std::vector<uint8> const& payload, uint64& attacker)
+        {
+            size_t pos = 4;
+            return payload.size() > pos && PackedGuidAt(payload, pos, attacker);
+        }
+
+        /// The index of `guid` among the run's images; -1 when it is none of them.
+        int32 ImageIndex(uint32 run, uint64 guid) const
+        {
+            for (size_t i = 0; i < m_images[run].size(); ++i)
+            {
+                if (m_images[run][i].GetRawValue() == guid)
+                {
+                    return int32(i);
+                }
+            }
+            return -1;
+        }
+
+        /// The run's value, `ok` cleared when a read is not the wanted one.
+        std::string RunText(St const& st, uint32 run, bool& ok) const
+        {
+            const uint32 k = run * kStepsPerRun;
+            const size_t images = m_images[run].size();
+            const int64 want = Kept(st, k, "want");
+            const int64 wantFire = Kept(st, k, "wantFire");
+
+            std::string bonuses;
+            bool bonusOk = images == kImages;
+            for (size_t i = 0; i < images; ++i)
+            {
+                const int64 bonus = Kept(st, k, "sp" + U(uint32(i)));
+                bonuses += (i ? "/" : "") + Num(bonus);
+                bonusOk = bonusOk && (bonus == want || (wantFire != kNone && bonus == wantFire));
+            }
+
+            uint32 casts = 0;
+            std::vector<uint32> fireBlasts(images, 0);
+            std::vector<std::string> firsts(images, "none");
+            const int64 part = want == kNone ? 0 : BonusPart(want, kCoefficients[run]);
+            const uint32 low = uint32(kBandLow[run] + part);
+            const uint32 high = uint32(kBandHigh[run] + part);
+            bool firstOk = images == kImages;
+            for (std::string const& window : StepWindows(k))
+            {
+                for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_SPELL_GO))
+                {
+                    uint64 caster = 0;
+                    uint32 spell = 0;
+                    if (!GoOf(seen->payload, caster, spell))
+                    {
+                        continue;
+                    }
+                    const int32 i = ImageIndex(run, caster);
+                    if (i < 0)
+                    {
+                        continue;
+                    }
+                    if (spell == kSpells[run] || (kFireBlasts[run] && spell == kFireBlasts[run]))
+                    {
+                        ++casts;
+                    }
+                    if (kFireBlasts[run] && spell == kFireBlasts[run])
+                    {
+                        ++fireBlasts[size_t(i)];
+                    }
+                }
+                for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_SPELLNONMELEEDAMAGELOG))
+                {
+                    Trace::SpellDamageLog log;
+                    if (seen->payload.empty() ||
+                        !Trace::ReadSpellDamageLog(&seen->payload[0], seen->payload.size(), log) ||
+                        log.spell != kSpells[run])
+                    {
+                        continue;
+                    }
+                    const int32 i = ImageIndex(run, log.attacker);
+                    if (i < 0 || firsts[size_t(i)] != "none")
+                    {
+                        continue;
+                    }
+                    const bool crit = (log.hitInfo & kCritHitInfo) != 0;
+                    firsts[size_t(i)] = U(log.damage) + (crit ? "c" : "");
+                    firstOk = firstOk && !crit && InBand(log.damage, low, high);
+                }
+            }
+            std::string firstText;
+            for (size_t i = 0; i < images; ++i)
+            {
+                firstText += (i ? "/" : "") + firsts[i];
+                firstOk = firstOk && firsts[i] != "none";
+            }
+
+            uint32 melee = 0;
+            for (uint32 step = k; step < k + kStepsPerRun; ++step)
+            {
+                for (std::string const& window : StepWindows(step))
+                {
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_ATTACKERSTATEUPDATE))
+                    {
+                        uint64 attacker = 0;
+                        if (SwingAttackerOf(seen->payload, attacker) && ImageIndex(run, attacker) >= 0)
+                        {
+                            ++melee;
+                        }
+                    }
+                }
+            }
+
+            const int64 count = Kept(st, k, "count");
+            const int64 owner = Kept(st, k, "owner");
+            const int64 look = Kept(st, k, "look");
+            const int64 level = Kept(st, k, "level");
+            const int64 end = Kept(st, k + kEndStep, "end");
+            std::string text = "count:" + Num(count) + ",owner:" + Num(owner) + ",look:" + Num(look) + ",level:" +
+                               Num(level) + ",sp:" + (bonuses.empty() ? std::string("none") : bonuses) + "@" +
+                               Num(want) + ",casts:" + U(casts);
+            bool runOk = count == int64(kImages) && owner == int64(kImages) && look == int64(kImages) &&
+                         level == int64(kImages) && bonusOk && casts >= kMinCasts[run] && firstOk && melee == 0 &&
+                         end == 0;
+            if (kFireBlasts[run])
+            {
+                std::string each;
+                for (size_t i = 0; i < images; ++i)
+                {
+                    each += (i ? "/" : "") + U(fireBlasts[i]);
+                    runOk = runOk && fireBlasts[i] >= 1;
+                }
+                text += ",fireBlast:" + (each.empty() ? std::string("none") : each);
+            }
+            text += ",first:" + (firstText.empty() ? std::string("none") : firstText) + "@" + U(low) + ".." + U(high);
+            if (kFireBlasts[run])
+            {
+                const int64 slow = Kept(st, k + kSlowStep, "slow");
+                text += ",slow:" + Num(slow);
+                runOk = runOk && slow == 1;
+            }
+            text += ",melee:" + U(melee) + ",end:" + Num(end);
+            ok = ok && runOk;
+            return text;
+        }
+
+        /// The value of the run whose Camel he polymorphs, `ok` cleared when a read is not the wanted one: the run's
+        /// images, his, their casts of their spells and their swings over the run's four steps, the Polymorph on the
+        /// Camel at steps 2 and 4, and the images in the world at step 4.
+        std::string SheepText(St const& st, uint32 run, bool& ok) const
+        {
+            const uint32 k = run * kStepsPerRun;
+            uint32 casts = 0;
+            uint32 melee = 0;
+            for (uint32 step = k; step < k + kStepsPerRun; ++step)
+            {
+                for (std::string const& window : StepWindows(step))
+                {
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_SPELL_GO))
+                    {
+                        uint64 caster = 0;
+                        uint32 spell = 0;
+                        if (GoOf(seen->payload, caster, spell) && ImageIndex(run, caster) >= 0 &&
+                            (spell == kSpells[run] || spell == kFireBlasts[run]))
+                        {
+                            ++casts;
+                        }
+                    }
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_ATTACKERSTATEUPDATE))
+                    {
+                        uint64 attacker = 0;
+                        if (SwingAttackerOf(seen->payload, attacker) && ImageIndex(run, attacker) >= 0)
+                        {
+                            ++melee;
+                        }
+                    }
+                }
+            }
+            const int64 count = Kept(st, k, "count");
+            const int64 owner = Kept(st, k, "owner");
+            const int64 held = Kept(st, k + kSlowStep, "sheep");
+            const int64 heldEnd = Kept(st, k + kEndStep, "sheepEnd");
+            const int64 end = Kept(st, k + kEndStep, "end");
+            ok = ok && count == int64(kImages) && owner == int64(kImages) && casts == 0 && held == 1 && heldEnd == 1 &&
+                 melee == 0 && end == 0;
+            return "count:" + Num(count) + ",owner:" + Num(owner) + ",casts:" + U(casts) + ",held:" + Num(held) + "/" +
+                   Num(heldEnd) + ",melee:" + U(melee) + ",end:" + Num(end);
+        }
+
+        /// The value of the run of the Fire images, not judged: the run's images, his, each image's base mana at the
+        /// summon's read, its Fireball GOs over the run's four steps, the lowest mana an SMSG_POWER_UPDATE gave it over
+        /// them (its mana at the summon's read when none came lower), their swings, and the images in the world at
+        /// step 4.
+        std::string FireText(St const& st, uint32 run) const
+        {
+            const uint32 k = run * kStepsPerRun;
+            const size_t images = m_images[run].size();
+            std::vector<uint32> casts(images, 0);
+            std::vector<int64> low(images, kNone);
+            for (size_t i = 0; i < images; ++i)
+            {
+                low[i] = Kept(st, k, "mana" + U(uint32(i)));
+            }
+            uint32 melee = 0;
+            for (uint32 step = k; step < k + kStepsPerRun; ++step)
+            {
+                for (std::string const& window : StepWindows(step))
+                {
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_SPELL_GO))
+                    {
+                        uint64 caster = 0;
+                        uint32 spell = 0;
+                        const int32 i = GoOf(seen->payload, caster, spell) ? ImageIndex(run, caster) : -1;
+                        if (i >= 0 && spell == kSpells[run])
+                        {
+                            ++casts[size_t(i)];
+                        }
+                    }
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_POWER_UPDATE))
+                    {
+                        uint64 unit = 0;
+                        uint8 type = 0;
+                        uint32 value = 0;
+                        if (seen->payload.empty() ||
+                            !Trace::ReadPowerUpdate(&seen->payload[0], seen->payload.size(), unit, type, value) ||
+                            type != POWER_MANA)
+                        {
+                            continue;
+                        }
+                        const int32 i = ImageIndex(run, unit);
+                        if (i >= 0 && (low[size_t(i)] == kNone || int64(value) < low[size_t(i)]))
+                        {
+                            low[size_t(i)] = int64(value);
+                        }
+                    }
+                    for (Recorder::Seen const* seen : m_rec.SeenIn(window, SMSG_ATTACKERSTATEUPDATE))
+                    {
+                        uint64 attacker = 0;
+                        if (SwingAttackerOf(seen->payload, attacker) && ImageIndex(run, attacker) >= 0)
+                        {
+                            ++melee;
+                        }
+                    }
+                }
+            }
+            std::string bases;
+            std::string castText;
+            std::string lowText;
+            for (size_t i = 0; i < images; ++i)
+            {
+                bases += (i ? "/" : "") + Num(Kept(st, k, "base" + U(uint32(i))));
+                castText += (i ? "/" : "") + U(casts[i]);
+                lowText += (i ? "/" : "") + Num(low[i]);
+            }
+            return "count:" + Num(Kept(st, k, "count")) + ",owner:" + Num(Kept(st, k, "owner")) + ",base:" +
+                   (bases.empty() ? std::string("none") : bases) + ",casts:" +
+                   (castText.empty() ? std::string("none") : castText) + ",low:" +
+                   (lowText.empty() ? std::string("none") : lowText) + ",melee:" + U(melee) + ",end:" +
+                   Num(Kept(st, k + kEndStep, "end"));
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -23782,5 +24421,6 @@ namespace Harness
         r.Register(new MageFrostRing());
         r.Register(new MageFrostWaterElemental());
         r.Register(new MageFrostPetAssist());
+        r.Register(new MageArcaneImages());
     }
 }

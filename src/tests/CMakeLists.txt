@@ -173,6 +173,7 @@ set(SRC_GRP_TESTS
     MageOrbTest.cpp
     PetAssistTest.cpp
     MageRingTest.cpp
+    MageImagesTest.cpp
     CreatureHoverTest.cpp
     SpellProcEventRowsTest.cpp
     RaidBuffTest.cpp
@@ -315,6 +316,7 @@ set(SRC_GRP_TESTS
     UnlearnSpecializationTest.cpp
     MangosStringStoreTest.cpp
     CreatureClassLevelStatsStoreTest.cpp
+    CreatureBaseManaTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
     LfgDungeonEntranceStoreTest.cpp

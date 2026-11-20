@@ -877,8 +877,10 @@ void Pet::InitStatsForLevel(uint32 petlevel)
     SetHealth(health);
     SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, health);
 
-    // Set mana
-    SetCreateMana(mana);
+    // Set mana; a guardian's base mana is its class's player base mana at its level (CreatureInfo::BaseManaAt), a
+    // hunter's or summoned pet's the mana it was given
+    bool const classBaseMana = getPetType() == GUARDIAN_PET || getPetType() == PROTECTOR_PET;
+    SetCreateMana(classBaseMana ? cInfo->BaseManaAt(petlevel) : uint32(mana));
     SetMaxPower(POWER_MANA, mana);
     SetPower(POWER_MANA, mana);
     SetModifierValue(UNIT_MOD_MANA, BASE_VALUE, mana);
