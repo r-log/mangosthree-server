@@ -29,8 +29,8 @@
 /// (Spells::AutocastsByDefault, Spells::PetSpellAutocastDefault) on Spell.dbc rows shaped as the client's Waterbolt
 /// (31707) and Freeze (33395) and three others under test-only ids, put into the effect and cooldown stores, which of
 /// the owner's harmful spells count as the owner's attack for an Assist pet (Spells::BreaksOnDamage,
-/// Spells::CountsAsOwnerAttack) on rows shaped as ten of the client's spells under test-only ids, put into the effect,
-/// aura options and interrupts stores, and the stance buttons of the pet bar (CharmInfo::InitPetActionBar,
+/// Spells::CountsAsOwnerAttack) on rows shaped as twelve of the client's spells under test-only ids, put into the
+/// effect, aura options and interrupts stores, and the stance buttons of the pet bar (CharmInfo::InitPetActionBar,
 /// CharmInfo::LoadPetActionBar).
 
 #include "TestHarness.h"
@@ -128,11 +128,14 @@ namespace
     uint32 const ROW_COUNTERSPELL = 9430013; // Counterspell 2139: a cast interrupt; no options row
     uint32 const ROW_DEEP_FREEZE = 9430014;  // Deep Freeze 44572: a stun; no options row
     uint32 const ROW_BLIND = 9430015;        // Blind 2094: a slow and a confuse; no options row
+    uint32 const ROW_ENTRAPMENT = 9430016;   // Entrapment 19185: a root; no options or interrupts row
+    uint32 const ROW_REPENTANCE = 9430017;   // Repentance 20066: a stun with one proc charge
 
     // SpellAuraOptions.dbc rows: { CumulativeAura, ProcChance, ProcCharges, ProcTypeMask }.
     SpellAuraOptionsEntry s_optPolymorph = { 0, 100, 0, 0x000AAAA8 };
     SpellAuraOptionsEntry s_optTakenHits = { 0, 100, 0, 0x000A22A8 };   // Hex's, Fear's and Frost Nova's
     SpellAuraOptionsEntry s_optRingFreeze = { 0, 101, 0, 0x000A2AA8 };
+    SpellAuraOptionsEntry s_optRepentance = { 0, 101, 1, 0x000AAAA8 };
 
     // SpellInterrupts.dbc rows: { AuraInterruptFlags, ChannelInterruptFlags, InterruptFlags }.
     SpellInterruptsEntry s_intPolymorph = { 0x08080000, 0, 0x0F };     // Polymorph's and Hex's
@@ -142,6 +145,7 @@ namespace
     SpellInterruptsEntry s_intCast = { 0, 0, 0x0F };                   // Frostbolt's and Deep Freeze's
     SpellInterruptsEntry s_intCounterspell = { 0, 0, 0x08 };
     SpellInterruptsEntry s_intBlind = { 0x00480002, 0, 0 };
+    SpellInterruptsEntry s_intRepentance = { 0x08000000, 0, 0 };
 
     struct AttackShape
     {
@@ -162,6 +166,8 @@ namespace
         { ROW_COUNTERSPELL, NULL, &s_intCounterspell },
         { ROW_DEEP_FREEZE, NULL, &s_intCast },
         { ROW_BLIND, NULL, &s_intBlind },
+        { ROW_ENTRAPMENT, NULL, NULL },
+        { ROW_REPENTANCE, &s_optRepentance, &s_intRepentance },
     };
     std::size_t const ATTACK_SHAPES = sizeof(s_attackShapes) / sizeof(s_attackShapes[0]);
 
@@ -200,6 +206,8 @@ namespace
             { ROW_DEEP_FREEZE, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_STUN },
             { ROW_BLIND, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_DECREASE_SPEED },
             { ROW_BLIND, 1, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_CONFUSE },
+            { ROW_ENTRAPMENT, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_ROOT },
+            { ROW_REPENTANCE, 0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_STUN },
         };
         static SpellEffectEntry rows[sizeof(effects) / sizeof(effects[0])];
         static bool added = false;
@@ -344,6 +352,15 @@ TEST(PetAssist_CrowdControlThatBreaksOnDamageIsNotTheOwnersAttack)
     // Blind's confuse has no proc flags; its aura interrupt flags hold the damage flag.
     CHECK(Spells::BreaksOnDamage(AttackRow(ROW_BLIND)));
     CHECK(!Spells::CountsAsOwnerAttack(AttackRow(ROW_BLIND)));
+
+    // Repentance's stun has the second damage flag alone and one proc charge: a hit that deals damage takes it off
+    // through the charge, as a stun without a charge but with those flags is taken off through the damage it counts.
+    SpellEntry const& repentance = AttackRow(ROW_REPENTANCE);
+    CHECK_EQ(repentance.ID, ROW_REPENTANCE);
+    CHECK_EQ(repentance.GetProcCharges(), uint32(1));
+    CHECK(!Spells::DealsDamage(repentance));
+    CHECK(Spells::BreaksOnDamage(repentance));
+    CHECK(!Spells::CountsAsOwnerAttack(repentance));
 }
 
 TEST(PetAssist_DamageAndCrowdControlThatHoldsAreTheOwnersAttack)
@@ -360,9 +377,9 @@ TEST(PetAssist_DamageAndCrowdControlThatHoldsAreTheOwnersAttack)
     CHECK(!Spells::BreaksOnDamage(AttackRow(ROW_FROSTBOLT)));
     CHECK(Spells::CountsAsOwnerAttack(AttackRow(ROW_FROSTBOLT)));
 
-    // Slow, Counterspell and Deep Freeze deal no damage and hold no aura that damage takes off: Deep Freeze's stun has
-    // neither proc flags nor the damage flag.
-    uint32 const holding[] = { ROW_SLOW, ROW_COUNTERSPELL, ROW_DEEP_FREEZE };
+    // Slow, Counterspell, Deep Freeze and Entrapment deal no damage and hold no aura that damage takes off: Deep
+    // Freeze's stun and Entrapment's root have neither proc flags nor the damage flag.
+    uint32 const holding[] = { ROW_SLOW, ROW_COUNTERSPELL, ROW_DEEP_FREEZE, ROW_ENTRAPMENT };
     for (std::size_t i = 0; i < sizeof(holding) / sizeof(holding[0]); ++i)
     {
         SpellEntry const& spell = AttackRow(holding[i]);
