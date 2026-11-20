@@ -23,10 +23,11 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the mage's orb (spells/classes/mage/Orb.cpp): its table row, the creature it names, the cadence of its
-/// hits in scans, when its end is due, when its owner may have it act, the chance of its explosion, the cost share
-/// its hits refund through Master of Elements, the units an orb owned by its mage takes, the enemy its scan keeps,
-/// its rows at the dummy-effect and target hooks with its creature AI's factory, and the script words a script reads
+/// Tests of the mage's orbs (spells/classes/mage/Orb.cpp): their table rows, the creatures they name, the hit each
+/// casts for its owner, the cadence of their hits in scans, when an orb's end is due, when its owner may have it act,
+/// the chance of its explosion, the cost share its hits refund through Master of Elements, the units an orb owned by
+/// its mage takes, the enemy its scan keeps, their rows at the dummy-effect and target hooks with their creature AI's
+/// factory, and the script words a script reads
 /// of a unit's holder (SpellScriptQueries). The spells and faction templates the leaves read are put into the stores
 /// as the client's data holds them, once for the rest of the run; no other test reads them. The units are bare
 /// creatures (update fields allocated; no map, template or AI) placed in map 0's world frame.
@@ -101,20 +102,21 @@ namespace
         return *reinterpret_cast<SpellAuraHolder*>(storage.bytes);
     }
 
-    const uint32 kOrbPower = 94401;             // 82731's SpellPower row
+    const uint32 kOrbPower = 94401;             // 82731's and 92283's SpellPower row
     const uint32 kSnareDuration = 94402;        // 82736's SpellDuration row
     const uint32 kPolymorphOptions = 94403;     // 118's SpellClassOptions row
     const uint32 kFirePowerOptions = 94404;     // the first of 18459's, 18460's and 54734's SpellAuraOptions rows
 
-    // The spells the orb's leaves read, as the client's data holds them: Flame Orb 82731 (6% of base mana, a dummy
-    // effect on the caster), the orb's own aura 82690 (a trigger of the scan every 500 ms), the scan 82734 (a dummy
-    // effect of 1000), the snare 82736 (15000 ms), the three ranks of Fire Power 18459, 18460 and 54734 (proc chance
-    // 33, 66 and 100), and Polymorph 118 (a mage spell of class mask A 0x1000000 whose effect 0 confuses), the
-    // transform IsPolymorphed asks for; and the faction templates 1 (the human player's) and 7 (the Camel's and the
-    // training dummy's) as FactionTemplate.dbc holds them.
+    // The spells the orb's leaves read, as the client's data holds them: Flame Orb 82731 and Frostfire Orb 92283 (6% of
+    // base mana, a dummy effect on the caster), the orbs' own auras 82690 and 84717 (a trigger of the orb's scan every
+    // 500 ms), the scans 82734 and 84718 (a dummy effect of 1000), the snare 82736 (15000 ms), the three ranks of Fire
+    // Power 18459, 18460 and 54734 (proc chance 33, 66 and 100), and Polymorph 118 (a mage spell of class mask A
+    // 0x1000000 whose effect 0 confuses), the transform IsPolymorphed asks for; and the faction templates 1 (the human
+    // player's) and 7 (the Camel's and the training dummy's) as FactionTemplate.dbc holds them.
     void StoreOrbSpells()
     {
         static ServerSpell flameOrb, orbAura, scan, snare, polymorph;
+        static ServerSpell frostfireOrb, frostfireAura, frostfireScan;
         static ServerSpell firePower[3];
         static SpellPowerEntry power;
         static SpellDurationEntry duration;
@@ -141,6 +143,16 @@ namespace
         sSpellStore.SetEntry(82731, &flameOrb.Entry());
         AddSpellEffectEntry(&flameOrb.effect);
 
+        frostfireOrb.Entry().ID = 92283;
+        frostfireOrb.Entry().PowerDisplayID = kOrbPower;
+        frostfireOrb.effect.SpellID = 92283;
+        frostfireOrb.effect.EffectIndex = EFFECT_INDEX_0;
+        frostfireOrb.effect.Effect = SPELL_EFFECT_DUMMY;
+        frostfireOrb.effect.EffectBasePoints = 1;
+        frostfireOrb.effect.ImplicitTarget_0 = TARGET_SELF;
+        sSpellStore.SetEntry(92283, &frostfireOrb.Entry());
+        AddSpellEffectEntry(&frostfireOrb.effect);
+
         orbAura.Entry().ID = 82690;
         orbAura.effect.SpellID = 82690;
         orbAura.effect.EffectIndex = EFFECT_INDEX_0;
@@ -161,6 +173,27 @@ namespace
         scan.effect.ImplicitTarget_1 = TARGET_ALL_ENEMY_IN_AREA_INSTANT;
         sSpellStore.SetEntry(82734, &scan.Entry());
         AddSpellEffectEntry(&scan.effect);
+
+        frostfireAura.Entry().ID = 84717;
+        frostfireAura.effect.SpellID = 84717;
+        frostfireAura.effect.EffectIndex = EFFECT_INDEX_0;
+        frostfireAura.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        frostfireAura.effect.EffectAura = SPELL_AURA_PERIODIC_TRIGGER_SPELL;
+        frostfireAura.effect.EffectAuraPeriod = 500;
+        frostfireAura.effect.EffectTriggerSpell = 84718;
+        frostfireAura.effect.ImplicitTarget_0 = TARGET_SELF;
+        sSpellStore.SetEntry(84717, &frostfireAura.Entry());
+        AddSpellEffectEntry(&frostfireAura.effect);
+
+        frostfireScan.Entry().ID = 84718;
+        frostfireScan.effect.SpellID = 84718;
+        frostfireScan.effect.EffectIndex = EFFECT_INDEX_0;
+        frostfireScan.effect.Effect = SPELL_EFFECT_DUMMY;
+        frostfireScan.effect.EffectBasePoints = 1000;
+        frostfireScan.effect.ImplicitTarget_0 = TARGET_EFFECT_SELECT;
+        frostfireScan.effect.ImplicitTarget_1 = TARGET_ALL_ENEMY_IN_AREA_INSTANT;
+        sSpellStore.SetEntry(84718, &frostfireScan.Entry());
+        AddSpellEffectEntry(&frostfireScan.effect);
 
         duration.ID = kSnareDuration;
         duration.Duration[0] = 15000;
@@ -233,21 +266,80 @@ TEST(MageOrb_TheRowNamesTheSpellsAndTheCreatureOfFlameOrb)
     CHECK_EQ(orb->explosionTalents[0], uint32(18459));
     CHECK_EQ(orb->explosionTalents[1], uint32(18460));
     CHECK_EQ(orb->explosionTalents[2], uint32(54734));
+    CHECK_EQ(orb->rankHitSpell, uint32(0));
+    CHECK_EQ(orb->rankHitTalent, uint32(0));
 
-    // The summon finds the same row, as the orb does by the spell that created it; the other spells of the chain, the
-    // Frostfire Orb (92283, not in the table yet) and no spell find none.
+    // The summon finds the same row, as the orb does by the spell that created it; the other spells of the chain and
+    // no spell find none.
     CHECK(Mage::OrbSpellsFor(84765) == orb);
-    for (uint32 spellId : { 92283u, 82690u, 82734u, 82739u, 83619u, 0u })
+    for (uint32 spellId : { 82690u, 82734u, 82739u, 83619u, 0u })
     {
         CHECK(Mage::OrbSpellsFor(spellId) == NULL);
     }
 
-    // The orb creature is the Flaming Orb; the Frostfire Orb, the Camel and no creature are not.
+    // The orb creatures are the Flaming Orb and the Frostfire Orb; the Camel and no creature are not.
     CHECK(Mage::IsOrbCreature(44214));
-    for (uint32 entry : { 45322u, 50249u, 0u })
+    CHECK(Mage::IsOrbCreature(45322));
+    for (uint32 entry : { 50249u, 0u })
     {
         CHECK(!Mage::IsOrbCreature(entry));
     }
+}
+
+TEST(MageOrb_TheSecondRowNamesTheSpellsAndTheCreatureOfFrostfireOrb)
+{
+    Mage::OrbSpells const* orb = Mage::OrbSpellsFor(92283);
+    REQUIRE(orb != NULL);
+    CHECK_EQ(orb->castSpell, uint32(92283));
+    CHECK_EQ(orb->summonSpell, uint32(84714));
+    CHECK_EQ(orb->creature, uint32(45322));
+    CHECK_EQ(orb->orbAura, uint32(84717));
+    CHECK_EQ(orb->scanSpell, uint32(84718));
+    CHECK_EQ(orb->hitSpell, uint32(95969));
+    CHECK_EQ(orb->snareSpell, uint32(82736));
+    CHECK_EQ(orb->explosionSpell, uint32(0));
+    CHECK_EQ(orb->explosionTalents[0], uint32(0));
+    CHECK_EQ(orb->explosionTalents[1], uint32(0));
+    CHECK_EQ(orb->explosionTalents[2], uint32(0));
+    CHECK_EQ(orb->rankHitSpell, uint32(84721));
+    CHECK_EQ(orb->rankHitTalent, uint32(84727));
+
+    // Its summon finds the same row and the Flame Orb's spell the other one; the rest of its chain, its talent ranks,
+    // the override buff and Polymorph find none.
+    CHECK(Mage::OrbSpellsFor(84714) == orb);
+    CHECK(Mage::OrbSpellsFor(82731) != orb);
+    for (uint32 spellId : { 84717u, 84718u, 95969u, 84721u, 84726u, 84727u, 92294u, 118u })
+    {
+        CHECK(Mage::OrbSpellsFor(spellId) == NULL);
+    }
+}
+
+TEST(MageOrb_TheFrostfireOrbHitsWithItsChillForAnOwnerWhoKnowsTheSecondRank)
+{
+    Mage::OrbSpells const* frostfire = Mage::OrbSpellsFor(92283);
+    Mage::OrbSpells const* flame = Mage::OrbSpellsFor(82731);
+    REQUIRE(frostfire != NULL);
+    REQUIRE(flame != NULL);
+    OrbTestCreature owner;
+    HolderStorage rankOneStorage;
+    HolderStorage rankTwoStorage;
+
+    // An owner who knows no rank, and one who knows the first (84726): the frostfire hit without a chill (95969).
+    CHECK_EQ(Mage::OrbHitSpellFor(*frostfire, owner), uint32(95969));
+    owner.HoldAura(84726, EmptyHolder(rankOneStorage));
+    CHECK_EQ(Mage::OrbHitSpellFor(*frostfire, owner), uint32(95969));
+
+    // The second rank (84727): the hit with the chill (84721).
+    owner.HoldAura(84727, EmptyHolder(rankTwoStorage));
+    CHECK_EQ(Mage::OrbHitSpellFor(*frostfire, owner), uint32(84721));
+
+    // The Flame Orb's row names no rank's hit: its hit (82739) for any owner.
+    CHECK_EQ(Mage::OrbHitSpellFor(*flame, owner), uint32(82739));
+
+    // A row that names a rank's hit and no talent keeps its own hit.
+    Mage::OrbSpells noTalent = *frostfire;
+    noTalent.rankHitTalent = 0;
+    CHECK_EQ(Mage::OrbHitSpellFor(noTalent, owner), uint32(95969));
 }
 
 TEST(MageOrb_TheCadenceIsTheScanValueAndTheSnareOverTheAurasPeriod)
@@ -260,6 +352,13 @@ TEST(MageOrb_TheCadenceIsTheScanValueAndTheSnareOverTheAurasPeriod)
     Mage::OrbCadence const cadence = Mage::OrbCadenceFor(*orb);
     CHECK_EQ(cadence.scansPerHit, uint32(2));
     CHECK_EQ(cadence.window, uint32(30));
+
+    // The Frostfire Orb's aura and scan hold the same period and value, and it shares the snare: the same cadence.
+    Mage::OrbSpells const* frostfire = Mage::OrbSpellsFor(92283);
+    REQUIRE(frostfire != NULL);
+    Mage::OrbCadence const second = Mage::OrbCadenceFor(*frostfire);
+    CHECK_EQ(second.scansPerHit, uint32(2));
+    CHECK_EQ(second.window, uint32(30));
 
     // A row whose spells the store lacks has no cadence.
     Mage::OrbSpells unknown = *orb;
@@ -351,10 +450,13 @@ TEST(MageOrb_AHitRefundsAFifteenthOfTheOrbSpellsCost)
     OrbTestCreature mage;
     mage.SetCreateMana(20000);
 
-    // 6% of 20000 is 1200, over 15000 / 1000 = 15 hits: 80.
+    // 6% of 20000 is 1200, over 15000 / 1000 = 15 hits: 80, for the Flame Orb's hit and the Frostfire Orb's of both
+    // ranks.
     CHECK_EQ(Mage::OrbCostShare(82739, mage), int32(80));
-    // A spell that is no orb hit has no share: Fireball, the orb spell itself, Fire Power's explosion, no spell.
-    for (uint32 spellId : { 133u, 82731u, 83619u, 0u })
+    CHECK_EQ(Mage::OrbCostShare(95969, mage), int32(80));
+    CHECK_EQ(Mage::OrbCostShare(84721, mage), int32(80));
+    // A spell that is no orb hit has no share: Fireball, the orb spells themselves, Fire Power's explosion, no spell.
+    for (uint32 spellId : { 133u, 82731u, 92283u, 83619u, 0u })
     {
         CHECK_EQ(Mage::OrbCostShare(spellId, mage), int32(0));
     }
@@ -480,21 +582,29 @@ TEST(MageOrb_KeepClosestOrbTargetLeavesTheClosestSeenEnemyAlone)
 
 TEST(MageOrb_TheRowsSitOnTheirHooksAndTheOrbHasItsAI)
 {
-    // The orb spell at the dummy-effect hook, the scan at the target hook and at the dummy-effect hook: three rows,
-    // three keys, each the game's body too.
+    // For each orb, its spell at the dummy-effect hook and its scan at the target hook and at the dummy-effect hook:
+    // six rows, six keys, each the game's body too; the two orbs share the three bodies.
     SpellHandlerRegistry registry;
-    CHECK_EQ(Mage::RegisterOrb(registry), uint32(3));
-    CHECK_EQ(registry.Count(), std::size_t(3));
+    CHECK_EQ(Mage::RegisterOrb(registry), uint32(6));
+    CHECK_EQ(registry.Count(), std::size_t(6));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
-    CHECK(registry.Find<DummyEffectHook>(82731) != NULL);
-    CHECK(registry.Find<SelectTargetsHook>(82734) != NULL);
-    CHECK(registry.Find<DummyEffectHook>(82734) != NULL);
-    CHECK(registry.Find<DummyEffectHook>(82731) != registry.Find<DummyEffectHook>(82734));
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK(game.Find<DummyEffectHook>(82731) == registry.Find<DummyEffectHook>(82731));
-    CHECK(game.Find<SelectTargetsHook>(82734) == registry.Find<SelectTargetsHook>(82734));
-    CHECK(game.Find<DummyEffectHook>(82734) == registry.Find<DummyEffectHook>(82734));
-    for (uint32 spellId : { 84765u, 82690u, 82739u, 83619u })
+    uint32 const casts[] = { 82731, 92283 };
+    uint32 const scans[] = { 82734, 84718 };
+    for (uint32 i = 0; i < 2; ++i)
+    {
+        CHECK(registry.Find<DummyEffectHook>(casts[i]) != NULL);
+        CHECK(registry.Find<SelectTargetsHook>(scans[i]) != NULL);
+        CHECK(registry.Find<DummyEffectHook>(scans[i]) != NULL);
+        CHECK(registry.Find<DummyEffectHook>(casts[i]) != registry.Find<DummyEffectHook>(scans[i]));
+        CHECK(registry.Find<DummyEffectHook>(casts[i]) == registry.Find<DummyEffectHook>(casts[0]));
+        CHECK(registry.Find<SelectTargetsHook>(scans[i]) == registry.Find<SelectTargetsHook>(scans[0]));
+        CHECK(registry.Find<DummyEffectHook>(scans[i]) == registry.Find<DummyEffectHook>(scans[0]));
+        CHECK(game.Find<DummyEffectHook>(casts[i]) == registry.Find<DummyEffectHook>(casts[i]));
+        CHECK(game.Find<SelectTargetsHook>(scans[i]) == registry.Find<SelectTargetsHook>(scans[i]));
+        CHECK(game.Find<DummyEffectHook>(scans[i]) == registry.Find<DummyEffectHook>(scans[i]));
+    }
+    for (uint32 spellId : { 84765u, 82690u, 82739u, 83619u, 84714u, 84717u, 95969u, 84721u })
     {
         CHECK(game.Find<DummyEffectHook>(spellId) == NULL);
     }
@@ -504,9 +614,12 @@ TEST(MageOrb_TheRowsSitOnTheirHooksAndTheOrbHasItsAI)
     REQUIRE(factory != NULL);
     OrbTestCreature orb;
     orb.SetEntry(44214);
+    OrbTestCreature frostfire;
+    frostfire.SetEntry(45322);
     OrbTestCreature camel;
     camel.SetEntry(50249);
     CHECK_EQ(factory->Permit(&orb), int(PERMIT_BASE_SPECIAL));
+    CHECK_EQ(factory->Permit(&frostfire), int(PERMIT_BASE_SPECIAL));
     CHECK_EQ(factory->Permit(&camel), int(PERMIT_BASE_NO));
     Mage::RegisterOrb(registry);
     CHECK(CreatureAIRepository::Instance().GetRegistryItem("OrbAI") == factory);

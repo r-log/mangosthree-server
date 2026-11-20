@@ -50,13 +50,13 @@
  * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
  * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
  * (ImprovedConeOfColdFreeze), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice Barrier's
- * (GlyphedBarrierAmount) and Reactive Barrier's (ReactiveBarrierTriggers). Orb.cpp holds the orb a mage's Flame Orb
- * summons: its creature AI, its scripts and its leaves (OrbSpellsFor, IsOrbCreature, ClosestOrbTarget,
- * KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue, OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance
- * and OrbCostShare). Ring.cpp holds the ring a mage's Ring of Frost summons: its creature AI, its scripts and its
- * leaves (RingSpellsFor, IsRingCreature, RingInBand, RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and
- * RingMarkerOnRemove). Each file registers its rows through one function of namespace Mage: a table per legacy site
- * of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * (GlyphedBarrierAmount), Reactive Barrier's (ReactiveBarrierTriggers) and Cold Snap's (ColdSnapResets). Orb.cpp holds
+ * the orbs a mage's Flame Orb and Frostfire Orb summon: their creature AI, their scripts and their leaves
+ * (OrbSpellsFor, IsOrbCreature, OrbHitSpellFor, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue,
+ * OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Ring.cpp holds the ring a
+ * mage's Ring of Frost summons: its creature AI, its scripts and its leaves (RingSpellsFor, IsRingCreature, RingInBand,
+ * RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and RingMarkerOnRemove). Each file registers its rows through
+ * one function of namespace Mage: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
  */
 
 /// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's and the ring's.
@@ -160,19 +160,26 @@ namespace Mage
         uint32 creature;            ///< the creature the summon makes (44214)
         uint32 orbAura;             ///< the orb's own aura (82690): it casts the scan, and its script words are the orb's
         uint32 scanSpell;           ///< the dummy the orb's own aura casts every half second (82734)
-        uint32 hitSpell;            ///< the hit the orb casts at the closest enemy (82739)
+        uint32 hitSpell;            ///< the hit the orb casts at the closest enemy (82739, 95969)
         uint32 snareSpell;          ///< the slow the orb puts on itself when it finds its first enemy (82736)
-        uint32 explosionSpell;      ///< the explosion at the orb's end (83619)
+        uint32 explosionSpell;      ///< the explosion at the orb's end; 0 for none (83619)
         uint32 explosionTalents[3]; ///< the owner's talents whose proc chance is the explosion's; 0 pads (18459, 18460,
                                     ///< 54734)
+        uint32 rankHitSpell;        ///< the hit cast in hitSpell's place for an owner who knows rankHitTalent; 0 for
+                                    ///< none (84721)
+        uint32 rankHitTalent;       ///< the owner's talent that switches the hit; 0 for none (84727)
     };
 
-    /// The orb row of the mage's spell (82731) or of the orb's created-by spell (84765); NULL for any other id. Defined
-    /// in Orb.cpp.
+    /// The orb row of the mage's spell (82731, 92283) or of the orb's created-by spell (84765, 84714); NULL for any
+    /// other id. Defined in Orb.cpp.
     OrbSpells const* OrbSpellsFor(uint32 spellId);
 
     /// Whether `creatureEntry` is an orb of the table. Defined in Orb.cpp.
     bool IsOrbCreature(uint32 creatureEntry);
+
+    /// The hit an orb of `spells` casts for `owner`: the row's rankHitSpell when it names one and the owner holds the
+    /// row's rankHitTalent, its hitSpell otherwise. Defined in Orb.cpp.
+    uint32 OrbHitSpellFor(OrbSpells const& spells, Unit const& owner);
 
     /// The closest of `candidates` to `from` that an orb may strike: alive, not a critter, not polymorphed, and one
     /// `sees` accepts; NULL when none. Defined in Orb.cpp.
@@ -248,8 +255,9 @@ namespace Mage
     /// when it is one of the table's explosion talents; 0 for any other spell. Defined in Orb.cpp.
     uint32 OrbExplosionChance(uint32 talentSpell);
 
-    /// The base mana cost an orb's hit refunds through Master of Elements: the mage's spell's cost over the hits one orb
-    /// makes (the due scans of OrbCadenceFor's window, 15); 0 for a spell that is no orb hit. Defined in Orb.cpp.
+    /// The base mana cost an orb's hit (a row's hitSpell or rankHitSpell) refunds through Master of Elements: the
+    /// mage's spell's cost over the hits one orb makes (the due scans of OrbCadenceFor's window, 15); 0 for a spell
+    /// that is no orb hit. Defined in Orb.cpp.
     int32 OrbCostShare(uint32 procSpellId, Unit const& mage);
 
     /// Whether the aura effect a proc runs for is of `auraType`. A proc script runs for every effect of its spell that
@@ -541,6 +549,11 @@ namespace Mage
     /// whole) answers while the unit is below half; a hit of `health` or more (a killing blow) never does. Defined in
     /// Frost.cpp.
     bool ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damage);
+
+    /// Whether Cold Snap (11958) makes ready a spell on its caster's cooldown, from the spell's id, family, school
+    /// mask and recovery time in ms: a mage spell with a recovery time, other than Cold Snap, whose school mask holds
+    /// Frost, or the Frostfire Orb (92283), whose own school is Fire. Defined in Frost.cpp.
+    bool ColdSnapResets(uint32 spellId, uint32 family, uint32 schoolMask, uint32 recoveryMs);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
     /// when the spell store has no `spellId`; otherwise OK when ctx.CastTriggered cast it, FAILED when it refused.
