@@ -24,7 +24,20 @@
  */
 
 #include "data/CreatureRecords.h"
+#include "DBCStores.h"
 #include "ObjectMgr.h"
+
+uint32 CreatureInfo::BaseManaAt(uint32 level) const
+{
+    if (UnitClass == 0 || UnitClass >= MAX_CLASSES)
+    {
+        return 0;
+    }
+
+    uint32 const row = level == 0 ? 0 : (level > GT_MAX_LEVEL ? GT_MAX_LEVEL : level) - 1;
+    GtOCTBaseMPByClassEntry const* entry = sGtOCTBaseMPByClassStore.LookupEntry((UnitClass - 1) * GT_MAX_LEVEL + row);
+    return entry ? uint32(entry->ratio) : 0;
+}
 
 ObjectGuid CreatureData::GetObjectGuid(uint32 lowguid) const
 {
