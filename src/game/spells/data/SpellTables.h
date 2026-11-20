@@ -114,6 +114,12 @@ bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ow
 /// A stun without that flag, a root, a fear or any other aura answers false.
 bool BreaksOnAnyDamage(uint32 auraInterruptFlags, uint32 auraType);
 
+/// Whether a confuse or a stun whose holder has `charges` charges left and whose proc flags are `procFlags` breaks on
+/// the first damage it takes, through its charge: one charge left, and the flags hold every kind of damage taken
+/// (melee and ranged swings, weapon spells, area and harmful spell hits, periodic damage), so the first damaging hit
+/// spends it (Gouge, Repentance). Any other aura, or a holder with no charge or more than one, answers false.
+bool BreaksOnFirstDamageByCharge(uint32 charges, uint32 procFlags, uint32 auraType);
+
 /// Whether an aura of `auraType` whose aura interrupt flags are `auraInterruptFlags`, on a holder with `charges`
 /// charges, breaks on damage by a chance past a threshold and counts the damage a hit's absorbs and the victim's
 /// damage-reduction effects took (ThresholdDamage): a fear, a root or a pacify-silence, and a stun whose flags hold

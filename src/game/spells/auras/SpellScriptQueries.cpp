@@ -154,6 +154,14 @@ namespace
         }
         return false;
     }
+
+    /// The proc flags the proc loop reads for `spell` (Unit::IsTriggeredAtSpellProcEvent): its spell_proc_event row's
+    /// when that row names any, else the spell's own.
+    uint32 ProcFlagsOf(SpellEntry const& spell)
+    {
+        SpellProcEventEntry const* event = sSpellMgr.GetSpellProcEvent(spell.ID);
+        return event && event->procFlags ? event->procFlags : spell.GetProcFlags();
+    }
 }
 
 float Spells::LowHealthDamageMultiplier(Unit const& caster, Unit const& victim, SpellEntry const& spell)
@@ -269,8 +277,10 @@ bool Spells::HeldByControlDamageBreaks(Unit const& unit)
         for (Unit::AuraList::const_iterator i = auras.begin(); i != auras.end(); ++i)
         {
             SpellAuraHolder const* holder = (*i)->GetHolder();
+            SpellEntry const* spell = (*i)->GetSpellProto();
             if (holder && !holder->IsPositive() &&
-                BreaksOnAnyDamage((*i)->GetSpellProto()->GetAuraInterruptFlags(), uint32(type)))
+                (BreaksOnAnyDamage(spell->GetAuraInterruptFlags(), uint32(type)) ||
+                 BreaksOnFirstDamageByCharge(holder->GetAuraCharges(), ProcFlagsOf(*spell), uint32(type))))
             {
                 return true;
             }
