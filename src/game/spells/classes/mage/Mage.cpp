@@ -142,19 +142,6 @@ static SpellHandlerOutcome<void> EffectDummyMageConjureRefreshment(SpellEffectDu
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// 56372: Glyph of Ice Block: removes a player's cooldowns of category 35
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage56372(DummyAuraProcContext& ctx)
-{
-    if (ctx.unit->GetTypeId() != TYPEID_PLAYER)
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    // Frost Nova is the mage's one spell of category 35: the glyph resets its cooldown
-    ctx.unit->RemoveSpellCategoryCooldown(35, true);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
-}
-
 /// 64411: Blessing of Ancient Kings: after a positive spell, triggers 64413 for 15 percent of the damage
 static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAuraProcContext& ctx)
 {
@@ -267,7 +254,6 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
 
     static Row<DummyAuraProcMageSite> const dummyAuraProcMage[] =
     {
-        { 56372, &DummyAuraProcMage56372 },
         { 64411, &DummyAuraProcMage64411 },
     };
 
