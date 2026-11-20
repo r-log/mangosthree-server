@@ -239,6 +239,14 @@ namespace Harness
         }
     }
 
+    void HarnessAI::OwnerAttacked(Unit* victim)
+    {
+        if (m_wrapped)
+        {
+            m_wrapped->OwnerAttacked(victim);
+        }
+    }
+
     void HarnessAI::JustSummoned(Creature* summoned)
     {
         if (m_wrapped)

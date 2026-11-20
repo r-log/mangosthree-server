@@ -238,6 +238,7 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
                 // fall through
                 case REACT_DEFENSIVE:                       // recovery
                 case REACT_AGGRESSIVE:                      // activete
+                case REACT_ASSIST:
                 {
                     charmInfo->SetReactState(ReactStates(spellid));
                     break;

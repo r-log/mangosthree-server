@@ -135,6 +135,10 @@ namespace
     // The id Molten Shields' aura-remove script holds: Mage Ward, whose break by damage brings Blazing Speed.
     uint32 const MAGE_WARD_IDS[] = { 543 };
 
+    // The id the class-wide file holds at the aura-apply and aura-remove hooks: Invisibility, which hides the mage's
+    // pet with him.
+    uint32 const INVISIBILITY_IDS[] = { 32612 };
+
     // The ids Pyromaniac's scripts hold at the aura-apply and aura-remove hooks: the eight DoTs it counts (Flamestrike's
     // ground effect, Pyroblast, Ignite, Living Bomb, Frostfire Bolt, Combustion, the free Flamestrike's ground effect,
     // Pyroblast!) and the talent's two ranks.
@@ -641,7 +645,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // The class-wide file: Invisibility at the trigger-spell site; Polymorph Cast Visual, Blink, Conjure Refreshment
     // and the two raid buffs at the dummy-effect site; the Glyphs of Ice Block and Polymorph and Blessing of Ancient
     // Kings at the dummy proc site; the defaults of the trigger-spell, periodic dummy tick and boost sites; Blink at
-    // the target hook, Persistent Shield and Offensive State at the proc hook. Fire: Living Bomb at the dummy aura
+    // the target hook, Persistent Shield and Offensive State at the proc hook, and Invisibility's state (32612) at the
+    // aura-apply and aura-remove hooks. Fire: Living Bomb at the dummy aura
     // hook, Hot Streak's buff and Mage Ward at the aura-remove hook, Pyromaniac's eight DoTs and two ranks at the
     // aura-apply and aura-remove hooks, Combustion and Impact's spread at the dummy-effect hook, Blast Wave at the
     // after-cast hook, and Frostfire Bolt at the after-hit hook. Frost: the 22 spells Frostburn's mask covers at the
@@ -656,11 +661,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // and Frostfire Orb at the dummy-effect hook, and each orb's scan at the target and dummy-effect hooks. The ring:
     // Ring of Frost at the periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. Impact,
     // Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two
-    // ranks and Reactive Barrier's two ranks also at the check-proc hook. 165 rows, 162 keys and 3 defaults, none
+    // ranks and Reactive Barrier's two ranks also at the check-proc hook. 167 rows, 164 keys and 3 defaults, none
     // twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(165));
-    CHECK_EQ(registry.Count(), std::size_t(162));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(167));
+    CHECK_EQ(registry.Count(), std::size_t(164));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -674,8 +679,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(13));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(23));
+    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(14));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(24));
     CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(2));
@@ -698,7 +703,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     };
     PerFile const files[] =
     {
-        { &Mage::RegisterClassWide, 15, 12, 3 },
+        { &Mage::RegisterClassWide, 17, 14, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 75, 75, 0 },
         { &Mage::RegisterArcane, 26, 26, 0 },
@@ -714,8 +719,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(165));
-    CHECK_EQ(registry.Count(), std::size_t(162));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(167));
+    CHECK_EQ(registry.Count(), std::size_t(164));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -726,7 +731,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(162));
+    CHECK_EQ(mine.size(), std::size_t(164));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -1682,6 +1687,7 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
                                                 sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
                                                 sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) +
                                                 sizeof(POLYMORPH_IDS) / sizeof(uint32) +
+                                                sizeof(INVISIBILITY_IDS) / sizeof(uint32) +
                                                 sizeof(ICE_BARRIER_IDS) / sizeof(uint32) +
                                                 sizeof(MANA_SHIELD_BREAK_IDS) / sizeof(uint32) +
                                                 sizeof(RING_FREEZE_IDS) / sizeof(uint32));
@@ -2074,6 +2080,51 @@ TEST(MageScripts_InvisibilityFadeTakesATenthPerTick)
     CHECK_EQ(Mage::InvisibilityThreatPercent(0), int32(0));
 }
 
+TEST(MageScripts_InvisibilityRunsOnTheAuraApplyAndRemoveHooksAndActsOnlyForAPet)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+
+    // Invisibility's state (32612) has a body at each hook, on this table and the game's; the fade (66) and the pet's
+    // own Invisibility (96243) have none.
+    CheckRowsInTheGame<AuraApplyHook>(registry, INVISIBILITY_IDS);
+    CheckRowsInTheGame<AuraRemoveHook>(registry, INVISIBILITY_IDS);
+    CHECK(registry.Find<AuraApplyHook>(32612) != NULL);
+    CHECK(registry.Find<AuraRemoveHook>(32612) != NULL);
+    for (uint32 spellId : { 66u, 96243u })
+    {
+        CHECK(SpellHandlerRegistry::Game().Find<AuraApplyHook>(spellId) == NULL);
+        CHECK(SpellHandlerRegistry::Game().Find<AuraRemoveHook>(spellId) == NULL);
+    }
+
+    // A mage with no pet: the apply, at the call before the add and after it, and the removal for every reason, cast
+    // nothing, take nothing off him and let the holder's other steps run.
+    BareCreature mage;
+    SpellRowStorage row;
+    HolderStorage storage;
+    SpellAuraHolder& holder = EmptyHolder(storage);
+    HolderStorage stateStorage;
+    mage.HoldAura(32612, EmptyHolder(stateStorage));
+    CHECK(mage.GetPet() == NULL);
+    for (bool real : { false, true })
+    {
+        AuraApplyContext apply(mage, &mage, SpellRow(row, 32612), AuraHandle(holder), real);
+        CHECK(registry.Dispatch<AuraApplyHook>(32612, apply).IsContinue());
+    }
+    AuraRemoveMode const modes[] =
+    {
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
+        AURA_REMOVE_BY_STACK,
+    };
+    for (AuraRemoveMode mode : modes)
+    {
+        AuraRemoveContext remove(mage, &mage, SpellRow(row, 32612), AuraHandle(holder), mode);
+        CHECK(registry.Dispatch<AuraRemoveHook>(32612, remove).IsContinue());
+    }
+    CHECK(mage.HasAura(32612));
+    CHECK(!mage.HasAura(96243));
+}
+
 TEST(MageScripts_PyromaniacFindsNoBurningEnemyForAMageNoEnemyHates)
 {
     // No unit's threat list holds a bare creature, so its walk finds no enemy.
@@ -2121,6 +2172,7 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
     CHECK_EQ(game.CountAt(AuraApplyHook::Key),
              sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
              sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32) +
+             sizeof(INVISIBILITY_IDS) / sizeof(uint32) +
              sizeof(ICE_BARRIER_IDS) / sizeof(uint32));
 
     // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
