@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// A creature's base mana (CreatureInfo::BaseManaAt): the player base-mana table of its class at its level, whatever
+/// A guardian's base mana (CreatureInfo::BaseManaAt): the player base-mana table of its class at its level, whatever
 /// its power multiplier, and 0 for a class the table gives no mana or holds no row of. The table is seeded with rows of
 /// the 15595 gtOCTBaseMPByClass.dbc, each at its row id (class - 1) x 100 + level - 1, through DBCStorage::SetEntry,
 /// the path GlyphMgrTest and TalentMgrTest seed their stores by; no other test in this binary reads this store.

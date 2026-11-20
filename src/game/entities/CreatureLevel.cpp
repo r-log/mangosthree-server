@@ -138,10 +138,10 @@ void Creature::SelectLevel(uint32 forcedLevel /*= USE_DEFAULT_DATABASE_LEVEL*/)
             value = 0;
         }
 
-        // Base mana: its class's player base mana at its level (CreatureInfo::BaseManaAt), not its maximum
+        // Mana requires an extra field to be set
         if (i == POWER_MANA)
         {
-            SetCreateMana(cinfo->BaseManaAt(level));
+            SetCreateMana(value);
         }
 
         SetMaxPower(Powers(i), maxValue);
@@ -262,10 +262,10 @@ void Creature::SelectLevel(const CreatureInfo* cinfo, float percentHealth /*= 10
             value = 0;
         }
 
-        // Base mana: its class's player base mana at its level (CreatureInfo::BaseManaAt), not its maximum
+        // Mana requires an extra field to be set
         if (i == POWER_MANA)
         {
-            SetCreateMana(cinfo->BaseManaAt(level));
+            SetCreateMana(value);
         }
 
         SetMaxPower(Powers(i), maxValue);
