@@ -241,7 +241,8 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, fields.exp);
     SetCreatorGuid(owner->GetObjectGuid());
 
-    m_charmInfo->SetReactState(ReactStates(fields.reactState));
+    // a pet saved in the Aggressive stance loads in Assist
+    m_charmInfo->SetReactState(fields.reactState == REACT_AGGRESSIVE ? REACT_ASSIST : ReactStates(fields.reactState));
 
     uint32 savedhealth = fields.curHealth;
     uint32 savedpower = fields.curMana;

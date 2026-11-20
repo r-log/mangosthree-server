@@ -57,6 +57,7 @@
 #include "maps/GridNotifiersImpl.h"
 #include "movement/MoveSpline.h"
 #include "session/handlers/entities/MovementHandlers.h"
+#include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/spells/SpellHandlers.h"
 #include "session/packets/spells/CastTargetsPacket.h"
 
@@ -185,6 +186,14 @@
 // 30% to the whole absorb. 1016 Reactive Barrier casts the free Ice Barrier for a swing that leaves him below half
 // health, also when he was below half already and when an absorb took the swing whole, and never while Ice Barrier's
 // cooldown runs.
+// 1017 a staged Frost mage's Flame Orb button casts the Frostfire Orb, whose hits are frostfire, chill their target
+// at the talent's second rank only and never ignite; Cold Snap makes it ready again, and it skips a polymorphed enemy.
+// 1018 a staged Frost mage's fresh Water Elemental starts with Waterbolt's autocast on and Freeze's off, takes the
+// client's Assist button, fires Waterbolt on its own at what he attacks, each bolt taking 0.833 of its spell power,
+// which is 0.4 of his frost spell power, and turns invisible with him and back with him. 1019 an Assist Water
+// Elemental attacks what he attacks, switches to a new target only after he has attacked it for three seconds and
+// drops the switch when he attacks its own target again; a Defensive one keeps its target and does not take his; an
+// idle Assist one does not attack a Camel he polymorphs.
 // 1020 a staged Frost mage's Ice Floes 3 takes 20% off the cooldowns of Frost Nova, Cone of Cold, Ice Block, Ice
 // Barrier, Icy Veins and Cold Snap, category cooldowns included, and nothing off Deep Freeze, Ring of Frost and Summon
 // Water Elemental; Cold Snap ends all eight and keeps its own; Hypothermia outlasts Cold Snap and refuses Ice Block;
@@ -242,7 +251,7 @@
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
 // Magic goes on another mage and not on him, that mage's hit that does not crit gives him no 54648, and his crit gives
 // him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1016, 1020-1028 and 1100-1113 (Qualify) fingerprints every
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1028 and 1100-1113 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4147,11 +4156,12 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1016, 1020-1028, 1100-1113): a human mage staged to level 85 with the scenario's talents,
+     * 998-1000, 1010-1028, 1100-1113): a human mage staged to level 85 with the scenario's talents,
      * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
-     * staged (AfterStage), then the pet the scenario names (PetEntry), and a Camel (50249, or the creature
-     * TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its own) ten yards in front of
-     * him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
+     * staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
+     * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
+     * Camel (50249, or the creature TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its
+     * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
      *  - a cast: for a scenario that names an aura for its caster (CasterAura: one its spell asks for on its caster, or
      *    a hit aura), that aura put on him when he does not hold it, by a triggered self-cast or, when CasterAuraPut()
      *    is set, without a cast; his mana set to its maximum by call; for a step that must crit, Increased Critical
@@ -4381,9 +4391,14 @@ namespace Harness
                 AfterStage(*p);
                 if (const uint32 petEntry = PetEntry())
                 {
-                    if (!BuildOwnedPet(p, petEntry, P0.x, P0.y + kPetOffset, 0.0f))
+                    Pet* pet = BuildOwnedPet(p, petEntry, P0.x, P0.y + kPetOffset, 0.0f, PetRunsAI());
+                    if (!pet)
                     {
                         st->staged = false;
+                    }
+                    else if (PetLearnsSpells())
+                    {
+                        pet->InitLevelupSpellsForLevel();
                     }
                 }
             }
@@ -4741,6 +4756,12 @@ namespace Harness
         /// The creature entry of a pet built for him after he is staged (Scenario::BuildOwnedPet), kPetOffset yards to
         /// his side; 0 for none.
         virtual uint32 PetEntry() const { return 0; }
+        /// Whether the pet keeps its own AI (Scenario::BuildOwnedPet's keepAI), so it acts on its own; false by
+        /// default.
+        virtual bool PetRunsAI() const { return false; }
+        /// Whether the pet learns the spells of its level as a summoned pet does (Pet::InitLevelupSpellsForLevel);
+        /// false by default.
+        virtual bool PetLearnsSpells() const { return false; }
         /// The yards above the ground the mage stands at; none by default.
         virtual float PlayerLift() const { return 0.0f; }
         /// The way the mage faces, in radians; +x by default.
@@ -17522,6 +17543,352 @@ namespace Harness
     };
 
     /**
+     * S1017 `mage-frost-frostfire-orb`: Frostfire Orb (talent 11169: 84726 at rank 1, 84727 at rank 2) on a staged
+     * Frost mage: Piercing Ice 1 (a Frost talent, so the stage teaches the Frost tree's spells), kSpellPower spell
+     * power, Flame Orb (82731), Cold Snap (11958), Frostfire Orb's first rank, Ignite 3 (12846) and Polymorph (118)
+     * learned. Each rank's aura 332 names 92283 for the spells of class mask C 0x800, which Flame Orb carries, so the
+     * CAST_SPELL handler casts 92283 when he sends 82731 (SpellHandlers::HandleCastSpell). 92283 casts the summon
+     * 84714, which puts the Frostfire Orb 45322 at his point; the world's addon row gives it 84717, which casts its
+     * scan 84718 every 500 ms; the orb snares itself (82736) on its first enemy and hits the closest enemy once a
+     * second for the snare's 15 s: 95969 for a mage who knows rank 1, 84721 (the hit and a 2 s -40% slow) for one who
+     * knows rank 2. Beside the Camel ten yards out stands a second Camel six yards out, nearer the orb's line, as in
+     * 973; both cast Hit Me (100446) on themselves at their spawn, so no scan or hit misses them. Steps:
+     *  1. Polymorph at the second Camel;
+     *  2. Flame Orb sent as the client sends it, under the crit aura at +100, so every hit crits;
+     *  3. Cold Snap; 4. a wait, at which he unlearns the first rank (Player::removeSpell) and learns the second
+     *     (Player::learnSpell);
+     *  5. Flame Orb sent as the client sends it, under the crit aura.
+     * kOrbReadMs after each Flame Orb step acts the scenario keeps the live creatures 45322 within kOrbSearchRange of
+     * him, the slow (84721) on the first Camel, its amount and full duration, and whether the Camel holds Ignite's DoT
+     * (12654); at step 2's read and at step 3's it keeps whether he holds 92283's cooldown; once staged, whether he
+     * holds Ignite.
+     *
+     * `frostfireOrb`: `button=<the spell of the spell go of step 2's cast count>/<of step 5's> orbs=<the orbs at the
+     * two reads> hits=<95969 damage logs on the first Camel>/<84721 ones> chill=<the slow at step 2's read>/<at step
+     * 5's, amount:full duration> ignite=<held or missing>/<12654 ticks of his, and holders at the reads>
+     * coldSnap=<92283 on cooldown at step 2's read>/<at step 3's> sheep=<up or down at the end>/<orb hits on the second
+     * Camel>`. OK at `button=92283/92283 orbs=1/1 hits=15/15 chill=none/-40:2000 ignite=held/0 coldSnap=yes/no
+     * sheep=up/0` with every hit his, a crit and of school mask 20, no orb hit on any other unit, and the second rank
+     * held alone at step 4: the button casts the Frostfire Orb, its hits are frostfire and chill at rank 2 only, they
+     * never ignite, Cold Snap makes the orb ready again, and the orb skips a polymorphed enemy. Each hit's amount is
+     * noted, not judged: (228..292 + int(1197 x 0.134) = 160) x 1.25 (Frost Specialization), then x1.5 for the
+     * crit and x1.33 for the mage's passive 85801 (+33% crit damage): about 966..1126.
+     */
+    class MageFrostFrostfireOrb : public MageProcScenario
+    {
+    public:
+        MageFrostFrostfireOrb() : MageProcScenario("mage-frost-frostfire-orb", 1017, "frostfireOrb") {}
+
+        void Prepare() override
+        {
+            m_player = ObjectGuid();
+            m_camel = ObjectGuid();
+            m_igniteHeld = false;
+            m_rankTwoAlone = false;
+            m_cooldownAtOrb = kUnread;
+            m_cooldownAfterColdSnap = kUnread;
+            for (uint32 orb = 0; orb < 2; ++orb)
+            {
+                m_orbRead[orb] = false;
+                m_orbs[orb] = 0;
+                m_chillAmount[orb] = 0;
+                m_chillMax[orb] = -1;
+                m_igniteHolder[orb] = 0;
+            }
+            MageProcScenario::Prepare();
+        }
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11157, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kFlameOrb, kColdSnap, kRankOne, kIgnite, kPolymorph }; }
+        std::vector<uint32> SpellsLearnedLater() const override { return { kRankTwo }; }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 TargetAura() const override { return kHitMe; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override { return { { -4.0f, 0.0f } }; }
+
+        void AfterStage(Player& p) override
+        {
+            m_igniteHeld = p.HasAura(kIgnite);
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { AuraCastAt(kPolymorph, 1, kPolymorphEveryMs), OrbCast(), AuraCast(kColdSnap, kColdSnapEveryMs),
+                     Wait(kLearnEveryMs), OrbCast() };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 82731: 26 fields, fnv 53501c97
+                { 82731, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 92283: 26 fields, fnv 53501c97
+                { 92283, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84714: 26 fields, fnv 23d4b5dc
+                { 84714, { { "eff0.present", 1 }, { "eff0.Effect", 28 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 45322 }, { "eff0.EffectMiscValue_1", 3019 }, { "eff0.EffectRadiusIndex_0", 36 }, { "eff0.ImplicitTarget_0", 47 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84717: 26 fields, fnv 2fdb2c88
+                { 84717, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 23 }, { "eff0.EffectAuraPeriod", 500 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 84718 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 84718: 26 fields, fnv af0731ee
+                { 84718, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectBasePoints", 1000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 18 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 82736: 26 fields, fnv 63cfd739
+                { 82736, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -90 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 95969: 26 fields, fnv 8b1f0ec8
+                { 95969, { { "eff0.present", 0 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 174 }, { "eff1.EffectBonusCoefficient", 1040791372 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 22 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 84721: 72 fields, fnv d3ab6a45
+                { 84721, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 174 }, { "eff1.EffectBonusCoefficient", 1040791372 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 22 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 11958: 26 fields, fnv 1b2f1172
+                { 11958, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 118: 49 fields, fnv ffbe2272
+                { 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 12846: 26 fields, fnv 378f106d
+                { 12846, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12654: 49 fields, fnv ac3e5e56
+                { 12654, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 3 }, { "eff0.EffectAuraPeriod", 2000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 100446: 72 fields, fnv d831e1e8
+                { 100446, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 49 }, { "eff0.EffectBasePoints", -10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 184 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 186 }, { "eff2.EffectBasePoints", 20 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            m_player = st.player;
+            m_camel = st.targets.empty() ? ObjectGuid() : st.targets[0];
+            if (k == kOrbOneStep || k == kOrbTwoStep)
+            {
+                const uint32 orb = k == kOrbOneStep ? 0 : 1;
+                if (!atRead)
+                {
+                    At(kOrbReadMs, [this, orb]() { ReadOrb(orb); });
+                }
+                else if (orb == 0)
+                {
+                    m_cooldownAtOrb = p->HasSpellCooldown(kFrostfireOrb) ? 1 : 0;
+                    m_rec.Note(U(kFrostfireOrb) + (m_cooldownAtOrb ? " on" : " off") + " cooldown; stored keys [" +
+                               CooldownKeys(p) + "]");
+                }
+                return;
+            }
+            if (k == kColdSnapStep && atRead)
+            {
+                m_cooldownAfterColdSnap = p->HasSpellCooldown(kFrostfireOrb) ? 1 : 0;
+                m_rec.Note(U(kFrostfireOrb) + (m_cooldownAfterColdSnap ? " on" : " off") +
+                           " cooldown after Cold Snap; stored keys [" + CooldownKeys(p) + "]");
+                return;
+            }
+            if (k == kLearnStep && !atRead)
+            {
+                p->removeSpell(kRankOne, false, false);
+                p->learnSpell(kRankTwo, false);
+                m_rankTwoAlone = p->HasAura(kRankTwo) && !p->HasAura(kRankOne);
+                m_rec.Note("he unlearns " + U(kRankOne) + " and learns " + U(kRankTwo) + ": " + U(kRankOne) +
+                           (p->HasAura(kRankOne) ? " held, " : " gone, ") + U(kRankTwo) +
+                           (p->HasAura(kRankTwo) ? " held" : " gone"));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            const uint64 camel = st.targets.empty() ? 0 : st.targets[0].GetRawValue();
+            const uint64 sheepGuid = st.targets.size() > 1 ? st.targets[1].GetRawValue() : 0;
+            const uint64 mage = st.player.GetRawValue();
+            uint32 counts[2] = { 0, 0 };
+            uint32 elsewhere = 0, onSheep = 0, ticks = 0;
+            bool hitsOk = true;
+            std::string amounts[2];
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                ticks += uint32(TickAmounts(k, kIgniteDot).size());
+                const std::vector<std::string> windows = StepWindows(k);
+                for (size_t w = 0; w < windows.size(); ++w)
+                {
+                    std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(windows[w], SMSG_SPELLNONMELEEDAMAGELOG);
+                    for (size_t i = 0; i < logs.size(); ++i)
+                    {
+                        Trace::SpellDamageLog log;
+                        if (logs[i]->payload.empty() ||
+                            !Trace::ReadSpellDamageLog(&logs[i]->payload[0], logs[i]->payload.size(), log) ||
+                            (log.spell != kRankOneHit && log.spell != kRankTwoHit))
+                        {
+                            continue;
+                        }
+                        if (log.target != camel)
+                        {
+                            ++elsewhere;
+                            onSheep += log.target == sheepGuid ? 1 : 0;
+                            continue;
+                        }
+                        const uint32 rank = log.spell == kRankOneHit ? 0 : 1;
+                        const bool crit = (log.hitInfo & 0x2) != 0;
+                        const bool his = log.attacker == mage;
+                        hitsOk = hitsOk && crit && his && log.school == kFrostfireSchool;
+                        ++counts[rank];
+                        amounts[rank] += (amounts[rank].empty() ? "" : "/") + U(log.damage) + (crit ? "c" : "") +
+                                         (his ? "" : "!") + (log.school == kFrostfireSchool ? "" : "s" + U(log.school));
+                    }
+                }
+            }
+
+            const CastPath first = CastPathOf(kOrbOneStep);
+            const CastPath second = CastPathOf(kOrbTwoStep);
+            Creature* sheep = st.targets.size() > 1 ? Get(st.targets[1]) : NULL;
+            const bool sheepUp = sheep && sheep->HasAura(kPolymorph);
+            const uint32 holders = m_igniteHolder[0] + m_igniteHolder[1];
+
+            const bool buttonOk = first.go == kFrostfireOrb && second.go == kFrostfireOrb;
+            const bool orbsOk = m_orbRead[0] && m_orbRead[1] && m_orbs[0] == 1 && m_orbs[1] == 1;
+            const bool hitsCountOk = counts[0] == kOrbHits && counts[1] == kOrbHits && hitsOk && elsewhere == 0;
+            const bool chillOk = m_chillMax[0] < 0 && m_chillAmount[1] == kChillAmount && m_chillMax[1] == kChillMs;
+            const bool igniteOk = m_igniteHeld && ticks == 0 && holders == 0;
+            const bool coldSnapOk = m_cooldownAtOrb == 1 && m_cooldownAfterColdSnap == 0;
+            const bool sheepOk = sheepUp && onSheep == 0;
+            const bool ok = buttonOk && orbsOk && hitsCountOk && chillOk && igniteOk && coldSnapOk && sheepOk &&
+                            m_rankTwoAlone;
+            const std::string value = "button=" + GoText(first) + "/" + GoText(second) +
+                                      " orbs=" + U(m_orbs[0]) + "/" + U(m_orbs[1]) +
+                                      " hits=" + U(counts[0]) + "/" + U(counts[1]) +
+                                      " chill=" + ChillText(0) + "/" + ChillText(1) +
+                                      " ignite=" + (m_igniteHeld ? "held" : "missing") + "/" + U(ticks + holders) +
+                                      " coldSnap=" + YesNo(m_cooldownAtOrb) + "/" + YesNo(m_cooldownAfterColdSnap) +
+                                      " sheep=" + (sheepUp ? "up" : "down") + "/" + U(onSheep);
+            const std::string none = "none";
+            const std::string detail = "the rank 1 hits " + (amounts[0].empty() ? none : amounts[0]) +
+                                       "; the rank 2 hits " + (amounts[1].empty() ? none : amounts[1]) + "; " +
+                                       U(elsewhere) + " orb hit(s) on other units; " + U(ticks) + " Ignite tick(s), " +
+                                       U(holders) + " Ignite holder(s) at the reads; the second rank " +
+                                       (m_rankTwoAlone ? "held alone" : "not held alone") +
+                                       " after step 4; step 5's refusal " +
+                                       (second.failed ? CastResultName(second.result) : none);
+            return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
+        }
+
+    private:
+        static constexpr uint32 kFlameOrb = 82731;
+        static constexpr uint32 kFrostfireOrb = 92283;
+        static constexpr uint32 kOrb = 45322;
+        static constexpr uint32 kRankOne = 84726;
+        static constexpr uint32 kRankTwo = 84727;
+        static constexpr uint32 kRankOneHit = 95969;
+        static constexpr uint32 kRankTwoHit = 84721;
+        static constexpr uint32 kColdSnap = 11958;
+        static constexpr uint32 kPolymorph = 118;
+        static constexpr uint32 kIgnite = 12846;
+        static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kHitMe = 100446;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr float kOrbSearchRange = 40.0f;
+        static constexpr uint32 kPolymorphEveryMs = 2000;
+        static constexpr uint32 kOrbEveryMs = 20000;
+        static constexpr uint32 kColdSnapEveryMs = 4000;
+        static constexpr uint32 kLearnEveryMs = 1000;
+        static constexpr uint32 kOrbReadMs = 5000;
+        static constexpr uint32 kOrbHits = 15;
+        static constexpr uint8 kFrostfireSchool = uint8(SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST);
+        static constexpr int32 kChillAmount = -40;
+        static constexpr int32 kChillMs = 2000;
+        static constexpr int32 kUnread = -1;
+        static constexpr uint32 kOrbOneStep = 1;
+        static constexpr uint32 kColdSnapStep = 2;
+        static constexpr uint32 kLearnStep = 3;
+        static constexpr uint32 kOrbTwoStep = 4;
+
+        /// Flame Orb sent as the client sends it, under the crit aura, kOrbEveryMs before the next step.
+        static Step OrbCast()
+        {
+            Step orb = AuraCast(kFlameOrb, kOrbEveryMs);
+            orb.crit = true;
+            orb.asClient = true;
+            return orb;
+        }
+
+        /// The live creatures 45322 within kOrbSearchRange of `p`, found through his map's grid.
+        static uint32 CountOrbs(Player& p)
+        {
+            std::list<Creature*> found;
+            MaNGOS::AllCreaturesOfEntryInRangeCheck check(&p, kOrb, kOrbSearchRange);
+            MaNGOS::CreatureListSearcher<MaNGOS::AllCreaturesOfEntryInRangeCheck> searcher(found, check);
+            Cell::VisitGridObjects(&p, searcher, kOrbSearchRange);
+            uint32 alive = 0;
+            for (Creature* orb : found)
+            {
+                alive += orb->IsAlive() ? 1 : 0;
+            }
+            return alive;
+        }
+
+        /// kOrbReadMs after Flame Orb step `orb` (0 or 1) acts: his live orbs, the slow on the first Camel with its
+        /// amount and full duration, and whether the Camel holds Ignite's DoT.
+        void ReadOrb(uint32 orb)
+        {
+            Player* p = sPlayerRegistry.Find(m_player);
+            Creature* camel = Get(m_camel);
+            m_orbRead[orb] = true;
+            m_orbs[orb] = p && p->IsInWorld() ? CountOrbs(*p) : 0;
+            SpellAuraHolder* chill = camel ? camel->GetSpellAuraHolder(kRankTwoHit) : NULL;
+            Aura const* slow = camel ? camel->GetAura(kRankTwoHit, EFFECT_INDEX_0) : NULL;
+            m_chillAmount[orb] = slow ? slow->GetModifier()->m_amount : 0;
+            m_chillMax[orb] = chill ? chill->GetAuraMaxDuration() : -1;
+            m_igniteHolder[orb] = camel && camel->GetSpellAuraHolder(kIgniteDot) ? 1 : 0;
+            const std::string noCamel = "no Camel";
+            m_rec.Note(U(kOrbReadMs) + " ms after Flame Orb " + U(orb + 1) + ": " + U(m_orbs[orb]) + " orb(s) " +
+                       U(kOrb) + "; the Camel's " + U(kRankTwoHit) + ": " +
+                       (camel ? HolderOf(camel, kRankTwoHit) : noCamel) +
+                       ", amount " + std::to_string(m_chillAmount[orb]) + ", full duration " +
+                       std::to_string(m_chillMax[orb]) + "; its " + U(kIgniteDot) + ": " +
+                       (camel ? HolderOf(camel, kIgniteDot) : noCamel));
+        }
+
+        /// The spell of a step's spell go, or `none`.
+        static std::string GoText(CastPath const& path)
+        {
+            return path.go ? U(path.go) : std::string("none");
+        }
+
+        /// The slow at Flame Orb `orb`'s read: `none`, or its amount and full duration; `unread` before the read.
+        std::string ChillText(uint32 orb) const
+        {
+            if (!m_orbRead[orb])
+            {
+                return "unread";
+            }
+            if (m_chillMax[orb] < 0)
+            {
+                return "none";
+            }
+            return std::to_string(m_chillAmount[orb]) + ":" + std::to_string(m_chillMax[orb]);
+        }
+
+        /// `yes`, `no`, or `unread` for kUnread.
+        static std::string YesNo(int32 value)
+        {
+            return value == kUnread ? "unread" : value ? "yes" : "no";
+        }
+
+        ObjectGuid m_player;
+        ObjectGuid m_camel;
+        bool m_igniteHeld = false;                  ///< he held Ignite once staged
+        bool m_rankTwoAlone = false;                ///< he held the second rank and not the first after step 4
+        int32 m_cooldownAtOrb = kUnread;            ///< 92283 on his cooldown at step 2's read
+        int32 m_cooldownAfterColdSnap = kUnread;    ///< 92283 on his cooldown at step 3's read
+        bool m_orbRead[2] = { false, false };       ///< each Flame Orb's read ran
+        uint32 m_orbs[2] = { 0, 0 };                ///< his live orbs at each read
+        int32 m_chillAmount[2] = { 0, 0 };          ///< the slow's amount on the first Camel at each read; 0 for none
+        int32 m_chillMax[2] = { -1, -1 };           ///< the slow's full duration at each read; -1 for none
+        uint32 m_igniteHolder[2] = { 0, 0 };        ///< 1 when the first Camel held Ignite's DoT at the read
+    };
+
+    /**
      * S1103 `mage-arcane-torment-vortex`: Torment the Weak (55340, rank 3 of 3) and Nether Vortex (86209, rank 2 of 2)
      * on a staged Arcane mage. Torment the Weak: his Arcane damage spells deal 6% more damage to a target that is
      * snared or slowed, by a movement-speed, an attack-speed or a cast-speed slow. Nether Vortex: when his Arcane
@@ -22571,6 +22938,538 @@ namespace Harness
     };
 
     /**
+     * What 1018 and 1019 share: a staged Frost mage (Piercing Ice 3, Shatter 2, kSpellPower spell power) with a Water
+     * Elemental (510) built for him that keeps its pet AI (PetRunsAI), so it attacks on its own; each Camel
+     * holds Hit Me (100446), so neither his casts nor the pet's miss; the mage's casts may not crit. The pet's stance
+     * is set as the client's stance buttons send it (PetAction: CMSG_PET_ACTION to the pet action handler). The pet
+     * is ended at the last step's read, owner guid first, as ScenariosControl.cpp's EndPet ends one.
+     */
+    class MageFrostPetScenario : public MageProcScenario
+    {
+    public:
+        MageFrostPetScenario(char const* name, int order, char const* ownCategory)
+            : MageProcScenario(name, order, ownCategory) {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 11157, 2 }, { 11158, 1 } };
+        }
+        int32 SpellPower() const override { return kSpellPower; }
+        uint32 PetEntry() const override { return kWaterElemental; }
+        bool PetRunsAI() const override { return true; }
+        uint32 TargetAura() const override { return kHitMe; }
+        int32 NonCritAuraPoints() const override { return -100; }
+
+        /// The prints every Frost pet scenario reaches: the staging's passives, the crit aura, Hit Me and the pet's
+        /// two spells.
+        static std::vector<SpellPrint> FrostPetPrints()
+        {
+            return {
+                // 31707: 26 fields, fnv 675f7b45
+                { 31707, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 255 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 73 }, { "eff0.EffectRealPointsPerLevel", 1094189056 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 33395: 49 fields, fnv 3e2383a1
+                { 33395, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 73 }, { "eff0.EffectBonusCoefficient", 1022202216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 13 }, { "eff0.EffectRadiusIndex_0", 14 }, { "eff0.EffectRealPointsPerLevel", 1073741824 }, { "eff0.ImplicitTarget_0", 16 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 26 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 7 }, { "eff1.EffectRadiusIndex_0", 14 }, { "eff1.ImplicitTarget_0", 16 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 116: 72 fields, fnv e7ba11a7
+                { 116, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 17 }, { "eff1.EffectBonusCoefficient", 1064396915 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 3 }, { "eff1.EffectRealPointsPerLevel", 1056964608 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 100446: 72 fields, fnv d831e1e8
+                { 100446, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 49 }, { "eff0.EffectBasePoints", -10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 184 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 186 }, { "eff2.EffectBasePoints", 20 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12953: 26 fields, fnv 5ddaf0d2
+                { 12953, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 17592186175520 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// The pet action as the 4.3.4 client sends it (CGPetInfo::SendPetAction): the pet's guid, the action word, an
+        /// empty target guid and three zero floats, handed to the pet action handler (PetHandlers::HandlePetAction).
+        void PetAction(Player* p, uint32 action)
+        {
+            Pet* pet = p->GetPet();
+            if (!pet)
+            {
+                m_rec.Note("he has no pet; no pet action sent");
+                return;
+            }
+            WorldPacket packet(CMSG_PET_ACTION, 8 + 4 + 8 + 4 * 3);
+            packet << pet->GetObjectGuid();
+            packet << uint32(action);
+            packet << ObjectGuid();
+            packet << float(0.0f) << float(0.0f) << float(0.0f);
+            PetHandlers::HandlePetAction(*SessionOf(*p), packet);
+            m_rec.Note("the client's pet action " + Trace::Hex32(action) +
+                       " handed to the pet action handler; the pet's stance " + StanceOf(pet));
+        }
+
+        /// The pet's stance by its charm info: `passive`, `defensive`, `aggressive`, `assist`, `stance<n>` for any
+        /// other number, `none` without a pet or a charm info.
+        static std::string StanceOf(Pet* pet)
+        {
+            CharmInfo* info = pet ? pet->GetCharmInfo() : NULL;
+            if (!info)
+            {
+                return "none";
+            }
+            switch (uint32(info->GetReactState()))
+            {
+                case 0: return "passive";
+                case 1: return "defensive";
+                case 2: return "aggressive";
+                case 3: return "assist";
+                default: return "stance" + U(uint32(info->GetReactState()));
+            }
+        }
+
+        /// The pet's victim among the Camels: `A` the first, `B` the second, `-` none, `other` any other unit.
+        static std::string VictimOf(St const& st, Pet* pet)
+        {
+            Unit* victim = pet ? pet->getVictim() : NULL;
+            if (!victim)
+            {
+                return "-";
+            }
+            for (size_t camel = 0; camel < st.targets.size() && camel < 2; ++camel)
+            {
+                if (victim->GetObjectGuid() == st.targets[camel])
+                {
+                    return camel == 0 ? "A" : "B";
+                }
+            }
+            return "other";
+        }
+
+        /// The pet's damage logs of `spell` in step k's windows, in order: each one's amount and whether it crit.
+        std::vector<std::pair<uint32, bool> > PetHits(uint32 k, uint32 spell, uint64 pet) const
+        {
+            std::vector<std::pair<uint32, bool> > hits;
+            const std::vector<std::string> windows = StepWindows(k);
+            for (size_t w = 0; w < windows.size(); ++w)
+            {
+                std::vector<Recorder::Seen const*> logs = m_rec.SeenIn(windows[w], SMSG_SPELLNONMELEEDAMAGELOG);
+                for (size_t i = 0; i < logs.size(); ++i)
+                {
+                    Trace::SpellDamageLog log;
+                    if (!logs[i]->payload.empty() &&
+                        Trace::ReadSpellDamageLog(&logs[i]->payload[0], logs[i]->payload.size(), log) &&
+                        log.spell == spell && log.attacker == pet)
+                    {
+                        hits.push_back(std::make_pair(log.damage, (log.hitInfo & 0x2) != 0));
+                    }
+                }
+            }
+            return hits;
+        }
+
+        /// ScenariosControl.cpp's EndPet order: the owner guid cleared first, then the pet guid, the removal.
+        void EndPet(Player* p)
+        {
+            Pet* pet = p->GetPet();
+            if (!pet)
+            {
+                return;
+            }
+            pet->SetOwnerGuid(ObjectGuid());
+            p->SetPet(NULL);
+            pet->Unsummon(PET_SAVE_NOT_IN_SLOT);
+            m_rec.Note("his pet ended");
+        }
+
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return -1;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        static constexpr uint32 kWaterElemental = 510;
+        static constexpr uint32 kWaterbolt = 31707;
+        static constexpr uint32 kFreeze = 33395;
+        static constexpr uint32 kFrostbolt = 116;
+        static constexpr uint32 kHitMe = 100446;
+        static constexpr int32 kSpellPower = 1000;
+        static constexpr uint32 kAssistButton = 0x06000003;
+        static constexpr uint32 kDefensiveButton = 0x06000001;
+        static constexpr uint32 kPassiveButton = 0x06000000;
+    };
+
+    /**
+     * S1018 `mage-frost-water-elemental`: a staged Frost mage's Water Elemental (MageFrostPetScenario) on its own:
+     * Waterbolt (31707) autocast, its spell power, and its Invisibility (96243) with the mage's. The pet learns its
+     * spells as a summoned one does (PetLearnsSpells), so Waterbolt and Freeze are on its bar. Frostbolt (116) and
+     * Invisibility (66) learned. Steps:
+     *  1. a wait whose act reads the pet's two spells' buttons on its bar, its spell power share and Waterbolt's spell
+     *     power part, and sends the Assist button; read: the stance;
+     *  2. Frostbolt at the Camel, nine seconds to the next step: the Assist pet attacks the Camel and fires Waterbolt
+     *     on its own; read: its victim;
+     *  3. a wait whose act sends the Passive button, three seconds long so a bolt it was casting ends; the scenario
+     *     claims nothing of the Passive pet: the hit of that bolt sets the pet on the Camel again (Unit::DealDamage),
+     *     and the pet goes on casting Waterbolt;
+     *  4. the fade (66) cast by him at himself, four seconds to the next step: its expiry at three seconds casts his
+     *     Invisibility (32612); read: his 32612 and the pet's 96243;
+     *  5. Frostbolt at the Camel, which takes his 32612 off him; the pet's 96243 is read right after the cast, before
+     *     the pet's own next cast can end it; read: his 32612 and the pet's 96243, then the pet is ended.
+     *
+     * `pet`: `autocast=<Waterbolt's button>,<Freeze's button>,stance=<step 1's read>,bolts=<yes when the pet's
+     * Waterbolt hit the Camel in step 2's windows, else none>,fit=<yes when each bolt that did not crit is Waterbolt's
+     * base at level 85 (kBoltLow..kBoltHigh) plus the spell power part read at step 1, no when one is not, none without
+     * such a bolt>,coefficient=<row when the part is 0.833 of the pet's spell power, cast-time when 2.5 / 3.5 of it,
+     * else other>,share=<yes when the pet's spell power is 0.4 of his frost spell power>,invis=<the pet's 96243 at step
+     * 4's read>,<right after step 5's cast>`. OK at `autocast=on,off,stance=assist,bolts=yes,fit=yes,coefficient=row,
+     * share=yes,invis=yes,no`: a fresh Water Elemental's Waterbolt is on and its Freeze off, the client's Assist button
+     * is taken, the pet fires on its own, each bolt takes 0.833 of its spell power (the world's spell_bonus_data row),
+     * and the pet turns invisible with the mage and back with him.
+     */
+    class MageFrostWaterElemental : public MageFrostPetScenario
+    {
+    public:
+        MageFrostWaterElemental() : MageFrostPetScenario("mage-frost-water-elemental", 1018, "pet") {}
+
+    protected:
+        bool PetLearnsSpells() const override { return true; }
+        std::vector<uint32> Spells() const override { return { kFrostbolt, kFade }; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step bolt = Cast(kFrostbolt, false);
+            bolt.everyMs = kBoltWindowMs;
+            return { Wait(500), bolt, Wait(3000), SelfAura(kFade, 4000), Cast(kFrostbolt, false) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            std::vector<SpellPrint> prints = FrostPetPrints();
+            const std::vector<SpellPrint> invisibility = {
+                // 66: 49 fields, fnv a17ad32c
+                { 66, { { "eff0.present", 0 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 1000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 35009 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.EffectBasePoints", 100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectIndex", 2 } } },
+                { 35009, { { "absent", 1 } } },
+                // 32612: 72 fields, fnv c904b48b
+                { 32612, { { "eff0.present", 1 }, { "eff0.Effect", 176 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 18 }, { "eff1.EffectBasePoints", 340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRealPointsPerLevel", 1084227584 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 335 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 96243: 72 fields, fnv 61182939
+                { 96243, { { "eff0.present", 1 }, { "eff0.Effect", 79 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 18 }, { "eff1.EffectBasePoints", 340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRealPointsPerLevel", 1084227584 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 335 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+            };
+            prints.insert(prints.end(), invisibility.begin(), invisibility.end());
+            return prints;
+        }
+
+        /// Step 1's act: the pet's buttons, its spell power share and Waterbolt's part, then the Assist button. Each
+        /// read: what the step keeps (the stance, the victim, the two Invisibilities); the last read ends the pet.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            Pet* pet = p->GetPet();
+            Seen& seen = st.seen[k];
+            if (!atRead && k == kStanceStep)
+            {
+                if (!pet)
+                {
+                    m_rec.Note("he has no pet");
+                    return;
+                }
+                m_pet = pet->GetObjectGuid().GetRawValue();
+                seen.reads["boltButton"] = ButtonOf(pet, kWaterbolt);
+                seen.reads["freezeButton"] = ButtonOf(pet, kFreeze);
+                const int32 frost = int32(p->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_FROST));
+                const int32 power = pet->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FROST) + pet->GetBonusDamage();
+                SpellEntry const* bolt = sSpellStore.LookupEntry(kWaterbolt);
+                const int32 part = bolt ? pet->SpellBonusWithCoeffs(bolt, 0, power, 0, SPELL_DIRECT_DAMAGE, true,
+                                                                    SPELL_BONUS_KIND_DAMAGE)
+                                        : -1;
+                seen.reads["frost"] = frost;
+                seen.reads["petBonus"] = pet->GetBonusDamage();
+                seen.reads["power"] = power;
+                seen.reads["part"] = part;
+                m_rec.Note("his frost spell power " + std::to_string(frost) + "; the pet's bonus damage " +
+                           std::to_string(pet->GetBonusDamage()) + ", its frost spell power " + std::to_string(power) +
+                           "; Waterbolt's spell power part " + std::to_string(part) + "; its buttons: Waterbolt " +
+                           std::to_string(seen.reads["boltButton"]) + ", Freeze " +
+                           std::to_string(seen.reads["freezeButton"]));
+                PetAction(p, kAssistButton);
+            }
+            else if (!atRead && k == kPassiveStep)
+            {
+                PetAction(p, kPassiveButton);
+            }
+            else if (!atRead && k == kLastStep)
+            {
+                seen.reads["petInvisibleAtCast"] = pet && pet->HasAura(kPetInvisibility) ? 1 : 0;
+                m_rec.Note("right after his cast, the pet's 96243 " + HolderOf(pet, kPetInvisibility));
+            }
+            else if (atRead)
+            {
+                seen.reads["victim"] = pet && pet->getVictim() ? 1 : 0;
+                seen.reads["petInvisible"] = pet && pet->HasAura(kPetInvisibility) ? 1 : 0;
+                seen.reads["invisible"] = p->HasAura(kInvisibility) ? 1 : 0;
+                m_stances.resize(st.steps.size());
+                m_stances[k] = StanceOf(pet);
+                m_rec.Note("the pet's stance " + m_stances[k] + ", its victim " + VictimOf(st, pet) + "; his 32612 " +
+                           HolderOf(p, kInvisibility) + ", the pet's 96243 " + HolderOf(pet, kPetInvisibility));
+                if (k + 1 == st.steps.size())
+                {
+                    EndPet(p);
+                }
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != 5 || st.seen.size() != 5 || m_stances.size() != 5)
+            {
+                return "BUG(the steps did not run)";
+            }
+            const int64 power = Kept(st, kStanceStep, "power");
+            const int64 part = Kept(st, kStanceStep, "part");
+            const int64 frost = Kept(st, kStanceStep, "frost");
+            const int64 petBonus = Kept(st, kStanceStep, "petBonus");
+            const std::vector<std::pair<uint32, bool> > hits = PetHits(kBoltStep, kWaterbolt, m_pet);
+            std::string fit = "none", amounts;
+            for (size_t i = 0; i < hits.size(); ++i)
+            {
+                amounts += (i ? "+" : "") + U(hits[i].first) + (hits[i].second ? "c" : "");
+                if (hits[i].second)
+                {
+                    continue;
+                }
+                const int64 amount = int64(hits[i].first);
+                const bool fits = part >= 0 && amount >= kBoltLow + part && amount <= kBoltHigh + part;
+                fit = fit == "no" || !fits ? "no" : "yes";
+            }
+            const float rowPart = float(power) * kRowCoefficient;
+            const float castTimePart = float(power) * kCastTimeCoefficient;
+            const std::string coefficient = power <= 0 || part < 0 ? "unread"
+                                            : std::fabs(float(part) - rowPart) <= 1.0f ? "row"
+                                            : std::fabs(float(part) - castTimePart) <= 1.0f ? "cast-time" : "other";
+            const bool share = frost >= 0 && petBonus == int64(float(frost) * kShare);
+            const std::string value = "autocast=" + ButtonName(Kept(st, kStanceStep, "boltButton")) + "," +
+                                      ButtonName(Kept(st, kStanceStep, "freezeButton")) + ",stance=" +
+                                      m_stances[kStanceStep] + ",bolts=" + (hits.empty() ? "none" : "yes") +
+                                      ",fit=" + fit +
+                                      ",coefficient=" + coefficient + ",share=" + (share ? "yes" : "no") + ",invis=" +
+                                      (Kept(st, kFadeStep, "petInvisible") == 1 ? "yes" : "no") + "," +
+                                      (Kept(st, kLastStep, "petInvisibleAtCast") == 1 ? "yes" : "no");
+            const std::string detail = "the pet's Waterbolts " + (amounts.empty() ? std::string("none") : amounts) +
+                                       "; its frost spell power " + std::to_string(power) + ", Waterbolt's part " +
+                                       std::to_string(part) + "; his frost spell power " + std::to_string(frost) +
+                                       ", the pet's bonus damage " + std::to_string(petBonus) +
+                                       "; wanted Waterbolt on and Freeze off, the Assist stance, bolts that fit, the "
+                                       "0.833 row, the 0.4 share, and the pet invisible with him and back)";
+            return value == kWanted ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        /// A spell's button on the pet's bar: 1 autocast on, 0 off, -1 not on the bar.
+        static int64 ButtonOf(Pet* pet, uint32 spell)
+        {
+            CharmInfo* info = pet->GetCharmInfo();
+            for (uint8 slot = ACTION_BAR_INDEX_PET_SPELL_START; info && slot < ACTION_BAR_INDEX_PET_SPELL_END; ++slot)
+            {
+                UnitActionBarEntry const* entry = info->GetActionBarEntry(slot);
+                if (entry->IsActionBarForSpell() && entry->GetAction() == spell)
+                {
+                    return entry->GetType() == ACT_ENABLED ? 1 : 0;
+                }
+            }
+            return -1;
+        }
+
+        static std::string ButtonName(int64 button)
+        {
+            return button == 1 ? "on" : button == 0 ? "off" : "none";
+        }
+
+        static constexpr uint32 kFade = 66;
+        static constexpr uint32 kInvisibility = 32612;
+        static constexpr uint32 kPetInvisibility = 96243;
+        static constexpr uint32 kStanceStep = 0;
+        static constexpr uint32 kBoltStep = 1;
+        static constexpr uint32 kPassiveStep = 2;
+        static constexpr uint32 kFadeStep = 3;
+        static constexpr uint32 kLastStep = 4;
+        static constexpr uint32 kBoltWindowMs = 9000;
+        /// Waterbolt's base at level 85 by the client's rule: 0.405 of the mage's gtSpellScaling value (937.33), its
+        /// integer 379, and half of a quarter of it either side.
+        static constexpr int64 kBoltLow = 332;
+        static constexpr int64 kBoltHigh = 426;
+        static constexpr float kRowCoefficient = 0.833f;
+        static constexpr float kCastTimeCoefficient = 2500.0f / 3500.0f;
+        static constexpr float kShare = 0.4f;
+
+        const std::string kWanted =
+            "autocast=on,off,stance=assist,bolts=yes,fit=yes,coefficient=row,share=yes,invis=yes,no";
+        uint64 m_pet = 0;
+        std::vector<std::string> m_stances;
+    };
+
+    /**
+     * S1019 `mage-frost-pet-assist`: a staged Frost mage's Water Elemental (MageFrostPetScenario) in the Assist and
+     * Defensive stances. Camel A stands ten yards in front of him and Camel B eight yards ahead and eight to the side
+     * (ExtraTargets); Frostbolt (116), Ice Lance (30455) and Polymorph (118) learned. Each cast is read kReadMs after
+     * it, a wait 300 ms. Steps:
+     *  1. a wait whose act sends the Assist button;
+     *  2. Frostbolt at A, three seconds to the next step: its hit sends the idle pet at A;
+     *  3. a wait read after the Frostbolt's hit;
+     *  4. Ice Lance at B, 1.7 s: B becomes the pet's candidate;
+     *  5. Ice Lance at A, 2.5 s: the pet's own target again drops the candidate, 1.7 s after it began;
+     *  6. Ice Lance at B, 1.7 s: B the candidate again, its time from this hit;
+     *  7. Ice Lance at B, two seconds: the same candidate keeps its time;
+     *  8. a wait read 3.7 s after step 6's hit: the pet has switched to B;
+     *  9. a wait whose act sends the Defensive button;
+     * 10. Ice Lance at A, four seconds: a Defensive pet keeps B;
+     * 11. a wait read four seconds after it: still B;
+     * 12. a wait whose act sends the Passive button, which stops the pet;
+     * 13. a wait whose act sends the Defensive button, then starts his melee attack on A (Unit::Attack; A stands out of
+     *     his reach, so he never swings): a Defensive pet with no victim attacks only a unit attacking him, and A is
+     *     not; his attack is stopped at its read;
+     * 14. Polymorph at B, kPolymorphEveryMs; its act sends the Assist button while the cast runs, so the idle pet is in
+     *     Assist when the Polymorph lands (its cast time is 1.7 s);
+     * 15. a wait read a second after the Polymorph has landed: a Polymorph deals no damage and breaks on damage, so it
+     *     is not his attack for the Assist pet, which stays idle; then the pet is ended at its read.
+     *
+     * `assist`: `victim=<the pet's victim at each read: A, B, - for none>,stance=<the stance at steps 1, 9, 12, 13 and
+     * 14>`. OK at `victim=-,-,A,A,A,A,A,B,B,B,B,-,-,-,-,stance=assist,defensive,passive,defensive,assist`: the Assist
+     * pet attacks what he attacks, switches only after he has attacked a new target for three seconds and drops the
+     * switch when he attacks its target again; a Defensive pet keeps its target and does not take his; an idle Assist
+     * pet does not attack a Camel he polymorphs.
+     */
+    class MageFrostPetAssist : public MageFrostPetScenario
+    {
+    public:
+        MageFrostPetAssist() : MageFrostPetScenario("mage-frost-pet-assist", 1019, "assist") {}
+
+    protected:
+        std::vector<uint32> Spells() const override { return { kFrostbolt, kIceLance, kPolymorph }; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override { return { { -2.0f, 8.0f } }; }
+        uint32 CastReadMs() const override { return kReadMs; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step frostbolt = Cast(kFrostbolt, false);
+            frostbolt.everyMs = 3000;
+            return { Wait(600), frostbolt, Wait(600), LanceAt(kCamelB, 1700), LanceAt(kCamelA, 2500),
+                     LanceAt(kCamelB, 1700), LanceAt(kCamelB, 2000), Wait(800), Wait(500), LanceAt(kCamelA, 4000),
+                     Wait(500), Wait(500), Wait(1500), AuraCastAt(kPolymorph, kCamelB, kPolymorphEveryMs), Wait(500) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            std::vector<SpellPrint> prints = FrostPetPrints();
+            // 30455: 49 fields, fnv c88f610e
+            prints.push_back({ 30455, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 160 }, { "eff0.EffectBonusCoefficient", 1052870967 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 27 }, { "eff0.EffectRealPointsPerLevel", 1078774989 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 3 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } });
+            // 118: 49 fields, fnv ffbe2272
+            prints.push_back({ 118, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 5 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 56 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 16372 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } });
+            return prints;
+        }
+
+        /// The stance steps' acts send their buttons, the melee step's also starts his melee attack on A, and the
+        /// Polymorph's sends the Assist button. Each read keeps the pet's victim and stance; the melee step's read ends
+        /// his attack, the last read ends the pet.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            Pet* pet = p->GetPet();
+            if (!atRead)
+            {
+                if (k == kAssistStep || k == kPolymorphStep)
+                {
+                    PetAction(p, kAssistButton);
+                }
+                else if (k == kDefensiveStep || k == kMeleeStep)
+                {
+                    PetAction(p, kDefensiveButton);
+                }
+                else if (k == kPassiveStep)
+                {
+                    PetAction(p, kPassiveButton);
+                }
+                if (k == kMeleeStep)
+                {
+                    Creature* a = Get(st.targets[kCamelA]);
+                    const bool started = a && p->Attack(a, true);
+                    Unit* victim = p->getVictim();
+                    m_rec.Note(std::string("his melee attack on A ") + (started ? "started" : "refused") +
+                               "; his victim " + (victim ? U(victim->GetEntry()) : std::string("none")));
+                }
+                return;
+            }
+            m_victims.resize(st.steps.size());
+            m_stances.resize(st.steps.size());
+            m_victims[k] = VictimOf(st, pet);
+            m_stances[k] = StanceOf(pet);
+            m_rec.Note("the pet's victim " + m_victims[k] + ", its stance " + m_stances[k]);
+            if (k == kMeleeStep)
+            {
+                p->AttackStop();
+            }
+            else if (k == kLastStep)
+            {
+                EndPet(p);
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps || st.seen.size() != kSteps || m_victims.size() != kSteps)
+            {
+                return "BUG(the steps did not run)";
+            }
+            std::string victims;
+            for (uint32 k = 0; k < kSteps; ++k)
+            {
+                victims += (k ? "," : "") + (m_victims[k].empty() ? std::string("unread") : m_victims[k]);
+            }
+            const std::string value = "victim=" + victims + ",stance=" + m_stances[kAssistStep] + "," +
+                                      m_stances[kDefensiveStep] + "," + m_stances[kPassiveStep] + "," +
+                                      m_stances[kMeleeStep] + "," + m_stances[kPolymorphStep];
+            const std::string detail = "wanted the Assist pet at A from the Frostbolt's hit, on A through a candidate "
+                                       "dropped by a hit on A, at B three seconds after the hits on B began, kept on B "
+                                       "in Defensive, idle in Defensive while he attacks A unattacked, and idle in "
+                                       "Assist when his Polymorph lands on B)";
+            return value == kWanted ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static Step LanceAt(uint32 camel, uint32 everyMs)
+        {
+            Step s = Cast(kIceLance, false);
+            s.target = camel;
+            s.everyMs = everyMs;
+            return s;
+        }
+
+        static constexpr uint32 kIceLance = 30455;
+        static constexpr uint32 kPolymorph = 118;
+        static constexpr uint32 kCamelA = 0;
+        static constexpr uint32 kCamelB = 1;
+        static constexpr uint32 kReadMs = 1000;
+        /// Polymorph's 1.7 s cast and 0.7 s more, so the next step's read comes 1 s after it lands.
+        static constexpr uint32 kPolymorphEveryMs = 2400;
+        static constexpr uint32 kSteps = 15;
+        static constexpr uint32 kAssistStep = 0;
+        static constexpr uint32 kDefensiveStep = 8;
+        static constexpr uint32 kPassiveStep = 11;
+        static constexpr uint32 kMeleeStep = 12;
+        static constexpr uint32 kPolymorphStep = 13;
+        static constexpr uint32 kLastStep = 14;
+
+        const std::string kWanted =
+            "victim=-,-,A,A,A,A,A,B,B,B,B,-,-,-,-,stance=assist,defensive,passive,defensive,assist";
+        std::vector<std::string> m_victims;
+        std::vector<std::string> m_stances;
+    };
+
+    /**
      * What the Frost proof scenarios (1020-1024) share: a staged Frost mage with kProofSpellPower spell power, 1197
      * with his intellect's, who takes Precision (13843, +6% spell hit) before each cast, so none misses, and the crit
      * aura at kNoCritPoints, so none crits; the prints of the passives every staged Frost mage holds that can proc and
@@ -23742,6 +24641,7 @@ namespace Harness
         r.Register(new MageFrostEarlyFrost());
         r.Register(new MageFrostShatteredBarrier());
         r.Register(new MageFrostReactiveBarrier());
+        r.Register(new MageFrostFrostfireOrb());
         r.Register(new MageArcaneTormentVortex());
         r.Register(new MageArcaneInterrupts());
         r.Register(new MageArcaneImprovedPolymorph());
@@ -23758,6 +24658,8 @@ namespace Harness
         r.Register(new MageFrostPermafrost());
         r.Register(new MageFrostImprovedConeOfCold());
         r.Register(new MageFrostRing());
+        r.Register(new MageFrostWaterElemental());
+        r.Register(new MageFrostPetAssist());
         r.Register(new MageFrostCooldowns());
         r.Register(new MageFrostPassives());
         r.Register(new MageFrostBlizzardHaste());

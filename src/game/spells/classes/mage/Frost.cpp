@@ -80,6 +80,8 @@ namespace
     uint32 const GLYPH_OF_ICE_BARRIER = 63095;
     uint32 const REACTIVE_BARRIER_BUFF = 86347;
     uint32 const GLYPH_OF_ICE_BLOCK = 56372;
+    uint32 const COLD_SNAP = 11958;
+    uint32 const FROSTFIRE_ORB = 92283;
 
     /// Frost Nova's (122) cooldown category.
     uint32 const FROST_NOVA_CATEGORY = 35;
@@ -670,4 +672,13 @@ bool Mage::ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damag
         return false;
     }
     return uint64(health - damage) * 2 < uint64(maxHealth);
+}
+
+bool Mage::ColdSnapResets(uint32 spellId, uint32 family, uint32 schoolMask, uint32 recoveryMs)
+{
+    if (family != SPELLFAMILY_MAGE || spellId == COLD_SNAP || recoveryMs == 0)
+    {
+        return false;
+    }
+    return (schoolMask & SPELL_SCHOOL_MASK_FROST) != 0 || spellId == FROSTFIRE_ORB;
 }

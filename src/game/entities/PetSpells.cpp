@@ -32,6 +32,7 @@
 #include "entities/WorldObjectNotices.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/SpellScriptQueries.h"
 #include "spells/auras/SpellAuras.h"
 #include "Unit.h"
 #include "Util.h"
@@ -510,7 +511,7 @@ bool Pet::addSpell(uint32 spell_id, ActiveStates active /*= ACT_DECIDE*/, PetSpe
         }
         else
         {
-            newspell.active = ACT_DISABLED;
+            newspell.active = Spells::PetSpellAutocastDefault(*spellInfo);
         }
     }
     else

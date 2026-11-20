@@ -3027,10 +3027,14 @@ void CharmInfo::InitPetActionBar()
         SetActionBar(ACTION_BAR_INDEX_PET_SPELL_START + i, 0, ACT_DISABLED);
     }
 
-    // last 3 SpellOrActions are reactions
+    // last 3 SpellOrActions are reactions: assist, defensive and passive
+    ReactStates const reactions[ACTION_BAR_INDEX_END - ACTION_BAR_INDEX_PET_SPELL_END] =
+    {
+        REACT_ASSIST, REACT_DEFENSIVE, REACT_PASSIVE
+    };
     for (uint32 i = 0; i < ACTION_BAR_INDEX_END - ACTION_BAR_INDEX_PET_SPELL_END; ++i)
     {
-        SetActionBar(ACTION_BAR_INDEX_PET_SPELL_END + i, COMMAND_ATTACK - i, ACT_REACTION);
+        SetActionBar(ACTION_BAR_INDEX_PET_SPELL_END + i, reactions[i], ACT_REACTION);
     }
 }
 
@@ -3286,6 +3290,12 @@ void CharmInfo::LoadPetActionBar(const std::string& data)
         uint32 action = std::stoul((*iter).c_str());
 
         PetActionBar[index].SetActionAndType(action, ActiveStates(type));
+
+        // a saved Aggressive button becomes the Assist button
+        if (PetActionBar[index].GetType() == ACT_REACTION && PetActionBar[index].GetAction() == REACT_AGGRESSIVE)
+        {
+            SetActionBar(index, REACT_ASSIST, ACT_REACTION);
+        }
 
         // check correctness
         if (PetActionBar[index].IsActionBarForSpell() && !sSpellStore.LookupEntry(PetActionBar[index].GetAction()))
