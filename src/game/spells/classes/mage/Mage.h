@@ -397,6 +397,12 @@ namespace Mage
     /// Arcane.cpp.
     uint32 ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo, bool targetMarked);
 
+    /// Whether Glyph of Polymorph takes an aura of `auraType` off the target a mage's Polymorph lands on: only when the
+    /// Polymorph's caster holds the glyph (`casterHoldsGlyph`), and only a damage over time aura, whoever cast it:
+    /// SPELL_AURA_PERIODIC_DAMAGE, SPELL_AURA_PERIODIC_LEECH or SPELL_AURA_PERIODIC_DAMAGE_PERCENT. Defined in
+    /// Arcane.cpp.
+    bool GlyphOfPolymorphRemoves(uint32 auraType, bool casterHoldsGlyph);
+
     /// Whether a mage whose Mana Shield is removed in `mode` knocks back the enemies around him for Incanter's
     /// Absorption: only when damage used up the shield's last point (AURA_REMOVE_BY_SHIELD_BREAK) and he knows a rank
     /// of the talent (`knowsTalent`); never for a shield that is cancelled, runs out or is dispelled. Defined in

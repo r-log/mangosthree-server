@@ -281,6 +281,13 @@ namespace
     uint32 const IMPROVED_POLYMORPH_STUN_RANK_TWO = 83047;
     uint32 const IMPROVED_POLYMORPH_MARKER = 87515;
 
+    /// The aura types of a damage over time effect: periodic damage, a periodic health leech, and periodic damage of a
+    /// percent of the target's maximum health.
+    AuraType const DAMAGE_OVER_TIME_AURA_TYPES[] =
+    {
+        SPELL_AURA_PERIODIC_DAMAGE, SPELL_AURA_PERIODIC_LEECH, SPELL_AURA_PERIODIC_DAMAGE_PERCENT
+    };
+
     /// 118, 28271, 28272, 61025, 61305, 61721, 61780: Polymorph, each form a mage casts: when damage broke it and its
     /// caster knows Improved Polymorph, the target casts the rank's stun and Improved Polymorph Marker (87515) at
     /// itself for the Polymorph's caster, unless it holds the marker (Mage::ImprovedPolymorphStun). The removal's
@@ -295,6 +302,29 @@ namespace
         {
             ctx.CastTriggered(ctx.target, stun);
             ctx.CastTriggered(ctx.target, IMPROVED_POLYMORPH_MARKER);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    uint32 const GLYPH_OF_POLYMORPH = 56375;
+
+    /// 118, 28271, 28272, 61025, 61305, 61721, 61780: Polymorph, each form a mage casts: as it lands, a caster who
+    /// holds Glyph of Polymorph (56375) takes every damage over time aura off the target, whoever cast it
+    /// (Mage::GlyphOfPolymorphRemoves). Nothing at the call before the add, and nothing for a caster without the
+    /// glyph. The holder's boosts run.
+    SpellHandlerOutcome<void> PolymorphApply(AuraApplyContext& ctx)
+    {
+        if (!ctx.real)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        bool const holdsGlyph = ctx.caster && ctx.caster->HasAura(GLYPH_OF_POLYMORPH);
+        for (AuraType type : DAMAGE_OVER_TIME_AURA_TYPES)
+        {
+            if (Mage::GlyphOfPolymorphRemoves(type, holdsGlyph))
+            {
+                ctx.target.RemoveSpellsCausingAura(type);
+            }
         }
         return SpellHandlerOutcome<void>::Continue();
     }
@@ -436,6 +466,22 @@ uint32 Mage::ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool 
     return knowsRankOne ? IMPROVED_POLYMORPH_STUN_RANK_ONE : 0;
 }
 
+bool Mage::GlyphOfPolymorphRemoves(uint32 auraType, bool casterHoldsGlyph)
+{
+    if (!casterHoldsGlyph)
+    {
+        return false;
+    }
+    for (AuraType type : DAMAGE_OVER_TIME_AURA_TYPES)
+    {
+        if (auraType == uint32(type))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool Mage::IncantersAbsorptionKnocksBack(AuraRemoveMode mode, bool knowsTalent)
 {
     return mode == AURA_REMOVE_BY_SHIELD_BREAK && knowsTalent;
@@ -471,5 +517,6 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     rows += RegisterRanks<OnProcHook>(registry, FOCUS_MAGIC, &FocusMagicProc);
     rows += RegisterRanks<CheckProcHook>(registry, INVOCATION, &InvocationCheckProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, POLYMORPH, &PolymorphRemove);
+    rows += RegisterRanks<AuraApplyHook>(registry, POLYMORPH, &PolymorphApply);
     return rows;
 }
