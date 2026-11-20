@@ -112,6 +112,10 @@ namespace
     // Permafrost's ranks, whose dummy effect's proc heals the caster's pet.
     uint32 const PERMAFROST_IDS[] = { 11175, 12569, 12571 };
 
+    // The id Piercing Chill's script holds at the target hook: its chill, cast at each other enemy a Frostbolt crit
+    // chills.
+    uint32 const PIERCING_CHILL_CHILL_IDS[] = { 83154 };
+
     // The ids the Frost launch script holds at the launch hook: Ice Lance, Deep Freeze and Frostfire Bolt, which use
     // Fingers of Frost's charges, and Fireball, which uses Brain Freeze's buff with Frostfire Bolt.
     uint32 const FROST_LAUNCH_IDS[] = { 30455, 44572, 44614, 133 };
@@ -1669,7 +1673,8 @@ TEST(MageScripts_BlinkKeepsOneTarget)
     // The target hook also holds Piercing Chill's chill (83154).
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), sizeof(BLINK_IDS) / sizeof(uint32) +
                                                    sizeof(ORB_TARGET_IDS) / sizeof(uint32) +
-                                                   sizeof(RING_FREEZE_IDS) / sizeof(uint32) + 1);
+                                                   sizeof(RING_FREEZE_IDS) / sizeof(uint32) +
+                                                   sizeof(PIERCING_CHILL_CHILL_IDS) / sizeof(uint32));
 
     // Blink sets the count the cut after the hook keeps to one and continues, so the cut runs; the list is untouched.
     BareCreature caster;
@@ -4586,7 +4591,6 @@ namespace
 
     uint32 const FROSTBOLT_AND_CONE_OF_COLD_IDS[] = { 116, 120 };
     uint32 const BLIZZARD_HIT_IDS[] = { 42208 };
-    uint32 const PIERCING_CHILL_CHILL_IDS[] = { 83154 };
 }
 
 TEST(MageScripts_PiercingChillsCountIsTheRanksEffectValue)
