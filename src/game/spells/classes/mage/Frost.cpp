@@ -82,6 +82,13 @@ namespace
     uint32 const GLYPH_OF_ICE_BLOCK = 56372;
     uint32 const COLD_SNAP = 11958;
     uint32 const FROSTFIRE_ORB = 92283;
+    uint32 const IMPROVED_FREEZE_RANK_ONE = 86259;
+    uint32 const IMPROVED_FREEZE_RANK_TWO = 86260;
+    uint32 const IMPROVED_FREEZE_RANK_THREE = 86314;
+
+    /// Improved Freeze's text: "a $s1% chance to grant 2 charges of Fingers of Frost". No field of the data holds
+    /// the 2.
+    uint32 const IMPROVED_FREEZE_CHARGES = 2;
 
     /// Frost Nova's (122) cooldown category.
     uint32 const FROST_NOVA_CATEGORY = 35;
@@ -374,6 +381,29 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
+    /// 33395: a Water Elemental's Freeze: once the cast is over, for a pet whose owner knows Improved Freeze (86314,
+    /// 86260 or 86259), one roll of the rank's chance for the whole cast when it hit one or more enemies (the context's
+    /// count; Mage::ImprovedFreezeCharges), and on a pass the owner is given two charges of Fingers of Frost
+    /// (Mage::GiveFingers). Nothing for a pet without an owner or an owner without the talent.
+    SpellHandlerOutcome<void> FreezeAfterCast(AfterCastContext& ctx)
+    {
+        Unit* owner = ctx.caster.GetOwner();
+        if (!owner)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        uint32 const talent = owner->HasAura(IMPROVED_FREEZE_RANK_THREE) ? IMPROVED_FREEZE_RANK_THREE :
+                              owner->HasAura(IMPROVED_FREEZE_RANK_TWO) ? IMPROVED_FREEZE_RANK_TWO :
+                              owner->HasAura(IMPROVED_FREEZE_RANK_ONE) ? IMPROVED_FREEZE_RANK_ONE : 0;
+        uint32 const charges = Mage::ImprovedFreezeCharges(ctx.enemiesHit, Mage::ImprovedFreezeChance(talent),
+                                                           [](int32 chance) { return roll_chance_i(chance); });
+        if (charges)
+        {
+            Mage::GiveFingers(*owner, charges);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     /// 45438: Ice Block: as the cast goes off, a caster who holds Glyph of Ice Block (56372) has the cooldowns of
     /// Frost Nova's category ended, and his client told. Nothing for a caster without the glyph.
     SpellHandlerOutcome<void> IceBlockLaunch(LaunchContext& ctx)
@@ -465,6 +495,7 @@ namespace
     uint32 const CONE_OF_COLD_HIT[] = { 120 };
     uint32 const BLIZZARD_HIT[] = { 42208 };
     uint32 const ICE_BLOCK[] = { 45438 };
+    uint32 const WATER_ELEMENTAL_FREEZE[] = { 33395 };
     uint32 const ICE_BARRIER_IDS[] = { ICE_BARRIER };
     uint32 const REACTIVE_BARRIER[] = { 86303, 86304 };
 }
@@ -485,6 +516,7 @@ uint32 Mage::RegisterFrost(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AfterHitHook>(registry, CONE_OF_COLD_HIT, &ConeOfColdAfterHit);
     rows += RegisterRanks<AfterHitHook>(registry, BLIZZARD_HIT, &BlizzardAfterHit);
     rows += RegisterRanks<LaunchHook>(registry, ICE_BLOCK, &IceBlockLaunch);
+    rows += RegisterRanks<AfterCastHook>(registry, WATER_ELEMENTAL_FREEZE, &FreezeAfterCast);
     rows += RegisterRanks<AuraApplyHook>(registry, ICE_BARRIER_IDS, &IceBarrierAuraApply);
     rows += RegisterRanks<AuraRemoveHook>(registry, ICE_BARRIER_IDS, &IceBarrierAuraRemove);
     rows += RegisterRanks<CheckProcHook>(registry, REACTIVE_BARRIER, &ReactiveBarrierCheckProc);
@@ -538,6 +570,33 @@ bool Mage::UseFingersCharge(Unit& mage)
     }
     mage.RemoveAuraHolderFromStack(FINGERS_OF_FROST_BUFF);
     return true;
+}
+
+void Mage::GiveFingers(Unit& mage, uint32 charges)
+{
+    for (uint32 i = 0; i < charges; ++i)
+    {
+        mage.CastSpell(&mage, FINGERS_OF_FROST_BUFF, true);
+    }
+}
+
+int32 Mage::ImprovedFreezeChance(uint32 talentSpell)
+{
+    if (talentSpell != IMPROVED_FREEZE_RANK_ONE && talentSpell != IMPROVED_FREEZE_RANK_TWO &&
+        talentSpell != IMPROVED_FREEZE_RANK_THREE)
+    {
+        return 0;
+    }
+    return EffectValue(talentSpell, EFFECT_INDEX_0);
+}
+
+uint32 Mage::ImprovedFreezeCharges(uint32 enemiesHit, int32 chance, std::function<bool(int32)> const& roll)
+{
+    if (enemiesHit == 0 || chance <= 0 || !roll(chance))
+    {
+        return 0;
+    }
+    return IMPROVED_FREEZE_CHARGES;
 }
 
 float Mage::IceLanceMultiplier(bool countsAsFrozen, bool fingersUp, int32 doubledPercent, int32 fingersPercent)

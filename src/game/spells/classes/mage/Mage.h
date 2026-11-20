@@ -47,8 +47,9 @@
  * Flamestrike's (ImprovedFlamestrikeChance), the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick)
  * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
- * UseFingersCharge and IceLanceMultiplier), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout),
- * Piercing Chill's (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
+ * UseFingersCharge, GiveFingers and IceLanceMultiplier), Improved Freeze's (ImprovedFreezeChance and
+ * ImprovedFreezeCharges), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout), Piercing Chill's
+ * (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
  * (ImprovedConeOfColdFreeze), Ice Shards' (IceShardsChill), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice
  * Barrier's (GlyphedBarrierAmount), Reactive Barrier's (ReactiveBarrierTriggers) and Cold Snap's (ColdSnapResets).
  * Orb.cpp holds the orbs a mage's Flame Orb and Frostfire Orb summon: their creature AI, their scripts and their leaves
@@ -497,6 +498,21 @@ namespace Mage
     /// Takes one charge of Fingers of Frost off `mage`: one stack fewer, the buff removed at none. Answers whether he
     /// held the buff. Defined in Frost.cpp.
     bool UseFingersCharge(Unit& mage);
+
+    /// Gives `mage` `charges` charges of Fingers of Frost: one triggered cast of the buff (44544) at himself per
+    /// charge, each a stack, up to the buff's two. Defined in Frost.cpp.
+    void GiveFingers(Unit& mage, uint32 charges);
+
+    /// The chance, in percent, that a Water Elemental's Freeze grants its mage Fingers of Frost for a mage who knows
+    /// `talentSpell` (Improved Freeze, 86259, 86260 or 86314): that spell's effect 0 value (33, 66, 100); 0 for any
+    /// other spell, or when the spell store lacks it. Defined in Frost.cpp.
+    int32 ImprovedFreezeChance(uint32 talentSpell);
+
+    /// The Fingers of Frost charges one cast of a Water Elemental's Freeze grants its mage at Improved Freeze's
+    /// `chance`: two when the cast hit one or more enemies (`enemiesHit`) and `roll`, asked once for the whole cast
+    /// with `chance`, passes; none otherwise. `roll` is not asked for a cast that hit no enemy or a chance of 0 or
+    /// less. Defined in Frost.cpp.
+    uint32 ImprovedFreezeCharges(uint32 enemiesHit, int32 chance, std::function<bool(int32)> const& roll);
 
     /// Ice Lance's done multiplier: its effect-1 percent `doubledPercent` (100: double damage) at a target it counts as
     /// frozen, times `fingersPercent` more when it uses a Fingers of Frost charge; 1 for neither. Defined in Frost.cpp.
