@@ -22589,7 +22589,8 @@ namespace Harness
      * Floes 3, Fingers of Frost 3 (83074) and Ice Shards 2, then Brain Freeze 3 (44549); Frostbolt learned. Camel 1
      * stands ten yards in front of him and four more around it (ExtraTargets): Camel 2 three yards to one side, Camel 3
      * nine yards to the other, Camel 4 nine and a half yards out on the first side, all inside the chill's ten yards
-     * around Camel 1, and Camel 5 fourteen yards out, beyond them. Steps, each read kCastReadMs after it: Frostbolt at
+     * around Camel 1, and Camel 5 fourteen yards out, beyond them. Before the first cast he takes Precision (13843, +6%
+     * spell hit), so no chill misses a level-85 Camel. Steps, each read kCastReadMs after it: Frostbolt at
      * Camel 1, which must crit; Frostbolt at Camel 1, which must not; a wait at whose act the scenario makes kCalls
      * cast-end procs of the chill on him by call, as Spell::cast makes one at a launch (Unit::ProcDamageAndSpell with
      * the harmful-spell flag and PROC_EX_CAST_END), each with Fingers of Frost (44544) and Brain Freeze's buff (57761)
@@ -22663,8 +22664,12 @@ namespace Harness
                 { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 71757: 26 fields, fnv 73f2d232
                 { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
             };
         }
+
+        uint32 CasterAura() const override { return kPrecision; }
 
         /// The crit's read: the Camels holding his chill. The wait's act: kCalls cast-end procs of the chill by call.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
@@ -22743,6 +22748,7 @@ namespace Harness
         static constexpr uint32 kChill = 83154;
         static constexpr uint32 kFingersOfFrost = 44544;
         static constexpr uint32 kBrainFreeze = 57761;
+        static constexpr uint32 kPrecision = 13843;
         static constexpr uint32 kCritStep = 0;
         static constexpr uint32 kPlainStep = 1;
         static constexpr uint32 kCastEveryMs = 3500;
