@@ -1059,16 +1059,27 @@ TEST(MageScripts_OffensiveStateNeverRollsForArcaneMissiles)
         CHECK(!Mage::OffensiveStateRefuses(spellId));
     }
 
-    // The proc script: at an amount of 100 the channel's cast and its missiles cannot trigger it, so no charge or
-    // cooldown follows; Arcane Blast at the same amount passes the roll and goes on to the cast of the trigger spell,
-    // which the test's effect row does not name, so the proc fails there.
+    // Ice Shards' Chilled at both ranks and Piercing Chill's chill, whose hits start the procs of the auras that can
+    // proc from procs, Offensive State among them, are refused by id; Frostbolt and Cone of Cold, whose hits chill too,
+    // are not.
+    CHECK(Mage::OffensiveStateRefuses(12484));
+    CHECK(Mage::OffensiveStateRefuses(12485));
+    CHECK(Mage::OffensiveStateRefuses(83154));
+    for (uint32 spellId : { 116u, 120u })
+    {
+        CHECK(!Mage::OffensiveStateRefuses(spellId));
+    }
+
+    // The proc script: at an amount of 100 the channel's cast and its missiles, and the hits of the three chills,
+    // cannot trigger it, so no charge or cooldown follows; Arcane Blast at the same amount passes the roll and goes on
+    // to the cast of the trigger spell, which the test's effect row does not name, so the proc fails there.
     AddProcEffectRows();
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     BareCreature owner;
     HolderStorage storage;
     SpellAuraHolder& holder = EmptyHolder(storage);
-    for (uint32 spellId : { 5143u, 7268u })
+    for (uint32 spellId : { 5143u, 7268u, 12484u, 12485u, 83154u })
     {
         SpellRowStorage eventRow;
         SpellHandlerOutcome<SpellAuraProcResult> refused =
