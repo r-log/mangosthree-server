@@ -114,6 +114,8 @@ float ThreatCalcHelper::CalcThreat(Unit* pHatedUnit, Unit* /*pHatingUnit*/, floa
 HostileReference::HostileReference(Unit* pUnit, ThreatManager* pThreatManager, float pThreat)
 {
     iThreat = pThreat;
+    iReductionAsked = 0.0f;
+    iReductionApplied = 0.0f;
     iTempThreatModifyer = 0.0f;
     link(pUnit, pThreatManager);
     iUnitGuid = pUnit->GetObjectGuid();
@@ -171,17 +173,32 @@ void HostileReference::fireStatusChanged(ThreatRefStatusChangeEvent& pThreatRefS
  * @brief Add threat to this reference
  * @param pMod Threat modifier to add
  *
- * Adds threat to this reference and relinks if necessary.
+ * Adds threat to the threat this reference has earned, which never drops below zero, and relinks if necessary.
+ * While asks stand (AddThreatReduction) they hold off as much of the threat earned as they reach, and the threat
+ * shown moves by what the rest moves; with none standing the whole change shows.
  * Also creates threat to pet owners when pets attack.
  */
 void HostileReference::addThreat(float pMod)
 {
-    if (pMod + iThreat < 0)
+    const float earned = iThreat + iReductionApplied;
+    if (pMod + earned < 0)
     {
-        pMod = -iThreat;
+        pMod = -earned;
     }
 
-    iThreat += pMod;
+    if (iReductionAsked > 0.0f || iReductionApplied > 0.0f)
+    {
+        const float total = earned + pMod;
+        const float held = total < iReductionAsked ? total : iReductionAsked;
+        const float shown = total - held;
+        pMod = shown - iThreat;
+        iReductionApplied = held;
+        iThreat = shown;
+    }
+    else
+    {
+        iThreat += pMod;
+    }
     // the threat is changed. Source and target unit have to be availabe
     // if the link was cut before relink it again
     if (!isOnline())
@@ -201,6 +218,62 @@ void HostileReference::addThreat(float pMod)
         {
             getSource()->addThreat(victim_owner, 0.0f);      // create a threat to the owner of a pet, if the pet attacks
         }
+    }
+}
+
+/**
+ * @brief Ask this reference to hold threat off
+ * @param amount Threat to hold off; nothing for none or less
+ *
+ * Adds `amount` to the standing asks and refits: the threat shown drops by as much of the threat earned as the asks
+ * now reach, never below zero.
+ */
+void HostileReference::AddThreatReduction(float amount)
+{
+    if (amount <= 0.0f)
+    {
+        return;
+    }
+
+    iReductionAsked += amount;
+    RefitThreatReduction();
+}
+
+/**
+ * @brief Withdraw an ask to hold threat off
+ * @param amount Threat the ask held off; nothing for none or less
+ *
+ * Takes `amount` off the standing asks, never below none, and refits: the threat the ask held off shows again.
+ */
+void HostileReference::RemoveThreatReduction(float amount)
+{
+    if (amount <= 0.0f)
+    {
+        return;
+    }
+
+    iReductionAsked = amount < iReductionAsked ? iReductionAsked - amount : 0.0f;
+    RefitThreatReduction();
+}
+
+/**
+ * @brief Refit the threat shown to the standing asks
+ *
+ * The asks hold off as much of the threat earned as they reach and the rest shows; a change of the threat shown
+ * fires the threat change event, so the source re-sorts its list and sends its threat update as for any change.
+ */
+void HostileReference::RefitThreatReduction()
+{
+    const float earned = iThreat + iReductionApplied;
+    const float held = earned < iReductionAsked ? earned : iReductionAsked;
+    const float shown = earned - held;
+    const float change = shown - iThreat;
+    iReductionApplied = held;
+    iThreat = shown;
+    if (change != 0.0f)
+    {
+        ThreatRefStatusChangeEvent event(UEV_THREAT_REF_THREAT_CHANGE, this, change);
+        fireStatusChanged(event);
     }
 }
 

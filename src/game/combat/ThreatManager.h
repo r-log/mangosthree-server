@@ -85,31 +85,45 @@ class HostileReference : public Reference<Unit, ThreatManager>
 
         /**
          * @brief Add threat
+         *
+         * Adds to the threat earned, which never drops below zero; the threat shown is what is earned less what the
+         * standing asks hold off (AddThreatReduction).
+         *
          * @param pMod Threat modifier
          */
         void addThreat(float pMod);
 
         /**
          * @brief Set threat
-         * @param pThreat Threat value to set
+         * @param pThreat Threat value the reference has earned
          */
-        void setThreat(float pThreat) { addThreat(pThreat - getThreat()); }
+        void setThreat(float pThreat) { addThreat(pThreat - (iThreat + iReductionApplied)); }
 
         /**
          * @brief Add threat percentage
-         * @param pPercent Percentage to add
+         * @param pPercent Percentage of the threat earned to add
          */
         void addThreatPercent(int32 pPercent)
         {
+            const float earned = iThreat + iReductionApplied;
             // For special -100 case avoid rounding
-            addThreat(pPercent == -100 ? -iThreat : iThreat * pPercent / 100.0f);
+            addThreat(pPercent == -100 ? -earned : earned * pPercent / 100.0f);
         }
 
         /**
          * @brief Get threat
-         * @return Current threat value
+         * @return Current threat value: the threat earned less what the standing asks hold off, never below zero
          */
         float getThreat() const { return iThreat; }
+
+        /// Asks `amount` of threat to be held off this reference for a while: the reference's threat shows the threat
+        /// it has earned less what it is asked to hold off, never below zero; what is held off comes back as the asks
+        /// are withdrawn. Threat earned while an ask stands is held off too, up to the ask.
+        void AddThreatReduction(float amount);
+
+        /// Withdraws an ask of `amount`; the threat it held off shows again. A reference asked less than `amount` is
+        /// left with no ask.
+        void RemoveThreatReduction(float amount);
 
         /**
          * @brief Check if online
@@ -231,9 +245,15 @@ class HostileReference : public Reference<Unit, ThreatManager>
          */
         void fireStatusChanged(ThreatRefStatusChangeEvent& pThreatRefStatusChangeEvent);
 
+        /// Holds off as much of the threat earned as the standing asks allow and shows the rest, firing the threat
+        /// change event when the threat shown moves.
+        void RefitThreatReduction();
+
         Unit* getSourceUnit();
     private:
-        float iThreat; ///< Current threat
+        float iThreat; ///< Current threat, as shown: the threat earned less iReductionApplied
+        float iReductionAsked; ///< The sum of the standing asks to hold threat off (AddThreatReduction)
+        float iReductionApplied; ///< The part of the threat earned the asks hold off: at most each of the two
         float iTempThreatModifyer; ///< Temporary threat modifier (used for taunt)
         ObjectGuid iUnitGuid; ///< Unit GUID
         bool iOnline; ///< Online status
