@@ -35,6 +35,8 @@
 #include "TestHarness.h"
 #include "Creature.h"
 #include "Unit.h"
+#include "combat/HostileRefManager.h"
+#include "combat/ThreatManager.h"
 #include <type_traits>
 
 namespace
@@ -92,4 +94,158 @@ TEST(CreatureThreat_BareCreatureSelectsNoHostileTarget)
     // is NULL (Creature::Creature) and the method returns false without touching a map.
     Creature creature(CREATURE_SUBTYPE_GENERIC);
     CHECK(!creature.SelectHostileTarget());
+}
+
+/// Threat held off a hostile reference (HostileReference::AddThreatReduction) and shown again, on bare creatures
+/// (update fields allocated; no map, template or AI): one creature is the unit held, each other one lists it with
+/// ThreatManager::addThreat. The holder is declared before the creatures that list it, so they let go of it first.
+namespace
+{
+    class ThreatTestCreature : public Creature
+    {
+        public:
+            ThreatTestCreature() : Creature(CREATURE_SUBTYPE_GENERIC)
+            {
+                _InitValues();
+            }
+
+            ~ThreatTestCreature()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+
+    const float kAsk = 90000000.0f;     // Mirror Image's, Fade's and Shadowmeld's aura 103 amount, as held off
+
+    float Shown(ThreatTestCreature& lister, ThreatTestCreature& held)
+    {
+        return lister.GetThreatManager().getThreat(&held);
+    }
+}
+
+TEST(CreatureThreat_AnAskHoldsTheThreatEarnedUnderItAndShowsItWhole)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+    REQUIRE(Shown(camel, mage) == 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+    CHECK(!camel.GetThreatManager().isThreatListEmpty());
+
+    camel.GetThreatManager().addThreat(&mage, 300.0f);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 5300.0f);
+}
+
+TEST(CreatureThreat_TwoAsksAreWithdrawnOneAtATime)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 5000.0f);
+}
+
+TEST(CreatureThreat_AnAskOnNoThreatChangesNothing)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 0.0f);
+    REQUIRE(!camel.GetThreatManager().isThreatListEmpty());
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+}
+
+TEST(CreatureThreat_AnAskSmallerThanTheThreatHoldsOffItsAmount)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(1000.0f);
+    CHECK_EQ(Shown(camel, mage), 4000.0f);
+
+    camel.GetThreatManager().addThreat(&mage, 300.0f);
+    CHECK_EQ(Shown(camel, mage), 4300.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(1000.0f);
+    CHECK_EQ(Shown(camel, mage), 5300.0f);
+}
+
+TEST(CreatureThreat_APercentUnderAnAskTakesItFromTheThreatEarned)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    mage.GetHostileRefManager().addThreatPercent(-10);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 4500.0f);
+}
+
+TEST(CreatureThreat_TheTauntTemporaryUnderAnAskMovesTheThreatEarned)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+    HostileReference* ref = mage.GetHostileRefManager().getFirst();
+    REQUIRE(ref);
+
+    mage.GetHostileRefManager().AddThreatReduction(1000.0f);
+    REQUIRE(Shown(camel, mage) == 4000.0f);
+
+    ref->setTempThreat(10000.0f);
+    CHECK_EQ(Shown(camel, mage), 10000.0f);
+
+    ref->resetTempThreat();
+    CHECK_EQ(Shown(camel, mage), 4000.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(1000.0f);
+    CHECK_EQ(Shown(camel, mage), 5000.0f);
+}
+
+TEST(CreatureThreat_TheManagerAsksEveryListAndALaterListIsUntouched)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature first;
+    ThreatTestCreature second;
+    ThreatTestCreature third;
+    ThreatTestCreature later;
+    first.GetThreatManager().addThreat(&mage, 5000.0f);
+    second.GetThreatManager().addThreat(&mage, 700.0f);
+    third.GetThreatManager().addThreat(&mage, 2500.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(1000.0f);
+    CHECK_EQ(Shown(first, mage), 4000.0f);
+    CHECK_EQ(Shown(second, mage), 0.0f);
+    CHECK_EQ(Shown(third, mage), 1500.0f);
+
+    later.GetThreatManager().addThreat(&mage, 600.0f);
+    CHECK_EQ(Shown(later, mage), 600.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(1000.0f);
+    CHECK_EQ(Shown(first, mage), 5000.0f);
+    CHECK_EQ(Shown(second, mage), 700.0f);
+    CHECK_EQ(Shown(third, mage), 2500.0f);
+    CHECK_EQ(Shown(later, mage), 600.0f);
 }
