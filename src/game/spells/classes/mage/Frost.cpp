@@ -214,8 +214,9 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 44543, 44545, 83074 (Fingers of Frost) and 44546, 44548, 44549 (Brain Freeze): each talent refuses the procs of
-    /// the sources RefusesChillSource names.
+    /// 44543, 44545, 83074 (Fingers of Frost), whose row takes the hit of each chill it names, and 44546, 44548, 44549
+    /// (Brain Freeze), whose row takes the end of the cast: each talent refuses the procs of the sources
+    /// RefusesChillSource names.
     SpellHandlerOutcome<bool> ChillSourceCheckProc(CheckProcContext& ctx)
     {
         if (ctx.procSpell && Mage::RefusesChillSource(ctx.procSpell->ID))
@@ -241,8 +242,10 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), NULL));
     }
 
-    /// 44543, 44545, 83074: Fingers of Frost: its proc rolls the aura's amount as a percent chance, and on a pass casts
-    /// its trigger spell (44544) through Mage::CastProcTriggerSpell.
+    /// 44543, 44545, 83074: Fingers of Frost: its proc rolls when a chill of its row lands, once for each unit the
+    /// spell hits or crits, and never at the end of a cast nor at a miss or an immunity (the row's hit kinds decide);
+    /// it rolls the aura's amount as a percent chance, and on a pass casts its trigger spell (44544) through
+    /// Mage::CastProcTriggerSpell.
     ProcOutcome FingersOfFrostProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
@@ -364,7 +367,8 @@ namespace
 
     /// 42208: Blizzard's damage: after it, for a caster who knows Ice Shards (12487, or 11185), the caster casts the
     /// rank's chill (Mage::IceShardsChill) at the living unit it hit, as the talent's own aura casts it: the chill's
-    /// hit starts no procs, its cast end does. Nothing for a heal.
+    /// hit and its cast end start the procs of the auras that can proc from procs alone (TriggeredCastStartsProcsOf).
+    /// Nothing for a heal.
     SpellHandlerOutcome<void> BlizzardAfterHit(AfterHitContext& ctx)
     {
         if (ctx.heal || !ctx.target.IsAlive())

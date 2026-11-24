@@ -329,14 +329,20 @@ namespace
     /// a cast of that unit's own does.
     constexpr uint32 PROC_STARTING_TRIGGERED_CASTS[] =
     {
+        12484,  // Chilled, cast by Ice Shards' first rank at each unit the mage's Blizzard hits
+        12485,  // Chilled, cast by Ice Shards' second rank at each unit the mage's Blizzard hits
         34913,  // Molten Armor's hit, cast by the armor's aura at the unit that struck the mage
         44461,  // Living Bomb's explosion, cast for the mage by the bomb's aura when it runs out
+        83154,  // Piercing Chill's chill, cast by the talent's aura at the units a Frostbolt crit chills
     };
 
     /// The spells of PROC_STARTING_TRIGGERED_CASTS that start only the procs of auras that can proc from procs.
     constexpr uint32 PROC_STARTING_CASTS_FOR_PROC_PERMITTED_AURAS[] =
     {
+        12484,  // Ice Shards' Chilled, first rank
+        12485,  // Ice Shards' Chilled, second rank
         34913,  // Molten Armor's hit
+        83154,  // Piercing Chill's chill
     };
 
     /// A spell id and the value it answers.
@@ -712,6 +718,8 @@ namespace
     static_assert(SortedBySpellId(SHARED_DIMINISHING), "shared diminishing ids are sorted, each once");
     static_assert(SortedBySpellId(SUMMONS_PAST_OWN_AURA), "summon-past-own-aura ids are sorted, each once");
     static_assert(SortedBySpellId(PROC_STARTING_TRIGGERED_CASTS), "proc-starting triggered cast ids are sorted, each once");
+    static_assert(SortedBySpellId(PROC_STARTING_CASTS_FOR_PROC_PERMITTED_AURAS),
+                  "proc-permitted-aura cast ids are sorted, each once");
     static_assert(SortedBySpellId(AURA_TARGET_LIMITS), "aura target limit rows are sorted, each once");
     static_assert(SortedBySpellId(FRIENDLY_VIEWER_DISPLAYS), "friendly viewer display rows are sorted, each once");
     static_assert(SortedBySpellId(ARCANE_POTENCY), "Arcane Potency rows are sorted, each once");

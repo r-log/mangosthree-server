@@ -491,8 +491,8 @@ namespace Mage
     bool UsesBrainFreeze(Unit const& caster, SpellEntry const& spell, uint32 castTime);
 
     /// Whether Fingers of Frost and Brain Freeze refuse a proc of `procSpellId` although its class bit passes the
-    /// talents' rows: Frost Armor's Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in
-    /// Frost.cpp.
+    /// talents' rows, Fingers of Frost's at the spell's hit and Brain Freeze's at the end of its cast: Frost Armor's
+    /// Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in Frost.cpp.
     bool RefusesChillSource(uint32 procSpellId);
 
     /// Takes one charge of Fingers of Frost off `mage`: one stack fewer, the buff removed at none. Answers whether he
