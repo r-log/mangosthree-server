@@ -118,6 +118,34 @@ void HostileRefManager::addThreatPercent(int32 pValue)
 }
 
 /**
+ * @brief Ask every list that holds the owner to hold threat off
+ * @param amount Threat each reference holds off (HostileReference::AddThreatReduction)
+ *
+ * Walks every reference to the owner, online or not; a list that takes the owner in later is not asked.
+ */
+void HostileRefManager::AddThreatReduction(float amount)
+{
+    for (HostileReference* ref = getFirst(); ref; ref = ref->next())
+    {
+        ref->AddThreatReduction(amount);
+    }
+}
+
+/**
+ * @brief Withdraw an ask from every list that holds the owner
+ * @param amount Threat the ask held off (HostileReference::RemoveThreatReduction)
+ *
+ * Walks every reference to the owner, online or not; one that was never asked keeps no ask.
+ */
+void HostileRefManager::RemoveThreatReduction(float amount)
+{
+    for (HostileReference* ref = getFirst(); ref; ref = ref->next())
+    {
+        ref->RemoveThreatReduction(amount);
+    }
+}
+
+/**
  * @brief Set online/offline state for all references
  * @param pIsOnline New online state
  *

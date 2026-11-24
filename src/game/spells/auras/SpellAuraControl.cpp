@@ -1018,7 +1018,11 @@ void Aura::HandleModThreat(bool apply, bool Real)
 }
 
 /**
- * @brief Adds or removes a flat threat amount toward the caster.
+ * @brief Adds or removes a flat threat amount toward the caster; a negative amount holds the holder's threat off.
+ *
+ * A negative amount asks every enemy whose list holds the target to hold that much of his threat off while the aura
+ * lasts, and withdraws the ask when it goes (HostileRefManager::AddThreatReduction); a list that takes him in while
+ * it lasts is not asked. Any other amount is added to, then taken off, the caster's threat on the target's enemies.
  *
  * @param apply True to add threat; false to subtract it.
  * @param Real True when processing the real aura state change.
@@ -1042,6 +1046,20 @@ void Aura::HandleAuraModTotalThreat(bool apply, bool Real)
 
     if (!caster || !caster->IsAlive())
     {
+        return;
+    }
+
+    if (m_modifier.m_amount < 0)
+    {
+        const float held = float(-m_modifier.m_amount);
+        if (apply)
+        {
+            target->GetHostileRefManager().AddThreatReduction(held);
+        }
+        else
+        {
+            target->GetHostileRefManager().RemoveThreatReduction(held);
+        }
         return;
     }
 
