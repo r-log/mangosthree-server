@@ -185,6 +185,14 @@ struct CreatureInfo
     /// @return ObjectGuid combining creature entry and low GUID
     ObjectGuid GetObjectGuid(uint32 lowguid) const { return ObjectGuid(GetHighGuid(), Entry, lowguid); }
 
+    /// @brief The base mana a guardian of this template takes at `level` (UNIT_FIELD_BASE_MANA, and the mana its
+    /// percent costs and base-mana effects take): the player base-mana table (gtOCTBaseMPByClass) of its class at that
+    /// level, whatever its PowerMultiplier, which scales only its maximum mana. A level past the table's last reads the
+    /// last. Other creatures keep the base mana SelectLevel gives them.
+    /// @param level The creature's level.
+    /// @return The table's value; 0 for a class the table gives no mana (warrior, rogue) or holds no row of.
+    uint32 BaseManaAt(uint32 level) const;
+
     /// @brief Determine the required skill to loot this creature.
     /// @return SkillType for herbalism, mining, or skinning based on creature type flags
     SkillType GetRequiredLootSkill() const

@@ -25,6 +25,7 @@
 
 #include "spells/data/SpellTables.h"
 #include "spells/data/SpellAuraDefines.h"
+#include "spells/data/SpellMgr.h"
 #include "data/dbc/SharedDefines.h"
 
 #include <algorithm>
@@ -850,6 +851,21 @@ bool BreaksOnDamageProc(uint32 damage, bool takenDamage, uint32 charges, bool ow
         default:
             return false;
     }
+}
+
+bool BreaksOnAnyDamage(uint32 auraInterruptFlags, uint32 auraType)
+{
+    return BreaksOnDamageProc(1, true, 0, false, 0, auraInterruptFlags, auraType);
+}
+
+bool BreaksOnFirstDamageByCharge(uint32 charges, uint32 procFlags, uint32 auraType)
+{
+    uint32 const anyDamageTaken = PROC_FLAG_TAKEN_MELEE_HIT | PROC_FLAG_TAKEN_MELEE_SPELL_HIT |
+                                  PROC_FLAG_TAKEN_RANGED_HIT | PROC_FLAG_TAKEN_RANGED_SPELL_HIT |
+                                  PROC_FLAG_TAKEN_AOE_SPELL_HIT | PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT |
+                                  PROC_FLAG_ON_TAKE_PERIODIC;
+    return charges == 1 && (procFlags & anyDamageTaken) == anyDamageTaken &&
+           (auraType == SPELL_AURA_MOD_CONFUSE || auraType == SPELL_AURA_MOD_STUN);
 }
 
 bool CountsPreventedDamage(uint32 auraType, uint32 auraInterruptFlags, uint32 charges)
