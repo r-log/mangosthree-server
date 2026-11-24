@@ -256,8 +256,11 @@
 // 1113 a staged Arcane mage's Slow holds one target, moves to a second and reaches 40 yards with its glyph; his Focus
 // Magic goes on another mage and not on him, that mage's hit that does not crit gives him no 54648, and his crit gives
 // him 54648 and gives the other mage none; each hit of his Flame Orb casts Arcane Missiles!.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1113 and 1115 (Qualify) fingerprints every spell a
-// scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
+// 1124 a staged Fire mage's Fade takes his threat on the Camel to 0 for its 10 s and keeps him on the Camel's list,
+// holds off the threat his Fire Blast earns under it and gives all of it back when it ends; a second Fade does the
+// same.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1113, 1115 and 1124 (Qualify) fingerprints every
+// spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -12142,6 +12145,174 @@ namespace Harness
         static constexpr uint32 kCancelFirstWait = 7;
         static constexpr uint32 kCancelSecondWait = 8;
         static constexpr uint32 kCancelStep = 9;
+    };
+
+    /**
+     * S1124 `mage-threat-reduction`: Fade (586) on a staged Fire mage who has Fire Blast at the Camel on the Camel's
+     * threat list. Fade is a priest spell he casts at himself, triggered; its one effect, aura 103 (MOD_TOTAL_THREAT)
+     * at -90,000,000 under SPELL_ATTR_EX_NO_THREAT, is the threat effect Mirror Image (55342) and Shadowmeld (58984)
+     * carry too: it asks every list that holds him to hold that much of his threat off for Fade's 10 s, and withdraws
+     * the ask when Fade ends. Mirror Image is not cast: its Initialize Images (58836) holds spell_script_target rows,
+     * which the guard refuses. Staged as 990 stages him (Precision before each cast, the crit aura at -100). Steps (F
+     * the time of step 2):
+     *  1. Fire Blast at the Camel: the mage enters its list;
+     *  2. Fade, at F;
+     *  3. Fire Blast again at F+1.5 s, under Fade, its cooldown taken off first;
+     *  4. a wait at F+10.5 s, after Fade has ended at F+10 s;
+     *  5. Fade again at F+11.5 s, its cooldown taken off first;
+     *  6. a wait at F+22 s, after the second Fade has ended.
+     * At each step's act and read the scenario keeps the mage's threat on the Camel, whether the Camel's list is empty
+     * and whether he holds 586; for each step it also keeps the last SMSG_THREAT_UPDATE value the client was sent for
+     * the mage in the step's windows.
+     *
+     * `threat`: `hit=<T>,held=<t2>,<t3>,listed=<l>,after=<t4>,fade=<t5>,<t6>,sent=<s>`: T at step 1's read, t2 at step
+     * 2's act, t3 at step 3's read, l 1 when the Camel's list held him at step 2's act, t4 at step 4's act, t5 at step
+     * 5's act, t6 at step 6's act, and s the last threat update the client was sent for him through step 3's windows.
+     * OK when T is above 0; t2 and t3 are 0 and l is 1; t4 is above T and below 2.2 T (T and the second Fire Blast's
+     * threat, which Fade held off); t5 is 0 and t6 equals t4; and s is 0.
+     */
+    class MageThreatReduction : public MageProcScenario
+    {
+    public:
+        MageThreatReduction() : MageProcScenario("mage-threat-reduction", 1124, "threat") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override
+        {
+            return { { 10531, 2 }, { 10523, 1 }, { 10555, 1 } };
+        }
+        std::vector<uint32> Spells() const override { return { kFireBlast }; }
+        uint32 CasterAura() const override { return kPrecision; }
+        int32 NonCritAuraPoints() const override { return -100; }
+        uint32 Watched() const override { return kFade; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step first = Cast(kFireBlast, false);
+            first.clearCooldown = true;
+            Step heldHit = Cast(kFireBlast, false);
+            heldHit.clearCooldown = true;
+            heldHit.everyMs = kHeldHitToEndMs;
+            Step fadeAgain = SelfAura(kFade, kFadeToEndMs);
+            fadeAgain.clearCooldown = true;
+            return { first, SelfAura(kFade, kFadeToHitMs), heldHit, Wait(kEndToFadeMs), fadeAgain, Wait(kEndToFadeMs) };
+        }
+
+        /// At each act (`atRead` false) and read: the mage's threat on the Camel (rounded), whether the Camel's list is
+        /// empty and whether he holds 586; kept in Seen::reads under `a_` for the act.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            const std::string prefix = atRead ? "" : "a_";
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            reads[prefix + "threat"] = int64(target->GetThreatManager().getThreat(p) + 0.5f);
+            reads[prefix + "empty"] = target->GetThreatManager().isThreatListEmpty() ? 1 : 0;
+            reads[prefix + "fade"] = HolderOf(p, kFade) != "none" ? 1 : 0;
+            m_rec.Note(std::string(atRead ? "at the read" : "at the act") + ": his threat on the Camel " +
+                       U(reads[prefix + "threat"]) + ", its list " + (reads[prefix + "empty"] ? "empty" : "not empty") + ", 586 " +
+                       HolderOf(p, kFade));
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 2136: 26 fields, fnv 30ec504c
+                { 2136, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 23 }, { "eff0.EffectBonusCoefficient", 1054582243 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 9 }, { "eff0.EffectRealPointsPerLevel", 1058642330 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 586: 26 fields, fnv 94621339
+                { 586, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 103 }, { "eff0.EffectBasePoints", -90000000 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31642: 26 fields, fnv bac9b262
+                { 31642, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 4194325 }, { "eff0.EffectTriggerSpell", 18350 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                { 18350, { { "absent", 1 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(steps)";
+            }
+            const int64 hit = ReadOf(st, kFirstHit, "threat");
+            const int64 held = ReadOf(st, kFadeStep, "a_threat");
+            const int64 heldHit = ReadOf(st, kHeldHit, "threat");
+            const int64 listed = ReadOf(st, kFadeStep, "a_empty") == 0 ? 1 : 0;
+            const int64 after = ReadOf(st, kAfterStep, "a_threat");
+            const int64 fade = ReadOf(st, kFadeAgainStep, "a_threat");
+            const int64 back = ReadOf(st, kBackStep, "a_threat");
+            int64 sent = -1;
+            for (uint32 k = 0; k <= kHeldHit; ++k)
+            {
+                sent = st.seen[k].threatUpdate >= 0 ? st.seen[k].threatUpdate : sent;
+            }
+
+            const bool hitOk = hit > 0;
+            const bool heldOk = held == 0 && heldHit == 0 && listed == 1;
+            const bool afterOk = after > hit && after * 10 < hit * 22;
+            const bool fadeOk = fade == 0 && back >= 0 && back == after;
+            const bool sentOk = sent == 0;
+
+            Seen const& firstHit = st.seen[kFirstHit];
+            const std::string value = "hit=" + Value(hit) + ",held=" + Value(held) + "," + Value(heldHit) + ",listed=" +
+                                      Value(listed) + ",after=" + Value(after) + ",fade=" + Value(fade) + "," + Value(back) +
+                                      ",sent=" + Value(sent);
+            char buf[1024];
+            snprintf(buf, sizeof(buf),
+                     "Fire Blast's hit %s %u and his threat after it %lld (%s); under Fade his threat %lld at its act and %lld "
+                     "after the Fire Blast under it, the Camel's list %s (%s); after Fade's end %lld, wanted above %lld and "
+                     "below 2.2 x %lld = %lld (%s); the second Fade %lld at its act and %lld after its end, wanted 0 and %lld "
+                     "(%s); the last SMSG_THREAT_UPDATE the client was sent for him through the Fire Blast under Fade carries "
+                     "%lld, wanted 0 (%s)",
+                     firstHit.logRead ? "of" : "unread", firstHit.amount, (long long)hit, hitOk ? "OK" : "BUG",
+                     (long long)held, (long long)heldHit, listed == 1 ? "holding him" : "empty", heldOk ? "OK" : "BUG",
+                     (long long)after, (long long)hit, (long long)hit, (long long)(hit * 22 / 10), afterOk ? "OK" : "BUG",
+                     (long long)fade, (long long)back, (long long)after, fadeOk ? "OK" : "BUG", (long long)sent,
+                     sentOk ? "OK" : "BUG");
+            return value + ((hitOk && heldOk && afterOk && fadeOk && sentOk) ? "(OK: " : "(BUG: ") + buf + ")";
+        }
+
+    private:
+        /// What ReadOwn kept under `key` for step k; -1 when unread.
+        static int64 ReadOf(St const& st, uint32 k, char const* key)
+        {
+            if (k >= st.seen.size())
+            {
+                return -1;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(key);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        /// A read as the category writes it; 0 for one never made.
+        static std::string Value(int64 read)
+        {
+            return U(uint64(read < 0 ? 0 : read));
+        }
+
+        static constexpr uint32 kFade = 586;
+        static constexpr uint32 kFireBlast = 2136;
+        static constexpr uint32 kPrecision = 13843;
+        static constexpr uint32 kFadeToHitMs = 1500;        ///< Fade to the Fire Blast under it
+        static constexpr uint32 kHeldHitToEndMs = 9000;     ///< that Fire Blast to the wait after Fade's 10 s
+        static constexpr uint32 kEndToFadeMs = 1000;        ///< a wait to the next step, or to the end of the record
+        static constexpr uint32 kFadeToEndMs = 10500;       ///< the second Fade to the wait after its 10 s
+        static constexpr size_t kSteps = 6;
+        static constexpr uint32 kFirstHit = 0;
+        static constexpr uint32 kFadeStep = 1;
+        static constexpr uint32 kHeldHit = 2;
+        static constexpr uint32 kAfterStep = 3;
+        static constexpr uint32 kFadeAgainStep = 4;
+        static constexpr uint32 kBackStep = 5;
     };
 
     /**
@@ -25061,6 +25232,7 @@ namespace Harness
         r.Register(new MageFireImprovedFlamestrike());
         r.Register(new MageFireImprovedFlamestrikeRankOne());
         r.Register(new MageFireInvisibilityFade());
+        r.Register(new MageThreatReduction());
         r.Register(new MageFireShareBeforeTaken());
         r.Register(new MageFireCombustionAtTheCast());
         r.Register(new MageFireCombustionMasteryAtTheCast());
