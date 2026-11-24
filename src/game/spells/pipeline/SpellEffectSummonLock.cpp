@@ -52,6 +52,13 @@
 #include "LootMgr.h"
 #include <random>
 
+namespace
+{
+    /// The summon properties (SummonProperties.dbc) of Mirror Image's images: friendly, with no title. The client's
+    /// data gives them to four other copies too (Hallucination, Voodoo Illusion and two Doppelgangers).
+    uint32 const MIRROR_IMAGE_SUMMON_PROPERTIES = 1021;
+}
+
 /**
  * @brief Opens or sends loot for the specified object guid.
  *
@@ -422,6 +429,11 @@ void Spell::EffectSummonType(SpellEffectEntry const* effect)
                     if (prop_id == 121 || prop_id == 647)
                     {
                         summonResult = DoSummonTotem(effect);
+                    }
+                    // a player's images of himself: his guardians, of his level, his hit and his faction
+                    else if (prop_id == MIRROR_IMAGE_SUMMON_PROPERTIES && m_caster->GetTypeId() == TYPEID_PLAYER)
+                    {
+                        summonResult = DoSummonGuardian(summonPositions, summon_prop, effect, level);
                     }
                     else
                     {

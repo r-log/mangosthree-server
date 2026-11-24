@@ -419,6 +419,94 @@ TEST(SpellTables_NoOtherAuraTypeBreaksOnAnyDamage)
     }
 }
 
+namespace
+{
+    // the aura interrupt flags of Dragon's Breath (31661), Sap (6770), Hammer of Justice (853) and Frost Nova (122),
+    // SpellInterrupts.dbc
+    const uint32 kDragonsBreathFlags = 0x00480000;
+    const uint32 kSapFlags = 0x00480002;
+    const uint32 kHammerOfJusticeFlags = 0x00480000;
+    const uint32 kFrostNovaFlags = 0x00480000;
+}
+
+TEST(SpellTables_AnyDamageBreaksAConfuseAndAStunWhoseFlagsSaySoAtOnce)
+{
+    // Polymorph's and Dragon's Breath's confuse, whose flags hold no AURA_INTERRUPT_FLAG_DAMAGE
+    CHECK(BreaksOnAnyDamage(kPolymorphFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(BreaksOnAnyDamage(kDragonsBreathFlags, SPELL_AURA_MOD_CONFUSE));
+
+    // a stun with AURA_INTERRUPT_FLAG_DAMAGE (Sap, Wyvern Sting) and one without it (Hammer of Justice, Ring of Frost)
+    CHECK(BreaksOnAnyDamage(kSapFlags, SPELL_AURA_MOD_STUN));
+    CHECK(BreaksOnAnyDamage(kWyvernStingFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnAnyDamage(kHammerOfJusticeFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnAnyDamage(kRingOfFrostFlags, SPELL_AURA_MOD_STUN));
+
+    // Frost Nova's root, Polymorph's transform and Fear's fear, whatever their flags
+    CHECK(!BreaksOnAnyDamage(kFrostNovaFlags, SPELL_AURA_MOD_ROOT));
+    CHECK(!BreaksOnAnyDamage(kSapFlags, SPELL_AURA_MOD_ROOT));
+    CHECK(!BreaksOnAnyDamage(kPolymorphFlags, SPELL_AURA_TRANSFORM));
+    CHECK(!BreaksOnAnyDamage(kSapFlags, SPELL_AURA_MOD_FEAR));
+
+    // the same answer BreaksOnDamageProc gives a hit of another spell that gets through, on a holder with no charges
+    for (uint32 flags : { kPolymorphFlags, kDragonsBreathFlags, kSapFlags, kHammerOfJusticeFlags, kRingOfFrostFlags })
+    {
+        for (uint32 auraType : { uint32(SPELL_AURA_MOD_CONFUSE), uint32(SPELL_AURA_MOD_STUN),
+                                 uint32(SPELL_AURA_MOD_ROOT) })
+        {
+            CHECK(BreaksOnAnyDamage(flags, auraType) == BreaksOnDamageProc(500, true, 0, false, 0, flags, auraType));
+        }
+    }
+}
+
+namespace
+{
+    // the aura interrupt flags of Gouge (1776) and Repentance (20066), SpellInterrupts.dbc; the proc flags of Gouge,
+    // Repentance, Dragon's Breath (31661), Polymorph (118) and Ring of Frost (82691), SpellAuraOptions.dbc, whose proc
+    // charges are 1, 1, 1, 0 and 0
+    const uint32 kGougeFlags = 0x08000000;
+    const uint32 kRepentanceFlags = 0x08000000;
+    const uint32 kGougeProcFlags = 0x000A22A8;
+    const uint32 kRepentanceProcFlags = 0x000AAAA8;
+    const uint32 kDragonsBreathProcFlags = 0x000222A8;
+    const uint32 kPolymorphProcFlags = 0x000AAAA8;
+    const uint32 kRingOfFrostProcFlags = 0x000A2AA8;
+}
+
+TEST(SpellTables_AStunWhoseOneChargeEveryDamageSpendsBreaksOnTheFirst)
+{
+    // Gouge's and Repentance's stun: one charge, and every kind of damage taken among their proc flags; their aura
+    // interrupt flags (AURA_INTERRUPT_FLAG_DAMAGE2 alone) do not say so
+    CHECK(BreaksOnFirstDamageByCharge(1, kGougeProcFlags, SPELL_AURA_MOD_STUN));
+    CHECK(BreaksOnFirstDamageByCharge(1, kRepentanceProcFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnAnyDamage(kGougeFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnAnyDamage(kRepentanceFlags, SPELL_AURA_MOD_STUN));
+
+    // the same flags on a holder with no charge left, or with two
+    CHECK(!BreaksOnFirstDamageByCharge(0, kGougeProcFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnFirstDamageByCharge(2, kRepentanceProcFlags, SPELL_AURA_MOD_STUN));
+
+    // Polymorph and Ring of Frost hold no charge; Dragon's Breath holds one, but no periodic damage among its flags
+    // (its confuse breaks on any damage by BreaksOnAnyDamage)
+    CHECK(!BreaksOnFirstDamageByCharge(0, kPolymorphProcFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(!BreaksOnFirstDamageByCharge(0, kRingOfFrostProcFlags, SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnFirstDamageByCharge(1, kDragonsBreathProcFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(BreaksOnAnyDamage(kDragonsBreathFlags, SPELL_AURA_MOD_CONFUSE));
+
+    // one charge on a confuse whose flags take every damage, and Gouge's flags short of a melee swing or a harmful
+    // spell hit
+    CHECK(BreaksOnFirstDamageByCharge(1, kGougeProcFlags, SPELL_AURA_MOD_CONFUSE));
+    CHECK(!BreaksOnFirstDamageByCharge(1, kGougeProcFlags & ~uint32(PROC_FLAG_TAKEN_MELEE_HIT), SPELL_AURA_MOD_STUN));
+    CHECK(!BreaksOnFirstDamageByCharge(1, kGougeProcFlags & ~uint32(PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT),
+                                       SPELL_AURA_MOD_STUN));
+
+    // Gouge's charge and flags on a fear, a root, a transform or a pacify-silence
+    for (uint32 auraType : { uint32(SPELL_AURA_MOD_FEAR), uint32(SPELL_AURA_MOD_ROOT), uint32(SPELL_AURA_TRANSFORM),
+                             uint32(SPELL_AURA_MOD_PACIFY_SILENCE) })
+    {
+        CHECK(!BreaksOnFirstDamageByCharge(1, kGougeProcFlags, auraType));
+    }
+}
+
 TEST(SpellTables_TheThresholdEffectsAreFearRootAndPacifySilenceAndNoOther)
 {
     // Fear, Entangling Roots and Frost Nova, and Hex's pacify-silence, whatever their flags and charges
