@@ -49,7 +49,7 @@
  * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
  * UseFingersCharge, GiveFingers and IceLanceMultiplier), Improved Freeze's (ImprovedFreezeChance and
  * ImprovedFreezeCharges), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout), Piercing Chill's
- * (PiercingChillCount and NearestOthers), Permafrost's (PermafrostHeal), Improved Cone of Cold's
+ * (PiercingChillCount and Nearest), Permafrost's (PermafrostHeal), Improved Cone of Cold's
  * (ImprovedConeOfColdFreeze), Ice Shards' (IceShardsChill), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice
  * Barrier's (GlyphedBarrierAmount), Reactive Barrier's (ReactiveBarrierTriggers) and Cold Snap's (ColdSnapResets).
  * Orb.cpp holds the orbs a mage's Flame Orb and Frostfire Orb summon: their creature AI, their scripts and their leaves
@@ -597,14 +597,14 @@ namespace Mage
     /// (83050, `knowsRankTwo`), else 83162 for one who knows the first (83049, `knowsRankOne`); 0 for a mage who knows
     /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frost.cpp.
     uint32 EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp);
-    /// How many other enemies a Frostbolt crit chills for a mage who knows `talentSpell` (Piercing Chill, 83156 or
-    /// 83157): that spell's effect 0 value in the spell store (1 or 2); 0 for any other spell, or when the store lacks
-    /// it. Defined in Frost.cpp.
+    /// How many units the chill of a Frostbolt crit chills, the Frostbolt's target among them, for a mage who knows
+    /// `talentSpell` (Piercing Chill, 83156 or 83157): that spell's effect 0 value in the spell store (1 or 2); 0 for
+    /// any other spell, or when the store lacks it. Defined in Frost.cpp.
     int32 PiercingChillCount(uint32 talentSpell);
 
-    /// Keeps in `targets` the `count` units nearest to `from`, nearest first, each once, `excluded` never among them;
-    /// units at the same distance keep their order. Empties it for a count of 0 or below. Defined in Frost.cpp.
-    void NearestOthers(std::list<Unit*>& targets, Unit const* excluded, WorldObject const& from, int32 count);
+    /// Keeps in `targets` the `count` units nearest `from`, nearest first, each once; empties it for a count of 0 or
+    /// less. Defined in Frost.cpp.
+    void Nearest(std::list<Unit*>& targets, WorldObject const& from, int32 count);
 
     /// The heal Permafrost gives the pet from a hit of `damage` at `percent`: damage * percent / 100, truncated; 0 for
     /// a percent of 0 or below. Defined in Frost.cpp.
