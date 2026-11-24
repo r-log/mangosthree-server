@@ -384,7 +384,9 @@ namespace Mage
     int32 InvisibilityThreatPercent(uint32 spellId);
 
     /// Whether Offensive State (79684) refuses to roll for an event of `procSpellId`: Arcane Missiles (5143) and its
-    /// missiles (7268), so the channel never brings Arcane Missiles! (79683) back. Defined in Mage.cpp.
+    /// missiles (7268), so the channel never brings Arcane Missiles! (79683) back; Ice Shards' Chilled (12484, 12485)
+    /// and Piercing Chill's chill (83154), the chills a talent's aura casts, whose hits start the procs of the auras
+    /// that can proc from procs. Defined in Mage.cpp.
     bool OffensiveStateRefuses(uint32 procSpellId);
 
     /// Whether a mage's talents stop Arcane Missiles! (79683) from coming: he holds Hot Streak (44445) or a rank of
@@ -547,8 +549,8 @@ namespace Mage
     bool UsesBrainFreeze(Unit const& caster, SpellEntry const& spell, uint32 castTime);
 
     /// Whether Fingers of Frost and Brain Freeze refuse a proc of `procSpellId` although its class bit passes the
-    /// talents' rows: Frost Armor's Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in
-    /// Frost.cpp.
+    /// talents' rows, Fingers of Frost's at the spell's hit and Brain Freeze's at the end of its cast: Frost Armor's
+    /// Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in Frost.cpp.
     bool RefusesChillSource(uint32 procSpellId);
 
     /// Takes one charge of Fingers of Frost off `mage`: one stack fewer, the buff removed at none. Answers whether he

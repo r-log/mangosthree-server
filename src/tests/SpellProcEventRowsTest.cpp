@@ -104,13 +104,21 @@ namespace
 
     ProcSpell const kCounterspell = { 2139, SPELL_SCHOOL_MASK_ARCANE, SPELLFAMILY_MAGE, UI64LIT(0x0000000000004000),
                                       0 };
+    ProcSpell const kBlizzardChillRankTwo = { 12485, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE,
+                                              UI64LIT(0x0000000000100000), 0 };
+    /// Piercing Chill's chill: Frostbolt's class bit.
+    ProcSpell const kPiercingChill = { 83154, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000020), 0 };
+    ProcSpell const kOrbHitRankOne = { 95969, SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0,
+                                       0x00004080 };
+    ProcSpell const kFlameOrbHit = { 82739, SPELL_SCHOOL_MASK_FIRE, SPELLFAMILY_MAGE, 0, 0x00000080 };
 
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
                                   kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
                                   kConeOfCold, kBlizzardChill, kFrostArmorChill, kOrbHitRankTwo, kOrbSummon, kIceLance,
                                   kFrostNova, kWaterbolt, kBlizzardTick, kCounterspell, kArcaneExplosion,
                                   kArcaneBrilliance, kMageArmor, kManaShield, kBlink, kClearcasting, kPresenceOfMind,
-                                  kArcanePower, kLightningBolt };
+                                  kArcanePower, kLightningBolt, kBlizzardChillRankTwo, kPiercingChill, kOrbHitRankOne,
+                                  kFlameOrbHit };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -187,12 +195,13 @@ namespace
     /// Offensive State 79684 and Impact 11103: family 3, no mask, a hit or a crit with or without damage.
     SpellProcEventEntry const kOffensiveState = ProcRow(0, SPELLFAMILY_MAGE, 0, 0,
                                                         PROC_EX_HIT_WITHOUT_DAMAGE | PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
-    /// Fingers of Frost 44543 and Brain Freeze 44546: family 3, A 0x100220 (Frostbolt, Cone of Cold, Chilled), B 0x1000
-    /// (Frostfire Bolt, Fingers of Frost only), C 0x4080 (the Frostfire Orb's hits), the end of a cast.
+    /// Fingers of Frost 44543: family 3, A 0x100220 (Frostbolt, Cone of Cold, Chilled), B 0x1000 (Frostfire Bolt), C
+    /// 0x4000 (the Frostfire Orb's two hits), a normal or a critical hit. Brain Freeze 44546: the same A and C words,
+    /// no B word, the end of a cast.
     SpellProcEventEntry const kFingersOfFrost = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000100000100220), 0,
-                                                        PROC_EX_CAST_END, 0x00004080);
+                                                        PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT, 0x00004000);
     SpellProcEventEntry const kBrainFreeze = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000100220), 0,
-                                                     PROC_EX_CAST_END, 0x00004080);
+                                                     PROC_EX_CAST_END, 0x00004000);
     /// Enduring Winter 44561: Frostbolt's hit. Permafrost 11175: the hits of the spells its dummy's mask names.
     SpellProcEventEntry const kEnduringWinter = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000000020), 0,
                                                         PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
@@ -388,43 +397,53 @@ TEST(SpellProcEventRows_OffensiveStatesRowPassesEveryMageHitAndNoMissThroughTheG
     CHECK(!PassesGate(kOffensiveState, kStarfire, PROC_EX_NORMAL_HIT));
 }
 
-TEST(SpellProcEventRows_FingersOfFrostRollsAtTheCastOfItsChillsAndNeverAtTheirHits)
+TEST(SpellProcEventRows_FingersOfFrostRollsAtTheHitsOfItsChillsAndNeverAtTheEndOfACast)
 {
-    ProcSpell const chills[] = { kFrostbolt, kConeOfCold, kBlizzardChill, kFrostfireBolt, kOrbHitRankTwo };
+    // Frostbolt, Cone of Cold, Ice Shards' Chilled at both ranks, Piercing Chill's chill (Frostbolt's bit), Frostfire
+    // Bolt and the Frostfire Orb's hits at both ranks: their hits and crits, never their cast end, a miss, a resist,
+    // an immunity or a reflect. With a mask on the row the gate is the whole check, so a hit that dealt no damage, as
+    // a Chilled's, passes as well.
+    ProcSpell const chills[] = { kFrostbolt, kConeOfCold, kBlizzardChill, kBlizzardChillRankTwo, kPiercingChill,
+                                 kFrostfireBolt, kOrbHitRankTwo, kOrbHitRankOne };
     for (ProcSpell const& spell : chills)
     {
-        CHECK(Takes(kFingersOfFrost, spell, PROC_EX_CAST_END));
-        CHECK(!Takes(kFingersOfFrost, spell, PROC_EX_NORMAL_HIT));
-        CHECK(!Takes(kFingersOfFrost, spell, PROC_EX_CRITICAL_HIT));
-    }
-    for (ProcSpell const& spell : { kFireBlast, kIceLance, kFrostNova, kWaterbolt, kArcaneBlast })
-    {
+        CHECK(FitsMask(kFingersOfFrost, spell));
+        CHECK(Takes(kFingersOfFrost, spell, PROC_EX_NORMAL_HIT));
+        CHECK(Takes(kFingersOfFrost, spell, PROC_EX_CRITICAL_HIT));
         CHECK(!Takes(kFingersOfFrost, spell, PROC_EX_CAST_END));
+        for (uint32 missed : { uint32(PROC_EX_MISS), uint32(PROC_EX_RESIST), uint32(PROC_EX_IMMUNE),
+                               uint32(PROC_EX_REFLECT) })
+        {
+            CHECK(!Takes(kFingersOfFrost, spell, missed));
+        }
     }
 
-    // Frost Armor's Chilled shares Blizzard's Chilled's bit, so the row takes it; Fingers of Frost's script refuses it
-    // by id (MageScriptsTest).
-    CHECK(Takes(kFingersOfFrost, kFrostArmorChill, PROC_EX_CAST_END));
+    // Flame Orb's hit and the Frostfire Orb's summon carry the C bit 0x80 alone; an Arcane Missiles missile, Fire
+    // Blast, Ice Lance, Frost Nova, Waterbolt and Arcane Blast none of the row's bits
+    for (ProcSpell const& spell : { kFlameOrbHit, kOrbSummon, kArcaneMissile, kFireBlast, kIceLance, kFrostNova,
+                                    kWaterbolt, kArcaneBlast })
+    {
+        CHECK(!FitsMask(kFingersOfFrost, spell));
+        CHECK(!Takes(kFingersOfFrost, spell, PROC_EX_NORMAL_HIT));
+    }
 
-    // The Frostfire Orb's summon shares the orb hit's C bit 0x80; its cast is helpful, so its cast end carries the
-    // helpful-spell flag, which the talent's proc flags do not hold.
-    CHECK(FitsMask(kFingersOfFrost, kOrbSummon));
-    uint32 const talentFlags = EventFlags(&kFingersOfFrost, kHarmfulSpellLanded);
-    CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(&kFingersOfFrost, talentFlags, Row(kOrbSummon),
-                                                    PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_CAST_END));
-    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kFingersOfFrost, talentFlags, Row(kOrbSummon), kHarmfulSpellLanded,
-                                                   PROC_EX_CAST_END));
+    // Frost Armor's Chilled shares Ice Shards' Chilled's bit, so the row takes its hit; Fingers of Frost's script
+    // refuses it by id, as it refuses the orb's first-rank hit (MageScriptsTest).
+    CHECK(Takes(kFingersOfFrost, kFrostArmorChill, PROC_EX_NORMAL_HIT));
 }
 
-TEST(SpellProcEventRows_BrainFreezeRollsAtTheCastOfTheSameChillsLessFrostfireBolt)
+TEST(SpellProcEventRows_BrainFreezeRollsAtTheEndOfTheCastOfTheSameChillsLessFrostfireBolt)
 {
-    ProcSpell const chills[] = { kFrostbolt, kConeOfCold, kBlizzardChill, kOrbHitRankTwo };
+    ProcSpell const chills[] = { kFrostbolt, kConeOfCold, kBlizzardChill, kBlizzardChillRankTwo, kPiercingChill,
+                                 kOrbHitRankTwo, kOrbHitRankOne };
     for (ProcSpell const& spell : chills)
     {
         CHECK(Takes(kBrainFreeze, spell, PROC_EX_CAST_END));
         CHECK(!Takes(kBrainFreeze, spell, PROC_EX_NORMAL_HIT));
+        CHECK(!Takes(kBrainFreeze, spell, PROC_EX_CRITICAL_HIT));
     }
-    for (ProcSpell const& spell : { kFrostfireBolt, kFireBlast, kIceLance, kFrostNova, kWaterbolt, kArcaneBlast })
+    for (ProcSpell const& spell : { kFrostfireBolt, kFlameOrbHit, kOrbSummon, kFireBlast, kIceLance, kFrostNova,
+                                    kWaterbolt, kArcaneBlast })
     {
         CHECK(!Takes(kBrainFreeze, spell, PROC_EX_CAST_END));
     }

@@ -181,8 +181,8 @@ namespace
 
     /// 79684: Offensive State: a mage whose talents do not stop Arcane Missiles! (Mage::SuppressesArcaneMissiles:
     /// Hot Streak or Brain Freeze) rolls the aura's percent after each spell hit the proc accepts, and on success casts
-    /// Arcane Missiles! (79683) on himself; a mage with one of them never does. Arcane Missiles and its missiles never
-    /// roll (Mage::OffensiveStateRefuses).
+    /// Arcane Missiles! (79683) on himself; a mage with one of them never does. Arcane Missiles and its missiles, Ice
+    /// Shards' Chilled and Piercing Chill's chill never roll (Mage::OffensiveStateRefuses).
     ProcOutcome OffensiveStateProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
@@ -288,7 +288,12 @@ bool Mage::OffensiveStateRefuses(uint32 procSpellId)
 {
     constexpr uint32 ARCANE_MISSILES = 5143;
     constexpr uint32 ARCANE_MISSILES_MISSILE = 7268;
-    return procSpellId == ARCANE_MISSILES || procSpellId == ARCANE_MISSILES_MISSILE;
+    constexpr uint32 ICE_SHARDS_CHILL_RANK_ONE = 12484;
+    constexpr uint32 ICE_SHARDS_CHILL_RANK_TWO = 12485;
+    constexpr uint32 PIERCING_CHILL_CHILL = 83154;
+    return procSpellId == ARCANE_MISSILES || procSpellId == ARCANE_MISSILES_MISSILE ||
+           procSpellId == ICE_SHARDS_CHILL_RANK_ONE || procSpellId == ICE_SHARDS_CHILL_RANK_TWO ||
+           procSpellId == PIERCING_CHILL_CHILL;
 }
 
 bool Mage::SuppressesArcaneMissiles(Unit const& mage)
