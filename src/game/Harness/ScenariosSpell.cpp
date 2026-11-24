@@ -13879,7 +13879,7 @@ namespace Harness
      * S993 `mage-frost-proc-rows`: the spell_proc_event rows of Fingers of Frost (44543), Brain Freeze (44546) and
      * Enduring Winter (44561) at work for a staged Frost mage (Early Frost 2, Piercing Ice 3, Ice Floes 3 and Improved
      * Cone of Cold 2, then Fingers of Frost 3, Ice Shards 2, Brain Freeze 3 and Enduring Winter 3; Glyph of Ice Block),
-     * with Fingers of Frost's refusals. Steps: ten Frostbolts (116); five Fire Blasts (2136), the cooldown taken off
+     * with Fingers of Frost's refusals. Steps: twenty Frostbolts (116); five Fire Blasts (2136), the cooldown taken off
      * before each; a wait at whose act the scenario makes kCalls hit procs on him by call, the event Fingers of Frost's
      * row takes, as a hit that lands makes one (Unit::ProcDamageAndSpell with the harmful-spell flag and
      * PROC_EX_NORMAL_HIT), each with Fingers of Frost (44544) taken off him first, for Blizzard's Chilled (12484),
@@ -14066,7 +14066,7 @@ namespace Harness
         static constexpr uint32 kFrostArmorChill = 7321;
         static constexpr uint32 kFrostfireBolt = 44614;
         static constexpr uint32 kGlyphOfFrostfire = 61205;
-        static constexpr uint32 kBolts = 10;
+        static constexpr uint32 kBolts = 20;
         static constexpr uint32 kBlasts = 5;
         static constexpr uint32 kCalls = 40;
         static constexpr int64 kNone = -1;
