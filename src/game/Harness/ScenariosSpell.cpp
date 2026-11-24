@@ -233,9 +233,9 @@
 // the Camel as it lands, and holds past their next tick; without the glyph both stay, and their tick breaks it.
 // 1102 a staged Arcane mage's damaging hits give Clearcasting at most once in 15 s, his helpful spells and another
 // class's spell none; Clearcasting makes an Arcane Blast free; Clearcasting and Presence of Mind each give Arcane
-// Potency's two charges, one taken by each Arcane Blast or Arcane Explosion cast and none by Arcane Missiles, and both
-// Arcane Blasts that take one hit with its crit chance; Presence of Mind makes an Arcane Blast instant and refuses
-// Arcane Power and is refused by it; Arcane Missiles! cast during the channel stays through its missiles.
+// Potency's two charges, one taken by each Arcane Blast, Arcane Explosion or Arcane Missiles cast, and both Arcane
+// Blasts that take one hit with its crit chance; Presence of Mind makes an Arcane Blast instant and refuses Arcane
+// Power and is refused by it; Arcane Missiles! cast during the channel stays through its missiles.
 // 1119 a staged Arcane mage's Arcane Missiles and Blizzard each take one charge of Arcane Potency's buff as the channel
 // starts and cast its hidden aura (33713) on him, whose crit chance reaches the missiles and Blizzard's ticks for its
 // 10 s, after the buff is gone too.
@@ -19207,9 +19207,10 @@ namespace Harness
      * spell never roll it. Clearcasting takes the mana cost off his next damage spell. Arcane Potency casts its buff,
      * two charges of +15% critical strike chance, when he gains Clearcasting or casts Presence of Mind, a new gain
      * setting it back to two; each cast of a damage spell the buff names, Arcane Blast (30451) and Arcane Explosion
-     * (1449) here, takes one charge however many targets it hits, and Arcane Missiles (5143) takes none; a cast keeps
-     * the crit chance of the charge it takes for its own hits, after the buff is gone too. Presence of
-     * Mind makes his next Arcane Blast instant and is kept by Arcane Explosion and Arcane Missiles; it and Arcane Power
+     * (1449) here, takes one charge however many targets it hits, and Arcane Missiles (5143), which the buff does not
+     * name, takes one as its channel starts and casts the buff's hidden aura (33713) on him; a cast keeps the crit
+     * chance of the charge it takes for its own hits, after the buff is gone too. Presence of Mind makes his next
+     * Arcane Blast instant and is kept by Arcane Explosion and Arcane Missiles; it and Arcane Power
      * (12042) refuse each other. Arcane Missiles! (79683) is used up by the Arcane Missiles cast and by no missile
      * (7268). Staged with Arcane Concentration 3, the first talent, so the stage learns the Arcane tree's spells;
      * Arcane Blast, Arcane Explosion, Arcane Missiles, Arcane Brilliance (1459), Mage Armor (6117), Presence of Mind,
@@ -19264,7 +19265,7 @@ namespace Harness
      * read>:<charges>:<12043>,again=<charges at step 15's read>,instant=<step 16's cast time>/<12043 at its
      * read>:<charges>,refusals=<step 18's cast result>/<step 21's>,pomAfter=<12043 at step 20's read>:<charges>`.
      * OK at `positive=0+0+0,other=0,mage=1/40@<any call>,cooldown=0/15,potency=1@2,free=0/0,blasts=15:1,15:0,0:0,
-     * crits=1,1,0,held=kept/cast,pom=2,explosion=5:1:1,missiles=0/1:1:1,again=2,instant=0/0:1,
+     * crits=1,1,0,held=kept/cast,pom=2,explosion=5:1:1,missiles=0/1:0:1,again=2,instant=0/0:1,
      * refusals=CASTER_AURASTATE/CASTER_AURASTATE,pomAfter=1:2`: the charge is still taken at each Arcane Blast's cast
      * end (`held`), and the second Arcane Blast's hit still takes the crit chance of the last one (`crits`).
      */
@@ -19336,6 +19337,8 @@ namespace Harness
                 { 31572, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 12 }, { "eff0.EffectSpellClassMask.Flags", 146028888064 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 57531: 26 fields, fnv f488a708
                 { 57531, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 158639453246071 }, { "eff0.EffectSpellClassMask.Flags2", 132 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 33713: 26 fields, fnv 785b1272
+                { 33713, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 2097280 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 12043: 26 fields, fnv dac7da28
                 { 12043, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", -100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 10 }, { "eff0.EffectSpellClassMask.Flags", 17593817628725 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 12042: 72 fields, fnv fef7ca60
@@ -19473,7 +19476,7 @@ namespace Harness
                                       ",pomAfter=" + pomAfter;
             const bool ok = positive == "0+0+0" && other == 0 && mage == 1 && cooldown == "0/15" && potency == "1@2" && free == "0/0" &&
                             blasts == "15:1,15:0,0:0" && crits == "1,1,0" && held == "kept/cast" && pom == "2" && explosion == "5:1:1" &&
-                            missiles == "0/1:1:1" && again == "2" && instant == "0/0:1" &&
+                            missiles == "0/1:0:1" && again == "2" && instant == "0/0:1" &&
                             refusals == "CASTER_AURASTATE/CASTER_AURASTATE" && pomAfter == "1:2";
             return (ok ? "OK(" : "BUG(") + value + "; recorded: the crits of the first three Arcane Blasts' damage logs with " +
                    "57531's crit chance at " + Amount(kForcedCrit) + "; Clearcasting counted in SPELL_GO packets, 57531 in " +
