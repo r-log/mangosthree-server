@@ -176,18 +176,20 @@
 // haste; Glyph of Icy Veins removes a creature's and a player's cast slow and keeps Power Infusion.
 // 1012 a staged Frost mage's Frostbolt crit with Piercing Chill 2 chills the two Camels nearest its target within ten
 // yards, one at nine yards, one chill cast each, and never the target, a third Camel at nine and a half yards or one
-// beyond; a hit that is no crit chills none; each chill cast's end is a roll of Fingers of Frost's and Brain Freeze's
-// rows. 1013 Permafrost 3 heals the Water Elemental through its own heal for 15% of each Frostbolt and Cone of Cold
-// hit, a crit's included, and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of Cold 2 has each Camel the
-// cone hits freeze itself for the mage for four seconds, in the frozen state, but a creature immune to roots, which
-// shows Immune instead; an Ice Lance with a Fingers of Frost charge then finds its target frozen and spends the charge.
+// beyond; a hit that is no crit chills none; each chill's hit is a roll of Fingers of Frost's row and each chill cast's
+// end one of Brain Freeze's. 1013 Permafrost 3 heals the Water Elemental through its own heal for 15% of each
+// Frostbolt and Cone of Cold hit, a crit's included, and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of
+// Cold 2 has each Camel the cone hits freeze itself for the mage for four seconds, in the frozen state, but a creature
+// immune to roots, which shows Immune instead; an Ice Lance with a Fingers of Frost charge then finds its target
+// frozen and spends the charge.
 // 1015 a staged Frost mage's Ice Barrier broken by damage roots, with Shattered Barrier, the two Camels within ten
 // yards of him and not the third; replaced, dispelled, cancelled or run out it roots none; Glyph of Ice Barrier adds
 // 30% to the whole absorb. 1016 Reactive Barrier casts the free Ice Barrier for a swing that leaves him below half
 // health, also when he was below half already and when an absorb took the swing whole, and never while Ice Barrier's
 // cooldown runs; a spell's hit an absorb takes whole while he is below half casts it too.
 // 1017 a staged Frost mage's Flame Orb button casts the Frostfire Orb, whose hits are frostfire, chill their target
-// at the talent's second rank only and never ignite; Cold Snap makes it ready again, and it skips a polymorphed enemy.
+// at the talent's second rank only and never ignite; Cold Snap makes it ready again, and it skips a polymorphed enemy;
+// the second rank's hits roll his Fingers of Frost and the first rank's do not.
 // 1018 a staged Frost mage's fresh Water Elemental starts with Waterbolt's autocast on and Freeze's off, takes the
 // client's Assist button, fires Waterbolt on its own at what he attacks, each bolt taking 0.833 of its spell power,
 // which is 0.4 of his frost spell power, and turns invisible with him and back with him. 1019 an Assist Water
@@ -6422,11 +6424,10 @@ namespace Harness
      * passive (86473), as a level-85 Frost mage has them; Ice Lance, Frost Nova (122) and Frostbolt (116) learned. Ice
      * Lance's done damage is multiplied when the target is frozen, or when Fingers of Frost (44544) on him lets it act
      * as if it were. Steps: Ice Lance at the Camel; Frost Nova, which freezes it; Ice Lance at the frozen Camel; then
-     * three rounds of three Frostbolts and an Ice Lance, every Frostbolt's cast a chance for Fingers of Frost; the
+     * three rounds of three Frostbolts and an Ice Lance, every Frostbolt's hit a chance for Fingers of Frost; the
      * first Frostbolt of a round starts Early Frost's lockout, so the next two take the full cast time. One cast every
-     * 4.7 s: under the harness's seed base no Ice Lance crits, and Fingers of Frost triggers at steps 9 and 12, so the
-     * Ice Lances of steps 11 and 15 have it, and each uses the charge it finds. A Frostbolt may crit: its crit plays no
-     * part in the record.
+     * 4.7 s: under the harness's seed base no Ice Lance crits; an Ice Lance cast while he holds a charge has it, and
+     * uses the charge it finds. A Frostbolt may crit: its crit plays no part in the record.
      *
      * `iceLance`: each Ice Lance's state when cast (`frozen`, `fingers` when 44544 was on him and the Camel not frozen,
      * else `plain`) and its amount; OK when there is a frozen one and a plain one, and each frozen or fingers one dealt
@@ -13872,11 +13873,12 @@ namespace Harness
      * Enduring Winter (44561) at work for a staged Frost mage (Early Frost 2, Piercing Ice 3, Ice Floes 3 and Improved
      * Cone of Cold 2, then Fingers of Frost 3, Ice Shards 2, Brain Freeze 3 and Enduring Winter 3; Glyph of Ice Block),
      * with Fingers of Frost's refusals. Steps: ten Frostbolts (116); five Fire Blasts (2136), the cooldown taken off
-     * before each; a wait at whose act the scenario makes kCalls cast-end procs on him by call, as Spell::cast makes
-     * one at a launch (Unit::ProcDamageAndSpell with the harmful-spell flag and PROC_EX_CAST_END), each with Fingers
-     * of Frost (44544) taken off him first, for Blizzard's Chilled (12484), Frost Armor's Chilled (7321), Frostfire
-     * Bolt (44614), and Frostfire Bolt again with Glyph of Frostfire (61205) cast on him, triggered, as a staged glyph
-     * is; then Frost Nova (122) and Ice Block (45438), whose glyph is to take Frost Nova's cooldown off.
+     * before each; a wait at whose act the scenario makes kCalls hit procs on him by call, the event Fingers of Frost's
+     * row takes, as a hit that lands makes one (Unit::ProcDamageAndSpell with the harmful-spell flag and
+     * PROC_EX_NORMAL_HIT), each with Fingers of Frost (44544) taken off him first, for Blizzard's Chilled (12484),
+     * Frost Armor's Chilled (7321), Frostfire Bolt (44614), and Frostfire Bolt again with Glyph of Frostfire (61205)
+     * cast on him, triggered, as a staged glyph is; then Frost Nova (122) and Ice Block (45438), whose glyph is to take
+     * Frost Nova's cooldown off.
      *
      * `procRows`: `bolts=<44544 casts in the Frostbolts' windows>,blasts=<in the Fire Blasts'>,brainFreeze=<57761 casts
      * in the Frostbolts' windows>,replenishment=<57669 casts in the Frostbolts' windows>,chill=,frostArmor=,bolt=,
@@ -13980,8 +13982,8 @@ namespace Harness
             };
         }
 
-        /// The wait's act: kCalls cast-end procs of each source by call, with the grants kept. Ice Block's read:
-        /// whether Frost Nova is off cooldown.
+        /// The wait's act: kCalls hit procs of each source by call, with the grants kept. Ice Block's read: whether
+        /// Frost Nova is off cooldown.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -13994,7 +13996,7 @@ namespace Harness
                 m_rec.Note(std::string("Glyph of Frostfire on him: ") + (p->HasAura(kGlyphOfFrostfire) ? "yes" : "no"));
                 seen.reads["glyphedBolt"] = GrantsByCall(p, target, kFrostfireBolt);
                 p->RemoveAurasDueToSpell(kGlyphOfFrostfire);
-                m_rec.Note("cast-end procs by call, " + U(kCalls) + " each: Blizzard's Chilled " +
+                m_rec.Note("hit procs by call, " + U(kCalls) + " each: Blizzard's Chilled " +
                            U(uint64(seen.reads["chill"])) + ", Frost Armor's Chilled " +
                            U(uint64(seen.reads["frostArmor"])) + ", Frostfire Bolt " + U(uint64(seen.reads["bolt"])) +
                            ", with Glyph of Frostfire's aura " + U(uint64(seen.reads["glyphedBolt"])));
@@ -14073,8 +14075,8 @@ namespace Harness
             return i == st.seen[k].reads.end() ? kNone : i->second;
         }
 
-        /// Of kCalls cast-end procs of `spellId` on him by call, each made with Fingers of Frost taken off him first,
-        /// the ones that left him holding it; it is taken off at the end.
+        /// Of kCalls hit procs of `spellId` on him by call, each made with Fingers of Frost taken off him first, the
+        /// ones that left him holding it; it is taken off at the end.
         int64 GrantsByCall(Player* p, Creature* target, uint32 spellId)
         {
             SpellEntry const* info = sSpellStore.LookupEntry(spellId);
@@ -14086,8 +14088,8 @@ namespace Harness
             for (uint32 call = 0; call < kCalls; ++call)
             {
                 p->RemoveAurasDueToSpell(kFingersOfFrost);
-                p->ProcDamageAndSpell(target, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, PROC_FLAG_NONE, PROC_EX_CAST_END,
-                                      0, BASE_ATTACK, info);
+                p->ProcDamageAndSpell(target, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, PROC_FLAG_NONE,
+                                      PROC_EX_NORMAL_HIT, 0, BASE_ATTACK, info);
                 grants += p->HasAura(kFingersOfFrost) ? 1 : 0;
             }
             p->RemoveAurasDueToSpell(kFingersOfFrost);
@@ -14472,7 +14474,7 @@ namespace Harness
      *  13. a Fireball the buff of step 12 makes instant;
      *  14. a Frostfire Bolt;
      *  15. a Frostfire Bolt cast in full, at whose act, right after the cast starts, Fingers of Frost's talent aura
-     *      (83074) is taken off him, so the bolt's cast-end proc gives no charge, and he casts a Fingers of Frost
+     *      (83074) is taken off him, so the bolt's hit gives no charge, and he casts a Fingers of Frost
      *      charge (44544) and the buff at himself, triggered; then, with Shatter's second rank (12982) cast at him,
      *      triggered, and the crit aura at kRollCritPoints, the scenario rolls Unit::IsSpellCrit for Frostfire Bolt at
      *      the unfrozen Camel kRolls times while his bolt is cast, after which Shatter is taken off him and the crit
@@ -17575,14 +17577,17 @@ namespace Harness
     /**
      * S1017 `mage-frost-frostfire-orb`: Frostfire Orb (talent 11169: 84726 at rank 1, 84727 at rank 2) on a staged
      * Frost mage: Piercing Ice 1 (a Frost talent, so the stage teaches the Frost tree's spells), kSpellPower spell
-     * power, Flame Orb (82731), Cold Snap (11958), Frostfire Orb's first rank, Ignite 3 (12846) and Polymorph (118)
-     * learned. Each rank's aura 332 names 92283 for the spells of class mask C 0x800, which Flame Orb carries, so the
-     * CAST_SPELL handler casts 92283 when he sends 82731 (SpellHandlers::HandleCastSpell). 92283 casts the summon
-     * 84714, which puts the Frostfire Orb 45322 at his point; the world's addon row gives it 84717, which casts its
-     * scan 84718 every 500 ms; the orb snares itself (82736) on its first enemy and hits the closest enemy once a
-     * second for the snare's 15 s: 95969 for a mage who knows rank 1, 84721 (the hit and a 2 s -40% slow) for one who
-     * knows rank 2. Beside the Camel ten yards out stands a second Camel six yards out, nearer the orb's line, as in
-     * 973; both cast Hit Me (100446) on themselves at their spawn, so no scan or hit misses them. Steps:
+     * power, Flame Orb (82731), Cold Snap (11958), Frostfire Orb's first rank, Ignite 3 (12846), Fingers of Frost 3
+     * (83074) and Polymorph (118) learned. Each rank's aura 332 names 92283 for the spells of class mask C 0x800, which
+     * Flame Orb carries, so the CAST_SPELL handler casts 92283 when he sends 82731 (SpellHandlers::HandleCastSpell).
+     * 92283 casts the summon 84714, which puts the Frostfire Orb 45322 at his point; the world's addon row gives it
+     * 84717, which casts its scan 84718 every 500 ms; the orb snares itself (82736) on its first enemy and hits the
+     * closest enemy once a second for the snare's 15 s: 95969 for a mage who knows rank 1, 84721 (the hit and a 2 s
+     * -40% slow) for one who knows rank 2. The orb casts each hit with him as its original caster, so the hit's procs
+     * are his: each 84721 hit is a roll of Fingers of Frost, whose 44544 casts the `triggered` category lists, and
+     * each 95969 hit none, the talent refusing it by id. Beside the Camel ten yards out stands a second Camel six
+     * yards out, nearer the orb's line, as in 973; both cast Hit Me (100446) on themselves at their spawn, so no scan
+     * or hit misses them. Steps:
      *  1. Polymorph at the second Camel;
      *  2. Flame Orb sent as the client sends it, under the crit aura at +100, so every hit crits;
      *  3. Cold Snap; 4. a wait, at which he unlearns the first rank (Player::removeSpell) and learns the second
@@ -17630,7 +17635,10 @@ namespace Harness
 
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11157, 0 } }; }
-        std::vector<uint32> Spells() const override { return { kFlameOrb, kColdSnap, kRankOne, kIgnite, kPolymorph }; }
+        std::vector<uint32> Spells() const override
+        {
+            return { kFlameOrb, kColdSnap, kRankOne, kIgnite, kFingersTalent, kPolymorph };
+        }
         std::vector<uint32> SpellsLearnedLater() const override { return { kRankTwo }; }
         int32 SpellPower() const override { return kSpellPower; }
         uint32 TargetAura() const override { return kHitMe; }
@@ -17688,6 +17696,10 @@ namespace Harness
                 { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 76613: 49 fields, fnv a5f94991
                 { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 83074: 26 fields, fnv ab3597ca
+                { 83074, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 20 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 44544 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 44544: 26 fields, fnv 65bc81c5
+                { 44544, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 262 }, { "eff0.EffectBasePoints", 2 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 126 }, { "eff0.EffectSpellClassMask.Flags", 4503599627370496 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
             };
         }
 
@@ -17815,6 +17827,7 @@ namespace Harness
         static constexpr uint32 kPolymorph = 118;
         static constexpr uint32 kIgnite = 12846;
         static constexpr uint32 kIgniteDot = 12654;
+        static constexpr uint32 kFingersTalent = 83074;
         static constexpr uint32 kHitMe = 100446;
         static constexpr int32 kSpellPower = 1000;
         static constexpr float kOrbSearchRange = 40.0f;
@@ -22595,16 +22608,18 @@ namespace Harness
      * around Camel 1, and Camel 5 fourteen yards out, beyond them. Before the first cast he takes Precision (13843, +6%
      * spell hit), so no chill misses a level-85 Camel. Steps, each read kCastReadMs after it: Frostbolt at
      * Camel 1, which must crit; Frostbolt at Camel 1, which must not; a wait at whose act the scenario makes kCalls
-     * cast-end procs of the chill on him by call, as Spell::cast makes one at a launch (Unit::ProcDamageAndSpell with
-     * the harmful-spell flag and PROC_EX_CAST_END), each with Fingers of Frost (44544) and Brain Freeze's buff (57761)
-     * taken off him first.
+     * pairs of procs of the chill on him by call, each pair with Fingers of Frost (44544) and Brain Freeze's buff
+     * (57761) taken off him first: a hit's, as a chill that lands makes one (Unit::ProcDamageAndSpell with the
+     * harmful-spell flag and PROC_EX_NORMAL_HIT), the event Fingers of Frost's row takes, then a cast end's, as
+     * Spell::cast makes one at a launch (PROC_EX_CAST_END), the event Brain Freeze's row takes.
      *
      * `chill`: `chilled=<the Camels holding his 83154 at the crit's read>,casts=<83154 SPELL_GO in the crit's
-     * windows>/<in the non-crit's>,fingers=<by-call procs that left him holding 44544>/<kCalls>,brainFreeze=<the same
-     * for 57761>/<kCalls>`. OK at `chilled=2+3,casts=2/0` with both by-call counts above 0: the crit chills the two
-     * Camels nearest its target within ten yards, the second at nine yards, one chill cast at each, never its target,
-     * the third at nine and a half yards nor the one beyond; the non-crit chills none; and each chill cast's end is a
-     * roll of both talents' rows.
+     * windows>/<in the non-crit's>,fingers=<by-call hit procs that left him holding 44544>/<kCalls>,
+     * brainFreeze=<by-call cast-end procs that left him holding 57761>/<kCalls>`. OK at `chilled=2+3,casts=2/0` with
+     * both by-call counts above 0: the crit chills the two Camels nearest its target within ten yards, the second at
+     * nine yards, one chill cast at each, never its target, the third at nine and a half yards nor the one beyond; the
+     * non-crit chills none; and each chill's hit is a roll of Fingers of Frost's row and its cast's end a roll of Brain
+     * Freeze's.
      */
     class MageFrostPiercingChill : public MageProcScenario
     {
@@ -22674,7 +22689,8 @@ namespace Harness
 
         uint32 CasterAura() const override { return kPrecision; }
 
-        /// The crit's read: the Camels holding his chill. The wait's act: kCalls cast-end procs of the chill by call.
+        /// The crit's read: the Camels holding his chill. The wait's act: kCalls hit procs and kCalls cast-end procs of
+        /// the chill by call.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
         {
             Seen& seen = st.seen[k];
@@ -22701,16 +22717,18 @@ namespace Harness
                     p->RemoveAurasDueToSpell(kFingersOfFrost);
                     p->RemoveAurasDueToSpell(kBrainFreeze);
                     p->ProcDamageAndSpell(target, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, PROC_FLAG_NONE,
-                                          PROC_EX_CAST_END, 0, BASE_ATTACK, chill);
+                                          PROC_EX_NORMAL_HIT, 0, BASE_ATTACK, chill);
                     fingers += p->HasAura(kFingersOfFrost) ? 1 : 0;
+                    p->ProcDamageAndSpell(target, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, PROC_FLAG_NONE,
+                                          PROC_EX_CAST_END, 0, BASE_ATTACK, chill);
                     brainFreeze += p->HasAura(kBrainFreeze) ? 1 : 0;
                 }
                 p->RemoveAurasDueToSpell(kFingersOfFrost);
                 p->RemoveAurasDueToSpell(kBrainFreeze);
                 seen.reads["fingers"] = chill ? fingers : kNone;
                 seen.reads["brainFreeze"] = chill ? brainFreeze : kNone;
-                m_rec.Note("cast-end procs of 83154 by call, " + U(kCalls) + ": Fingers of Frost " +
-                           U(uint64(fingers)) + ", Brain Freeze " + U(uint64(brainFreeze)));
+                m_rec.Note("procs of 83154 by call, " + U(kCalls) + " of each kind: Fingers of Frost from the hits " +
+                           U(uint64(fingers)) + ", Brain Freeze from the cast ends " + U(uint64(brainFreeze)));
             }
         }
 
@@ -22742,7 +22760,8 @@ namespace Harness
             const bool ok = crit.logRead && crit.crit && plain.logRead && !plain.crit && chilled == "2+3" &&
                             critCasts == 2 && plainCasts == 0 && fingers > 0 && brainFreeze > 0;
             const std::string detail = "wanted the crit to chill Camels 2 and 3 alone, one chill cast each, the "
-                                       "non-crit none, and each talent's row to take the chill's cast end)";
+                                       "non-crit none, Fingers of Frost's row to take the chill's hit and Brain "
+                                       "Freeze's its cast end)";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
