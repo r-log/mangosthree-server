@@ -23,18 +23,27 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Decoupling D5e (server #134): the Creature-only threat methods live on Creature.
+/// Creature threat and the threat-reduction vectors.
 ///
-/// The test is the static_asserts below, and they are the whole point: this file cannot
-/// compile on master, where &Unit::SelectHostileTarget, &Unit::TauntApply and
-/// &Unit::TauntFadeOut all name existing members. The runtime case underneath is
-/// supplementary -- a bare Creature returned false from SelectHostileTarget() before the
-/// move as well (its AI is null), so on its own it proves nothing about where the method
-/// is declared.
+/// The static_asserts below hold SelectHostileTarget, TauntApply and TauntFadeOut on Creature and off Unit, and a
+/// bare Creature (its AI null) selects no hostile target. The cases after them hold a hostile reference's threat
+/// reduction: an ask holds off the threat the reference has earned, and the threat earned under it, never below zero;
+/// withdrawing it shows all of it again; asks add up and are withdrawn one at a time; a percent change and the taunt
+/// temporary under an ask move the threat earned; the unit's every list is asked and a list made later is not; and a
+/// total-threat aura with a negative amount withdraws its ask when it ends although its caster is gone by then.
 
 #include "TestHarness.h"
+#include "Auth/BigNumber.h"
 #include "Creature.h"
+#include "DBCStores.h"
+#include "Player.h"
+#include "PlayerRegistry.h"
 #include "Unit.h"
+#include "WorldSession.h"
+#include "combat/HostileRefManager.h"
+#include "combat/ThreatManager.h"
+#include "data/ServerSpellStore.h"
+#include "spells/auras/SpellAuras.h"
 #include <type_traits>
 
 namespace
@@ -92,4 +101,254 @@ TEST(CreatureThreat_BareCreatureSelectsNoHostileTarget)
     // is NULL (Creature::Creature) and the method returns false without touching a map.
     Creature creature(CREATURE_SUBTYPE_GENERIC);
     CHECK(!creature.SelectHostileTarget());
+}
+
+/// Threat held off a hostile reference (HostileReference::AddThreatReduction) and shown again, on bare creatures
+/// (update fields allocated; no map, template or AI): one creature is the unit held, each other one lists it with
+/// ThreatManager::addThreat. The aura case holds a bare player (update fields allocated, a session with no socket, no
+/// map) and its caster is another one, found by its guid while it is flagged in world and registered. The unit held
+/// is declared before the creatures that list it, so they let go of it first.
+namespace
+{
+    class ThreatTestCreature : public Creature
+    {
+        public:
+            ThreatTestCreature() : Creature(CREATURE_SUBTYPE_GENERIC)
+            {
+                _InitValues();
+            }
+
+            ~ThreatTestCreature()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+
+    /// A player of guid `guidLow`; once it arrives it is flagged in world and registered, so a guid lookup finds it,
+    /// until it leaves.
+    class ThreatTestPlayer : public Player
+    {
+        public:
+            ThreatTestPlayer(WorldSession& session, uint32 guidLow) : Player(&session), m_arrived(false)
+            {
+                Object::_Create(guidLow, 0, HIGHGUID_PLAYER);
+            }
+
+            ~ThreatTestPlayer()
+            {
+                Leave();
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+
+            void Arrive()
+            {
+                Object::AddToWorld();
+                sPlayerRegistry.Add(this);
+                m_arrived = true;
+            }
+
+            void Leave()
+            {
+                if (m_arrived)
+                {
+                    sPlayerRegistry.Remove(this);
+                    Object::RemoveFromWorld();
+                    m_arrived = false;
+                }
+            }
+
+        private:
+            bool m_arrived;
+    };
+
+    const float kAsk = 90000000.0f;     // Mirror Image's, Fade's and Shadowmeld's aura 103 amount, as held off
+    const uint32 kReductionSpell = 199124;      // a test spell id the client's data does not hold
+    const int32 kReductionPoints = -9000000;    // Stasis Strike's aura 103 amount (88178, effect 1)
+
+    /// A spell of one effect, aura 103 (SPELL_AURA_MOD_TOTAL_THREAT) at kReductionPoints on an enemy, put in the spell
+    /// store once for the rest of the run; no other test reads it.
+    SpellEntry const* StoreReductionSpell()
+    {
+        static ServerSpell spell;
+        static bool stored = false;
+        if (!stored)
+        {
+            stored = true;
+            spell.Entry().ID = kReductionSpell;
+            spell.effect.SpellID = kReductionSpell;
+            spell.effect.EffectIndex = EFFECT_INDEX_0;
+            spell.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            spell.effect.EffectAura = SPELL_AURA_MOD_TOTAL_THREAT;
+            spell.effect.EffectBasePoints = kReductionPoints;
+            spell.effect.ImplicitTarget_0 = TARGET_CHAIN_DAMAGE;
+            sSpellStore.SetEntry(kReductionSpell, &spell.Entry());
+            AddSpellEffectEntry(&spell.effect);
+        }
+        return &spell.Entry();
+    }
+
+    float Shown(ThreatTestCreature& lister, Unit& held)
+    {
+        return lister.GetThreatManager().getThreat(&held);
+    }
+}
+
+TEST(CreatureThreat_AnAskHoldsTheThreatEarnedUnderItAndShowsItWhole)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+    REQUIRE(Shown(camel, mage) == 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+    CHECK(!camel.GetThreatManager().isThreatListEmpty());
+
+    camel.GetThreatManager().addThreat(&mage, 300.0f);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 5300.0f);
+}
+
+TEST(CreatureThreat_TwoAsksAreWithdrawnOneAtATime)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 5000.0f);
+}
+
+TEST(CreatureThreat_AnAskOnNoThreatChangesNothing)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 0.0f);
+    REQUIRE(!camel.GetThreatManager().isThreatListEmpty());
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+}
+
+TEST(CreatureThreat_AnAskSmallerThanTheThreatHoldsOffItsAmount)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(1000.0f);
+    CHECK_EQ(Shown(camel, mage), 4000.0f);
+
+    camel.GetThreatManager().addThreat(&mage, 300.0f);
+    CHECK_EQ(Shown(camel, mage), 4300.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(1000.0f);
+    CHECK_EQ(Shown(camel, mage), 5300.0f);
+}
+
+TEST(CreatureThreat_APercentUnderAnAskTakesItFromTheThreatEarned)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(kAsk);
+    mage.GetHostileRefManager().addThreatPercent(-10);
+    CHECK_EQ(Shown(camel, mage), 0.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(kAsk);
+    CHECK_EQ(Shown(camel, mage), 4500.0f);
+}
+
+TEST(CreatureThreat_TheTauntTemporaryUnderAnAskMovesTheThreatEarned)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&mage, 5000.0f);
+    HostileReference* ref = mage.GetHostileRefManager().getFirst();
+    REQUIRE(ref);
+
+    mage.GetHostileRefManager().AddThreatReduction(1000.0f);
+    REQUIRE(Shown(camel, mage) == 4000.0f);
+
+    ref->setTempThreat(10000.0f);
+    CHECK_EQ(Shown(camel, mage), 10000.0f);
+
+    ref->resetTempThreat();
+    CHECK_EQ(Shown(camel, mage), 4000.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(1000.0f);
+    CHECK_EQ(Shown(camel, mage), 5000.0f);
+}
+
+TEST(CreatureThreat_TheManagerAsksEveryListAndALaterListIsUntouched)
+{
+    ThreatTestCreature mage;
+    ThreatTestCreature first;
+    ThreatTestCreature second;
+    ThreatTestCreature third;
+    ThreatTestCreature later;
+    first.GetThreatManager().addThreat(&mage, 5000.0f);
+    second.GetThreatManager().addThreat(&mage, 700.0f);
+    third.GetThreatManager().addThreat(&mage, 2500.0f);
+
+    mage.GetHostileRefManager().AddThreatReduction(1000.0f);
+    CHECK_EQ(Shown(first, mage), 4000.0f);
+    CHECK_EQ(Shown(second, mage), 0.0f);
+    CHECK_EQ(Shown(third, mage), 1500.0f);
+
+    later.GetThreatManager().addThreat(&mage, 600.0f);
+    CHECK_EQ(Shown(later, mage), 600.0f);
+
+    mage.GetHostileRefManager().RemoveThreatReduction(1000.0f);
+    CHECK_EQ(Shown(first, mage), 5000.0f);
+    CHECK_EQ(Shown(second, mage), 700.0f);
+    CHECK_EQ(Shown(third, mage), 2500.0f);
+    CHECK_EQ(Shown(later, mage), 600.0f);
+}
+
+TEST(CreatureThreat_AReductionWhoseCasterIsGoneWhenItEndsIsWithdrawn)
+{
+    SpellEntry const* spell = StoreReductionSpell();
+    WorldSession heldSession(1, "threat", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession casterSession(2, "threat", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    ThreatTestPlayer held(heldSession, 1);
+    ThreatTestPlayer caster(casterSession, 2);
+    ThreatTestCreature camel;
+    camel.GetThreatManager().addThreat(&held, 5000.0f);
+    REQUIRE(Shown(camel, held) == 5000.0f);
+
+    // The aura on the held player, cast by the other one, who is there when it is applied.
+    caster.Arrive();
+    SpellAuraHolder* holder = new SpellAuraHolder(spell, &held, NULL, NULL, NULL);
+    holder->SetCasterGuid(caster.GetObjectGuid());
+    int32 basePoints = kReductionPoints;
+    Aura* aura = CreateAura(spell, EFFECT_INDEX_0, &basePoints, holder, &held);
+    holder->AddAura(aura, EFFECT_INDEX_0);
+    CHECK(aura->GetCaster() == &caster);
+
+    aura->ApplyModifier(true, true);
+    CHECK_EQ(Shown(camel, held), 0.0f);
+
+    // The caster is gone when the aura ends: the ask is withdrawn all the same.
+    caster.Leave();
+    CHECK(aura->GetCaster() == NULL);
+    aura->ApplyModifier(false, true);
+    CHECK_EQ(Shown(camel, held), 5000.0f);
+
+    delete holder;
 }

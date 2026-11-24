@@ -81,6 +81,11 @@ class HostileRefManager : public RefManager<Unit, ThreatManager>
          */
         void addThreatPercent(int32 pValue);
 
+        /// Asks, or withdraws, `amount` of threat held off on every list that holds the unit
+        /// (HostileReference::AddThreatReduction).
+        void AddThreatReduction(float amount);
+        void RemoveThreatReduction(float amount);
+
         /**
          * @brief Delete all references
          *
