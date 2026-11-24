@@ -174,14 +174,13 @@
 // lockout his Frostbolt takes its full cast time and global cooldown; his global cooldown takes the talent's modifier
 // first and haste and the 1.0 to 1.5 s hold only above one second, so the second rank's is 0.9 s with or without
 // haste; Glyph of Icy Veins removes a creature's and a player's cast slow and keeps Power Infusion.
-// 1012 a staged Frost mage's Frostbolt crit with Piercing Chill 2 chills the two Camels nearest its target within ten
-// yards, one at nine yards, one chill cast each, and never the target, a third Camel at nine and a half yards or one
-// beyond; a hit that is no crit chills none; each chill's hit is a roll of Fingers of Frost's row and each chill cast's
-// end one of Brain Freeze's. 1013 Permafrost 3 heals the Water Elemental through its own heal for 15% of each
-// Frostbolt and Cone of Cold hit, a crit's included, and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of
-// Cold 2 has each Camel the cone hits freeze itself for the mage for four seconds, in the frozen state, but a creature
-// immune to roots, which shows Immune instead; an Ice Lance with a Fingers of Frost charge then finds its target
-// frozen and spends the charge.
+// 1012 a staged Frost mage's Frostbolt crit with Piercing Chill 2 chills, in one chill cast, its target and the Camel
+// nearest it, at three yards, and never a third Camel at nine yards or one beyond; a hit that is no crit chills none;
+// each chill's hit is a roll of Fingers of Frost's row and each chill cast's end one of Brain Freeze's.
+// 1013 Permafrost 3 heals the Water Elemental through its own heal for 15% of each Frostbolt and Cone of Cold hit, a
+// crit's included, and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of Cold 2 has each Camel the cone hits
+// freeze itself for the mage for four seconds, in the frozen state, but a creature immune to roots, which shows Immune
+// instead; an Ice Lance with a Fingers of Frost charge then finds its target frozen and spends the charge.
 // 1015 a staged Frost mage's Ice Barrier broken by damage roots, with Shattered Barrier, the two Camels within ten
 // yards of him and not the third; replaced, dispelled, cancelled or run out it roots none; Glyph of Ice Barrier adds
 // 30% to the whole absorb. 1016 Reactive Barrier casts the free Ice Barrier for a swing that leaves him below half
@@ -22635,9 +22634,9 @@ namespace Harness
      *
      * `chill`: `chilled=<the Camels holding his 83154 at the crit's read>,casts=<83154 SPELL_GO in the crit's
      * windows>/<in the non-crit's>,fingers=<by-call hit procs that left him holding 44544>/<kCalls>,
-     * brainFreeze=<by-call cast-end procs that left him holding 57761>/<kCalls>`. OK at `chilled=2+3,casts=2/0` with
-     * both by-call counts above 0: the crit chills the two Camels nearest its target within ten yards, the second at
-     * nine yards, one chill cast at each, never its target, the third at nine and a half yards nor the one beyond; the
+     * brainFreeze=<by-call cast-end procs that left him holding 57761>/<kCalls>`. OK at `chilled=1+2,casts=1/0` with
+     * both by-call counts above 0: one chill cast, at the crit's target, chills the target itself and the Camel nearest
+     * it, at three yards, and neither the Camel at nine yards, the one at nine and a half nor the one beyond; the
      * non-crit chills none; and each chill's hit is a roll of Fingers of Frost's row and its cast's end a roll of Brain
      * Freeze's.
      */
@@ -22760,9 +22759,9 @@ namespace Harness
                                       std::to_string(brainFreeze) + "/" + U(kCalls);
             Seen const& crit = st.seen[kCritStep];
             Seen const& plain = st.seen[kPlainStep];
-            const bool ok = crit.logRead && crit.crit && plain.logRead && !plain.crit && chilled == "2+3" &&
-                            critCasts == 2 && plainCasts == 0 && fingers > 0 && brainFreeze > 0;
-            const std::string detail = "wanted the crit to chill Camels 2 and 3 alone, one chill cast each, the "
+            const bool ok = crit.logRead && crit.crit && plain.logRead && !plain.crit && chilled == "1+2" &&
+                            critCasts == 1 && plainCasts == 0 && fingers > 0 && brainFreeze > 0;
+            const std::string detail = "wanted the crit to chill Camels 1 and 2 alone, in one chill cast, the "
                                        "non-crit none, Fingers of Frost's row to take the chill's hit and Brain "
                                        "Freeze's its cast end)";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
