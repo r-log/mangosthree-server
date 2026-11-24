@@ -597,9 +597,10 @@ namespace Mage
     /// (83050, `knowsRankTwo`), else 83162 for one who knows the first (83049, `knowsRankOne`); 0 for a mage who knows
     /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frost.cpp.
     uint32 EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp);
-    /// How many units the chill of a Frostbolt crit chills, the Frostbolt's target among them, for a mage who knows
-    /// `talentSpell` (Piercing Chill, 83156 or 83157): that spell's effect 0 value in the spell store (1 or 2); 0 for
-    /// any other spell, or when the store lacks it. Defined in Frost.cpp.
+    /// How many units the chill of a Frostbolt crit chills, for a mage who knows `talentSpell` (Piercing Chill, 83156
+    /// or 83157): the Frostbolt's target among them, or, when the crit killed it, that many others nearest where it
+    /// lies. That spell's effect 0 value in the spell store (1 or 2); 0 for any other spell, or when the store lacks
+    /// it. Defined in Frost.cpp.
     int32 PiercingChillCount(uint32 talentSpell);
 
     /// Keeps in `targets` the `count` units nearest `from`, nearest first, each once; empties it for a count of 0 or

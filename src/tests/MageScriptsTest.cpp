@@ -4581,8 +4581,8 @@ TEST(MageScripts_PolymorphsApplyRunsGlyphOfPolymorph)
 namespace
 {
     // Piercing Chill's two ranks (83156, 83157) as the client's data holds them: effect 0 a dummy aura on the caster of
-    // 1 and 2, the other enemies a Frostbolt crit chills. Put into the spell and effect stores once for the rest of the
-    // run; no other test reads them.
+    // 1 and 2, the units a Frostbolt crit chills, its target among them. Put into the spell and effect stores once for
+    // the rest of the run; no other test reads them.
     void AddPiercingChillRanks()
     {
         static ServerSpell ranks[2];
@@ -4593,7 +4593,7 @@ namespace
         }
         added = true;
         uint32 const ids[2] = { 83156, 83157 };
-        int32 const others[2] = { 1, 2 };
+        int32 const counts[2] = { 1, 2 };
         for (std::size_t i = 0; i < 2; ++i)
         {
             ranks[i].Entry().ID = ids[i];
@@ -4601,7 +4601,7 @@ namespace
             ranks[i].effect.EffectIndex = EFFECT_INDEX_0;
             ranks[i].effect.Effect = SPELL_EFFECT_APPLY_AURA;
             ranks[i].effect.EffectAura = SPELL_AURA_DUMMY;
-            ranks[i].effect.EffectBasePoints = others[i];
+            ranks[i].effect.EffectBasePoints = counts[i];
             ranks[i].effect.ImplicitTarget_0 = TARGET_SELF;
             sSpellStore.SetEntry(ids[i], &ranks[i].Entry());
             AddSpellEffectEntry(&ranks[i].effect);
