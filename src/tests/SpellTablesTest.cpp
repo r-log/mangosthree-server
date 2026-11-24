@@ -301,19 +301,23 @@ TEST(SpellTables_TheAuraTargetLimitsAreTheTablesRowsAndNoOther)
     }
 }
 
-TEST(SpellTables_LivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredCastsThatStartProcs)
+TEST(SpellTables_TheChillsLivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredCastsThatStartProcs)
 {
-    // Living Bomb's explosion, which the bomb's aura casts when it runs out, and Molten Armor's hit
-    CHECK(TriggeredCastStartsProcs(44461));
-    CHECK(TriggeredCastStartsProcs(34913));
+    // Ice Shards' Chilled at both ranks and Piercing Chill's chill, which the talents' auras cast, Living Bomb's
+    // explosion, which the bomb's aura casts when it runs out, and Molten Armor's hit
+    for (uint32 spellId : { 12484u, 12485u, 83154u, 44461u, 34913u })
+    {
+        CHECK(TriggeredCastStartsProcs(spellId));
+    }
 
-    // Living Bomb itself, Ignite's DoT, Fire Power's explosion, Flame Orb's hit and an id no table holds do not
-    for (uint32 spellId : { 44457u, 12654u, 83619u, 82739u, 30482u, 12345u, 0u })
+    // Frost Armor's Chilled, which shares Ice Shards' Chilled's class bit, Shattered Barrier's freeze, Living Bomb
+    // itself, Ignite's DoT, Fire Power's explosion, Flame Orb's hit and an id no table holds do not
+    for (uint32 spellId : { 7321u, 83073u, 44457u, 12654u, 83619u, 82739u, 30482u, 12345u, 0u })
     {
         CHECK(!TriggeredCastStartsProcs(spellId));
     }
 
-    // The table holds exactly its two rows
+    // The table holds exactly its five rows
     uint32 rows = 0;
     for (uint32 spellId = 0; spellId < 1000000; ++spellId)
     {
@@ -322,17 +326,25 @@ TEST(SpellTables_LivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredCastsThatS
             ++rows;
         }
     }
-    CHECK_EQ(rows, uint32(2));
+    CHECK_EQ(rows, uint32(5));
 }
 
-TEST(SpellTables_MoltenArmorsHitStartsOnlyTheProcsOfAurasThatCanProcFromProcs)
+TEST(SpellTables_MoltenArmorsHitAndTheChillsStartOnlyTheProcsOfAurasThatCanProcFromProcs)
 {
-    // Molten Armor's hit starts an aura's procs only when the aura carries the bit; no other cast is held back
-    CHECK(TriggeredCastStartsProcsOf(34913, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS));
-    CHECK(TriggeredCastStartsProcsOf(34913, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS | 0x1));
-    CHECK(!TriggeredCastStartsProcsOf(34913, 0));
-    CHECK(!TriggeredCastStartsProcsOf(34913, ~uint32(SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS)));
-    for (uint32 spellId : { 44461u, 82739u, 30482u, 12345u, 0u })
+    // Molten Armor's hit, Ice Shards' Chilled and Piercing Chill's chill start an aura's procs only when the aura
+    // carries the bit, as Fingers of Frost (44543, Ex3 0x04000000) does; no other cast is held back
+    for (uint32 spellId : { 34913u, 12484u, 12485u, 83154u })
+    {
+        CHECK(TriggeredCastStartsProcsOf(spellId, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS));
+        CHECK(TriggeredCastStartsProcsOf(spellId, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS | 0x1));
+        CHECK(!TriggeredCastStartsProcsOf(spellId, 0));
+        CHECK(!TriggeredCastStartsProcsOf(spellId, ~uint32(SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS)));
+    }
+    CHECK_EQ(uint32(SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS), uint32(0x04000000));
+    CHECK(TriggeredCastStartsProcsOf(83154, 0x04000000));
+    // Brain Freeze's Ex3 (44546: 0x04080000) holds the bit too
+    CHECK(TriggeredCastStartsProcsOf(12485, 0x04080000));
+    for (uint32 spellId : { 44461u, 7321u, 83073u, 82739u, 30482u, 12345u, 0u })
     {
         CHECK(TriggeredCastStartsProcsOf(spellId, 0));
         CHECK(TriggeredCastStartsProcsOf(spellId, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS));

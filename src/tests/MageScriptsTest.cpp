@@ -3662,8 +3662,9 @@ TEST(MageScripts_FingersOfFrostRefusesFrostArmorsChillAndTheFirstRankOrbButNotAG
         CHECK(!Mage::RefusesChillSource(spellId));
     }
 
-    // The check-proc hook of the three ranks: Frost Armor's Chilled and the first-rank orb hit are dropped; a Frostbolt
-    // and a Frostfire Bolt go on, the bolt with Glyph of Frostfire on the owner too.
+    // The check-proc hook of the three ranks, at a hit, the event their row takes: Frost Armor's Chilled and the
+    // first-rank orb hit are dropped; a Frostbolt and a Frostfire Bolt go on, the bolt with Glyph of Frostfire on the
+    // owner too.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     BareCreature owner;
@@ -3689,7 +3690,7 @@ TEST(MageScripts_FingersOfFrostRefusesFrostArmorsChillAndTheFirstRankOrbButNotAG
         for (Vector const& v : vectors)
         {
             CheckProcContext ctx(*v.owner, NULL, SpellRow(talentRow, talent), AuraHandle(EmptyHolder(holder)),
-                                 &SpellRow(eventRow, v.procSpell), 0x10000, PROC_EX_CAST_END, 0);
+                                 &SpellRow(eventRow, v.procSpell), 0x10000, PROC_EX_NORMAL_HIT, 0);
             SpellHandlerOutcome<bool> outcome = registry.Dispatch<CheckProcHook>(talent, ctx);
             CHECK_EQ(outcome.IsReturn() && !outcome.GetValue(), v.refused);
             CHECK_EQ(outcome.IsContinue(), !v.refused);
