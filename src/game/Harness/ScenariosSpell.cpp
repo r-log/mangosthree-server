@@ -4176,7 +4176,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1029, 1100-1116): a human mage staged to level 85 with the scenario's talents,
+     * 998-1000, 1010-1029, 1100-1116, 1124): a human mage staged to level 85 with the scenario's talents,
      * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
      * staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
