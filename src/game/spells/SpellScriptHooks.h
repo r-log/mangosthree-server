@@ -309,7 +309,8 @@ struct AfterHitContext
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
     /// The caster casts `spellId` at `to`, triggered by his own aura of `auraSpellId` at `auraEffect`, as a proc of
     /// that aura casts: the aura's spell is the trigger and its caster the original caster, so the cast's hits start
-    /// no procs, while its cast end does. False, and nothing cast, when he holds no such aura.
+    /// no procs, while its cast end does; the hits of a spell TriggeredCastStartsProcs names start procs too, of the
+    /// auras TriggeredCastStartsProcsOf admits. False, and nothing cast, when he holds no such aura.
     bool CastTriggeredByAura(Unit& to, uint32 spellId, uint32 auraSpellId, SpellEffectIndex auraEffect);
     /// `from` casts `spellId` at `to`, triggered, with this context's caster as the original caster and this spell as
     /// the trigger. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
