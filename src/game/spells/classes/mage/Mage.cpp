@@ -182,8 +182,8 @@ namespace
     /// 79684: Offensive State: a mage whose talents do not stop Arcane Missiles! (Mage::SuppressesArcaneMissiles:
     /// Hot Streak or Brain Freeze) rolls the aura's percent after each offensive cast of his ends, once for the cast
     /// whatever it hits, and on success casts Arcane Missiles! (79683) on himself; a mage with one of them never does.
-    /// Arcane Missiles and its missiles, and the chills and freezes his auras and his ring cast for him, never roll
-    /// (Mage::OffensiveStateRefuses).
+    /// Arcane Missiles and its missiles, the chills and freezes his auras and his ring cast for him, and the debuffs
+    /// his spells put on himself never roll (Mage::OffensiveStateRefuses).
     ProcOutcome OffensiveStateProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
@@ -298,10 +298,15 @@ bool Mage::OffensiveStateRefuses(uint32 procSpellId)
     constexpr uint32 PIERCING_CHILL_CHILL = 83154;
     // the freeze Ring of Frost's ring casts for the mage at the units in its band
     constexpr uint32 RING_OF_FROST_FREEZE = 82691;
+    // Arcane Blast's buff, the aura each Arcane Blast stacks on the mage himself, a debuff in the client's data: his
+    // own debuff, not an offensive cast
+    constexpr uint32 ARCANE_BLAST_BUFF = 36032;
+    // Hypothermia, which Ice Block puts on the mage himself: his own debuff, not an offensive cast
+    constexpr uint32 HYPOTHERMIA = 41425;
     return procSpellId == ARCANE_MISSILES || procSpellId == ARCANE_MISSILES_MISSILE ||
            procSpellId == FROST_ARMOR_CHILL || procSpellId == ICE_SHARDS_CHILL_RANK_ONE ||
            procSpellId == ICE_SHARDS_CHILL_RANK_TWO || procSpellId == PIERCING_CHILL_CHILL ||
-           procSpellId == RING_OF_FROST_FREEZE;
+           procSpellId == RING_OF_FROST_FREEZE || procSpellId == ARCANE_BLAST_BUFF || procSpellId == HYPOTHERMIA;
 }
 
 bool Mage::SuppressesArcaneMissiles(Unit const& mage)
