@@ -256,7 +256,7 @@ SELF_TREE = {
         '    };\n'
         '    if (spell->GetSpellFamilyName() == SPELLFAMILY_MAGE && spell->SpellIconID == 7)\n'
         '        mask = UI64LIT(0x40);\n'),
-    'src/game/spells/classes/mage/Fire.cpp': (
+    'src/game/spells/classes/mage/fire/Combustion.cpp': (
         '    static AurasRow<AuraBoostMageSite> const boostFire[] =\n'
         '    {\n'
         '        { 28682, &Combustion },\n'
@@ -281,7 +281,7 @@ SELF_PLANTS = (
     ('legacy_rows', 'a row in a legacy table', 'src/game/spells/handlers/AurasHandlers.cpp',
      '    static AurasRow<AuraBoostPriestSite> const boostPriest[] =\n    {\n        { 552, &AuraBoostPriest552 },\n'
      '    };\n'),
-    ('legacy_rows', 'a row in a legacy table of a class file', 'src/game/spells/classes/mage/Fire.cpp',
+    ('legacy_rows', 'a row in a legacy table of a class file', 'src/game/spells/classes/mage/fire/Combustion.cpp',
      '    static AurasRow<AuraBoostMageSite> const boostMore[] =\n    {\n        {44401,&PushingTheLimit},\n    };\n'),
     ('family_mentions', 'a family arm', 'src/game/combat/UnitDamage.cpp', '        case SPELLFAMILY_ROGUE:\n'),
     ('family_mentions', 'a mention in a comment', 'src/game/entities/Unit.cpp', '// only SPELLFAMILY_DRUID\n'),
@@ -293,7 +293,7 @@ SELF_PLANTS = (
      'if (spell->SpellIconID == 2120) {}\n'),
     ('mask_literals', 'a mask literal in combat/', 'src/game/combat/UnitDamage.cpp',
      'uint64 const mask = UI64LIT(0x200);\n'),
-    ('mask_literals', 'a mask literal in spells/classes/', 'src/game/spells/classes/mage/Fire.cpp',
+    ('mask_literals', 'a mask literal in spells/classes/', 'src/game/spells/classes/mage/fire/Combustion.cpp',
      'uint64 const fireball = UI64LIT(0x1);\n'),
     ('family_switches', 'a family switch outside spells/', 'src/game/entities/Unit.cpp',
      'switch (spellProto->GetSpellFamilyName())\n'),
@@ -323,7 +323,8 @@ SELF_EXCLUDED = (
      '    // SPELLFAMILY_WARRIOR and SPELLFAMILY_ROGUE in a comment\n'),
     ('an icon compare in spells/handlers/', 'src/game/spells/handlers/AurasHandlers.cpp',
      'if (s->SpellIconID == 1) {}\n'),
-    ('an icon compare in spells/classes/', 'src/game/spells/classes/mage/Fire.cpp', 'if (s->SpellIconID == 2) {}\n'),
+    ('an icon compare in spells/classes/', 'src/game/spells/classes/mage/fire/Combustion.cpp',
+     'if (s->SpellIconID == 2) {}\n'),
     ('an icon compare in a header', 'src/game/spells/data/SpellMgr.h',
      'inline bool I(S* s) { return s->SpellIconID == 3; }\n'),
     ('an icon assignment', 'src/game/spells/auras/SpellAuraDummy.cpp', 'uint32 icon = s->SpellIconID;\n'),

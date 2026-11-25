@@ -721,16 +721,11 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         uint32 (*registerRows)(SpellHandlerRegistry&);
         std::size_t defaults;
     };
-    PerFile const files[] =
+    std::vector<PerFile> files = { { &Mage::RegisterClassWide, 3 } };
+    for (Mage::ScriptFile const& file : Mage::ScriptFiles())
     {
-        { &Mage::RegisterClassWide, 3 },
-        { &Mage::RegisterFire, 0 },
-        { &Mage::RegisterFrost, 0 },
-        { &Mage::RegisterArcane, 0 },
-        { &Mage::RegisterOrb, 0 },
-        { &Mage::RegisterRing, 0 },
-        { &Mage::RegisterImages, 0 },
-    };
+        files.push_back({ file.registerRows, 0 });
+    }
     uint32 answered = 0;
     std::size_t keys = 0;
     std::size_t defaults = 0;

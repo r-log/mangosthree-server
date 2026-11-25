@@ -35,6 +35,8 @@
 #include "Log.h"
 #include "Utilities/Util.h"
 
+#include <vector>
+
 /// 66: Invisibility
 static SpellHandlerOutcome<void> AuraTriggerSpellMage66(AuraTriggerSpellContext& ctx)
 {
@@ -408,14 +410,38 @@ SpellAuraProcResult Mage::CastProcTriggerSpell(OnProcContext& ctx, uint32 spellI
     return ctx.CastTriggered(*target, spellId, basePoints) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
 }
 
+namespace Mage
+{
+    // Each mechanic file's registration, Mage::Register<Mechanic> (MageScriptFiles.inc, src/game/CMakeLists.txt).
+#define MAGE_SCRIPT_FILE(mechanic) uint32 Register##mechanic(SpellHandlerRegistry& registry);
+#include "MageScriptFiles.inc"
+#undef MAGE_SCRIPT_FILE
+}
+
+std::vector<Mage::ScriptFile> const& Mage::ScriptFiles()
+{
+    static std::vector<ScriptFile> const files =
+    {
+#define MAGE_SCRIPT_FILE(mechanic) { #mechanic, &Mage::Register##mechanic },
+#include "MageScriptFiles.inc"
+#undef MAGE_SCRIPT_FILE
+    };
+    return files;
+}
+
+uint32 Mage::RegisterFiles(SpellHandlerRegistry& registry, std::vector<ScriptFile> const& files)
+{
+    uint32 registered = 0;
+    for (ScriptFile const& file : files)
+    {
+        registered += file.registerRows(registry);
+    }
+    return registered;
+}
+
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry)
 {
     uint32 registered = Mage::RegisterClassWide(registry);
-    registered += Mage::RegisterFire(registry);
-    registered += Mage::RegisterFrost(registry);
-    registered += Mage::RegisterArcane(registry);
-    registered += Mage::RegisterOrb(registry);
-    registered += Mage::RegisterRing(registry);
-    registered += Mage::RegisterImages(registry);
+    registered += Mage::RegisterFiles(registry, Mage::ScriptFiles());
     return registered;
 }

@@ -333,7 +333,7 @@ set(SRC_GRP_TESTS
     OpcodeDispatchTest.cpp
 )
 
-# The priest's tests, PriestScriptsTest.cpp and one Priest<Mechanic>Test.cpp per mechanic file of
+# The priest's tests, PriestScriptsTest.cpp and one Priest<Mechanic>Test.cpp per mechanic file under
 # src/game/spells/classes/priest, are found by their names, so a PR that adds one edits no list.
 file(GLOB SRC_GRP_TESTS_PRIEST Priest*Test.cpp)
 list(APPEND SRC_GRP_TESTS ${SRC_GRP_TESTS_PRIEST})

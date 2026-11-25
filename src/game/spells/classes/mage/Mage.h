@@ -33,6 +33,7 @@
 #include <functional>
 #include <list>
 #include <optional>
+#include <vector>
 
 /**
  * @file Mage.h
@@ -60,11 +61,14 @@
  * Mirror Image summons: their creature AI, Mirror Image's, Clone Me!'s and Initialize Images' scripts and their leaves
  * (ImageRowFor, IsOwnImage, ImageSummonSpell, HoldsGlyph, ImageBonusDamage, ImageSpellToCast, ImageMayStrike,
  * ImageStopsCast and ImageTarget). Each file registers its rows through one function of namespace Mage: a table per
- * legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook. Every .cpp under the folder but Mage.cpp is
+ * a mechanic file, <Mechanic>.cpp, whose function is Mage::Register<Mechanic>: src/game/CMakeLists.txt lists them at
+ * configure time, in file-name order (ScriptFiles), and RegisterMageScripts calls each of them after the class-wide
+ * rows, so a new mechanic file needs no line in any other file.
  */
 
-/// Registers every mage row: the class-wide bodies, those of the three specializations, the orb's, the ring's and the
-/// images'.
+/// Registers every mage row: the class-wide bodies (Mage::RegisterClassWide), then those of each mechanic file, in
+/// file-name order (Mage::ScriptFiles).
 /// Returns the rows and defaults registered; a row whose key was taken does not change the table, so a caller that
 /// finds fewer keys than rows has a duplicate.
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry);
@@ -108,6 +112,20 @@ namespace Mage
     /// Registers Mirror Image's, Clone Me!'s and Initialize Images' scripts and the images' creature AI, whose factory
     /// is added to the creature AI registry once. Returns the rows registered.
     uint32 RegisterImages(SpellHandlerRegistry& registry);
+
+    /// A mechanic file and the function that registers its rows.
+    struct ScriptFile
+    {
+        char const* name;                                       ///< the file's name without ".cpp"
+        uint32 (*registerRows)(SpellHandlerRegistry& registry); ///< Mage::Register<name>: its rows
+    };
+
+    /// Every mechanic file, by file name: each .cpp under spells/classes/mage but Mage.cpp, as src/game/CMakeLists.txt
+    /// found them at configure time.
+    std::vector<ScriptFile> const& ScriptFiles();
+
+    /// Runs the registration of each of `files` on `registry`, in their order; answers the sum of what they answer.
+    uint32 RegisterFiles(SpellHandlerRegistry& registry, std::vector<ScriptFile> const& files);
 
     /// The spells and the creature a ring is made of, by the mage's spell.
     struct RingSpells

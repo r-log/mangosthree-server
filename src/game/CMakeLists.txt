@@ -308,8 +308,9 @@ source_group("Spells" FILES ${SRC_GRP_SPELLS})
 file(GLOB SRC_GRP_SPELLS_AURAS spells/auras/*.cpp spells/auras/*.h)
 source_group("Spells\\Auras" FILES ${SRC_GRP_SPELLS_AURAS})
 
-file(GLOB SRC_GRP_SPELLS_CLASSES spells/classes/*/*.cpp spells/classes/*/*.h)
-source_group("Spells\\Classes" FILES ${SRC_GRP_SPELLS_CLASSES})
+# Each class's folder and its spec folders (spells/classes/<class>/<spec>/), shown as they lie on disk.
+file(GLOB_RECURSE SRC_GRP_SPELLS_CLASSES spells/classes/*.cpp spells/classes/*.h)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/spells/classes PREFIX "Spells\\Classes" FILES ${SRC_GRP_SPELLS_CLASSES})
 
 file(GLOB SRC_GRP_SPELLS_DATA spells/data/*.cpp spells/data/*.h)
 source_group("Spells\\Data" FILES ${SRC_GRP_SPELLS_DATA})
@@ -346,13 +347,23 @@ write_source_file_list(Harness/HarnessScenarioFiles.inc.in
     ${CMAKE_CURRENT_BINARY_DIR}/generated/HarnessScenarioFiles.inc
     HARNESS_SCENARIO_FILE "^Scenarios([A-Za-z0-9_]+)\\.cpp$" ${SRC_GRP_HARNESS})
 
-# Every spells/classes/priest/<Mechanic>.cpp but Priest.cpp registers its rows through Priest::Register<Mechanic>,
-# which Priest.cpp calls from this list (the domain target's generated directory).
-file(GLOB SRC_GRP_SPELLS_CLASSES_PRIEST spells/classes/priest/*.cpp)
-list(FILTER SRC_GRP_SPELLS_CLASSES_PRIEST EXCLUDE REGEX "/Priest\\.cpp$")
+# Every .cpp under spells/classes/priest but Priest.cpp, <Mechanic>.cpp in the class folder or in a spec folder below
+# it, registers its rows through Priest::Register<Mechanic>, which Priest.cpp calls from this list (the domain target's
+# generated directory). A mechanic's file name is unique within the class.
+file(GLOB_RECURSE SRC_GRP_SPELLS_CLASSES_PRIEST spells/classes/priest/*.cpp)
+list(FILTER SRC_GRP_SPELLS_CLASSES_PRIEST EXCLUDE REGEX "/priest/Priest\\.cpp$")
 write_source_file_list(spells/classes/priest/PriestScriptFiles.inc.in
     ${CMAKE_CURRENT_BINARY_DIR}/generated/PriestScriptFiles.inc
     PRIEST_SCRIPT_FILE "^([A-Za-z0-9_]+)\\.cpp$" ${SRC_GRP_SPELLS_CLASSES_PRIEST})
+
+# Every .cpp under spells/classes/mage but Mage.cpp, <Mechanic>.cpp in the class folder or in a spec folder below it,
+# registers its rows through Mage::Register<Mechanic>, which Mage.cpp calls from this list after the class-wide rows
+# (the domain target's generated directory). A mechanic's file name is unique within the class.
+file(GLOB_RECURSE SRC_GRP_SPELLS_CLASSES_MAGE spells/classes/mage/*.cpp)
+list(FILTER SRC_GRP_SPELLS_CLASSES_MAGE EXCLUDE REGEX "/mage/Mage\\.cpp$")
+write_source_file_list(spells/classes/mage/MageScriptFiles.inc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/MageScriptFiles.inc
+    MAGE_SCRIPT_FILE "^([A-Za-z0-9_]+)\\.cpp$" ${SRC_GRP_SPELLS_CLASSES_MAGE})
 
 add_library(data STATIC
     ${SRC_GRP_DATA}
@@ -434,7 +445,7 @@ target_include_directories(domain
         social
 )
 
-# PriestScriptFiles.inc, written above.
+# PriestScriptFiles.inc and MageScriptFiles.inc, written above.
 target_include_directories(domain
     PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/generated
