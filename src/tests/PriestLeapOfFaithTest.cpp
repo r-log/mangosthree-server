@@ -23,14 +23,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/LeapOfFaith.cpp: the row the file registers, in the game's table too; the units
+/// Tests of spells/classes/priest/holy/LeapOfFaith.cpp: the row the file registers, in the game's table too; the units
 /// Leap of Faith pulls; where the pulled unit lands; and the dummy row at the effect, the missing target and the
 /// priest himself, which it leaves without a cast. The row runs on bare Creatures (update fields allocated; no world,
 /// map, template or AI). Also the speed the spell tables give its jump (Spells::JumpSpeed,
 /// spells/data/SpellTables.cpp). Scenario 1211 records the pull in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/LeapOfFaith.h"
+#include "spells/classes/priest/holy/LeapOfFaith.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/data/SpellTables.h"

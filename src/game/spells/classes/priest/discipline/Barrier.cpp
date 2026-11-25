@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "spells/classes/priest/Barrier.h"
+#include "spells/classes/priest/discipline/Barrier.h"
 #include "spells/data/SpellMgr.h"
 #include "ai/CreatureAI.h"
 #include "entities/Creature.h"

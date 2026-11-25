@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/Evangelism.cpp: which hits give a stack of Evangelism, which buff each rank gives,
+/// Tests of priest/discipline/Evangelism.cpp: which hits give a stack of Evangelism, which buff each rank gives,
 /// the value Archangel casts its spells with, the rows the file registers, in the game's table too, with Dark
 /// Evangelism's and Dark Archangel's ids left free, the exits of its scripts that cast nothing, and the stacks and the
 /// marker on a unit that holds them. The scripts run on a bare Creature (update fields allocated; no world, map,
@@ -33,7 +33,7 @@
 /// the stacks, the marker and Archangel in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/Evangelism.h"
+#include "spells/classes/priest/discipline/Evangelism.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/data/SpellMgr.h"

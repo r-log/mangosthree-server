@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield, Twin
+/// Tests of priest/discipline/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield, Twin
 /// Disciplines and the mastery, Rapture's removal modes and mana, the two rows the file registers, in the game's
 /// table too, and the exits of its two scripts that change nothing; and Glyph of Power Word: Shield's heal, which
 /// Spells::HealTakesNoDoneBonus keeps from the healing-done bonus. The scripts run on a bare Creature (update fields
@@ -34,7 +34,7 @@
 /// mana and the lockout, the energize's recovery time in his cooldown store, in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/Shield.h"
+#include "spells/classes/priest/discipline/Shield.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"

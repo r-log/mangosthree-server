@@ -23,8 +23,8 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "spells/classes/priest/DivineAegis.h"
-#include "spells/classes/priest/Shield.h"
+#include "spells/classes/priest/discipline/DivineAegis.h"
+#include "spells/classes/priest/discipline/Shield.h"
 #include "spells/data/SpellMgr.h"
 #include "entities/Unit.h"
 

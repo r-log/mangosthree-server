@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/DispelMagic.cpp and of the dispel signal its dummy row reads (DispelWatch,
+/// Tests of spells/classes/priest/discipline/DispelMagic.cpp and of the dispel signal its dummy row reads (DispelWatch,
 /// SpellScriptHooks.cpp): the rows the file registers, in the game's table too, with Glyph of Dispel Magic's proc row
 /// gone from the priest's legacy proc site; the units Dispel Magic is refused at; the dispel it casts at a unit; when
 /// the glyph heals and how much; the check row, through the game's table, at the priest himself and with no target;
@@ -35,7 +35,7 @@
 /// and the glyph's heal in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/DispelMagic.h"
+#include "spells/classes/priest/discipline/DispelMagic.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"

@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/Atonement.cpp: which hits heal, which heal spell they cast, the heal's amount, its
+/// Tests of priest/discipline/Atonement.cpp: which hits heal, which heal spell they cast, the heal's amount, its
 /// cap and its halving on the priest himself, the value the heal is cast from, the most injured of a list of units,
 /// the rows the file registers, in the game's table too, the exits of the proc script that cast nothing, and the
 /// bodies of the heals' select-targets and crit-chance rows. The scripts run on bare Creatures (update fields
@@ -32,7 +32,7 @@
 /// 1204 records the heals in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/Atonement.h"
+#include "spells/classes/priest/discipline/Atonement.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/data/SpellMgr.h"

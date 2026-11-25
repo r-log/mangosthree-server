@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "spells/classes/priest/HealCrit.h"
+#include "spells/classes/priest/discipline/HealCrit.h"
 #include "entities/Unit.h"
 #include "DBCStores.h"
 

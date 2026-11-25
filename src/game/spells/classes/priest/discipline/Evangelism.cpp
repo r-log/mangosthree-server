@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "spells/classes/priest/Evangelism.h"
+#include "spells/classes/priest/discipline/Evangelism.h"
 #include "spells/data/SpellMgr.h"
 #include "entities/Unit.h"
 #include "DBCStores.h"

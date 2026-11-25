@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "spells/classes/priest/InnerSanctum.h"
+#include "spells/classes/priest/discipline/InnerSanctum.h"
 #include "entities/Unit.h"
 #include "DBCStores.h"
 

@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/InnerFocus.cpp: the rows the file registers, in the game's table too; which spells
+/// Tests of priest/discipline/InnerFocus.cpp: the rows the file registers, in the game's table too; which spells
 /// Inner Focus's class masks take; its after-cast row, which takes Inner Focus off a caster whose finished cast it took
 /// and leaves it for any other cast; Strength of Soul's immunities, rank and heals, its check-proc row and the Weakened
 /// Soul its effect shortens, its whole duration with it; Train of Thought's cooldowns, cuts and chances, and its proc
@@ -37,7 +37,7 @@
 /// the cooldown in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/InnerFocus.h"
+#include "spells/classes/priest/discipline/InnerFocus.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/data/SpellMgr.h"
