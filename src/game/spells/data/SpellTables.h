@@ -170,6 +170,12 @@ namespace Spells
     /// amount it was cast with heals, before the target's taken side and a crit. Glyph of Power Word: Shield's heal
     /// (56160) alone, whose retail heals are a fifth of the shield and twice that on a crit.
     bool HealTakesNoDoneBonus(uint32 spellId);
+
+    /// The speed, in yards a second, at which a jump of `spellId` moves where the client's data gives none (a Spell.dbc
+    /// speed of 0) and the retail spline shows one; 0 for a spell the table does not hold. Spell::EffectJump moves a
+    /// jump the table names at this speed on the arc of natural gravity, and every other jump as before. Leap of
+    /// Faith's jump (92832) alone: 50.
+    float JumpSpeed(uint32 spellId);
 }
 
 /// The lockout a haste spell puts on each unit it hastes: Temporal Displacement 80354 for Time Warp 80353, Sated 57724

@@ -1015,6 +1015,35 @@ bool Spells::HealTakesNoDoneBonus(uint32 spellId)
 
 namespace
 {
+    /// A jump spell and the speed it moves at, in yards a second.
+    struct SpellJumpSpeed
+    {
+        uint32 spellId;
+        float speed;
+    };
+
+    /// The jumps whose Spell.dbc speed is 0, at the speed the retail 4.3.4 sniff (kerhong/Sniffs15595, 2012-05-28)
+    /// measures for them: each pull's 3D leg over its SMSG_ON_MONSTER_MOVE MoveTime.
+    constexpr SpellJumpSpeed JUMP_SPEEDS[] =
+    {
+        { 92832, 50.0f },   // Leap of Faith's jump: packets 21369, 39813, 67099, 99028 and 133404, 49.95 to 50.00
+    };
+}
+
+float Spells::JumpSpeed(uint32 spellId)
+{
+    for (SpellJumpSpeed const& row : JUMP_SPEEDS)
+    {
+        if (row.spellId == spellId)
+        {
+            return row.speed;
+        }
+    }
+    return 0.0f;
+}
+
+namespace
+{
     /// The haste spells that put a lockout on each unit they haste, and that lockout, whose holder none of the four
     /// hastes ("Cannot benefit from Time Warp or other similar effects.").
     constexpr SpellAnswer LUST_LOCKOUTS[] =
