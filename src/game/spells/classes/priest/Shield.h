@@ -30,15 +30,16 @@
 
 /**
  * @file Shield.h
- * @brief Power Word: Shield's amount: the leaves of Shield.cpp.
+ * @brief Power Word: Shield's amount and what its end gives its caster: the leaves of Shield.cpp.
  *
- * Shield.cpp registers one row on Power Word: Shield (17): at the aura-apply hook its amount is raised by Improved
- * Power Word: Shield and by the Shield Discipline mastery (ShieldAmount, AbsorbMastery).
+ * Shield.cpp registers two rows on Power Word: Shield (17): at the aura-apply hook its amount is raised by Improved
+ * Power Word: Shield and by the Shield Discipline mastery (ShieldAmount, AbsorbMastery), and at the aura-remove hook a
+ * shield used up or dispelled gives its caster Rapture's mana (RaptureFires, RaptureMana), once in Rapture's lockout.
  */
 
 namespace Priest
 {
-    /// Registers Power Word: Shield's aura-apply row on `registry`; answers 1, the rows registered.
+    /// Registers Power Word: Shield's aura-apply and aura-remove rows on `registry`; answers 2, the rows registered.
     uint32 RegisterShield(SpellHandlerRegistry& registry);
 
     /// The percent the Shield Discipline mastery (77484) adds to `caster`'s absorbs: the effect 0 amount of his holder
@@ -50,6 +51,14 @@ namespace Priest
     /// `improvedPercent` (Improved Power Word: Shield's rank) and by `masteryPercent` (AbsorbMastery), each a factor of
     /// its own, truncated once; a percent of 0 or less raises nothing, and an amount of 0 or less stays as it is.
     int32 ShieldAmount(int32 amount, int32 improvedPercent, int32 masteryPercent);
+
+    /// Whether a Power Word: Shield removed in `mode` gives its caster Rapture's mana: one whose last point damage used
+    /// up (AURA_REMOVE_BY_SHIELD_BREAK) or one dispelled (AURA_REMOVE_BY_DISPEL); no other removal.
+    bool RaptureFires(AuraRemoveMode mode);
+
+    /// The mana Rapture gives a priest of `maxMana` maximum mana at the rank whose effect 0 holds `percent`: that
+    /// percent of it, truncated; 0 for a percent of 0 or less.
+    int32 RaptureMana(uint32 maxMana, int32 percent);
 }
 
 #endif

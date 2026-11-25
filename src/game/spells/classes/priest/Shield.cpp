@@ -32,12 +32,15 @@ namespace
 {
     uint32 const POWER_WORD_SHIELD = 17;
     uint32 const SHIELD_DISCIPLINE = 77484;
+    uint32 const RAPTURE_ENERGIZE = 47755;
+    uint32 const RAPTURE_LOCKOUT = 63853;
 
-    /// The id the shield's script holds at the aura-apply hook.
+    /// The ids the shield's scripts hold at the aura-apply and aura-remove hooks.
     uint32 const SHIELD_IDS[] = { POWER_WORD_SHIELD };
 
-    /// Improved Power Word: Shield's ranks, the highest first: a priest knows one of them.
+    /// Improved Power Word: Shield's ranks and Rapture's, the highest first: a priest knows one rank of each.
     uint32 const IMPROVED_POWER_WORD_SHIELD[] = { 14768, 14748 };
+    uint32 const RAPTURE[] = { 47537, 47536, 47535 };
 
     /// The effect 0 amount of `unit`'s holder of the first of `ranks` he holds; 0 when he holds none.
     template <std::size_t N>
@@ -72,11 +75,35 @@ namespace
         ctx.aura.SetAmount(EFFECT_INDEX_0, raised);
         return SpellHandlerOutcome<void>::Continue();
     }
+
+    /// 17: Power Word: Shield: when damage used up its last point or it was dispelled (Priest::RaptureFires), a caster
+    /// who knows Rapture and does not hold its lockout (63853) casts at himself the energize (47755) for the effect 0
+    /// percent of his rank of his maximum mana (Priest::RaptureMana), then the lockout, which holds the next 12 s. The
+    /// shield may be on any unit: the mana and the lockout are the caster's. Any other removal, a caster who cannot be
+    /// found and a rank that holds no percent cast nothing. The removal's boosts still run.
+    SpellHandlerOutcome<void> ShieldAuraRemove(AuraRemoveContext& ctx)
+    {
+        if (!ctx.caster || !Priest::RaptureFires(ctx.mode) || ctx.caster->HasAura(RAPTURE_LOCKOUT))
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        int32 const mana = Priest::RaptureMana(ctx.caster->GetMaxPower(POWER_MANA), RankAmount(*ctx.caster, RAPTURE));
+        if (mana <= 0)
+        {
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        int32 const basePoints[MAX_EFFECT_INDEX] = { mana, 0, 0 };
+        ctx.caster->CastCustomSpell(ctx.caster, RAPTURE_ENERGIZE, &basePoints[EFFECT_INDEX_0], NULL, NULL, true);
+        ctx.caster->CastSpell(ctx.caster, RAPTURE_LOCKOUT, true);
+        return SpellHandlerOutcome<void>::Continue();
+    }
 }
 
 uint32 Priest::RegisterShield(SpellHandlerRegistry& registry)
 {
-    return RegisterRanks<AuraApplyHook>(registry, SHIELD_IDS, &ShieldAuraApply);
+    uint32 rows = RegisterRanks<AuraApplyHook>(registry, SHIELD_IDS, &ShieldAuraApply);
+    rows += RegisterRanks<AuraRemoveHook>(registry, SHIELD_IDS, &ShieldAuraRemove);
+    return rows;
 }
 
 int32 Priest::AbsorbMastery(Unit const& caster)
@@ -94,4 +121,18 @@ int32 Priest::ShieldAmount(int32 amount, int32 improvedPercent, int32 masteryPer
     int64 const improved = 100 + (improvedPercent > 0 ? improvedPercent : 0);
     int64 const mastery = 100 + (masteryPercent > 0 ? masteryPercent : 0);
     return int32(int64(amount) * improved * mastery / 10000);
+}
+
+bool Priest::RaptureFires(AuraRemoveMode mode)
+{
+    return mode == AURA_REMOVE_BY_SHIELD_BREAK || mode == AURA_REMOVE_BY_DISPEL;
+}
+
+int32 Priest::RaptureMana(uint32 maxMana, int32 percent)
+{
+    if (percent <= 0)
+    {
+        return 0;
+    }
+    return int32(uint64(maxMana) * uint64(percent) / 100);
 }
