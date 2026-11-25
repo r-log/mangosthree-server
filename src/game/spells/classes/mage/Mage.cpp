@@ -207,11 +207,14 @@ namespace
     uint32 const BLINK[] = { 38194 };
     uint32 const PERSISTENT_SHIELD[] = { 26467 };
     uint32 const OFFENSIVE_STATE[] = { 79684 };
+    /// Invisibility Speed: the mage's run speed raised by its own effect 0 value while Invisibility (32612) holds him.
+    uint32 const INVISIBILITY_SPEED = 87833;
     uint32 const INVISIBILITY[] = { 32612 };
     uint32 const PET_INVISIBILITY = 96243;
 
-    /// 32612: Invisibility: when it lands on the mage, his living pet casts its own Invisibility (96243) on itself.
-    /// The call before the holder is added does nothing.
+    /// 32612: Invisibility: when it lands on the mage, his living pet casts its own Invisibility (96243) on itself, and
+    /// when the holder's third effect holds an amount above 0 (Mage::InvisibilitySpeedFor) he casts Invisibility Speed
+    /// (87833) on himself, triggered. The call before the holder is added does nothing.
     SpellHandlerOutcome<void> InvisibilityAuraApply(AuraApplyContext& ctx)
     {
         if (ctx.real)
@@ -221,17 +224,23 @@ namespace
             {
                 ctx.CastTriggeredFrom(*pet, *pet, PET_INVISIBILITY);
             }
+            if (uint32 const speed = Mage::InvisibilitySpeedFor(ctx.aura))
+            {
+                ctx.CastTriggeredFrom(ctx.target, ctx.target, speed);
+            }
         }
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 32612: Invisibility: when it leaves the mage, for any reason, his pet's Invisibility (96243) goes with it.
+    /// 32612: Invisibility: when it leaves the mage, for any reason, his pet's Invisibility (96243) and his
+    /// Invisibility Speed (87833) go with it.
     SpellHandlerOutcome<void> InvisibilityAuraRemove(AuraRemoveContext& ctx)
     {
         if (Pet* pet = ctx.target.GetPet())
         {
             ctx.RemoveAura(*pet, PET_INVISIBILITY);
         }
+        ctx.RemoveAura(ctx.target, INVISIBILITY_SPEED);
         return SpellHandlerOutcome<void>::Continue();
     }
 }
@@ -282,6 +291,11 @@ int32 Mage::InvisibilityThreatPercent(uint32 spellId)
     constexpr uint32 INVISIBILITY_FADE = 66;
     constexpr int32 FADE_TICK_PERCENT = -10;
     return spellId == INVISIBILITY_FADE ? FADE_TICK_PERCENT : 0;
+}
+
+uint32 Mage::InvisibilitySpeedFor(AuraHandle const& invisibility)
+{
+    return invisibility.Amount(EFFECT_INDEX_2) > 0 ? INVISIBILITY_SPEED : 0;
 }
 
 bool Mage::OffensiveStateRefuses(uint32 procSpellId)

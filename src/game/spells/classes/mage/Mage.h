@@ -383,6 +383,11 @@ namespace Mage
     /// HostileRefManager::addThreatPercent takes it: -10 for 66; 0 for any other spell. Defined in Mage.cpp.
     int32 InvisibilityThreatPercent(uint32 spellId);
 
+    /// The speed Invisibility (32612) gives the mage it holds, read from `invisibility`, its holder: Invisibility Speed
+    /// (87833) when the holder's third effect (SEE_WHILE_INVISIBLE, 0 in the client's data, which Glyph of
+    /// Invisibility's SPELLMOD_EFFECT3 raises to 40) holds an amount above 0; 0, none, otherwise. Defined in Mage.cpp.
+    uint32 InvisibilitySpeedFor(AuraHandle const& invisibility);
+
     /// Whether Offensive State (79684) refuses to roll for an event of `procSpellId`: Arcane Missiles (5143) and its
     /// missiles (7268), so the channel never brings Arcane Missiles! (79683) back; Ice Shards' Chilled (12484, 12485)
     /// and Piercing Chill's chill (83154), the chills a talent's aura casts, whose hits start the procs of the auras
