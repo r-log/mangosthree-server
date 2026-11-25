@@ -37,10 +37,10 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// Every haste spell of LustLockoutOf's table: when the haste lands on a unit that holds no lockout, that unit casts
-    /// the spell's lockout (LustLockoutOf) on itself, triggered, as its own cast. The call before the holder is added
-    /// does nothing, and neither does a landing on a unit that already holds a lockout, as a haste loaded with its
-    /// unit's saved auras may land.
+    /// Every haste spell of LustLockoutOf's table: when the haste lands on a unit that holds no lockout, that unit
+    /// casts the spell's lockout (LustLockoutOf) on itself, triggered, as its own cast. The call before the holder is
+    /// added does nothing, and neither does a landing on a unit that already holds a lockout, as a haste loaded with
+    /// its unit's saved auras may land.
     SpellHandlerOutcome<void> LustAuraApply(AuraApplyContext& ctx)
     {
         if (ctx.real && !Spells::HoldsLustLockout(ctx.target))
