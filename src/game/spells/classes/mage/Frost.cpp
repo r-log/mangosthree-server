@@ -118,15 +118,6 @@ namespace
         return spell ? spell->CalculateSimpleValue(index) : 0;
     }
 
-    /// The radius in yards of effect `index` of spell `spellId` in the spell store; 0 when the store lacks the spell,
-    /// the effect or its radius.
-    float EffectRadius(uint32 spellId, SpellEffectIndex index)
-    {
-        SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
-        SpellEffectEntry const* effect = spell ? spell->GetSpellEffect(index) : NULL;
-        return effect ? GetSpellRadius(sSpellRadiusStore.LookupEntry(effect->GetRadiusIndex())) : 0.0f;
-    }
-
     /// The cast time in ms that the caster's cast of `spell` in one of his current spell slots started with, when that
     /// cast has not been launched yet: the cast whose hit the crit-chance and damage-done hooks reckon as it goes off.
     /// 0 when it is not above 0, and when no slot holds such a cast, as for a triggered cast, which stands in none.
@@ -275,44 +266,56 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 116: Frostbolt: after a hit that was a critical strike, for a caster who knows Piercing Chill (83157, or 83156):
-    /// of the enemies within the chill's radius (effect 0 of 83154) of the target, the talent's count nearest to the
-    /// target, the target never among them (Mage::NearestOthers), each get the chill (83154), cast at each one through
-    /// the talent's aura. Nothing for a heal or a hit that was no crit.
+    /// The rank of Piercing Chill `mage` knows: 83157, else 83156; 0 when he knows neither.
+    uint32 PiercingChillTalent(Unit const& mage)
+    {
+        return mage.HasAura(PIERCING_CHILL_RANK_TWO) ? PIERCING_CHILL_RANK_TWO :
+               mage.HasAura(PIERCING_CHILL_RANK_ONE) ? PIERCING_CHILL_RANK_ONE : 0;
+    }
+
+    /// 116: Frostbolt: after a hit that was a critical strike, for a caster who knows Piercing Chill (83157, or 83156)
+    /// with a count above 0 (Mage::PiercingChillCount), the chill (83154) is cast once, at the target, through the
+    /// talent's aura, a target the crit killed included; the chill's own target pick (PiercingChillTargets) chooses
+    /// the units it chills. Nothing for a heal or a hit that was no crit.
     SpellHandlerOutcome<void> FrostboltAfterHit(AfterHitContext& ctx)
     {
         if (ctx.heal || !ctx.crit)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
-        uint32 const talent = ctx.caster.HasAura(PIERCING_CHILL_RANK_TWO) ? PIERCING_CHILL_RANK_TWO :
-                              ctx.caster.HasAura(PIERCING_CHILL_RANK_ONE) ? PIERCING_CHILL_RANK_ONE : 0;
-        int32 const count = Mage::PiercingChillCount(talent);
-        if (count <= 0)
+        uint32 const talent = PiercingChillTalent(ctx.caster);
+        if (Mage::PiercingChillCount(talent) <= 0)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
-        std::list<Unit*> others;
-        ctx.EnemiesAround(ctx.target, EffectRadius(PIERCING_CHILL_CHILL, EFFECT_INDEX_0), others);
-        Mage::NearestOthers(others, &ctx.target, ctx.target, count);
-        for (Unit* other : others)
-        {
-            ctx.CastTriggeredByAura(*other, PIERCING_CHILL_CHILL, talent, EFFECT_INDEX_0);
-        }
+        ctx.CastTriggeredByAura(ctx.target, PIERCING_CHILL_CHILL, talent, EFFECT_INDEX_0);
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 83154: Piercing Chill: of the units the engine found for an effect, keeps the cast's explicit target alone,
-    /// once, and makes the list final; empties it for a cast with no unit target or one the engine did not find.
+    /// 83154: Piercing Chill: for each effect, of the units the engine found within the chill's radius around the
+    /// cast's explicit target, keeps the caster's count (Mage::PiercingChillCount) nearest that target, nearest first
+    /// (Mage::Nearest), and makes the list final: a living target stands at no distance from itself and comes first; a
+    /// dead one is no candidate and leaves the list, and the count nearest where it lies are kept. For a cast with no
+    /// explicit unit target it leaves the engine's list and sets the cut after the hook to the count, so the engine
+    /// keeps that many of the units it found, at random. Empties the list for a caster whose count is 0.
     SpellHandlerOutcome<void> PiercingChillTargets(SelectTargetsContext& ctx)
     {
-        bool const found = ctx.castTarget &&
-                           std::find(ctx.targets.begin(), ctx.targets.end(), ctx.castTarget) != ctx.targets.end();
-        ctx.targets.clear();
-        if (found)
+        int32 const count = Mage::PiercingChillCount(PiercingChillTalent(ctx.caster));
+        if (count <= 0)
         {
-            ctx.targets.push_back(ctx.castTarget);
+            ctx.targets.clear();
+            return SpellHandlerOutcome<void>::Return();
         }
+        if (!ctx.castTarget)
+        {
+            ctx.maxTargets = uint32(count);
+            return SpellHandlerOutcome<void>::Continue();
+        }
+        if (!ctx.castTarget->IsAlive())
+        {
+            ctx.targets.remove(ctx.castTarget);
+        }
+        Mage::Nearest(ctx.targets, *ctx.castTarget, count);
         return SpellHandlerOutcome<void>::Return();
     }
 
@@ -647,12 +650,12 @@ int32 Mage::PiercingChillCount(uint32 talentSpell)
     return EffectValue(talentSpell, EFFECT_INDEX_0);
 }
 
-void Mage::NearestOthers(std::list<Unit*>& targets, Unit const* excluded, WorldObject const& from, int32 count)
+void Mage::Nearest(std::list<Unit*>& targets, WorldObject const& from, int32 count)
 {
     std::vector<std::pair<float, Unit*> > byDistance;
     for (Unit* unit : targets)
     {
-        if (!unit || unit == excluded)
+        if (!unit)
         {
             continue;
         }
