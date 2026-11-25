@@ -49,10 +49,11 @@ namespace Harness
          * Shield 2 (talent 10736, rank index 1, spell 14768) as his first talent, which makes Discipline his primary
          * tree and so teaches Shield Discipline (77484); Atonement 2 (81749) and Divine Aegis 3 (47515) learned as
          * talent ranks; Smite and Holy Fire learned; kSpellPower spell power; the Camel ten yards in front of him. Once
-         * he is staged, two more harness players, human priests, are spawned: the near friend kNearOffset yards to his
-         * side, within the talent's yards of the Camel's edge, and the far friend kFarBehind yards behind him, out of
-         * them. Every cast is his cast at the Camel through the cast handler's calls; one that must crit holds his
-         * spell crit at +kCritAuraPoints by Increased Critical Spell (23434), one that must not at -kCritAuraPoints.
+         * he is staged, two more harness players, human priests at kFriendLevel, are spawned: the near friend
+         * kNearOffset yards to his side, within the talent's yards of the Camel's edge, and the far friend kFarBehind
+         * yards behind him, out of them. Every cast is his cast at the Camel through the cast handler's calls; one
+         * that must crit holds his spell crit at +kCritAuraPoints by Increased Critical Spell (23434), one that must
+         * not at -kCritAuraPoints.
          * Right after each step acts, before its cast lands, his health is set to half his maximum, the far friend's to
          * kFarPercent percent of its maximum (the lowest of the three, out of reach), and the near friend's to its
          * maximum, or to kNearPercent percent at step 5. Steps:
@@ -104,12 +105,24 @@ namespace Harness
                                                      CLASS_PRIEST))
                 {
                     m_near = nearFriend->GetObjectGuid();
+                    ToFriendLevel(*nearFriend);
                 }
                 const float farX = P0.x - kFarBehind;
                 if (Player* farFriend = SpawnPlayer(farX, P0.y, Ground(farX, P0.y, P0.z), PlayerFacing(), CLASS_PRIEST))
                 {
                     m_far = farFriend->GetObjectGuid();
+                    ToFriendLevel(*farFriend);
                 }
+            }
+
+            /// Takes a spawned friend to kFriendLevel with that level's stats and full health. Below level 15 a
+            /// player out of combat regains a fifth of his health over his level each regen tick (PlayerRegen.cpp),
+            /// so a level 1 friend set to kNearPercent percent is back above half health before Smite lands; at
+            /// kFriendLevel a tick gives 1.5%. No level reward, mail or cache row: the stats alone.
+            static void ToFriendLevel(Player& friendPlayer)
+            {
+                friendPlayer.SetLevel(kFriendLevel);
+                friendPlayer.InitStatsForLevel(true);
             }
 
             std::vector<Step> Steps() const override
@@ -292,6 +305,7 @@ namespace Harness
             static constexpr int64 kCapPercent = 30;
             static constexpr uint32 kNearPercent = 25;
             static constexpr uint32 kFarPercent = 10;
+            static constexpr uint32 kFriendLevel = 85;
             static constexpr float kNearOffset = 4.0f;
             static constexpr float kFarBehind = 15.0f;
             static constexpr uint32 kHolyFireToRemovalMs = 4500;
