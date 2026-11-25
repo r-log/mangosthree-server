@@ -193,6 +193,10 @@ namespace Harness
         /// SMSG_COOLDOWN_EVENT (BuildCooldownEventPacket, CooldownPackets.cpp:32-34, from the fact
         /// SpellCooldownMgr::SendCooldownEvent reports): the spell and the owner's raw guid as a role.
         bool DecodeCooldownEvent(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_MODIFY_COOLDOWN (BuildModifyCooldownPacket, CooldownPackets.cpp, from the fact
+        /// SpellCooldownMgr::ShortenCooldown reports): the spell, the owner's raw guid as a role, and
+        /// the signed milliseconds the client moves the cooldown's end by.
+        bool DecodeModifyCooldown(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_CLEAR_COOLDOWNS (Player::SendClearCooldown, Player.cpp:6414-6423, one spell; and
         /// BuildClearCooldownsPacket, CooldownPackets.cpp:39-53, the whole map, from the fact
         /// SpellCooldownMgr::RemoveAllSpellCooldown reports):

@@ -37,4 +37,8 @@ void BuildCooldownEventPacket(WorldPacket& packet, CooldownEventFact const& fact
 /// the count and every spell id of `fact`, in its order.
 void BuildClearCooldownsPacket(WorldPacket& packet, CooldownsClearedFact const& fact);
 
+/// Initializes `packet` as the client's cut of a running cooldown: the spell id, the owner's guid,
+/// then the signed milliseconds the client moves the cooldown's end by.
+void BuildModifyCooldownPacket(WorldPacket& packet, CooldownModifiedFact const& fact);
+
 #endif

@@ -32,6 +32,8 @@
 #include "DBCStores.h"
 #include "persistence/characters/spells/SpellCooldownRepository.h"
 
+#include <cstdint>
+
 void SpellCooldownMgr::AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, bool infinityCooldown)
 {
     // init cooldown values
@@ -161,6 +163,36 @@ void SpellCooldownMgr::SendCooldownEvent(SpellEntry const* spellInfo, uint32 ite
     fact.owner = ownerGuid;
     MANGOS_ASSERT(sendEvent);
     sendEvent(fact);
+}
+
+bool SpellCooldownMgr::ShortenCooldown(uint32 spellId, uint32 ms, time_t now, ObjectGuid ownerGuid,
+                                       CooldownModifiedSink const& sendModified)
+{
+    SpellCooldowns::iterator itr = m_cooldowns.find(spellId);
+    if (!ms || itr == m_cooldowns.end() || itr->second.end <= now ||
+        itr->second.end - now > time_t(infinityCooldownDelayCheck))
+    {
+        return false;
+    }
+
+    // the time left less the cut, divided down to the store's whole seconds: the cut rounded up
+    int64 const leftMs = int64(itr->second.end - now) * IN_MILLISECONDS - int64(ms);
+    if (leftMs < int64(IN_MILLISECONDS))
+    {
+        m_cooldowns.erase(itr);
+    }
+    else
+    {
+        itr->second.end = now + time_t(leftMs / IN_MILLISECONDS);
+    }
+
+    CooldownModifiedFact fact;
+    fact.spellId = spellId;
+    fact.owner = ownerGuid;
+    fact.deltaMs = ms < uint32(INT32_MAX) ? -int32(ms) : -INT32_MAX;
+    MANGOS_ASSERT(sendModified);
+    sendModified(fact);
+    return true;
 }
 
 void SpellCooldownMgr::RemoveSpellCooldown(uint32 spell_id, bool update, ClearSink const& sendClear)

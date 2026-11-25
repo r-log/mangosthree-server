@@ -57,7 +57,20 @@ CooldownsClearedSink CooldownsClearedToSession(Owner* owner)
     };
 }
 
-/// Gives `player` both cooldown callbacks. InstallPlayerPacketSinks calls it where a player is
+/// The cut-cooldown callback for `owner`: builds the fact's packet and sends it to the session
+/// `owner->GetSession()` returns at that send.
+template <class Owner>
+CooldownModifiedSink CooldownModifiedToSession(Owner* owner)
+{
+    return [owner](CooldownModifiedFact const& fact)
+    {
+        WorldPacket data;
+        BuildModifyCooldownPacket(data, fact);
+        owner->GetSession()->SendPacket(&data);
+    };
+}
+
+/// Gives `player` the three cooldown callbacks. InstallPlayerPacketSinks calls it where a player is
 /// created, right after the construction, before the player is loaded, created or used.
 void InstallCooldownPacketSinks(Player& player);
 

@@ -37,6 +37,7 @@
 
 struct CooldownEventFact;
 struct CooldownsClearedFact;
+struct CooldownModifiedFact;
 
 /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
 /// where the player is created: forty-five facts out, one read in.
@@ -90,13 +91,14 @@ struct ClientCallbacks
     SecurityLevelQuery securityLevel;
 };
 
-/// Where the player's cooldown event and cleared cooldowns go: the session's callbacks, installed
-/// once by InstallPlayerPacketSinks where the player is created. The two are SpellCooldownMgr's
-/// CooldownEventSink and CooldownsClearedSink.
+/// Where the player's cooldown event, cleared cooldowns and cut cooldowns go: the session's
+/// callbacks, installed once by InstallPlayerPacketSinks where the player is created. The three are
+/// SpellCooldownMgr's CooldownEventSink, CooldownsClearedSink and CooldownModifiedSink.
 struct CooldownSinks
 {
     std::function<void(CooldownEventFact const&)> event;
     std::function<void(CooldownsClearedFact const&)> cleared;
+    std::function<void(CooldownModifiedFact const&)> modified;
 };
 
 /// The callbacks `callbacks` points to; NULL (a unit that is not a player, or a player whose

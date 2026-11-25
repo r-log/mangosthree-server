@@ -89,7 +89,7 @@ struct SpellEntry;
  *   are const.
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
  *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges,
- *   set the script words and shorten the cooldowns in the owner's store.
+ *   set the script words and shorten the owner's cooldowns (OnProcContext::ShortenCooldown, which tells his client).
  * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch: for the spell, then once for each
  *   SPELL_AURA_DUMMY aura of the caster, keyed by that aura's spell, so a talent's row changes the damage of the
  *   spells it covers. A body changes only the done multiplier. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from
@@ -466,11 +466,12 @@ struct OnProcContext
     OnProcContext(Unit& ownerUnit, Unit* victimUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
                   AuraHandle const& holder, SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags,
                   uint32 eventDamage, int32 auraAmount, ObjectGuid const& itemGuid, uint32 procCooldown,
-                  Aura* triggeringAura, SpellCooldownMgr& ownerCooldowns)
+                  Aura* triggeringAura, SpellCooldownMgr& ownerCooldowns,
+                  CooldownModifiedSink const* ownerCutSink = NULL)
         : caster(ownerUnit), victim(victimUnit), spell(spellEntry), effIndex(effectIndex), aura(holder),
           procSpell(triggeringSpell), procFlag(flags), procEx(extraFlags), damage(eventDamage),
           triggerAmount(auraAmount), cooldown(procCooldown), m_castItemGuid(itemGuid),
-          m_triggeredByAura(triggeringAura), m_cooldowns(ownerCooldowns)
+          m_triggeredByAura(triggeringAura), m_cooldowns(ownerCooldowns), m_cutSink(ownerCutSink)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -485,13 +486,13 @@ struct OnProcContext
     /// Whether the cooldown store of the unit that holds the aura holds `spellId` on cooldown now: a player's spell
     /// and category cooldowns; a unit that is not a player keeps none there.
     bool OnCooldown(uint32 spellId) const;
-    /// Takes `ms` milliseconds off the cooldown of `spellId` that runs in the store of the unit that holds the aura:
-    /// the time it has left, less `ms`, divided down to whole seconds, as the store holds every end
-    /// (SpellCooldownMgr), so a cut is taken in whole seconds, a part of a second as a whole one; a cooldown left with
-    /// less than a second ends. Nothing when the store holds no running cooldown of the spell, nor for one held while
-    /// the spell's own aura stands (the store's infinity mark, SpellCooldownMgr::infinityCooldownDelayCheck), which
-    /// starts whole when the aura goes. Only the store changes; nothing is sent to a client.
-    void ShortenCooldown(uint32 spellId, uint32 ms);
+    /// Takes `ms` milliseconds off the cooldown of `spellId` that runs in the store of the unit that holds the aura,
+    /// and tells its client the exact cut (SpellCooldownMgr::ShortenCooldown: the store rounds the cut up to whole
+    /// seconds, so it never refuses a cast the client allows; a cooldown left with less than a second ends). Nothing
+    /// when the store holds no running cooldown of the spell, nor for one held while the spell's own aura stands
+    /// (the store's infinity mark), which starts whole when the aura goes, nor for a unit with no cut sink: one that
+    /// is not a player, whose store holds none. Answers whether it cut.
+    bool ShortenCooldown(uint32 spellId, uint32 ms);
 
     Unit& caster;                                   ///< the unit that holds the aura
     Unit* victim;                                   ///< the other unit of the event; NULL when there is none
@@ -509,6 +510,8 @@ struct OnProcContext
         ObjectGuid m_castItemGuid;                  ///< the guid of the item the aura was cast from
         Aura* m_triggeredByAura;                    ///< the aura at `effIndex`, the trigger of CastTriggered
         SpellCooldownMgr& m_cooldowns;              ///< the caster's spell cooldowns
+        CooldownModifiedSink const* m_cutSink;      ///< where the caster's cut cooldowns go: his client's
+                                                    ///< callback; NULL for a unit that is not a player
 };
 
 /// DamageDone's context. Value: void.

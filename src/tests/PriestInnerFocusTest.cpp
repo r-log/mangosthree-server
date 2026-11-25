@@ -24,16 +24,16 @@
  */
 
 /// Tests of spells/classes/priest/InnerFocus.cpp: the rows the file registers, in the game's table too; which spells
-/// Inner Focus's class masks take; its after-cast row, which takes Inner Focus off a caster whose finished cast it
-/// took and leaves it for any other cast; Strength of Soul's immunities, rank and heals, its check-proc row and the
-/// Weakened Soul its effect shortens; Train of Thought's cooldowns, cuts and chances, and its proc row, which shortens
-/// the cooldown in the owner's store. The scripts run on bare Creatures (update fields allocated; no world, map,
-/// template or AI). The spells are put into the stores with only the fields the scripts read, their records as the
-/// client's data holds them, and the spell rows are taken out of the spell store again; a cast spell the scripts only
-/// name is a Spell.dbc row that is not in the spell store, with its class options. The holders are made through their
-/// constructor with no aura and put in a bare creature's holder map; a holder the engine takes off leaves through
-/// Unit::RemoveAurasDueToSpell. Scenario 1207 records Inner Focus, its immunity, Weakened Soul and the cooldown in
-/// play.
+/// Inner Focus's class masks take; its after-cast row, which takes Inner Focus off a caster whose finished cast it took
+/// and leaves it for any other cast; Strength of Soul's immunities, rank and heals, its check-proc row and the Weakened
+/// Soul its effect shortens; Train of Thought's cooldowns, cuts and chances, and its proc row, which shortens the
+/// cooldown in the owner's store and reports the exact cut for his client. The scripts run on bare Creatures (update fields
+/// allocated; no world, map, template or AI). The spells are put into the stores with only the fields the scripts read,
+/// their records as the client's data holds them, and the spell rows are taken out of the spell store again; a cast
+/// spell the scripts only name is a Spell.dbc row that is not in the spell store, with its class options. The holders
+/// are made through their constructor with no aura and put in a bare creature's holder map; a holder the engine takes
+/// off leaves through Unit::RemoveAurasDueToSpell. Scenario 1207 records Inner Focus, its immunity, Weakened Soul and
+/// the cooldown in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/InnerFocus.h"
@@ -51,6 +51,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
+#include <vector>
 
 namespace
 {
@@ -627,21 +628,32 @@ namespace
         }
     }
 
-    // Train of Thought's proc, of `rank`'s effect `eff`, for a hit of `procSpell`.
+    // The cuts Train of Thought's proc reported to the priest's client, in order.
+    std::vector<CooldownModifiedFact> s_cuts;
+
+    // Train of Thought's proc on `priest`, of `rank`'s effect `eff`, for a hit of `procSpell`, its cuts recorded.
+    SpellAuraProcResult ThoughtProcOn(SpellHandlerRegistry const& registry, BareCreature& priest,
+                                      SpellCooldownMgr& cooldowns, uint32 rank, SpellEffectIndex eff,
+                                      SpellEntry const& procSpell, uint32 procFlag)
+    {
+        BareCreature other;
+        HolderStorage storage;
+        SpellAuraHolder& holder = EmptyHolder(storage);
+        CooldownModifiedSink const sink = [](CooldownModifiedFact const& fact) { s_cuts.push_back(fact); };
+        OnProcContext ctx(priest, &other, *sSpellStore.LookupEntry(rank), eff, AuraHandle(holder), &procSpell,
+                          procFlag, PROC_EX_NORMAL_HIT, 9000, 5, ObjectGuid(), 0, NULL, cooldowns, &sink);
+        SpellHandlerOutcome<SpellAuraProcResult> outcome = registry.Dispatch<OnProcHook>(rank, ctx);
+        CHECK(outcome.IsReturn());
+        return outcome.GetValue();
+    }
+
+    // Train of Thought's proc on a priest who holds nothing, for a hit of the spell `procSpell` with only its id.
     SpellAuraProcResult ThoughtProc(SpellHandlerRegistry const& registry, SpellCooldownMgr& cooldowns, uint32 rank,
                                     SpellEffectIndex eff, uint32 procSpell, uint32 procFlag)
     {
         BareCreature priest;
-        BareCreature other;
-        HolderStorage storage;
-        SpellAuraHolder& holder = EmptyHolder(storage);
         SpellRowStorage spellRow;
-        SpellEntry const& spell = SpellRow(spellRow, procSpell);
-        OnProcContext ctx(priest, &other, *sSpellStore.LookupEntry(rank), eff, AuraHandle(holder), &spell, procFlag,
-                          PROC_EX_NORMAL_HIT, 9000, 5, ObjectGuid(), 0, NULL, cooldowns);
-        SpellHandlerOutcome<SpellAuraProcResult> outcome = registry.Dispatch<OnProcHook>(rank, ctx);
-        CHECK(outcome.IsReturn());
-        return outcome.GetValue();
+        return ThoughtProcOn(registry, priest, cooldowns, rank, eff, SpellRow(spellRow, procSpell), procFlag);
     }
 }
 
@@ -654,6 +666,7 @@ TEST(PriestInnerFocus_TrainOfThoughtShortensTheCooldownInTheOwnersStore)
     uint32 const secondRank = TRAIN_OF_THOUGHT_RANKS[1];
 
     // Inner Focus's cooldown 45 s from now, Penance's 12 s.
+    s_cuts.clear();
     SpellCooldownMgr cooldowns;
     time_t const focusEnd = time(NULL) + 45;
     time_t const penanceEnd = time(NULL) + 12;
@@ -670,6 +683,13 @@ TEST(PriestInnerFocus_TrainOfThoughtShortensTheCooldownInTheOwnersStore)
              int(SPELL_AURA_PROC_OK));
     CHECK_EQ(int64(StoredEnd(cooldowns, PENANCE)), int64(penanceEnd - 1));
     CHECK_EQ(int64(StoredEnd(cooldowns, INNER_FOCUS)), int64(focusEnd - 5));
+
+    // The client is told the exact cuts: -5000 ms and -500 ms.
+    REQUIRE(s_cuts.size() == 2u);
+    CHECK_EQ(s_cuts[0].spellId, INNER_FOCUS);
+    CHECK_EQ(s_cuts[0].deltaMs, int32(-5000));
+    CHECK_EQ(s_cuts[1].spellId, PENANCE);
+    CHECK_EQ(s_cuts[1].deltaMs, int32(-500));
 
     // Any other spell cannot trigger it; another effect fails; neither shortens anything. So does the first rank's
     // other effect, before its chance is drawn.
@@ -697,5 +717,6 @@ TEST(PriestInnerFocus_TrainOfThoughtShortensTheCooldownInTheOwnersStore)
     CHECK_EQ(int(ThoughtProc(registry, cooldowns, secondRank, EFFECT_INDEX_0, SMITE, HARMFUL_HIT)),
              int(SPELL_AURA_PROC_OK));
     CHECK_EQ(int64(StoredEnd(cooldowns, PENANCE)), int64(penanceEnd - 1));
+    CHECK_EQ(s_cuts.size(), std::size_t(2));
     ForgetThoughtRows();
 }

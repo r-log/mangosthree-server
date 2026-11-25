@@ -25,12 +25,11 @@
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
 /// target and script word, the target context's cast target, the after-hit context's search around a unit in no world,
-/// its cast through an aura the caster lacks and its Immune notice, the after-cast context's count and point, the proc
-/// context's cut of a cooldown in its owner's store, the aura handle's reads, its removal of one effect, its stack
-/// count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the holder's script words, the holder
-/// copy's answer for a unit holding none and the period, tick time, duration and amount a copy keeps, the low-health
-/// multiplier a script query answers from the caster's class-script auras, and the game table, whose only hook rows
-/// are the class scripts'.
+/// its cast through an aura the caster lacks and its Immune notice, the after-cast context's count and point, the
+/// cooldown store's cut of a running cooldown and the proc context's through its owner's cut sink, the aura handle's
+/// reads, its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and the
+/// period, tick time, duration and amount a copy keeps, the low-health multiplier a script query answers from the
+/// caster's class-script auras, and the game table, whose only hook rows are the class scripts'.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -956,52 +955,104 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK(registry.Dispatch<DummyAuraHook>(kOtherSpell, dummyRemove).IsMiss());
 }
 
-TEST(SpellScriptHooks_AProcContextShortensARunningCooldownInWholeSecondsAndLeavesAHeldOne)
+namespace
 {
-    BareCreature owner;
-    HolderStorage storage;
-    SpellAuraHolder& holder = HolderFilledWith(storage, 0);
+    // The cut cooldowns reported, in order.
+    std::vector<CooldownModifiedFact> s_cuts;
+
+    CooldownModifiedSink RecordCuts()
+    {
+        return [](CooldownModifiedFact const& fact) { s_cuts.push_back(fact); };
+    }
+}
+
+TEST(SpellScriptHooks_TheStoreCutsARunningCooldownInWholeSecondsAndReportsTheExactCut)
+{
+    // The cooldown manager's own cut: the store takes whole seconds off, the cut rounded up, and the report carries
+    // the exact cut for the client.
     SpellCooldownMgr cooldowns;
-    OnProcContext ctx(owner, NULL, HookSpell(), EFFECT_INDEX_0, AuraHandle(holder), NULL, 0, 0, 0, 0, ObjectGuid(), 0,
-                      NULL, cooldowns);
     SpellCooldowns const& stored = cooldowns.GetSpellCooldownMap();
+    ObjectGuid const owner(uint64(0x2A));
+    s_cuts.clear();
 
     // 45 s left, 5000 ms off: the end moves 5 s, the item kept. 12 s left, 500 ms off: a whole second.
     time_t const longEnd = time(NULL) + 45;
     time_t const shortEnd = time(NULL) + 12;
     cooldowns.AddSpellCooldown(kHookSpell, 7, longEnd);
     cooldowns.AddSpellCooldown(kOtherSpell, 0, shortEnd);
-    ctx.ShortenCooldown(kHookSpell, 5000);
-    ctx.ShortenCooldown(kOtherSpell, 500);
+    CHECK(cooldowns.ShortenCooldown(kHookSpell, 5000, time(NULL), owner, RecordCuts()));
+    CHECK(cooldowns.ShortenCooldown(kOtherSpell, 500, time(NULL), owner, RecordCuts()));
     CHECK_EQ(int64(stored.at(kHookSpell).end), int64(longEnd - 5));
     CHECK_EQ(uint32(stored.at(kHookSpell).itemid), uint32(7));
     CHECK_EQ(int64(stored.at(kOtherSpell).end), int64(shortEnd - 1));
+    REQUIRE(s_cuts.size() == 2u);
+    CHECK_EQ(s_cuts[0].spellId, kHookSpell);
+    CHECK(s_cuts[0].owner == owner);
+    CHECK_EQ(s_cuts[0].deltaMs, int32(-5000));
+    CHECK_EQ(s_cuts[1].spellId, kOtherSpell);
+    CHECK_EQ(s_cuts[1].deltaMs, int32(-500));
 
-    // Nothing off moves nothing.
-    ctx.ShortenCooldown(kHookSpell, 0);
+    // Nothing off moves nothing and reports nothing.
+    CHECK(!cooldowns.ShortenCooldown(kHookSpell, 0, time(NULL), owner, RecordCuts()));
     CHECK_EQ(int64(stored.at(kHookSpell).end), int64(longEnd - 5));
+    CHECK_EQ(s_cuts.size(), std::size_t(2));
 
-    // Less than a second left after the cut: the cooldown ends.
+    // Less than a second left after the cut: the cooldown ends, and the client is told the whole cut.
     cooldowns.AddSpellCooldown(kDotSpell, 0, time(NULL) + 2);
-    ctx.ShortenCooldown(kDotSpell, 1500);
+    CHECK(cooldowns.ShortenCooldown(kDotSpell, 1500, time(NULL), owner, RecordCuts()));
     CHECK(stored.find(kDotSpell) == stored.end());
     cooldowns.AddSpellCooldown(kDotSpell, 0, time(NULL) + 3);
-    ctx.ShortenCooldown(kDotSpell, 5000);
+    CHECK(cooldowns.ShortenCooldown(kDotSpell, 5000, time(NULL), owner, RecordCuts()));
     CHECK(stored.find(kDotSpell) == stored.end());
+    REQUIRE(s_cuts.size() == 4u);
+    CHECK_EQ(s_cuts[2].deltaMs, int32(-1500));
+    CHECK_EQ(s_cuts[3].deltaMs, int32(-5000));
 
     // A cooldown held while its spell's aura stands (the infinity mark), one that ended, and a spell with none: as
-    // they were.
+    // they were, and nothing reported.
     time_t const held = time(NULL) + time_t(SpellCooldownMgr::infinityCooldownDelay);
     time_t const ended = time(NULL) - 1;
     cooldowns.AddSpellCooldown(kOtherDotSpell, 0, held);
     cooldowns.AddSpellCooldown(kNotHeldSpell, 0, ended);
-    ctx.ShortenCooldown(kOtherDotSpell, 5000);
-    ctx.ShortenCooldown(kNotHeldSpell, 5000);
-    ctx.ShortenCooldown(kCopiedDotSpell, 5000);
+    CHECK(!cooldowns.ShortenCooldown(kOtherDotSpell, 5000, time(NULL), owner, RecordCuts()));
+    CHECK(!cooldowns.ShortenCooldown(kNotHeldSpell, 5000, time(NULL), owner, RecordCuts()));
+    CHECK(!cooldowns.ShortenCooldown(kCopiedDotSpell, 5000, time(NULL), owner, RecordCuts()));
     CHECK_EQ(int64(stored.at(kOtherDotSpell).end), int64(held));
     CHECK_EQ(int64(stored.at(kNotHeldSpell).end), int64(ended));
     CHECK(stored.find(kCopiedDotSpell) == stored.end());
     CHECK_EQ(stored.size(), std::size_t(4));
+    CHECK_EQ(s_cuts.size(), std::size_t(4));
+}
+
+TEST(SpellScriptHooks_AProcContextCutsItsOwnersCooldownThroughHisCutSinkOnly)
+{
+    BareCreature owner;
+    HolderStorage storage;
+    SpellAuraHolder& holder = HolderFilledWith(storage, 0);
+    SpellCooldownMgr cooldowns;
+    SpellCooldowns const& stored = cooldowns.GetSpellCooldownMap();
+    time_t const end = time(NULL) + 45;
+    cooldowns.AddSpellCooldown(kHookSpell, 0, end);
+    s_cuts.clear();
+
+    // With no cut sink, a unit that is not a player: nothing cut, nothing reported.
+    OnProcContext bare(owner, NULL, HookSpell(), EFFECT_INDEX_0, AuraHandle(holder), NULL, 0, 0, 0, 0, ObjectGuid(),
+                       0, NULL, cooldowns);
+    CHECK(!bare.ShortenCooldown(kHookSpell, 5000));
+    CHECK_EQ(int64(stored.at(kHookSpell).end), int64(end));
+
+    // With one: the store's cut, and its report under the owner's guid.
+    CooldownModifiedSink const sink = RecordCuts();
+    OnProcContext ctx(owner, NULL, HookSpell(), EFFECT_INDEX_0, AuraHandle(holder), NULL, 0, 0, 0, 0, ObjectGuid(), 0,
+                      NULL, cooldowns, &sink);
+    CHECK(ctx.ShortenCooldown(kHookSpell, 5000));
+    CHECK_EQ(int64(stored.at(kHookSpell).end), int64(end - 5));
+    REQUIRE(s_cuts.size() == 1u);
+    CHECK_EQ(s_cuts[0].spellId, kHookSpell);
+    CHECK(s_cuts[0].owner == owner.GetObjectGuid());
+    CHECK_EQ(s_cuts[0].deltaMs, int32(-5000));
+    CHECK(!ctx.ShortenCooldown(kOtherSpell, 5000));
+    CHECK_EQ(s_cuts.size(), std::size_t(1));
 }
 
 TEST(SpellScriptHooks_TheAuraHandleReadsTheHoldersFields)

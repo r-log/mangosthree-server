@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The session's cooldown packets, built from the cooldown manager's two facts: the bytes of each
+/// The session's cooldown packets, built from the cooldown manager's three facts: the bytes of each
 /// builder, and the callbacks the session installs on a character, which build the packet at each
 /// report and send it to the session the character holds at that moment.
 
@@ -71,6 +71,22 @@ namespace
         fact.owner = owner;
         fact.spellIds = spellIds;
         return fact;
+    }
+
+    CooldownModifiedFact Modified(uint32 spellId, ObjectGuid owner, int32 deltaMs)
+    {
+        CooldownModifiedFact fact;
+        fact.spellId = spellId;
+        fact.owner = owner;
+        fact.deltaMs = deltaMs;
+        return fact;
+    }
+
+    std::string ModifiedHex(CooldownModifiedFact const& fact)
+    {
+        WorldPacket packet;
+        BuildModifyCooldownPacket(packet, fact);
+        return Hex(packet);
     }
 
     std::string EventHex(CooldownEventFact const& fact)
@@ -185,4 +201,38 @@ TEST(CooldownPackets_InstalledCallbacksReadTheSessionAtEachSend)
     REQUIRE(second.sent.size() == 2u);
     CHECK_STR(second.sent[0], "4f26:4a6b01003c00a50000ff0001");
     CHECK_STR(second.sent[1], "59b4:00000021496b01002b");
+}
+
+// SMSG_MODIFY_COOLDOWN (0x6016): uint32 spell id, the owner's guid as a uint64, then the signed
+// milliseconds the client moves the cooldown's end by, as the 4.3.4 client reads it.
+TEST(CooldownPackets_ModifyCooldownBytes)
+{
+    const ObjectGuid owner(kOwnerRaw);
+
+    // 89485 = 0x00015D8D -> 8d5d0100; the guid; -5000 = 0xFFFFEC78 -> 78ecffff.
+    CHECK_STR(ModifiedHex(Modified(89485, owner, -5000)), "6016:8d5d01003c00a50000ff000178ecffff");
+    // 47540 = 0x0000B9B4 -> b4b90000; -500 = 0xFFFFFE0C -> 0cfeffff: the exact cut, not the store's whole second.
+    CHECK_STR(ModifiedHex(Modified(47540, owner, -500)), "6016:b4b900003c00a50000ff00010cfeffff");
+    // A positive delta, 1500 = 0x000005DC -> dc050000.
+    CHECK_STR(ModifiedHex(Modified(93001, owner, 1500)), "6016:496b01003c00a50000ff0001dc050000");
+}
+
+// The installed cut-cooldown callback builds that packet and sends it to the session the owner
+// holds at each send.
+TEST(CooldownPackets_TheInstalledCutCallbackSendsTheGoldenPacket)
+{
+    FakeSession first;
+    FakeSession second;
+    FakeOwner owner;
+    owner.session = &first;
+
+    CooldownModifiedSink sendModified = CooldownModifiedToSession(&owner);
+    sendModified(Modified(89485, ObjectGuid(kOwnerRaw), -5000));
+    owner.session = &second;
+    sendModified(Modified(47540, ObjectGuid(kOwnerRaw), -500));
+
+    REQUIRE(first.sent.size() == 1u);
+    CHECK_STR(first.sent[0], "6016:8d5d01003c00a50000ff000178ecffff");
+    REQUIRE(second.sent.size() == 1u);
+    CHECK_STR(second.sent[0], "6016:b4b900003c00a50000ff00010cfeffff");
 }
