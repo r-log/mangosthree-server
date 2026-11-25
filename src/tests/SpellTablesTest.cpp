@@ -1019,8 +1019,9 @@ TEST(SpellTables_ASpellCarriesNoMarkerWhenItsRestrictionsDoNotExcludeItsCasterOn
 TEST(SpellTables_ABuffThatCarriesTheMarkerTakesItAwayHoweverItEnds)
 {
     StoreHolderSpells();
+    // AURA_REMOVE_BY_STACK is a same-caster re-application's removal of the holder it replaces.
     for (AuraRemoveMode mode : { AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL,
-                                 AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DEFAULT })
+                                 AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DEFAULT })
     {
         MarkerBearer unit;
         SpellAuraHolder* marker = unit.Hold(kRunSpeedMarker);
