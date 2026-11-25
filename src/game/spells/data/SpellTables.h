@@ -138,6 +138,9 @@ uint32 GetSecondWindProcSpell(uint32 rankSpellId);
 uint32 GetRapidRecuperationProcSpell(uint32 rankSpellId);
 uint32 GetFlametongueWeaponProcSpell(uint32 rankSpellId);
 uint32 GetBlessedRecoveryProcSpell(uint32 rankSpellId);
+/// The hidden Arcane Potency aura that carries a buff's crit to Arcane Missiles' missiles and Blizzard's ticks:
+/// 33421 for 57529, 33713 for 57531; 0 for any other spell.
+uint32 GetArcanePotencyHiddenAura(uint32 buffSpellId);
 /// The overload copy of a Lightning Bolt or Chain Lightning; 0 for any other spell.
 uint32 GetLightningOverloadSpell(uint32 procSpellId);
 /// The damage spell of a Lightning Shield rank; 0 for any other spell.
