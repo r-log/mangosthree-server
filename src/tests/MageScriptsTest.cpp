@@ -2675,6 +2675,62 @@ TEST(MageScripts_ArcaneMissilesBuffAndItsAurastateStackWithEachOther)
 
 namespace
 {
+    // The class options and the Spell.dbc rows of the Arcane Potency stacking test: mage spells of class mask 0 and
+    // icon 2120, as Arcane Potency's buffs (57529, 57531) and their hidden auras (33421, 33713) are; the test rows
+    // carry no effects. The test takes the rows out of the spell store again.
+    const uint32 kOptionsArcanePotencyAuras = 94280;
+    const uint32 kOtherIcon2120Spell = 94281;
+    uint32 const ARCANE_POTENCY_AURA_IDS[] = { 57529, 33421, 57531, 33713 };
+
+    SpellClassOptionsEntry s_optionsArcanePotencyAuras;
+    ServerSpell s_arcanePotencyAuras[4];
+    ServerSpell s_otherIcon2120Spell;
+
+    void StoreIcon2120Spell(ServerSpell& spell, uint32 spellId)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = kOptionsArcanePotencyAuras;
+        spell.Entry().SpellIconID = 2120;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+    }
+}
+
+TEST(MageScripts_ArcanePotencysBuffsAndTheirHiddenAurasStackWithEachOther)
+{
+    // In the client's data a buff and its hidden aura are mage auras of icon 2120 with the same crit modifier effect,
+    // which the generic rule takes for one aura: a new holder of either would remove the other's from the mage. The
+    // test rows hold the icon alone, which the generic same-icon rule refuses the same way. Each buff and the hidden
+    // aura of its rank are exempt from it, both ways.
+    s_optionsArcanePotencyAuras.SpellClassMask = ClassFamilyMask(0, 0);
+    s_optionsArcanePotencyAuras.SpellClassSet = SPELLFAMILY_MAGE;
+    sSpellClassOptionsStore.SetEntry(kOptionsArcanePotencyAuras, &s_optionsArcanePotencyAuras);
+    for (std::size_t i = 0; i < 4; ++i)
+    {
+        StoreIcon2120Spell(s_arcanePotencyAuras[i], ARCANE_POTENCY_AURA_IDS[i]);
+    }
+    StoreIcon2120Spell(s_otherIcon2120Spell, kOtherIcon2120Spell);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(57529, 33421));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(33421, 57529));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(57531, 33713));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(33713, 57531));
+
+    // The rule itself stands for another aura of the icon.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(57529, kOtherIcon2120Spell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIcon2120Spell, 33421));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(57531, kOtherIcon2120Spell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIcon2120Spell, 33713));
+
+    for (uint32 spellId : ARCANE_POTENCY_AURA_IDS)
+    {
+        sSpellStore.SetEntry(spellId, NULL);
+    }
+    sSpellStore.SetEntry(kOtherIcon2120Spell, NULL);
+    CHECK(sSpellStore.LookupEntry(57531) == NULL);
+    CHECK(sSpellStore.LookupEntry(33713) == NULL);
+}
+
+namespace
+{
     // The class options and the Spell.dbc rows of the Fingers of Frost stacking test: mage spells of icon 2947, a
     // passive one as the talent's ranks (44543, 44545, 83074) are and one that is not, as the buff (44544) is; the
     // test rows carry no effects. The test takes the rows out of the spell store again.

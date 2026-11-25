@@ -2701,6 +2701,12 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // Arcane Potency's buffs and the hidden aura of each (GetArcanePotencyHiddenAura) stand together
+    if (GetArcanePotencyHiddenAura(spellId_1) == spellId_2 || GetArcanePotencyHiddenAura(spellId_2) == spellId_1)
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)
