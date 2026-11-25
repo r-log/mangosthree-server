@@ -88,7 +88,7 @@ namespace
                 ExpireWithoutSlow(ctx.aura);
             }
         }
-        return PyromaniacDotApply(ctx);
+        return Mage::PyromaniacDotApply(ctx);
     }
 
     /// 44614: Frostfire Bolt: after its hit lands, on the caster's own holder of it on the target. With Glyph of

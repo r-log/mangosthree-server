@@ -56,7 +56,7 @@ namespace
     {
         if (ctx.real && !ctx.target.IsLoading() && ctx.caster && ctx.caster->HasAura(GLYPH_OF_ICE_BARRIER))
         {
-            int32 const percent = EffectValue(GLYPH_OF_ICE_BARRIER, EFFECT_INDEX_0);
+            int32 const percent = Mage::EffectValue(GLYPH_OF_ICE_BARRIER, EFFECT_INDEX_0);
             ctx.aura.SetAmount(EFFECT_INDEX_0, Mage::GlyphedBarrierAmount(ctx.aura.Amount(EFFECT_INDEX_0), percent));
         }
         return SpellHandlerOutcome<void>::Continue();

@@ -74,7 +74,7 @@ namespace
         {
             return SpellHandlerOutcome<void>::Continue();
         }
-        uint32 const talent = PiercingChillTalent(ctx.caster);
+        uint32 const talent = Mage::PiercingChillTalent(ctx.caster);
         if (Mage::PiercingChillCount(talent) <= 0)
         {
             return SpellHandlerOutcome<void>::Continue();

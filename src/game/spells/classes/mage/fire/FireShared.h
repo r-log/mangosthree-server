@@ -34,8 +34,9 @@
  * and its glyph (FrostfireBolt.cpp, Pyromaniac.cpp), and Pyromaniac's count at a DoT's apply, which Pyromaniac.cpp
  * defines and Frostfire Bolt's apply (FrostfireBolt.cpp) runs too.
  *
- * They stand at namespace scope, as they stood in the anonymous namespace of the one file they came from, so the
- * files that share them name them as before; only this folder's files include this header.
+ * The spell ids stand at namespace scope, as they stood in the anonymous namespace of the one file they came from,
+ * so the files that share them name them as before; the helpers are in namespace Mage, as the class's other leaves
+ * are. Only this folder's files include this header.
  */
 
 /// Ignite's damage over time, the spell the talent's ranks cast.
@@ -45,9 +46,12 @@ uint32 const IGNITE_DOT = 12654;
 uint32 const FROSTFIRE_BOLT_SPELL = 44614;
 uint32 const GLYPH_OF_FROSTFIRE = 61205;
 
-/// 2120, 11366, 12654, 44457, 83853, 88148, 92315: the DoTs Pyromaniac counts, when their holder is added:
-/// the caster's burning enemies are counted again with the new holder on its target (PyromaniacRecount). The call
-/// before the holder is added counts nothing. The holder's boosts still run.
-SpellHandlerOutcome<void> PyromaniacDotApply(AuraApplyContext& ctx);
+namespace Mage
+{
+    /// 2120, 11366, 12654, 44457, 83853, 88148, 92315: the DoTs Pyromaniac counts, when their holder is added:
+    /// the caster's burning enemies are counted again with the new holder on its target (PyromaniacRecount). The call
+    /// before the holder is added counts nothing. The holder's boosts still run.
+    SpellHandlerOutcome<void> PyromaniacDotApply(AuraApplyContext& ctx);
+}
 
 #endif

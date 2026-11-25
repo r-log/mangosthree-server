@@ -89,24 +89,8 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 5143, 10: Arcane Missiles and Blizzard: as the channel starts, a caster holding an Arcane Potency buff (57529 or
-    /// 57531) has one of its charges taken (Mage::UseArcanePotencyCharge), one per channel however many missiles or
-    /// ticks it gives, then casts the buff's hidden aura (GetArcanePotencyHiddenAura) on himself, triggered. The hidden
-    /// aura's crit chance names the missiles and the ticks for the aura's own 10 s, which run on after the channel and
-    /// after the buff is gone: a second channel's missiles or ticks inside them still get the crit. Nothing for a
-    /// caster without the buff.
-    SpellHandlerOutcome<void> ArcanePotencyChannelLaunch(LaunchContext& ctx)
-    {
-        if (uint32 const hidden = GetArcanePotencyHiddenAura(Mage::UseArcanePotencyCharge(ctx.caster)))
-        {
-            ctx.caster.CastSpell(&ctx.caster, hidden, true);
-        }
-        return SpellHandlerOutcome<void>::Continue();
-    }
-
     uint32 const ARCANE_MISSILES_BUFFS[] = { ARCANE_MISSILES_BUFF };
     uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
-    uint32 const ARCANE_POTENCY_CHANNELS[] = { 10, 5143 };
 }
 
 Mage::AurastateStep Mage::ArcaneMissilesAurastateStep(bool holdsBuff, bool holdsAurastate)
@@ -125,7 +109,6 @@ namespace Mage
         uint32 rows = RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffApply);
         rows += RegisterRanks<AuraRemoveHook>(registry, ARCANE_MISSILES_BUFFS, &ArcaneMissilesBuffRemove);
         rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
-        rows += RegisterRanks<LaunchHook>(registry, ARCANE_POTENCY_CHANNELS, &ArcanePotencyChannelLaunch);
         return rows;
     }
 }

@@ -64,7 +64,7 @@ namespace
     /// charge and Brain Freeze's buff.
     SpellHandlerOutcome<void> FrostDamageDone(DamageDoneContext& ctx)
     {
-        uint32 const castTime = CastTimeGoingOff(ctx.caster, ctx.spell);
+        uint32 const castTime = Mage::CastTimeGoingOff(ctx.caster, ctx.spell);
         if (ctx.spell.ID != DEEP_FREEZE_DAMAGE &&
             Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType, castTime) == Mage::NOT_FROZEN)
         {
@@ -80,20 +80,20 @@ namespace
                                    ctx.caster.HasAura(SHATTER_RANK_ONE) ? SHATTER_RANK_ONE : 0;
             if (shatter)
             {
-                ctx.doneTotalMod *= (100.0f + EffectValue(shatter, EFFECT_INDEX_1)) / 100.0f;
+                ctx.doneTotalMod *= (100.0f + Mage::EffectValue(shatter, EFFECT_INDEX_1)) / 100.0f;
             }
         }
         else if (ctx.spell.ID == ICE_LANCE_SPELL)
         {
             ctx.doneTotalMod *= Mage::IceLanceMultiplier(true, Mage::UsesFingers(ctx.caster, ctx.spell, castTime),
-                                                         EffectValue(ICE_LANCE_SPELL, EFFECT_INDEX_1),
+                                                         Mage::EffectValue(ICE_LANCE_SPELL, EFFECT_INDEX_1),
                                                          ICE_LANCE_FINGERS_PERCENT);
         }
         return SpellHandlerOutcome<void>::Continue();
     }
 }
 
-int32 EffectValue(uint32 spellId, SpellEffectIndex index)
+int32 Mage::EffectValue(uint32 spellId, SpellEffectIndex index)
 {
     SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
     return spell ? spell->CalculateSimpleValue(index) : 0;

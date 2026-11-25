@@ -53,7 +53,7 @@ namespace
     /// keeps that many of the units it found, at random. Empties the list for a caster whose count is 0.
     SpellHandlerOutcome<void> PiercingChillTargets(SelectTargetsContext& ctx)
     {
-        int32 const count = Mage::PiercingChillCount(PiercingChillTalent(ctx.caster));
+        int32 const count = Mage::PiercingChillCount(Mage::PiercingChillTalent(ctx.caster));
         if (count <= 0)
         {
             ctx.targets.clear();
@@ -75,7 +75,7 @@ namespace
     uint32 const PIERCING_CHILL_CHILLS[] = { 83154 };
 }
 
-uint32 PiercingChillTalent(Unit const& mage)
+uint32 Mage::PiercingChillTalent(Unit const& mage)
 {
     return mage.HasAura(PIERCING_CHILL_RANK_TWO) ? PIERCING_CHILL_RANK_TWO :
            mage.HasAura(PIERCING_CHILL_RANK_ONE) ? PIERCING_CHILL_RANK_ONE : 0;

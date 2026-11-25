@@ -37,8 +37,9 @@
  * too; CastTimeGoingOff, which Shatter.cpp defines and Frostburn.cpp calls too; and PiercingChillTalent, which
  * PiercingChill.cpp defines and Frostbolt.cpp calls too.
  *
- * They stand at namespace scope, as they stood in the anonymous namespace of the one file they came from, so the
- * files that share them name them as before; only this folder's files include this header.
+ * The spell ids stand at namespace scope, as they stood in the anonymous namespace of the one file they came from,
+ * so the files that share them name them as before; the helpers are in namespace Mage, as the class's other leaves
+ * are. Only this folder's files include this header.
  */
 
 uint32 const SHATTER_RANK_ONE = 11170;
@@ -49,15 +50,18 @@ uint32 const FROSTFIRE_BOLT = 44614;
 uint32 const BRAIN_FREEZE_BUFF = 57761;
 uint32 const ICE_BARRIER = 11426;
 
-/// The value of effect `index` of spell `spellId` in the spell store; 0 when the store lacks the spell.
-int32 EffectValue(uint32 spellId, SpellEffectIndex index);
+namespace Mage
+{
+    /// The value of effect `index` of spell `spellId` in the spell store; 0 when the store lacks the spell.
+    int32 EffectValue(uint32 spellId, SpellEffectIndex index);
 
-/// The cast time in ms that the caster's cast of `spell` in one of his current spell slots started with, when that
-/// cast has not been launched yet: the cast whose hit the crit-chance and damage-done hooks reckon as it goes off.
-/// 0 when it is not above 0, and when no slot holds such a cast, as for a triggered cast, which stands in none.
-uint32 CastTimeGoingOff(Unit const& caster, SpellEntry const& spell);
+    /// The cast time in ms that the caster's cast of `spell` in one of his current spell slots started with, when that
+    /// cast has not been launched yet: the cast whose hit the crit-chance and damage-done hooks reckon as it goes off.
+    /// 0 when it is not above 0, and when no slot holds such a cast, as for a triggered cast, which stands in none.
+    uint32 CastTimeGoingOff(Unit const& caster, SpellEntry const& spell);
 
-/// The rank of Piercing Chill `mage` knows: 83157, else 83156; 0 when he knows neither.
-uint32 PiercingChillTalent(Unit const& mage);
+    /// The rank of Piercing Chill `mage` knows: 83157, else 83156; 0 when he knows neither.
+    uint32 PiercingChillTalent(Unit const& mage);
+}
 
 #endif

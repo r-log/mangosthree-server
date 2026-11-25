@@ -57,7 +57,7 @@ namespace
     SpellHandlerOutcome<void> FrostCritChance(CritChanceContext& ctx)
     {
         if (Mage::CountsAsFrozen(ctx.caster, ctx.victim, ctx.spell, ctx.damageType,
-                                 CastTimeGoingOff(ctx.caster, ctx.spell)) != Mage::NOT_FROZEN)
+                                 Mage::CastTimeGoingOff(ctx.caster, ctx.spell)) != Mage::NOT_FROZEN)
         {
             float flatMods = 0.0f;
             if (SpellModMgr* mods = ctx.caster.GetSpellMods())
@@ -71,7 +71,7 @@ namespace
     }
 }
 
-uint32 CastTimeGoingOff(Unit const& caster, SpellEntry const& spell)
+uint32 Mage::CastTimeGoingOff(Unit const& caster, SpellEntry const& spell)
 {
     Spell const* cast = caster.FindCurrentSpellBySpellId(spell.ID);
     if (!cast || cast->getState() != SPELL_STATE_PREPARING || cast->GetCastTime() <= 0)

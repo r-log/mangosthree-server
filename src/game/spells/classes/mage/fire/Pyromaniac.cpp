@@ -121,7 +121,7 @@ namespace
     uint32 const PYROMANIAC[] = { PYROMANIAC_RANK_1, PYROMANIAC_RANK_2 };
 }
 
-SpellHandlerOutcome<void> PyromaniacDotApply(AuraApplyContext& ctx)
+SpellHandlerOutcome<void> Mage::PyromaniacDotApply(AuraApplyContext& ctx)
 {
     if (ctx.real)
     {
