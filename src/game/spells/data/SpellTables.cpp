@@ -334,7 +334,7 @@ namespace
         12485,  // Chilled, cast by Ice Shards' second rank at each unit the mage's Blizzard hits
         34913,  // Molten Armor's hit, cast by the armor's aura at the unit that struck the mage
         44461,  // Living Bomb's explosion, cast for the mage by the bomb's aura when it runs out
-        83154,  // Piercing Chill's chill, cast by the talent's aura at the units a Frostbolt crit chills
+        83154,  // Piercing Chill's chill, cast by the talent's aura at the target of a Frostbolt crit
     };
 
     /// The spells of PROC_STARTING_TRIGGERED_CASTS that start only the procs of auras that can proc from procs.
