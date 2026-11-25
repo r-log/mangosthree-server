@@ -352,6 +352,16 @@ bool Spells::HeldByControlDamageBreaks(Unit const& unit)
     return false;
 }
 
+Unit& Spells::CastEndProcOwner(Unit& caster, Unit* originalCaster)
+{
+    ObjectGuid const& owner = caster.GetOwnerGuid();
+    if (originalCaster && originalCaster != &caster && !owner.IsEmpty() && owner == originalCaster->GetObjectGuid())
+    {
+        return *originalCaster;
+    }
+    return caster;
+}
+
 int32* ScriptWordOf(Unit& unit, uint32 spellId, SpellEffectIndex eff)
 {
     Unit::SpellAuraHolderBounds const bounds = unit.GetSpellAuraHolderBounds(spellId);

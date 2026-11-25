@@ -144,6 +144,11 @@ namespace Spells
      */
     bool HeldByControlDamageBreaks(Unit const& unit);
 
+    /// The unit whose cast-end procs a cast starts: `originalCaster` when it is another unit and `caster` is owned by
+    /// it (a summon casting for its summoner), `caster` otherwise. A cast with no original caster, or one whose
+    /// original caster does not own the caster (a target casting on itself for the aura's caster), keeps the caster.
+    Unit& CastEndProcOwner(Unit& caster, Unit* originalCaster);
+
     /// What a spell script reads of a player's active specialization.
     struct SpecializationView
     {
