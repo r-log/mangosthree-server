@@ -451,16 +451,17 @@ namespace Harness
          * S1201 `priest-hot-heal-absorb`: a heal over time's tick is cut by the heal absorbs of the unit it heals,
          * not of the unit that cast it. The Camel's health is set to half its maximum, then put on it by call:
          * Necrotic Strike (73975, its effect 0 a heal absorb) at kHealAbsorb, its own, and his Renew (139), its tick
-         * set to kRenewTick, for Renew's 12 s. Steps:
-         *  1. the Camel's health at 50%, the two auras put on it at it;
+         * set to kRenewTick, for Renew's 12 s. First his spell crit is taken to none: Increased Critical Spell (23434)
+         * cast on him at -kCritAuraPoints, so Renew's tick cannot crit. Steps:
+         *  1. the Camel's health at 50%, the crit aura put on him and the two auras on the Camel at it;
          *  2. a wait of kTickWaitMs, whose windows hold Renew's first tick (its period is 3 s, its first tick a period
          *     after it is put);
          *  3. a wait, for the read after that tick.
          *
          * `hotHealAbsorb`: `tick=<healed>/<absorbed>,left=<Necrotic Strike's amount at step 3's read; -1 for none>` of
          * the first 139 tick log his Renew sent on the Camel in steps 1-2's windows (`none` when none came). OK when
-         * both auras were put, the tick healed kRenewTick - kHealAbsorbTaken and absorbed kHealAbsorbTaken, and the
-         * heal absorb left kHealAbsorb - kHealAbsorbTaken.
+         * the crit aura and both auras were put, the tick healed kRenewTick - kHealAbsorbTaken and absorbed
+         * kHealAbsorbTaken, and the heal absorb left kHealAbsorb - kHealAbsorbTaken.
          */
         class PriestHotHealAbsorb : public PriestAbsorbScenario
         {
@@ -478,6 +479,8 @@ namespace Harness
             std::vector<SpellPrint> Prints() const override
             {
                 return {
+                    // 23434: 26 fields
+                    { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                     // 139: 26 fields
                     { 139, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 8 }, { "eff0.EffectAuraPeriod", 3000 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectBonusCoefficient", 1040590045 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                     // 73975: 72 fields
@@ -492,6 +495,9 @@ namespace Harness
                 {
                     if (k == kPutStep)
                     {
+                        int32 noCrit = -kCritAuraPoints;
+                        p->CastCustomSpell(p, kCritAura, &noCrit, NULL, NULL, true);
+                        seen.reads["noCrit"] = AmountOf(p, kCritAura);
                         PutWithAmount(target, kNecroticStrike, kAuraMs, kHealAbsorb);
                         PutWithAmount(target, kRenew, kRenewMs, kRenewTick, p);
                         seen.reads["putAbsorb"] = AmountOf(target, kNecroticStrike);
@@ -538,7 +544,8 @@ namespace Harness
                         absorbed = log.entries[0].absorb;
                     }
                 }
-                const bool put = Kept(st, kPutStep, "putAbsorb") == kHealAbsorb &&
+                const bool put = Kept(st, kPutStep, "noCrit") == -int64(kCritAuraPoints) &&
+                                 Kept(st, kPutStep, "putAbsorb") == kHealAbsorb &&
                                  Kept(st, kPutStep, "putTick") == kRenewTick;
                 const int64 left = Kept(st, kAfterTickStep, "absorb");
                 const uint32 taken = uint32(kHealAbsorbTaken);
