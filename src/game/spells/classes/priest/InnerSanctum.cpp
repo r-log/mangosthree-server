@@ -32,12 +32,14 @@
 namespace
 {
     uint32 const INNER_FIRE = 588;
+    uint32 const INNER_WILL = 73413;
     uint32 const SPELL_WARDING = 91724;
 
     /// Inner Sanctum's three ranks, the first first.
     uint32 const INNER_SANCTUM_RANKS[] = { 14747, 14770, 14771 };
 
     uint32 const INNER_FIRE_SPELL[] = { INNER_FIRE };
+    uint32 const INNER_WILL_SPELL[] = { INNER_WILL };
 
     /// The value of effect `eff` of `spellId` in the client's data; 0 when the store lacks the spell or the effect.
     int32 EffectValue(uint32 spellId, SpellEffectIndex eff)
@@ -46,25 +48,39 @@ namespace
         return spell ? spell->CalculateSimpleValue(eff) : 0;
     }
 
-    /// 588: Inner Fire: when its holder is added to the priest, not while he loads, he casts Spell Warding (91724) at
-    /// himself, triggered, its effect 0 at the points of the Inner Sanctum rank he holds (Priest::SpellWardingPoints
-    /// of the rank's effect 0 value in the client's data: -2, -4, -6), so his spell damage taken falls by the rank's
-    /// percent while Inner Fire stands. The points are set at the cast: a rank learned or lost later changes them at
-    /// Inner Fire's next cast. A recast first takes the old Inner Fire off, and Spell Warding with it, then casts
-    /// Spell Warding anew. Nothing without a rank, and nothing at the call before the stacking checks. A Spell
-    /// Warding saved with Inner Fire comes back from the character's auras at login.
+    /// 588: Inner Fire: when its holder is added to the priest, not while he loads, his Inner Will (73413) leaves him
+    /// (Priest::InnerFireRival), and he casts Spell Warding (91724) at himself, triggered, its effect 0 at the points
+    /// of the Inner Sanctum rank he holds (Priest::SpellWardingPoints of the rank's effect 0 value in the client's
+    /// data: -2, -4, -6), so his spell damage taken falls by the rank's percent while Inner Fire stands. The points are
+    /// set at the cast: a rank learned or lost later changes them at Inner Fire's next cast. A recast first takes the
+    /// old Inner Fire off, and Spell Warding with it, then casts Spell Warding anew. Nothing is cast without a rank,
+    /// and nothing is done at the call before the stacking checks. A Spell Warding saved with Inner Fire comes back
+    /// from the character's auras at login.
     SpellHandlerOutcome<void> InnerFireApplied(AuraApplyContext& ctx)
     {
         if (!ctx.real || ctx.target.IsLoading())
         {
             return SpellHandlerOutcome<void>::Continue();
         }
+        ctx.RemoveAura(ctx.target, Priest::InnerFireRival(INNER_FIRE));
         int32 const points = Priest::SpellWardingPoints(EffectValue(Priest::InnerSanctumRank(ctx.target),
                                                                     EFFECT_INDEX_0));
         if (points)
         {
             int32 const basePoints[MAX_EFFECT_INDEX] = { points, 0, 0 };
             ctx.CastTriggered(ctx.target, SPELL_WARDING, basePoints);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 73413: Inner Will: when its holder is added to the priest, not while he loads, his Inner Fire (588) leaves him
+    /// (Priest::InnerFireRival), and Spell Warding with it (InnerFireRemoved). Nothing at the call before the stacking
+    /// checks.
+    SpellHandlerOutcome<void> InnerWillApplied(AuraApplyContext& ctx)
+    {
+        if (ctx.real && !ctx.target.IsLoading())
+        {
+            ctx.RemoveAura(ctx.target, Priest::InnerFireRival(INNER_WILL));
         }
         return SpellHandlerOutcome<void>::Continue();
     }
@@ -82,7 +98,17 @@ uint32 Priest::RegisterInnerSanctum(SpellHandlerRegistry& registry)
 {
     uint32 rows = RegisterRanks<AuraApplyHook>(registry, INNER_FIRE_SPELL, &InnerFireApplied);
     rows += RegisterRanks<AuraRemoveHook>(registry, INNER_FIRE_SPELL, &InnerFireRemoved);
+    rows += RegisterRanks<AuraApplyHook>(registry, INNER_WILL_SPELL, &InnerWillApplied);
     return rows;
+}
+
+uint32 Priest::InnerFireRival(uint32 spellId)
+{
+    if (spellId == INNER_FIRE)
+    {
+        return INNER_WILL;
+    }
+    return spellId == INNER_WILL ? INNER_FIRE : 0;
 }
 
 uint32 Priest::InnerSanctumRank(Unit const& priest)
