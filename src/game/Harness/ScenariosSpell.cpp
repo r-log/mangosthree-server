@@ -10030,14 +10030,15 @@ namespace Harness
      * S948 `mage-fire-molten-armor-procs`: Molten Armor's hit (34913) starts procs, never ignites, never starts another
      * Molten Armor and never breaks Polymorph, Blind or Frost Nova. A Fire mage staged as in 968 (Burning Soul 3,
      * Improved Fire Blast 2, Ignite 3, Impact 2; kSpellPower spell power), Polymorph (118) learned, Precision on him
-     * before each cast and Increased Critical Spell on him at +100 from the first step to the end, so every 34913
-     * crits; the Camel holds Molten Armor (30482) too, put on it in the first step. Steps: Molten Armor cast at
-     * himself; kSwings swings of the Camel at him, each hit of which casts 34913 at the Camel; Polymorph cast at the
-     * Camel; then three phases in which the Camel holds Polymorph, Blind (2094) and Frost Nova (122), and in each step
-     * of a phase he casts 34913 at it by call as the armor's proc does (triggered, naming the holder of 30482), each
-     * read kSwingReadMs after: kStrikes, kBlindStrikes and kNovaStrikes steps. Blind and Frost Nova are put on the
-     * Camel as the GM aura command puts an aura, ready as a cast leaves it and for kPhaseAuraMs, the aura of the phase
-     * before taken off it.
+     * before each cast and Increased Critical Spell on him at kArmorCritAuraPoints from the first step to the end, so
+     * every 34913 crits. The Camel holds Molten Armor (30482) too, put on it in the first step, and its -5 to the crit
+     * chance of a spell cast at it would leave 99.23% at +100, where his sheet crit with his Molten Armor reads
+     * 104.23%; at kArmorCritAuraPoints it leaves 109.23%. Steps: Molten Armor cast at himself; kSwings swings of the
+     * Camel at him, each hit of which casts 34913 at the Camel; Polymorph cast at the Camel; then three phases in which
+     * the Camel holds Polymorph, Blind (2094) and Frost Nova (122), and in each step of a phase he casts 34913 at it by
+     * call as the armor's proc does (triggered, naming the holder of 30482), each read kSwingReadMs after: kStrikes,
+     * kBlindStrikes and kNovaStrikes steps. Blind and Frost Nova are put on the Camel as the GM aura command puts an
+     * aura, ready as a cast leaves it and for kPhaseAuraMs, the aura of the phase before taken off it.
      *
      * `armorProcs`: `crits=<34913 hits that crit>/<34913 hits>,ignite=<steps with 12654 on the Camel or cast>,
      * impact=<swings after which 64343 was on him>,answered=<34913 hits the Camel dealt>,
@@ -10062,7 +10063,7 @@ namespace Harness
         uint32 CasterAura() const override { return kPrecision; }
         uint32 Watched() const override { return kPolymorph; }
         bool WatchedOnTarget() const override { return true; }
-        int32 NonCritAuraPoints() const override { return kCritAuraPoints; }
+        int32 NonCritAuraPoints() const override { return kArmorCritAuraPoints; }
 
         std::vector<Step> Steps() const override
         {
@@ -10202,6 +10203,9 @@ namespace Harness
         static constexpr uint32 kStrikes = 3;
         static constexpr uint32 kBlindStrikes = 3;
         static constexpr uint32 kNovaStrikes = 30;
+        /// Increased Critical Spell's points on him: 10 above kCritAuraPoints, so the Camel's Molten Armor (-5) leaves
+        /// every 34913 above 100%.
+        static constexpr int32 kArmorCritAuraPoints = kCritAuraPoints + 10;
         static constexpr int32 kPhaseAuraMs = 120000;
         static constexpr uint32 kPolyStep = kSwings + 1;
         static constexpr uint32 kFirstStrike = kSwings + 2;
