@@ -2150,14 +2150,15 @@ class Player : public Unit
         // handed in. RemoveArenaSpellCooldowns and _LoadSpellCooldowns build the manager's inputs or
         // callbacks and live in spells/PlayerSpellCooldown.cpp; Unit starts and ends a cast's
         // cooldowns and the potion's through the CooldownSinks this player points it at. The
-        // cooldown event and the clear of every cooldown go to the session through the CooldownSinks
-        // it installed. The cooldown map and AddSpellCooldown are called on the manager directly.
+        // cooldown event, the clear of every cooldown and the cut of a running one go to the session
+        // through the CooldownSinks it installed. The cooldown map and AddSpellCooldown are called on
+        // the manager directly.
         SpellCooldownMgr& GetSpellCooldownMgr() { return m_spellCooldownMgr; }
         SpellCooldownMgr const& GetSpellCooldownMgr() const { return m_spellCooldownMgr; }
         static uint32 const infinityCooldownDelay = SpellCooldownMgr::infinityCooldownDelay; // used for set "infinity cooldowns" for spells and check
         static uint32 const infinityCooldownDelayCheck = SpellCooldownMgr::infinityCooldownDelayCheck;
 
-        /// Where the cooldown event and the clear of every cooldown go: the session's callbacks,
+        /// Where the cooldown event, the clear of every cooldown and a cut go: the session's callbacks,
         /// installed once by InstallPlayerPacketSinks where the player is created.
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 

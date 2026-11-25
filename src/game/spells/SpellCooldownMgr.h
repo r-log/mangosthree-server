@@ -45,6 +45,7 @@ struct SpellCooldown
 {
     time_t end;    ///< End time of the cooldown
     uint16 itemid; ///< Item ID associated with the cooldown
+    uint16 lagMs;  ///< How far the client's end runs past `end`, below a second, after a cut of part of a second
 };
 
 typedef std::map<uint32, SpellCooldown> SpellCooldowns;
@@ -158,10 +159,12 @@ class SpellCooldownMgr
         void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, ObjectGuid ownerGuid, CooldownEventSink const& sendEvent);
         /// Takes `ms` off the cooldown of `spellId` that runs at `now`, then reports the cut, -`ms`,
         /// through `sendModified`, the exact delta the client moves its own end by. The store keeps
-        /// whole seconds, so it rounds the cut up (500 ms take 1 s) and never refuses a cast the
-        /// client allows; a cooldown left with less than a second ends. Nothing, and no report, for
-        /// a cut of 0, for a spell with no running cooldown, or for one held while its aura stands
-        /// (the infinity mark), which starts whole when the aura goes. Answers whether it cut.
+        /// whole seconds: it ends at the whole second at or before the client's end and keeps the
+        /// rest (SpellCooldown::lagMs) for the next cut, so it never refuses a cast the client allows
+        /// and two 500 ms cuts take one second, not two; a cooldown left with less than a second ends.
+        /// Nothing, and no report, for a cut of 0, for a spell with no running cooldown, or for one
+        /// held while its aura stands (the infinity mark), which starts whole when the aura goes.
+        /// Answers whether it cut.
         bool ShortenCooldown(uint32 spellId, uint32 ms, time_t now, ObjectGuid ownerGuid,
                              CooldownModifiedSink const& sendModified);
         void RemoveSpellCooldown(uint32 spell_id, bool update, ClearSink const& sendClear);

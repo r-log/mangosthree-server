@@ -969,8 +969,8 @@ namespace
 
 TEST(SpellScriptHooks_TheStoreCutsARunningCooldownInWholeSecondsAndReportsTheExactCut)
 {
-    // The cooldown manager's own cut: the store takes whole seconds off, the cut rounded up, and the report carries
-    // the exact cut for the client.
+    // The cooldown manager's own cut: the store ends at the whole second at or before the client's end and carries
+    // the rest to the next cut, and the report carries the exact cut for the client.
     SpellCooldownMgr cooldowns;
     SpellCooldowns const& stored = cooldowns.GetSpellCooldownMap();
     ObjectGuid const owner(uint64(0x2A));
@@ -992,6 +992,14 @@ TEST(SpellScriptHooks_TheStoreCutsARunningCooldownInWholeSecondsAndReportsTheExa
     CHECK_EQ(s_cuts[0].deltaMs, int32(-5000));
     CHECK_EQ(s_cuts[1].spellId, kOtherSpell);
     CHECK_EQ(s_cuts[1].deltaMs, int32(-500));
+
+    // A second 500 ms off: the carried half second pays it, so the two half seconds took one second, not two.
+    CHECK(cooldowns.ShortenCooldown(kOtherSpell, 500, time(NULL), owner, RecordCuts()));
+    CHECK_EQ(int64(stored.at(kOtherSpell).end), int64(shortEnd - 1));
+    CHECK_EQ(uint32(stored.at(kOtherSpell).lagMs), uint32(0));
+    REQUIRE(s_cuts.size() == 3u);
+    CHECK_EQ(s_cuts[2].deltaMs, int32(-500));
+    s_cuts.pop_back();
 
     // Nothing off moves nothing and reports nothing.
     CHECK(!cooldowns.ShortenCooldown(kHookSpell, 0, time(NULL), owner, RecordCuts()));

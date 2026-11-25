@@ -149,6 +149,7 @@ void SpellCooldownMgr::AddSpellCooldown(uint32 spellid, uint32 itemid, time_t en
     SpellCooldown sc;
     sc.end = end_time;
     sc.itemid = itemid;
+    sc.lagMs = 0;
     m_cooldowns[spellid] = sc;
 }
 
@@ -175,8 +176,8 @@ bool SpellCooldownMgr::ShortenCooldown(uint32 spellId, uint32 ms, time_t now, Ob
         return false;
     }
 
-    // the time left less the cut, divided down to the store's whole seconds: the cut rounded up
-    int64 const leftMs = int64(itr->second.end - now) * IN_MILLISECONDS - int64(ms);
+    // the client's time left less the cut, divided down to the store's whole seconds; the rest is carried
+    int64 const leftMs = int64(itr->second.end - now) * IN_MILLISECONDS + itr->second.lagMs - int64(ms);
     if (leftMs < int64(IN_MILLISECONDS))
     {
         m_cooldowns.erase(itr);
@@ -184,6 +185,7 @@ bool SpellCooldownMgr::ShortenCooldown(uint32 spellId, uint32 ms, time_t now, Ob
     else
     {
         itr->second.end = now + time_t(leftMs / IN_MILLISECONDS);
+        itr->second.lagMs = uint16(leftMs % IN_MILLISECONDS);
     }
 
     CooldownModifiedFact fact;
