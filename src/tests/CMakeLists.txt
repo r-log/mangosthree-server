@@ -210,6 +210,7 @@ set(SRC_GRP_TESTS
     SpellModPacketsTest.cpp
     SpellEffectPacketsTest.cpp
     SpellVisualPacketsTest.cpp
+    AuraPacketsTest.cpp
     CastTargetsCodecTest.cpp
     UpdateObjectPacketTest.cpp
     UnitSpellCooldownTest.cpp
