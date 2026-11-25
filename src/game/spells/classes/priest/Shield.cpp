@@ -26,8 +26,6 @@
 #include "spells/classes/priest/Shield.h"
 #include "spells/data/SpellMgr.h"
 #include "entities/Unit.h"
-#include "DBCStores.h"
-#include "GameTime.h"
 
 #include <cstddef>
 
@@ -44,26 +42,25 @@ namespace
     uint32 const IMPROVED_POWER_WORD_SHIELD[] = { 14768, 14748 };
     uint32 const RAPTURE[] = { 47537, 47536, 47535 };
 
-    /// `unit`'s holder of the first of `ranks` he holds; NULL when he holds none.
+    /// The first of `ranks` that `unit` holds; 0 when he holds none.
     template <std::size_t N>
-    SpellAuraHolder* HeldRank(Unit const& unit, uint32 const (&ranks)[N])
+    uint32 HeldRank(Unit const& unit, uint32 const (&ranks)[N])
     {
         for (uint32 rank : ranks)
         {
-            if (SpellAuraHolder* holder = unit.GetSpellAuraHolder(rank))
+            if (unit.GetSpellAuraHolder(rank))
             {
-                return holder;
+                return rank;
             }
         }
-        return NULL;
+        return 0;
     }
 
-    /// The milliseconds Rapture's energize (47755) waits before it can come again: its recovery time in the client's
-    /// data (12000); 0 when the store lacks it.
-    uint32 RaptureLockoutMs()
+    /// The effect `eff` amount of `unit`'s holder of `spellId`; 0 when he holds none.
+    int32 HeldAmount(Unit const& unit, uint32 spellId, SpellEffectIndex eff)
     {
-        SpellEntry const* energize = sSpellStore.LookupEntry(RAPTURE_ENERGIZE);
-        return energize ? GetSpellRecoveryTime(energize) : 0;
+        SpellAuraHolder* holder = spellId ? unit.GetSpellAuraHolder(spellId) : NULL;
+        return holder ? AuraHandle(*holder).Amount(eff) : 0;
     }
 
     /// 17: Power Word: Shield: when its absorb is made, the amount is the whole shield: the base the engine reckoned,
@@ -82,47 +79,37 @@ namespace
         int32 const spellPower = ctx.caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(&ctx.spell));
         int32 const part = ctx.caster->SpellBonusWithCoeffs(&ctx.spell, 0, spellPower, 0, SPELL_DIRECT_DAMAGE, true,
                                                             SPELL_BONUS_KIND_ABSORB);
-        SpellAuraHolder* improved = HeldRank(*ctx.caster, IMPROVED_POWER_WORD_SHIELD);
-        int32 const improvedPercent = improved ? AuraHandle(*improved).Amount(EFFECT_INDEX_0) : 0;
+        int32 const improvedPercent = HeldAmount(*ctx.caster, HeldRank(*ctx.caster, IMPROVED_POWER_WORD_SHIELD),
+                                                 EFFECT_INDEX_0);
         ctx.amount = Priest::ShieldAmount(ctx.amount + part, improvedPercent, Priest::AbsorbMastery(*ctx.caster));
         return SpellHandlerOutcome<void>::Continue();
     }
 
     /// 17: Power Word: Shield: when damage used up its last point or it was dispelled (Priest::RaptureFires), a caster
     /// who knows Rapture casts at himself the energize (47755) for the effect 0 percent of his rank of his maximum mana
-    /// (Priest::RaptureMana), unless an earlier energize's lockout still runs. The lockout is the energize's own
-    /// recovery time, kept on the server alone: its end, on the game's millisecond clock, in his Rapture holder's
-    /// effect 0 script word (Priest::RaptureLockedOut, Priest::RaptureLockoutEnd); no cooldown and no aura reaches the
-    /// client. The shield may be on any unit: the mana and the lockout are the caster's. Any other removal, a caster
-    /// who cannot be found or knows no Rapture, and a rank that holds no percent cast nothing. The removal's boosts
-    /// still run.
+    /// (Priest::RaptureMana), triggered by his rank's effect 0 aura. The lockout is the energize's own recovery time
+    /// (12 s in the client's data), which its cast keeps in his cooldown store, saved with him: inside it the store
+    /// refuses the cast, and a cast triggered by an aura is refused as SPELL_FAILED_DONT_REPORT, the one result the
+    /// client is told. The shield may be on any unit: the mana and the lockout are the caster's. Any other removal, a
+    /// caster who cannot be found or knows no Rapture, and a rank that holds no percent cast nothing. The removal's
+    /// boosts still run.
     SpellHandlerOutcome<void> ShieldAuraRemove(AuraRemoveContext& ctx)
     {
         if (!ctx.caster || !Priest::RaptureFires(ctx.mode))
         {
             return SpellHandlerOutcome<void>::Continue();
         }
-        SpellAuraHolder* rank = HeldRank(*ctx.caster, RAPTURE);
-        if (!rank)
-        {
-            return SpellHandlerOutcome<void>::Continue();
-        }
-        AuraHandle rapture(*rank);
-        int32& lockoutEnd = rapture.ScriptWord(EFFECT_INDEX_0);
-        uint32 const now = GameTime::GetGameTimeMS();
-        uint32 const lockoutMs = RaptureLockoutMs();
-        if (Priest::RaptureLockedOut(uint32(lockoutEnd), now, lockoutMs))
-        {
-            return SpellHandlerOutcome<void>::Continue();
-        }
-        int32 const mana = Priest::RaptureMana(ctx.caster->GetMaxPower(POWER_MANA), rapture.Amount(EFFECT_INDEX_0));
-        if (mana <= 0)
+        uint32 const rank = HeldRank(*ctx.caster, RAPTURE);
+        Aura* talent = rank ? ctx.caster->GetAura(rank, EFFECT_INDEX_0) : NULL;
+        int32 const mana = Priest::RaptureMana(ctx.caster->GetMaxPower(POWER_MANA),
+                                               HeldAmount(*ctx.caster, rank, EFFECT_INDEX_0));
+        if (!talent || mana <= 0)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
         int32 const basePoints[MAX_EFFECT_INDEX] = { mana, 0, 0 };
-        ctx.caster->CastCustomSpell(ctx.caster, RAPTURE_ENERGIZE, &basePoints[EFFECT_INDEX_0], NULL, NULL, true);
-        lockoutEnd = int32(Priest::RaptureLockoutEnd(now, lockoutMs));
+        ctx.caster->CastCustomSpell(ctx.caster, RAPTURE_ENERGIZE, &basePoints[EFFECT_INDEX_0], NULL, NULL, true, NULL,
+                                    talent);
         return SpellHandlerOutcome<void>::Continue();
     }
 }
@@ -163,20 +150,4 @@ int32 Priest::RaptureMana(uint32 maxMana, int32 percent)
         return 0;
     }
     return int32(uint64(maxMana) * uint64(percent) / 100);
-}
-
-bool Priest::RaptureLockedOut(uint32 lockoutEnd, uint32 now, uint32 lockoutMs)
-{
-    uint32 const left = lockoutEnd - now;
-    return lockoutEnd != 0 && left != 0 && left <= lockoutMs;
-}
-
-uint32 Priest::RaptureLockoutEnd(uint32 now, uint32 lockoutMs)
-{
-    if (!lockoutMs)
-    {
-        return 0;
-    }
-    uint32 const end = now + lockoutMs;
-    return end ? end : 1;
 }

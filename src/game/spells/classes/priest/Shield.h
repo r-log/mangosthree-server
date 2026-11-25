@@ -35,7 +35,7 @@
  * Shield.cpp registers two rows on Power Word: Shield (17): at the aura-amount hook its whole amount is reckoned,
  * raised by Improved Power Word: Shield and by the Shield Discipline mastery (ShieldAmount, AbsorbMastery), and at the
  * aura-remove hook a shield used up or dispelled gives its caster Rapture's mana (RaptureFires, RaptureMana), once in
- * the energize's recovery time (RaptureLockedOut, RaptureLockoutEnd).
+ * the energize's recovery time, which his cooldown store keeps.
  */
 
 namespace Priest
@@ -60,16 +60,6 @@ namespace Priest
     /// The mana Rapture gives a priest of `maxMana` maximum mana at the rank whose effect 0 holds `percent`: that
     /// percent of it, truncated; 0 for a percent of 0 or less.
     int32 RaptureMana(uint32 maxMana, int32 percent);
-
-    /// Whether Rapture's lockout still runs at `now` (the game's millisecond clock) for a lockout of `lockoutMs` that
-    /// ends at `lockoutEnd`: it does from its start until `now` reaches the end, the clock's wrap allowed; an end of 0
-    /// is no lockout, and an end more than `lockoutMs` ahead is a stamp left from before the clock wrapped, which holds
-    /// nothing.
-    bool RaptureLockedOut(uint32 lockoutEnd, uint32 now, uint32 lockoutMs);
-
-    /// The end of a lockout of `lockoutMs` that starts at `now`, on the game's millisecond clock; never 0, which is no
-    /// lockout, unless `lockoutMs` is 0.
-    uint32 RaptureLockoutEnd(uint32 now, uint32 lockoutMs);
 }
 
 #endif
