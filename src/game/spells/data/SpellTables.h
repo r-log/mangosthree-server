@@ -156,6 +156,14 @@ bool IsBlazingSpeedRank(uint32 spellId);
 /// (1463) alone.
 bool CountsForIncantersAbsorption(uint32 spellId);
 
+/// The lockout a haste spell puts on each unit it hastes: Temporal Displacement 80354 for Time Warp 80353, Sated 57724
+/// for Bloodlust 2825, Exhaustion 57723 for Heroism 32182, Insanity 95809 for Ancient Hysteria 90355; 0 otherwise.
+uint32 LustLockoutOf(uint32 spellId);
+
+/// The haste spell at `index` of LustLockoutOf's table, by ascending id: 2825, 32182, 80353 and 90355 at 0 to 3; 0 at
+/// any later index.
+uint32 LustSpellAt(uint32 index);
+
 /// How a death-prevention aura saves its bearer from a killing blow.
 enum DeathPreventionShape
 {

@@ -961,6 +961,31 @@ bool CountsForIncantersAbsorption(uint32 spellId)
     return Holds(INCANTERS_ABSORPTION_SHIELDS, spellId);
 }
 
+namespace
+{
+    /// The haste spells that put a lockout on each unit they haste, and that lockout, whose holder none of the four
+    /// hastes ("Cannot benefit from Time Warp or other similar effects.").
+    constexpr SpellAnswer LUST_LOCKOUTS[] =
+    {
+        { 2825, 57724 },    // Bloodlust: Sated
+        { 32182, 57723 },   // Heroism: Exhaustion
+        { 80353, 80354 },   // Time Warp: Temporal Displacement
+        { 90355, 95809 },   // Ancient Hysteria: Insanity
+    };
+
+    static_assert(SortedBySpellId(LUST_LOCKOUTS), "lust lockout rows are sorted, each once");
+}
+
+uint32 LustLockoutOf(uint32 spellId)
+{
+    return AnswerOf(LUST_LOCKOUTS, spellId);
+}
+
+uint32 LustSpellAt(uint32 index)
+{
+    return index < sizeof(LUST_LOCKOUTS) / sizeof(LUST_LOCKOUTS[0]) ? LUST_LOCKOUTS[index].spellId : 0;
+}
+
 DeathPreventionRow const* DeathPreventionFor(uint32 spellId)
 {
     DeathPreventionRow const* end = std::end(DEATH_PREVENTION);
