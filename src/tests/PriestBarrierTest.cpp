@@ -23,25 +23,29 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/Barrier.cpp: the two rows the file registers, in the game's table too, with the
+/// Tests of spells/classes/priest/Barrier.cpp: the three rows the file registers, in the game's table too, with the
 /// barrier's creature AI and its permit; the creature the AI takes; the trigger spells a tick of the barrier's aura
 /// casts with the glyph and without it; how long a barrier stands; the summon's targets, which the select-targets row
-/// cuts to the priest alone; the tick row, which lets the ward cast and holds the glyph's cast without a priest; and a
-/// barrier no cast made, which does nothing. The effects the rows read (62618's summon, 81781's two periodic
-/// triggers) are put into the spell effect store as the client's data holds them, once for the rest of the run; no
-/// other test reads them. The units are bare creatures (update fields allocated; no world, map, template or AI).
-/// Scenario 1212 records the barrier in play.
+/// cuts to the priest alone; the summon's value, which the effect-value row makes one barrier; the tick row, which
+/// lets the ward cast and holds the glyph's cast without a priest; a barrier no cast made, which does nothing; and the
+/// ward and the glyph's healing, which share the barrier's icon and stand together on one unit
+/// (SpellMgr::IsNoStackSpellDueToSpell). The effects the rows read (62618's summon, 81781's two periodic triggers) are
+/// put into the spell effect store as the client's data holds them, once for the rest of the run; no other test reads
+/// them. The units are bare creatures (update fields allocated; no world, map, template or AI). Scenario 1212 records
+/// the barrier in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/Barrier.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
 #include "ai/CreatureAI.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "ObjectGuid.h"
+#include "data/ServerSpellStore.h"
 
 #include <cstddef>
 #include <list>
@@ -162,30 +166,35 @@ namespace
     }
 }
 
-TEST(PriestBarrier_TheFileHoldsItsTwoRowsAndTheBarriersAIInTheGame)
+TEST(PriestBarrier_TheFileHoldsItsThreeRowsAndTheBarriersAIInTheGame)
 {
-    // Power Word: Barrier at the select-targets hook and the barrier's aura at the periodic-tick hook: two rows, two
-    // keys, no default, each the game's body too.
+    // Power Word: Barrier at the select-targets and effect-value hooks and the barrier's aura at the periodic-tick
+    // hook: three rows, three keys, no default, each the game's body too.
     SpellHandlerRegistry registry;
-    CHECK_EQ(Priest::RegisterBarrier(registry), uint32(2));
-    CHECK_EQ(registry.Count(), std::size_t(2));
+    CHECK_EQ(Priest::RegisterBarrier(registry), uint32(3));
+    CHECK_EQ(registry.Count(), std::size_t(3));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(EffectValueHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK(registry.Find<SelectTargetsHook>(BARRIER_SPELL) != NULL);
+    CHECK(registry.Find<EffectValueHook>(BARRIER_SPELL) != NULL);
     CHECK(registry.Find<PeriodicTickHook>(BARRIER_AURA) != NULL);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(game.Find<SelectTargetsHook>(BARRIER_SPELL) == registry.Find<SelectTargetsHook>(BARRIER_SPELL));
+    CHECK(game.Find<EffectValueHook>(BARRIER_SPELL) == registry.Find<EffectValueHook>(BARRIER_SPELL));
     CHECK(game.Find<PeriodicTickHook>(BARRIER_AURA) == registry.Find<PeriodicTickHook>(BARRIER_AURA));
 
-    // The ward, the glyph's spell and the glyph hold no row of the file; neither spell holds the other's row.
+    // The ward, the glyph's spell and the glyph hold no row of the file; neither spell holds the other's rows.
     for (uint32 spellId : { BARRIER_WARD, BARRIER_GLYPH_SPELL, GLYPH_OF_POWER_WORD_BARRIER })
     {
         CHECK(registry.Find<SelectTargetsHook>(spellId) == NULL);
+        CHECK(registry.Find<EffectValueHook>(spellId) == NULL);
         CHECK(registry.Find<PeriodicTickHook>(spellId) == NULL);
     }
     CHECK(registry.Find<PeriodicTickHook>(BARRIER_SPELL) == NULL);
     CHECK(registry.Find<SelectTargetsHook>(BARRIER_AURA) == NULL);
+    CHECK(registry.Find<EffectValueHook>(BARRIER_AURA) == NULL);
 
     // The barrier's AI is chosen by its permit for the barrier's creature alone, and registering again keeps the one
     // factory.
@@ -332,4 +341,113 @@ TEST(PriestBarrier_ABarrierNoCastMadeDoesNothing)
     CHECK(barrier.GetCreatorGuid().IsEmpty());
     CHECK_EQ(barrier.getFaction(), uint32(0));
     delete ai;
+}
+
+TEST(PriestBarrier_TheSummonsValueIsOneBarrierAndEveryOtherValueStays)
+{
+    // The summon: one barrier, whatever the value the spell's scaling gave it (21225 at level 85) and also from 0.
+    CHECK_EQ(Priest::BarrierSummonValue(SPELL_EFFECT_SUMMON, 21225), int32(1));
+    CHECK_EQ(Priest::BarrierSummonValue(SPELL_EFFECT_SUMMON, 0), int32(1));
+
+    // Any other kind of effect, or none, keeps its value.
+    CHECK_EQ(Priest::BarrierSummonValue(SPELL_EFFECT_APPLY_AURA, 21225), int32(21225));
+    CHECK_EQ(Priest::BarrierSummonValue(0, 5), int32(5));
+}
+
+TEST(PriestBarrier_TheEffectValueRowMakesTheSummonOneBarrierAndLeavesAnEffectWithoutData)
+{
+    StoreBarrierEffects();
+    SpellRowStorage row;
+    SpellEntry const& barrierSpell = SpellRow(row, BARRIER_SPELL);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    BarrierTestCreature priest;
+    priest.Stand(CAMEL, 40);
+
+    // Effect 0, the summon, valued 21225 by the spell's scaling at level 85: one barrier.
+    int32 value = 21225;
+    EffectValueContext summon(priest, &priest, barrierSpell, EFFECT_INDEX_0, value);
+    CHECK(game.Dispatch<EffectValueHook>(BARRIER_SPELL, summon).IsContinue());
+    CHECK_EQ(value, int32(1));
+
+    // An effect the data does not hold keeps its value.
+    int32 other = 21225;
+    EffectValueContext none(priest, &priest, barrierSpell, EFFECT_INDEX_1, other);
+    CHECK(game.Dispatch<EffectValueHook>(BARRIER_SPELL, none).IsContinue());
+    CHECK_EQ(other, int32(21225));
+}
+
+// The ward (81782) and the glyph's healing (90785) stand together on one unit. The rows are the client's shapes, built
+// in the stores: each a priest spell (class set 6, mask 0) of icon 3837, the barrier's channel (81781) among them,
+// beside a fourth priest aura of that icon, which the generic same-icon rule keeps from standing beside any of them.
+// The rows hold no effect of their own beyond the channel's two periodic triggers: the rule reads the effects only for
+// a spell modifier, which none of the client's three holds. The test takes the spell rows out of the spell store
+// again.
+namespace
+{
+    const uint32 kOtherBarrierIconAura = 94342;
+    const uint32 kOptionsBarrierIcon = 94465;
+    const uint32 kBarrierIcon = 3837;
+
+    SpellClassOptionsEntry s_optionsBarrierIcon;
+    ServerSpell s_barrierIconRows[4];
+
+    /// Puts the channel, the ward, the glyph's healing and the fourth aura into the spell store and their class
+    /// options into theirs; the class options once.
+    void StoreBarrierIconRows()
+    {
+        static bool stored = false;
+        if (!stored)
+        {
+            stored = true;
+            s_optionsBarrierIcon.SpellClassSet = SPELLFAMILY_PRIEST;
+            s_optionsBarrierIcon.SpellClassMask = ClassFamilyMask(UI64LIT(0));
+            sSpellClassOptionsStore.SetEntry(kOptionsBarrierIcon, &s_optionsBarrierIcon);
+        }
+        uint32 const ids[4] = { BARRIER_AURA, BARRIER_WARD, BARRIER_GLYPH_SPELL, kOtherBarrierIconAura };
+        for (std::size_t i = 0; i < 4; ++i)
+        {
+            SpellEntry& spellRow = s_barrierIconRows[i].Entry();
+            spellRow.ID = ids[i];
+            spellRow.SpellIconID = kBarrierIcon;
+            spellRow.ClassOptionsID = kOptionsBarrierIcon;
+            sSpellStore.SetEntry(ids[i], &spellRow);
+        }
+    }
+
+    /// Takes them out of the spell store.
+    void ForgetBarrierIconRows()
+    {
+        for (uint32 spellId : { BARRIER_AURA, BARRIER_WARD, BARRIER_GLYPH_SPELL, kOtherBarrierIconAura })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(PriestBarrier_TheWardAndTheGlyphsHealingStandTogetherInEitherOrder)
+{
+    StoreBarrierEffects();
+    StoreBarrierIconRows();
+
+    // The glyph's healing arriving beside the ward keeps it, and the ward arriving beside the healing keeps it.
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(BARRIER_GLYPH_SPELL, BARRIER_WARD));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(BARRIER_WARD, BARRIER_GLYPH_SPELL));
+
+    // The generic rule stands for the icon's other pairs: the fourth aura and the channel against the ward and the
+    // healing, both ways.
+    for (uint32 spellId : { BARRIER_WARD, BARRIER_GLYPH_SPELL })
+    {
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherBarrierIconAura, spellId));
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(spellId, kOtherBarrierIconAura));
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(BARRIER_AURA, spellId));
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(spellId, BARRIER_AURA));
+    }
+
+    // Another barrier's ward or healing takes the place of the one a unit holds: no two of a kind stand together.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(BARRIER_WARD, BARRIER_WARD));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(BARRIER_GLYPH_SPELL, BARRIER_GLYPH_SPELL));
+
+    ForgetBarrierIconRows();
+    CHECK(sSpellStore.LookupEntry(BARRIER_WARD) == NULL);
+    CHECK(sSpellStore.LookupEntry(BARRIER_GLYPH_SPELL) == NULL);
 }

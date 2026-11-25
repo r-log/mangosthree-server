@@ -38,6 +38,9 @@ namespace
     uint32 const BARRIER_GLYPH_SPELL = 90785;
     uint32 const GLYPH_OF_POWER_WORD_BARRIER = 55689;
 
+    /// The barriers one summon of 62618 makes.
+    int32 const BARRIER_SUMMONS = 1;
+
     /// The name the barrier's creature AI is registered under.
     char const* const BARRIER_AI = "BarrierAI";
 
@@ -126,7 +129,8 @@ namespace
 
     /// 62618: Power Word: Barrier, at the targets of its effect: the summon's effect, whose targets are the units
     /// friendly to the priest within 7 yards of the point and which summons once for each of them, takes the priest
-    /// alone, so that each cast summons one barrier at the point, whoever stands there. Return(): the list is final.
+    /// alone, so that each cast summons once at the point, whoever stands there (BarrierSummonCount makes that summon
+    /// one barrier). Return(): the list is final.
     /// Any other effect keeps its list.
     SpellHandlerOutcome<void> BarrierSummonTargets(SelectTargetsContext& ctx)
     {
@@ -138,6 +142,17 @@ namespace
         ctx.targets.clear();
         ctx.targets.push_back(&ctx.caster);
         return SpellHandlerOutcome<void>::Return();
+    }
+
+    /// 62618: Power Word: Barrier, at the value of its effect: the summon's value, which the spell's scaling row
+    /// raises with the priest's level (22.456 times the level's scaling value: 21225 at level 85, the barrier's health
+    /// on retail), is the number of creatures the summon makes (Spell::EffectSummonType); it becomes one
+    /// (Priest::BarrierSummonValue), so that the summon makes one barrier. Any other effect keeps its value.
+    SpellHandlerOutcome<void> BarrierSummonCount(EffectValueContext& ctx)
+    {
+        SpellEffectEntry const* effect = ctx.spell.GetSpellEffect(ctx.effIndex);
+        ctx.value = Priest::BarrierSummonValue(effect ? effect->Effect : 0, ctx.value);
+        return SpellHandlerOutcome<void>::Continue();
     }
 
     /// 81781: the barrier's aura, on each tick of either of its periodic triggers: the tick casts its trigger spell
@@ -172,6 +187,11 @@ bool Priest::BarrierStands(int32 lifeMs, bool priest)
     return lifeMs > 0 && priest;
 }
 
+int32 Priest::BarrierSummonValue(uint32 effect, int32 value)
+{
+    return effect == SPELL_EFFECT_SUMMON ? BARRIER_SUMMONS : value;
+}
+
 uint32 Priest::RegisterBarrier(SpellHandlerRegistry& registry)
 {
     CreatureAIRegistry& ais = CreatureAIRepository::Instance();
@@ -181,6 +201,7 @@ uint32 Priest::RegisterBarrier(SpellHandlerRegistry& registry)
     }
 
     uint32 rows = RegisterRanks<SelectTargetsHook>(registry, BARRIER_SPELL, &BarrierSummonTargets);
+    rows += RegisterRanks<EffectValueHook>(registry, BARRIER_SPELL, &BarrierSummonCount);
     rows += RegisterRanks<PeriodicTickHook>(registry, BARRIER_AURA, &BarrierTick);
     return rows;
 }
