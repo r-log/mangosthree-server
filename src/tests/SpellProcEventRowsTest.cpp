@@ -23,8 +23,9 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The Fire, Frost and Arcane talents' spell_proc_event rows against the proc gate, with the spells their 4.3.4 texts
-/// name and the ones they leave out; and the interrupt mark a hit's proc event carries when its interrupt effect
+/// The Fire, Frost and Arcane talents' spell_proc_event rows and the Discipline priest's (Divine Aegis, Focused Will)
+/// against the proc gate, with the spells their 4.3.4 texts name and the ones they leave out; and the interrupt mark a
+/// hit's proc event carries when its interrupt effect
 /// stopped a cast, against Improved Counterspell's row, an aura with no row and a row that asks for the mark. A row is
 /// built by hand with the values the world database holds for it. The gate is the two checks a proc event meets
 /// before an aura's effect handles it: SpellMgr::IsSpellProcEventCanTriggeredBy (the proc flags, the school, the
@@ -116,6 +117,17 @@ namespace
                                                 UI64LIT(0x0000000000080000), 0 };
     /// Ring of Frost's freeze, which the ring casts for the mage.
     ProcSpell const kRingFreeze = { 82691, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0, 0x00000040 };
+    /// The priest's heals: Flash Heal, Prayer of Healing, Renew (whose ticks heal) and Penance's heal (B 0x10000); and
+    /// two of his harmful spells, Smite and Shadow Word: Pain.
+    ProcSpell const kFlashHeal = { 2061, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000800), 0 };
+    ProcSpell const kPrayerOfHealing = { 596, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000200),
+                                         0 };
+    ProcSpell const kRenew = { 139, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000040), 0 };
+    ProcSpell const kPenanceHeal = { 47750, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0001000000000000),
+                                     0 };
+    ProcSpell const kSmite = { 585, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000080), 0 };
+    ProcSpell const kShadowWordPain = { 589, SPELL_SCHOOL_MASK_SHADOW, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000008000),
+                                        0 };
 
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
                                   kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
@@ -123,7 +135,8 @@ namespace
                                   kFrostNova, kWaterbolt, kBlizzardTick, kCounterspell, kArcaneExplosion,
                                   kArcaneBrilliance, kMageArmor, kManaShield, kBlink, kClearcasting, kPresenceOfMind,
                                   kArcanePower, kLightningBolt, kBlizzardChillRankTwo, kPiercingChill, kOrbHitRankOne,
-                                  kFlameOrbHit, kShatteredBarrierFreeze, kRingFreeze };
+                                  kFlameOrbHit, kShatteredBarrierFreeze, kRingFreeze, kFlashHeal, kPrayerOfHealing,
+                                  kRenew, kPenanceHeal, kSmite, kShadowWordPain };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -241,6 +254,19 @@ namespace
                                  PROC_EX_NONE)), 0, 100.0f);
     /// Improved Blink 31569: family 3, Blink (A 0x10000) on every effect, no hit kind.
     SpellProcEventEntry const kImprovedBlink = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000010000), 0, PROC_EX_NONE);
+    /// Divine Aegis 47509 (its two higher ranks take its row) and Focused Will 45234 (its rank 2, 45243, takes its
+    /// row): every school, no family, no mask, the Spell.dbc proc flags, a normal or a critical hit. The talents'
+    /// scripts refuse what makes no shield and what gives no Focused Will (PriestDivineAegisTest).
+    SpellProcEventEntry const kDivineAegis = ProcRow(SPELL_SCHOOL_MASK_ALL, 0, 0, 0,
+                                                     PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    SpellProcEventEntry const kFocusedWill = ProcRow(SPELL_SCHOOL_MASK_ALL, 0, 0, 0,
+                                                     PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    /// Divine Aegis's Spell.dbc proc flags: a helpful spell landed and a periodic effect's tick dealt, at ranks 1 and
+    /// 2 (0x44000); rank 3 (47515) adds the helpful area hit (0x44400). Focused Will's: the hits its owner takes, melee
+    /// and ranged, of a weapon or a spell, an area spell's and a harmful spell's (0x222a8), and no periodic tick.
+    uint32 const kDivineAegisFlags = PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL | PROC_FLAG_ON_DO_PERIODIC;
+    uint32 const kDivineAegisRank3Flags = kDivineAegisFlags | PROC_FLAG_SUCCESSFUL_POSITIVE_AOE_HIT;
+    uint32 const kFocusedWillFlags = 0x222a8;
 
 
     /// The proc flags the aura answers: the row's, or Spell.dbc's when the row holds none.
@@ -630,4 +656,74 @@ TEST(SpellProcEventRows_ImprovedBlinkTakesBlinkAlone)
         CHECK(!FitsMask(kImprovedBlink, spell));
     }
     CHECK(!Gate(kImprovedBlink, kImprovedBlinkFlags, kArcaneBlast, kHarmfulSpellLanded, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_DivineAegisTakesTheNormalAndCriticalHeals)
+{
+    CHECK_EQ(kDivineAegisFlags, uint32(0x44000));
+    CHECK_EQ(kDivineAegisRank3Flags, uint32(0x44400));
+    CHECK_EQ(kDivineAegis.procEx, uint32(3));
+    CHECK_EQ(kDivineAegis.schoolMask, uint32(127));
+    CHECK_EQ(kDivineAegis.spellFamilyName, uint32(0));
+    CHECK_EQ(kDivineAegis.procFlags, uint32(0));
+    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        CHECK(!kDivineAegis.spellFamilyMask[i]);
+    }
+
+    // A direct heal's hit, normal or critical, and a heal over time's tick, normal or critical, at every rank: the
+    // script decides which make a shield. Never the end of a cast.
+    for (uint32 flags : { kDivineAegisFlags, kDivineAegisRank3Flags })
+    {
+        for (ProcSpell const& spell : { kFlashHeal, kPrayerOfHealing, kPenanceHeal })
+        {
+            CHECK(Gate(kDivineAegis, flags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_NORMAL_HIT));
+            CHECK(Gate(kDivineAegis, flags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_CRITICAL_HIT));
+            CHECK(!Gate(kDivineAegis, flags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_CAST_END));
+        }
+        CHECK(Gate(kDivineAegis, flags, kRenew, PROC_FLAG_ON_DO_PERIODIC,
+                   PROC_EX_PERIODIC_POSITIVE | PROC_EX_NORMAL_HIT));
+        CHECK(Gate(kDivineAegis, flags, kRenew, PROC_FLAG_ON_DO_PERIODIC,
+                   PROC_EX_PERIODIC_POSITIVE | PROC_EX_CRITICAL_HIT));
+
+        // A harmful spell's hit carries a flag the talent does not name.
+        CHECK(!Gate(kDivineAegis, flags, kSmite, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, PROC_EX_CRITICAL_HIT));
+    }
+
+    // With no class mask on the row, each effect then takes the hit kind through SpellMgr::HitKindAccepted: a heal that
+    // healed nothing is refused.
+    CHECK(SpellMgr::HitKindAccepted(kDivineAegis.procEx, PROC_EX_NORMAL_HIT, true));
+    CHECK(SpellMgr::HitKindAccepted(kDivineAegis.procEx, PROC_EX_CRITICAL_HIT, true));
+    CHECK(!SpellMgr::HitKindAccepted(kDivineAegis.procEx, PROC_EX_NORMAL_HIT, false));
+    CHECK(!SpellMgr::HitKindAccepted(kDivineAegis.procEx, PROC_EX_CRITICAL_HIT, false));
+}
+
+TEST(SpellProcEventRows_FocusedWillTakesTheNormalAndCriticalHitsItsOwnerTakesAndNoTick)
+{
+    CHECK_EQ(kFocusedWill.procEx, uint32(3));
+    CHECK_EQ(kFocusedWill.schoolMask, uint32(127));
+    CHECK_EQ(kFocusedWill.procFlags, uint32(0));
+
+    // A melee hit taken, normal or critical, passes; a dodge, a parry, a miss and a block do not.
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kFocusedWill, kFocusedWillFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT,
+                                                   PROC_EX_NORMAL_HIT));
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kFocusedWill, kFocusedWillFlags, NULL, PROC_FLAG_TAKEN_MELEE_HIT,
+                                                   PROC_EX_CRITICAL_HIT));
+    for (uint32 procEx : { uint32(PROC_EX_DODGE), uint32(PROC_EX_PARRY), uint32(PROC_EX_MISS), uint32(PROC_EX_BLOCK) })
+    {
+        CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(&kFocusedWill, kFocusedWillFlags, NULL,
+                                                        PROC_FLAG_TAKEN_MELEE_HIT, procEx));
+    }
+
+    // A harmful spell's hit taken, of any school, normal or critical; never its resist.
+    for (ProcSpell const& spell : { kSmite, kShadowWordPain, kFireball, kFrostbolt })
+    {
+        CHECK(Gate(kFocusedWill, kFocusedWillFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT, PROC_EX_NORMAL_HIT));
+        CHECK(Gate(kFocusedWill, kFocusedWillFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT, PROC_EX_CRITICAL_HIT));
+        CHECK(!Gate(kFocusedWill, kFocusedWillFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT, PROC_EX_RESIST));
+    }
+
+    // A periodic tick taken carries a flag the talent does not name, critical or not.
+    CHECK(!Gate(kFocusedWill, kFocusedWillFlags, kShadowWordPain, PROC_FLAG_ON_TAKE_PERIODIC, PROC_EX_CRITICAL_HIT));
+    CHECK(!Gate(kFocusedWill, kFocusedWillFlags, kShadowWordPain, PROC_FLAG_ON_TAKE_PERIODIC, PROC_EX_NORMAL_HIT));
 }
