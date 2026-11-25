@@ -27,6 +27,7 @@
 
 #include "Creature.h"
 #include "DBCStores.h"
+#include "data/ServerSpellStore.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
@@ -1191,4 +1192,95 @@ TEST(SpellTables_TheRemovalBySpellIdTakesEveryCastersShield)
 
     unit.RemoveAurasDueToSpell(kShieldSpell, NULL, AURA_REMOVE_BY_SHIELD_BREAK);
     CHECK(unit.GetSpellAuraHolderMap().empty());
+}
+
+// Divine Aegis and Power Word: Shield stand together. The rows are the client's shapes, built in the stores: each a
+// priest spell (class set 6) whose one effect applies a school absorb of every school (6/69/127), Power Word: Shield
+// on mask 0x1 and icon 566, Divine Aegis on mask 0x1 << 56 and icon 2820, beside a third priest absorb of that shape,
+// which the generic rule (same class set, same effects) keeps from standing beside either. The test takes the spell
+// rows out of the spell store again; the effects stay with the static rows they point at.
+namespace
+{
+    const uint32 kPowerWordShield = 17;
+    const uint32 kDivineAegis = 47753;
+    const uint32 kOtherPriestAbsorb = 94338;
+    const uint32 kOptionsPowerWordShield = 94460;
+    const uint32 kOptionsDivineAegis = 94461;
+    const uint32 kOptionsOtherAbsorb = 94462;
+
+    SpellClassOptionsEntry s_optionsPowerWordShield;
+    SpellClassOptionsEntry s_optionsDivineAegis;
+    SpellClassOptionsEntry s_optionsOtherAbsorb;
+    ServerSpell s_priestAbsorbRows[3];
+
+    /// Puts the three priest absorbs into the spell store, their class options into theirs and their effects beside
+    /// them; the class options and the effects once.
+    void StorePriestAbsorbs()
+    {
+        static bool stored = false;
+        struct Row
+        {
+            uint32 spellId;
+            uint32 icon;
+            uint32 options;
+            SpellClassOptionsEntry* optionsRow;
+            uint64 mask;
+        };
+        Row const rows[3] =
+        {
+            { kPowerWordShield, 566, kOptionsPowerWordShield, &s_optionsPowerWordShield, UI64LIT(0x1) },
+            { kDivineAegis, 2820, kOptionsDivineAegis, &s_optionsDivineAegis, UI64LIT(0x1) << 56 },
+            { kOtherPriestAbsorb, 0, kOptionsOtherAbsorb, &s_optionsOtherAbsorb, UI64LIT(0x2) },
+        };
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            SpellEntry& row = s_priestAbsorbRows[i].Entry();
+            row.ID = rows[i].spellId;
+            row.SpellIconID = rows[i].icon;
+            row.ClassOptionsID = rows[i].options;
+            sSpellStore.SetEntry(rows[i].spellId, &row);
+            if (stored)
+            {
+                continue;
+            }
+            rows[i].optionsRow->SpellClassSet = SPELLFAMILY_PRIEST;
+            rows[i].optionsRow->SpellClassMask = ClassFamilyMask(rows[i].mask);
+            sSpellClassOptionsStore.SetEntry(rows[i].options, rows[i].optionsRow);
+            SpellEffectEntry& effect = s_priestAbsorbRows[i].effect;
+            effect.SpellID = rows[i].spellId;
+            effect.EffectIndex = EFFECT_INDEX_0;
+            effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            effect.EffectAura = SPELL_AURA_SCHOOL_ABSORB;
+            effect.EffectMiscValue_0 = SPELL_SCHOOL_MASK_ALL;
+            AddSpellEffectEntry(&effect);
+        }
+        stored = true;
+    }
+
+    /// Takes the three priest absorbs out of the spell store.
+    void ForgetPriestAbsorbs()
+    {
+        for (uint32 spellId : { kPowerWordShield, kDivineAegis, kOtherPriestAbsorb })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(SpellTables_DivineAegisAndPowerWordShieldStandTogetherInEitherOrder)
+{
+    StorePriestAbsorbs();
+
+    // Either arriving beside the other keeps it.
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kDivineAegis, kPowerWordShield));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kPowerWordShield, kDivineAegis));
+
+    // The generic rule stands for every other priest absorb of their shape, against each of them both ways.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kPowerWordShield));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kPowerWordShield, kOtherPriestAbsorb));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kDivineAegis));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kDivineAegis, kOtherPriestAbsorb));
+
+    ForgetPriestAbsorbs();
+    CHECK(sSpellStore.LookupEntry(kDivineAegis) == NULL);
 }
