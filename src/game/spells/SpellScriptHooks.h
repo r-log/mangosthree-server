@@ -59,8 +59,9 @@ struct SpellEntry;
  * - EffectValue: `Spell::HandleEffects`, after the effect's value for this target is calculated. A body changes only
  *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
- *   effect; otherwise the family switches and the script library run. A body may cast and remove auras, and keep a
- *   count across the cast's effects and targets in the cast's script word.
+ *   effect; otherwise the family switches and the script library run. A body may cast, remove auras and shorten the
+ *   time a unit's aura has left (AuraHandle::Shorten), and keep a count across the cast's effects and targets in the
+ *   cast's script word.
  * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
  *   cast and remove auras, and set the stacks and amounts of a holder through AuraHandle.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
@@ -87,8 +88,9 @@ struct SpellEntry;
  *   changes nothing: the owner's holders are being walked, so it must not cast, nor add or remove an aura. Its units
  *   are const.
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
- *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges
- *   and set the script words.
+ *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges,
+ *   set the script words, remove the owner's auras that hold no proc of the event, and shorten the owner's cooldowns
+ *   (OnProcContext::ShortenCooldown, which tells his client).
  * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch: for the spell, then once for each
  *   SPELL_AURA_DUMMY aura of the caster, keyed by that aura's spell, so a talent's row changes the damage of the
  *   spells it covers. A body changes only the done multiplier. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from
@@ -112,7 +114,8 @@ struct SpellEntry;
  *   cast finishes (a delayed spell's target that turned immune or evaded in flight keeps it), other than the caster,
  *   that the caster is not friendly to (the units a player's area spell takes, neutral ones among them; never a pet
  *   or a friend); its point is the cast's destination when it carries one, else its explicit unit target's position,
- *   else the caster's. Return() is the same as Continue(): nothing after the hook depends on it. A body may cast.
+ *   else the caster's. Return() is the same as Continue(): nothing after the hook depends on it. A body may cast and
+ *   remove the caster's auras.
  * - Launch: `Spell::cast`, once per cast that goes off, only for a spell with a row: after its costs are taken and
  *   its go is sent, and, for a delayed spell, after the damage and crit of each target its hit roll let through are
  *   reckoned; before the caster's cast-end proc, and for an immediate spell before its effects. It runs whatever the
@@ -196,6 +199,11 @@ class AuraHandle
         /// due in that update; a permanent or passive holder is never removed this way. Nothing is removed here, so
         /// it is safe wherever the holder is kept alive.
         void Expire();
+        /// Takes `ms` off the time the holder has left and makes what is left its whole duration as well, as the 4.3.4
+        /// client is shown a debuff cut short, then tells the clients; a holder left with no time runs out at its
+        /// unit's next update, as Expire leaves it. Nothing for `ms` of 0 or less, nor for a holder that does not run
+        /// out. Its body sits in SpellScriptHooks.cpp.
+        void Shorten(int32 ms);
         /// The script's word for `eff`: zero when the holder is made, never saved or sent.
         int32& ScriptWord(SpellEffectIndex eff);
         /// Why the holder is removed; AURA_REMOVE_BY_DEFAULT until a removal sets it.
@@ -464,11 +472,12 @@ struct OnProcContext
     OnProcContext(Unit& ownerUnit, Unit* victimUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
                   AuraHandle const& holder, SpellEntry const* triggeringSpell, uint32 flags, uint32 extraFlags,
                   uint32 eventDamage, int32 auraAmount, ObjectGuid const& itemGuid, uint32 procCooldown,
-                  Aura* triggeringAura, SpellCooldownMgr& ownerCooldowns)
+                  Aura* triggeringAura, SpellCooldownMgr& ownerCooldowns,
+                  CooldownModifiedSink const* ownerCutSink = NULL)
         : caster(ownerUnit), victim(victimUnit), spell(spellEntry), effIndex(effectIndex), aura(holder),
           procSpell(triggeringSpell), procFlag(flags), procEx(extraFlags), damage(eventDamage),
           triggerAmount(auraAmount), cooldown(procCooldown), m_castItemGuid(itemGuid),
-          m_triggeredByAura(triggeringAura), m_cooldowns(ownerCooldowns)
+          m_triggeredByAura(triggeringAura), m_cooldowns(ownerCooldowns), m_cutSink(ownerCutSink)
     {
         caster.AssertSpellSeamOwner();
     }
@@ -483,6 +492,13 @@ struct OnProcContext
     /// Whether the cooldown store of the unit that holds the aura holds `spellId` on cooldown now: a player's spell
     /// and category cooldowns; a unit that is not a player keeps none there.
     bool OnCooldown(uint32 spellId) const;
+    /// Takes `ms` milliseconds off the cooldown of `spellId` that runs in the store of the unit that holds the aura,
+    /// and tells its client the exact cut (SpellCooldownMgr::ShortenCooldown: the store rounds the cut up to whole
+    /// seconds, so it never refuses a cast the client allows; a cooldown left with less than a second ends). Nothing
+    /// when the store holds no running cooldown of the spell, nor for one held while the spell's own aura stands
+    /// (the store's infinity mark), which starts whole when the aura goes, nor for a unit with no cut sink: one that
+    /// is not a player, whose store holds none. Answers whether it cut.
+    bool ShortenCooldown(uint32 spellId, uint32 ms);
 
     Unit& caster;                                   ///< the unit that holds the aura
     Unit* victim;                                   ///< the other unit of the event; NULL when there is none
@@ -500,6 +516,8 @@ struct OnProcContext
         ObjectGuid m_castItemGuid;                  ///< the guid of the item the aura was cast from
         Aura* m_triggeredByAura;                    ///< the aura at `effIndex`, the trigger of CastTriggered
         SpellCooldownMgr& m_cooldowns;              ///< the caster's spell cooldowns
+        CooldownModifiedSink const* m_cutSink;      ///< where the caster's cut cooldowns go: his client's
+                                                    ///< callback; NULL for a unit that is not a player
 };
 
 /// DamageDone's context. Value: void.

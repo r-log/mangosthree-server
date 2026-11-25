@@ -3235,7 +3235,8 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                 OnProcContext onProcCtx(*this, pTarget, *triggeredByHolder->GetSpellProto(), SpellEffectIndex(i),
                                         AuraHandle(*triggeredByHolder), procSpell, procFlag, procExtra, damage,
                                         triggeredByAura->GetModifier()->m_amount, triggeredByAura->GetCastItemGuid(),
-                                        cooldown, triggeredByAura, m_spellCooldownMgr);
+                                        cooldown, triggeredByAura, m_spellCooldownMgr,
+                                        m_cooldownCallbacks ? &m_cooldownCallbacks->modified : NULL);
                 SpellHandlerOutcome<SpellAuraProcResult> onProc = SpellHandlerRegistry::Game().Dispatch<OnProcHook>(triggeredByHolder->GetId(), onProcCtx);
                 SpellAuraProcResult procResult = onProc.IsReturn() ? onProc.GetValue()
                     : (*this.*AuraProcHandler[spellEffect->EffectAura])(pTarget, effectDamage, triggeredByAura,

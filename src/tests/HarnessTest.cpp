@@ -935,8 +935,8 @@ TEST(HarnessTrace_the_spell_snapshot_writes_a_holder_without_a_guid_or_a_clock)
 // writer builds it (the writer named above each), every field its own non-zero value so no field
 // can be read in another's place (the D11-1 task review's M-3), and a payload one byte short or
 // one byte long is refused where the layout is fixed. The cooldown row's packets
-// (SMSG_COOLDOWN_EVENT, SMSG_CLEAR_COOLDOWNS) are observed, never built for a client:
-// CheckStateOwnership.cmake allows exactly those names in this file.
+// (SMSG_COOLDOWN_EVENT, SMSG_CLEAR_COOLDOWNS, SMSG_MODIFY_COOLDOWN) are observed, never built
+// for a client: CheckStateOwnership.cmake allows exactly those names in this file.
 namespace
 {
     const uint64 kPet = 0xF140000B01010203ULL;     // bytes 03 02 01 01 0B 00 40 F1: a 0x01 byte, a 0x00 byte
@@ -1162,6 +1162,31 @@ TEST(HarnessTrace_the_cooldown_packets_read_their_owner_as_a_role)
     CheckRefusesOneByteEitherWay(SMSG_CLEAR_COOLDOWNS, many, PetRoles());
     WorldPacket creature = ClearCooldowns(kCaster, { 3716 });
     CHECK_STR(SpellDecoded(SMSG_CLEAR_COOLDOWNS, creature).c_str(), "OP owner=caster count=1 spells=[3716]");
+}
+
+TEST(HarnessTrace_the_cut_cooldown_reads_its_spell_owner_and_signed_delta)
+{
+    CHECK(Harness::Trace::RuleFor(SMSG_MODIFY_COOLDOWN) == Harness::Trace::Rule::Decode);
+
+    // BuildModifyCooldownPacket, CooldownPackets.cpp: the spell, the owner's raw guid, then the
+    // signed milliseconds -- a cut is negative
+    WorldPacket cut(SMSG_MODIFY_COOLDOWN, 4 + 8 + 4);
+    cut << uint32(89485);
+    cut << uint64(kSelf);
+    cut << int32(-5000);
+    CHECK_STR(SpellDecoded(SMSG_MODIFY_COOLDOWN, cut).c_str(), "OP spell=89485 owner=self delta=-5000");
+    CheckRefusesOneByteEitherWay(SMSG_MODIFY_COOLDOWN, cut, SpellRoles());
+    WorldPacket penance(SMSG_MODIFY_COOLDOWN, 4 + 8 + 4);
+    penance << uint32(47540);
+    penance << uint64(kPet);
+    penance << int32(-500);
+    CHECK_STR(SpellDecoded(SMSG_MODIFY_COOLDOWN, penance, PetRoles()).c_str(), "OP spell=47540 owner=pet delta=-500");
+    // a positive delta moves the end later
+    WorldPacket delayed(SMSG_MODIFY_COOLDOWN, 4 + 8 + 4);
+    delayed << uint32(585);
+    delayed << uint64(kCaster);
+    delayed << int32(1500);
+    CHECK_STR(SpellDecoded(SMSG_MODIFY_COOLDOWN, delayed).c_str(), "OP spell=585 owner=caster delta=1500");
 }
 
 TEST(HarnessTrace_the_delay_the_dispel_and_the_resist_logs)

@@ -2720,6 +2720,13 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // Strength of Soul's immunities (96266, 96267) and Weakened Soul (6788) stand together on one unit
+    if ((spellId_1 == 6788 && (spellId_2 == 96266 || spellId_2 == 96267)) ||
+        (spellId_2 == 6788 && (spellId_1 == 96266 || spellId_1 == 96267)))
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)

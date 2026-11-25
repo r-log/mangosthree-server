@@ -52,3 +52,11 @@ void BuildClearCooldownsPacket(WorldPacket& packet, CooldownsClearedFact const& 
 
     packet.WriteGuidBytes<0, 6>(guid);
 }
+
+void BuildModifyCooldownPacket(WorldPacket& packet, CooldownModifiedFact const& fact)
+{
+    packet.Initialize(SMSG_MODIFY_COOLDOWN, (4 + 8 + 4));
+    packet << uint32(fact.spellId);
+    packet << fact.owner;
+    packet << int32(fact.deltaMs);
+}

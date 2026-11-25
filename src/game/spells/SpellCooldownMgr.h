@@ -45,6 +45,7 @@ struct SpellCooldown
 {
     time_t end;    ///< End time of the cooldown
     uint16 itemid; ///< Item ID associated with the cooldown
+    uint16 lagMs;  ///< How far the client's end runs past `end`, below a second, after a cut of part of a second
 };
 
 typedef std::map<uint32, SpellCooldown> SpellCooldowns;
@@ -69,6 +70,18 @@ struct CooldownsClearedFact
 /// Reports a CooldownsClearedFact; the owner turns it into the client's packet.
 typedef std::function<void(CooldownsClearedFact const& fact)> CooldownsClearedSink;
 
+/// A running cooldown cut short: the spell, its owner and the milliseconds the client moves the
+/// cooldown's end by, negative for a cut.
+struct CooldownModifiedFact
+{
+    uint32 spellId = 0;
+    ObjectGuid owner;
+    int32 deltaMs = 0;
+};
+
+/// Reports a CooldownModifiedFact; the owner turns it into the client's packet.
+typedef std::function<void(CooldownModifiedFact const& fact)> CooldownModifiedSink;
+
 /**
  * @brief A character's active spell cooldowns and the rules over them, held apart from the object
  * that plays the character.
@@ -80,8 +93,9 @@ typedef std::function<void(CooldownsClearedFact const& fact)> CooldownsClearedSi
  * The object carries no owner. What it reads from the owner is handed in at the call -- the
  * clock (`now`, the owner's `time(NULL)`), the owner's guid, and for a cast the facts in
  * CastInputs -- and what it writes to the owner goes out through a callback called at the point
- * of the write: the cooldown event and the clear of every cooldown (a CooldownEventSink and a
- * CooldownsClearedSink, the facts the owner turns into the client's packets), the owner's
+ * of the write: the cooldown event, the clear of every cooldown and the cut of a running one (a
+ * CooldownEventSink, a CooldownsClearedSink and a CooldownModifiedSink, the facts the owner turns
+ * into the client's packets), the owner's
  * one-spell clear (a ClearSink) and the owner's cooldown spell mods (the in/out CooldownMod).
  * Callbacks are parameters only, never stored, and an empty one at a report fails an assertion.
  * So `mangos_tests` builds one from nothing, with fixed clocks, and reads every fact.
@@ -143,6 +157,16 @@ class SpellCooldownMgr
         void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, bool infinityCooldown = false);
         void AddSpellCooldown(uint32 spell_id, uint32 itemid, time_t end_time);
         void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, ObjectGuid ownerGuid, CooldownEventSink const& sendEvent);
+        /// Takes `ms` off the cooldown of `spellId` that runs at `now`, then reports the cut, -`ms`,
+        /// through `sendModified`, the exact delta the client moves its own end by. The store keeps
+        /// whole seconds: it ends at the whole second at or before the client's end and keeps the
+        /// rest (SpellCooldown::lagMs) for the next cut, so it never refuses a cast the client allows
+        /// and two 500 ms cuts take one second, not two; a cooldown left with less than a second ends.
+        /// Nothing, and no report, for a cut of 0, for a spell with no running cooldown, or for one
+        /// held while its aura stands (the infinity mark), which starts whole when the aura goes.
+        /// Answers whether it cut.
+        bool ShortenCooldown(uint32 spellId, uint32 ms, time_t now, ObjectGuid ownerGuid,
+                             CooldownModifiedSink const& sendModified);
         void RemoveSpellCooldown(uint32 spell_id, bool update, ClearSink const& sendClear);
         void RemoveSpellCategoryCooldown(uint32 cat, bool update, ClearSink const& sendClear);
         void RemoveArenaSpellCooldowns(ClearSink const& sendClear);

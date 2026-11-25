@@ -262,20 +262,21 @@ state_row(cooldown
     OWNER   SpellCooldownMgr
     PACKETS SMSG_COOLDOWN_EVENT
             SMSG_CLEAR_COOLDOWNS
+            SMSG_MODIFY_COOLDOWN
     TABLES  character_spell_cooldown
     TYPES   SpellCooldownMgr
             SpellCooldowns
             SpellCooldown)
 
 state_allow(cooldown src/game/spells/SpellCooldownMgr.cpp
-    WHY "the owner: its load's log line names the table it read; its rows go through its repository, and its cooldown event and clear of every cooldown leave as facts"
+    WHY "the owner: its load's log line names the table it read; its rows go through its repository, and its cooldown event, clear of every cooldown and cut cooldown leave as facts"
     NAMES character_spell_cooldown)
 state_allow(cooldown src/game/persistence/characters/spells/SpellCooldownRepository.cpp
     WHY "the owner's repository: reads a login row and writes the rows the owner hands it to save"
     NAMES character_spell_cooldown)
 state_allow(cooldown src/game/session/packets/spells/CooldownPackets.cpp
-    WHY "the session's builders of the owner's two facts: the cooldown event and the clear of every cooldown"
-    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+    WHY "the session's builders of the owner's three facts: the cooldown event, the clear of every cooldown and the cut of a running cooldown"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS SMSG_MODIFY_COOLDOWN)
 state_allow(cooldown src/game/persistence/characters/CharacterDeleteRepository.cpp
     WHY "whole-character delete (CharacterDeleteRepository::DeleteEveryRowOf)"
     NAMES character_spell_cooldown)
@@ -293,19 +294,22 @@ state_allow(cooldown src/tests/SpellCooldownMgrTest.cpp
     NAMES character_spell_cooldown)
 state_allow(cooldown src/tests/CooldownPacketsTest.cpp
     WHY "unit test of the session's cooldown builders and installed callbacks: checks each opcode and byte they produce, builds nothing itself"
-    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS SMSG_MODIFY_COOLDOWN)
 state_allow(cooldown src/game/Harness/Trace.h
     WHY "harness recorder (decoupling D11 PR 2): the decoders' doc comments name the packets they read"
-    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS SMSG_MODIFY_COOLDOWN)
 state_allow(cooldown src/game/Harness/Trace.cpp
     WHY "harness recorder (decoupling D11 PR 2): classifies the packets by opcode and decodes their bytes into a TRACE line, builds nothing"
-    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS SMSG_MODIFY_COOLDOWN)
 state_allow(cooldown src/game/Harness/ScenariosSpell.cpp
     WHY "harness spell scenarios (decoupling D11 PR 2): read the recorded packets by opcode for their categories, build nothing"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+state_allow(cooldown src/game/Harness/ScenariosPriestInnerFocus.cpp
+    WHY "harness priest scenario 1207: reads Inner Focus's cooldown event and its cut from the recorded packets by opcode for its category, builds nothing"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_MODIFY_COOLDOWN)
 state_allow(cooldown src/tests/HarnessTest.cpp
     WHY "unit test of the harness decoders: hand-builds the packets' bytes as their writers lay them out and checks the decoded record, sends nothing"
-    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS SMSG_MODIFY_COOLDOWN)
 
 state_row(spellmod
     OWNER   SpellModMgr

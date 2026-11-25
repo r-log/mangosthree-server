@@ -185,6 +185,8 @@ namespace Harness
                 { SMSG_SPELL_COOLDOWN,              Rule::Decode },
                 { SMSG_COOLDOWN_EVENT,              Rule::Decode },
                 { SMSG_CLEAR_COOLDOWNS,             Rule::Decode },
+                // BuildModifyCooldownPacket: the spell, the owner's raw guid, the signed milliseconds
+                { SMSG_MODIFY_COOLDOWN,             Rule::Decode },
                 { SMSG_SPELL_DELAYED,               Rule::Decode },
                 { SMSG_AURA_UPDATE_ALL,             Rule::Decode },
                 { SMSG_SPELLDISPELLOG,              Rule::Decode },
@@ -904,6 +906,21 @@ namespace Harness
             return true;
         }
 
+        bool DecodeModifyCooldown(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint32 spell = 0, delta = 0;
+            uint64 owner = 0;
+            if (!r.U32(spell) || !r.U64(owner) || !r.U32(delta) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[112];
+            snprintf(buf, sizeof(buf), "spell=%u owner=%s delta=%d", spell, RoleOf(roles, owner), int32(delta));
+            out = buf;
+            return true;
+        }
+
         bool DecodeClearCooldowns(uint8 const* data, size_t size, Roles const& roles, std::string& out)
         {
             // The mask and the count are 3 + 24 + 5 = 32 bits, written most significant bit first
@@ -1355,6 +1372,7 @@ namespace Harness
                 case SMSG_SPELL_COOLDOWN:             decoded = DecodeSpellCooldown(data, size, roles, fields); break;
                 case SMSG_COOLDOWN_EVENT:             decoded = DecodeCooldownEvent(data, size, roles, fields); break;
                 case SMSG_CLEAR_COOLDOWNS:            decoded = DecodeClearCooldowns(data, size, roles, fields); break;
+                case SMSG_MODIFY_COOLDOWN:            decoded = DecodeModifyCooldown(data, size, roles, fields); break;
                 case SMSG_SPELL_DELAYED:              decoded = DecodeSpellDelayed(data, size, roles, fields); break;
                 case SMSG_AURA_UPDATE_ALL:            decoded = DecodeAuraUpdateAll(data, size, roles, fields); break;
                 case SMSG_SPELLDISPELLOG:             decoded = DecodeSpellDispelLog(data, size, roles, fields); break;

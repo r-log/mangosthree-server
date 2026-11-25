@@ -1284,3 +1284,90 @@ TEST(SpellTables_DivineAegisAndPowerWordShieldStandTogetherInEitherOrder)
     ForgetPriestAbsorbs();
     CHECK(sSpellStore.LookupEntry(kDivineAegis) == NULL);
 }
+
+// Strength of Soul's immunities and Weakened Soul stand together. The rows are the client's shapes, built in the
+// stores: each a priest spell (class set 6) of icon 177, Weakened Soul (6788) on mask 0x20000000, the two immunities
+// (96266, 96267) on mask 0, beside a third priest aura of that icon and mask, which the generic same-icon rule keeps
+// from standing beside any of them. The rows hold no effect: the rule reads the effects only for a spell modifier,
+// which none of the client's three holds. The test takes the spell rows out of the spell store again.
+namespace
+{
+    const uint32 kWeakenedSoul = 6788;
+    const uint32 kSoulImmunities[] = { 96266, 96267 };
+    const uint32 kOtherSoulIconAura = 94339;
+    const uint32 kOptionsWeakenedSoul = 94463;
+    const uint32 kOptionsSoulImmunity = 94464;
+
+    SpellClassOptionsEntry s_optionsWeakenedSoul;
+    SpellClassOptionsEntry s_optionsSoulImmunity;
+    ServerSpell s_soulIconRows[4];
+
+    /// Puts Weakened Soul, the two immunities and the third aura into the spell store and their class options into
+    /// theirs; the class options once.
+    void StoreSoulIconRows()
+    {
+        static bool stored = false;
+        if (!stored)
+        {
+            stored = true;
+            s_optionsWeakenedSoul.SpellClassSet = SPELLFAMILY_PRIEST;
+            s_optionsWeakenedSoul.SpellClassMask = ClassFamilyMask(UI64LIT(0x20000000));
+            s_optionsSoulImmunity.SpellClassSet = SPELLFAMILY_PRIEST;
+            s_optionsSoulImmunity.SpellClassMask = ClassFamilyMask(UI64LIT(0));
+            sSpellClassOptionsStore.SetEntry(kOptionsWeakenedSoul, &s_optionsWeakenedSoul);
+            sSpellClassOptionsStore.SetEntry(kOptionsSoulImmunity, &s_optionsSoulImmunity);
+        }
+        uint32 const ids[4] = { kWeakenedSoul, kSoulImmunities[0], kSoulImmunities[1], kOtherSoulIconAura };
+        for (std::size_t i = 0; i < 4; ++i)
+        {
+            SpellEntry& row = s_soulIconRows[i].Entry();
+            row.ID = ids[i];
+            row.SpellIconID = 177;
+            row.ClassOptionsID = ids[i] == kWeakenedSoul ? kOptionsWeakenedSoul : kOptionsSoulImmunity;
+            sSpellStore.SetEntry(ids[i], &row);
+        }
+    }
+
+    /// Takes them out of the spell store.
+    void ForgetSoulIconRows()
+    {
+        for (uint32 spellId : { kWeakenedSoul, kSoulImmunities[0], kSoulImmunities[1], kOtherSoulIconAura })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(SpellTables_StrengthOfSoulsImmunitiesAndWeakenedSoulStandTogetherInEitherOrder)
+{
+    StoreSoulIconRows();
+
+    // Either immunity arriving beside Weakened Soul keeps it, and Weakened Soul arriving beside either keeps it.
+    for (uint32 immunity : kSoulImmunities)
+    {
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(immunity, kWeakenedSoul));
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kWeakenedSoul, immunity));
+    }
+
+    // The generic rule stands for the icon's other pairs: the third aura against each of them both ways, and the two
+    // immunities against each other.
+    for (uint32 spellId : { kWeakenedSoul, kSoulImmunities[0], kSoulImmunities[1] })
+    {
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherSoulIconAura, spellId));
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(spellId, kOtherSoulIconAura));
+    }
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kSoulImmunities[0], kSoulImmunities[1]));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kSoulImmunities[1], kSoulImmunities[0]));
+
+    // Divine Aegis and Power Word: Shield still stand together beside them, and the generic rule still keeps the third
+    // priest absorb from either.
+    StorePriestAbsorbs();
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kDivineAegis, kPowerWordShield));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kPowerWordShield, kDivineAegis));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kPowerWordShield));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kDivineAegis));
+    ForgetPriestAbsorbs();
+
+    ForgetSoulIconRows();
+    CHECK(sSpellStore.LookupEntry(kWeakenedSoul) == NULL);
+}

@@ -32,5 +32,6 @@ void InstallCooldownPacketSinks(Player& player)
     CooldownSinks sinks;
     sinks.event = CooldownEventToSession(&player);
     sinks.cleared = CooldownsClearedToSession(&player);
+    sinks.modified = CooldownModifiedToSession(&player);
     player.SetCooldownSinks(sinks);
 }
