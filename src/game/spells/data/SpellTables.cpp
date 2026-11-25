@@ -1000,6 +1000,21 @@ uint32 Spells::AbsorbSpendOrder(uint32 spellId)
 
 namespace
 {
+    /// The heals that take none of their caster's healing-done bonus.
+    constexpr uint32 HEALS_WITHOUT_DONE_BONUS[] =
+    {
+        56160,  // Glyph of Power Word: Shield
+    };
+}
+
+bool Spells::HealTakesNoDoneBonus(uint32 spellId)
+{
+    return std::find(std::begin(HEALS_WITHOUT_DONE_BONUS), std::end(HEALS_WITHOUT_DONE_BONUS), spellId) !=
+           std::end(HEALS_WITHOUT_DONE_BONUS);
+}
+
+namespace
+{
     /// The haste spells that put a lockout on each unit they haste, and that lockout, whose holder none of the four
     /// hastes ("Cannot benefit from Time Warp or other similar effects.").
     constexpr SpellAnswer LUST_LOCKOUTS[] =

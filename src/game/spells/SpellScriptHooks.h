@@ -64,7 +64,9 @@ struct SpellEntry;
  * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
  *   cast and remove auras, and set the stacks and amounts of a holder through AuraHandle.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
- *   body changes only the amount: the aura is not built yet.
+ *   body changes only the amount: the aura is not built yet. For a school absorb the amount a body leaves is the whole
+ *   absorb: the absorb aura's apply adds no spell power part to a spell with a row here (Aura::HandleSchoolAbsorb),
+ *   so the holder's slot update, sent before that apply, carries it.
  * - AuraApply: `Unit::AddSpellAuraHolder`, twice. First before the stacking checks, with `real` false: the target
  *   does not hold the holder yet, and a body may only take an effect off it (AuraHandle::RemoveEffect, which never
  *   takes the last) or cap its stack (AuraHandle::CapStacks); the outcome is not read. Then where
@@ -337,7 +339,8 @@ struct AfterHitContext
     bool heal;                                      ///< true for a heal, false for damage
 };
 
-/// AuraAmount's context. Value: void.
+/// AuraAmount's context. Value: void. For a school absorb (SPELL_AURA_SCHOOL_ABSORB) the amount a body leaves is the
+/// whole absorb, its spell power part included: the absorb aura's apply adds none to a spell with an AuraAmount row.
 struct AuraAmountContext
 {
     AuraAmountContext(Unit* casterUnit, Unit& targetUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
@@ -684,7 +687,8 @@ struct AfterHitHook
     typedef AfterHitContext Context;
 };
 
-/// The `Aura` constructor, after the amount is calculated. The outcome is not read.
+/// The `Aura` constructor, after the amount is calculated. The outcome is not read. A school absorb's amount a body
+/// leaves is the whole absorb.
 struct AuraAmountHook
 {
     static constexpr uint32 Key = SPELL_SCRIPT_HOOK_AURA_AMOUNT;

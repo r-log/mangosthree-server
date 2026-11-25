@@ -52,6 +52,7 @@
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/SpellScriptHooks.h"
 #include "ObjectLookup.h"
 #include "Policies/Singleton.h"
 #include "Creature.h"
@@ -622,7 +623,7 @@ void Aura::HandleSpiritOfRedemption(bool apply, bool Real)
 }
 
 /**
- * @brief Calculates absorb shield bonuses for school absorb effects.
+ * @brief Adds the caster's bonus to a school absorb's amount at its real apply; its removal changes nothing.
  *
  * @param apply True to apply the absorb aura; false to remove it.
  * @param Real True when processing the real aura state change.
@@ -642,7 +643,6 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
 
     Unit* target = GetTarget();
     SpellEntry const* spellProto = GetSpellProto();
-    SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
 
     if (apply)
     {
@@ -656,94 +656,16 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
                 DoneActualBenefit = caster->GetMaxHealth() * 0.20f;
             }
             // A shield with a spell_bonus_data row: the caster's spell power of the shield's school and attack power,
-            // each times the coefficient the absorb kind takes
-            else if (sSpellMgr.GetSpellBonusData(spellProto->ID))
+            // each times the coefficient the absorb kind takes; a shield whose aura-amount script reckoned its whole
+            // amount when the aura was made takes nothing more
+            else if (sSpellMgr.GetSpellBonusData(spellProto->ID) &&
+                     !SpellHandlerRegistry::Game().Find<AuraAmountHook>(spellProto->ID))
             {
                 int32 const spellPower = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto));
                 DoneActualBenefit = float(caster->SpellBonusWithCoeffs(spellProto, 0, spellPower, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_ABSORB));
-
-                // Borrowed Time
-                Unit::AuraList const& borrowedTime = caster->GetAurasByType(SPELL_AURA_DUMMY);
-                for (Unit::AuraList::const_iterator itr = borrowedTime.begin(); itr != borrowedTime.end(); ++itr)
-                {
-                    SpellEntry const* i_spell = (*itr)->GetSpellProto();
-                    if (i_spell->GetSpellFamilyName()==SPELLFAMILY_PRIEST && i_spell->SpellIconID == 2899 && i_spell->GetEffectMiscValue((*itr)->GetEffIndex()) == 24)
-                    {
-                        DoneActualBenefit += DoneActualBenefit * (*itr)->GetModifier()->m_amount / 100;
-                        break;
-                    }
-                }
             }
 
             m_modifier.m_amount += (int32)DoneActualBenefit;
-        }
-    }
-    else
-    {
-        if (caster &&
-            // Power Word: Shield
-            classOptions && classOptions->SpellClassSet == SPELLFAMILY_PRIEST && spellProto->GetMechanic() == MECHANIC_SHIELD &&
-            (classOptions->SpellClassMask & UI64LIT(0x0000000000000001)) &&
-            // completely absorbed or dispelled
-            (m_removeMode == AURA_REMOVE_BY_SHIELD_BREAK || m_removeMode == AURA_REMOVE_BY_DISPEL))
-        {
-            Unit::AuraList const& vDummyAuras = caster->GetAurasByType(SPELL_AURA_DUMMY);
-            for (Unit::AuraList::const_iterator itr = vDummyAuras.begin(); itr != vDummyAuras.end(); ++itr)
-            {
-                SpellEntry const* vSpell = (*itr)->GetSpellProto();
-
-                // Rapture (main spell)
-                if (vSpell->GetSpellFamilyName() == SPELLFAMILY_PRIEST && vSpell->SpellIconID == 2894 && vSpell->GetSpellEffectIdByIndex(EFFECT_INDEX_1))
-                {
-                    switch ((*itr)->GetEffIndex())
-                    {
-                        case EFFECT_INDEX_0:
-                        {
-                            // energize caster
-                            int32 manapct1000 = 5 * ((*itr)->GetModifier()->m_amount + sSpellMgr.GetSpellRank(vSpell->ID));
-                            int32 basepoints0 = caster->GetMaxPower(POWER_MANA) * manapct1000 / 1000;
-                            caster->CastCustomSpell(caster, 47755, &basepoints0, NULL, NULL, true);
-                            break;
-                        }
-                        case EFFECT_INDEX_1:
-                        {
-                            // energize target
-                            if (!roll_chance_i((*itr)->GetModifier()->m_amount) || caster->HasAura(63853))
-                            {
-                                break;
-                            }
-
-                            switch (target->GetPowerType())
-                            {
-                                case POWER_RUNIC_POWER:
-                                    target->CastSpell(target, 63652, true, NULL, NULL, GetCasterGuid());
-                                    break;
-                                case POWER_RAGE:
-                                    target->CastSpell(target, 63653, true, NULL, NULL, GetCasterGuid());
-                                    break;
-                                case POWER_MANA:
-                                {
-                                    int32 basepoints0 = target->GetMaxPower(POWER_MANA) * 2 / 100;
-                                    target->CastCustomSpell(target, 63654, &basepoints0, NULL, NULL, true);
-                                    break;
-                                }
-                                case POWER_ENERGY:
-                                    target->CastSpell(target, 63655, true, NULL, NULL, GetCasterGuid());
-                                    break;
-                                default:
-                                    break;
-                            }
-
-                            // cooldown aura
-                            caster->CastSpell(caster, 63853, true);
-                            break;
-                        }
-                        default:
-                            sLog.outError("Changes in R-dummy spell???: effect 3");
-                            break;
-                    }
-                }
-            }
         }
     }
 }
