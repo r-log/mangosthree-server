@@ -394,6 +394,11 @@ namespace Mage
     /// Mage.cpp.
     bool SuppressesArcaneMissiles(Unit const& mage);
 
+    /// The Ritual of Refreshment rank a caster of `level` casts: 92827 (the Conjured Mana Cake table) from 85, 92824
+    /// (the Strudel table) from 80, 74650 (the Biscuit table) below, the levels the tables' food asks for. Defined in
+    /// Mage.cpp.
+    uint32 RitualOfRefreshmentRank(uint32 level);
+
     /// What keeps Arcane Missiles Aurastate (79808), the aura Arcane Missiles (5143) asks for on its caster, on a mage
     /// exactly while he holds Arcane Missiles! (79683).
     enum AurastateStep
