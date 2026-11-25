@@ -2173,8 +2173,15 @@ void Aura::PeriodicTick()
 
                 pdamage = target->SpellHealingBonusTaken(pCaster, spellProto, pdamage, DOT, GetStackAmount());
 
-                // This method can modify pdamage
-                bool isCrit = IsCritFromAbilityAura(pCaster, pdamage);
+                // a heal tick crits as a heal does: the heal's crit roll and the critical healing bonus (twice the
+                // tick, then the critical healing auras), not a damage tick's; retail's critical Renew ticks are 2.06
+                // times its plain ones with the 3% meta gem
+                bool const isCrit =
+                    pCaster->IsSpellCrit(target, spellProto, GetSpellSchoolMask(spellProto), BASE_ATTACK, HEAL);
+                if (isCrit)
+                {
+                    pdamage = pCaster->SpellCriticalHealingBonus(spellProto, pdamage, target);
+                }
 
                 // the tick's procs see the whole tick: before the healed unit's heal absorbs and before overheal
                 uint32 const wholeTick = pdamage;
