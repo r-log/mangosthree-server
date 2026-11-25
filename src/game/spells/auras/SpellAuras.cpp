@@ -2115,22 +2115,26 @@ void Aura::PeriodicTick()
                 return;
             }
 
-            bool canApplyHealthPart = true;
+            bool canTick = true;
 
-            // don't heal target if max health or if not alive, mostly death persistent effects from items
-            if (!target->IsAlive() || (target->GetHealth() == target->GetMaxHealth()))
+            // don't tick on a target that is not alive, mostly death persistent effects from items
+            if (!target->IsAlive())
             {
-                canApplyHealthPart = false;
+                canTick = false;
             }
 
             // heal for caster damage (must be alive)
             if (target != pCaster && spellProto->SpellVisualID[0] == 163 && !pCaster->IsAlive())
             {
-                canApplyHealthPart = false;
+                canTick = false;
             }
 
-            if (canApplyHealthPart)
+            if (canTick)
             {
+                // a target at its maximum health takes no part of the tick (no heal absorb, health, log, score, threat
+                // or damage to the caster); the tick's procs still see it
+                bool const atMaxHealth = target->GetHealth() == target->GetMaxHealth();
+
                 // ignore non positive values (can be result apply spellmods to aura damage
                 uint32 amount = m_modifier.m_amount > 0 ? m_modifier.m_amount : 0;
 
@@ -2169,8 +2173,27 @@ void Aura::PeriodicTick()
 
                 pdamage = target->SpellHealingBonusTaken(pCaster, spellProto, pdamage, DOT, GetStackAmount());
 
-                // This method can modify pdamage
-                bool isCrit = IsCritFromAbilityAura(pCaster, pdamage);
+                // a heal tick crits as a heal does: the heal's crit roll and the critical healing bonus (twice the
+                // tick, then the critical healing auras), not a damage tick's; retail's critical Renew ticks are 2.06
+                // times its plain ones with the 3% meta gem
+                bool const isCrit =
+                    pCaster->IsSpellCrit(target, spellProto, GetSpellSchoolMask(spellProto), BASE_ATTACK, HEAL);
+                if (isCrit)
+                {
+                    pdamage = pCaster->SpellCriticalHealingBonus(spellProto, pdamage, target);
+                }
+
+                // the tick's procs see the whole tick: before the healed unit's heal absorbs and before overheal
+                uint32 const wholeTick = pdamage;
+                uint32 procAttacker = PROC_FLAG_ON_DO_PERIODIC;
+                uint32 procVictim = PROC_FLAG_ON_TAKE_PERIODIC;
+                uint32 procEx = PROC_EX_PERIODIC_POSITIVE | (isCrit ? PROC_EX_CRITICAL_HIT : PROC_EX_NORMAL_HIT);
+                if (atMaxHealth)
+                {
+                    pCaster->ProcDamageAndSpell(target, procAttacker, procVictim, procEx, wholeTick, BASE_ATTACK,
+                                                spellProto);
+                    break;
+                }
 
                 // the healed unit's heal absorbs take their part of the tick
                 uint32 absorbHeal = 0;
@@ -2184,11 +2207,8 @@ void Aura::PeriodicTick()
                 SpellPeriodicAuraLogInfo pInfo(this, pdamage, (pdamage - uint32(gain)), absorbHeal, 0, 0.0f, isCrit);
                 target->SendPeriodicAuraLog(&pInfo);
 
-                // Set trigger flag
-                uint32 procAttacker = PROC_FLAG_ON_DO_PERIODIC;
-                uint32 procVictim = PROC_FLAG_ON_TAKE_PERIODIC;
-                uint32 procEx = PROC_EX_PERIODIC_POSITIVE | (isCrit ? PROC_EX_CRITICAL_HIT : PROC_EX_NORMAL_HIT);
-                pCaster->ProcDamageAndSpell(target, procAttacker, procVictim, procEx, gain, BASE_ATTACK, spellProto);
+                pCaster->ProcDamageAndSpell(target, procAttacker, procVictim, procEx, wholeTick, BASE_ATTACK,
+                                            spellProto);
 
                 // add HoTs to amount healed in bgs
                 if (Player* casterPlayer = pCaster->ToPlayer())

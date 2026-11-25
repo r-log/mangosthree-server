@@ -189,6 +189,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         }
         procEx |= interruptEx;
 
+        // the heal's procs see the whole heal: before the healed unit's heal absorbs and before overheal
+        uint32 const wholeHeal = addhealth;
         uint32 absorb = 0;
         unitTarget->CalculateHealAbsorb(addhealth, &absorb);
         addhealth -= absorb;
@@ -196,7 +198,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // Do triggers for unit (reflect triggers passed on hit phase for correct drop charge)
         if (m_canTrigger && missInfo != SPELL_MISS_REFLECT)
         {
-            caster->ProcDamageAndSpell(unitTarget, real_caster ? procAttacker : uint32(PROC_FLAG_NONE), procVictim, procEx, addhealth, m_attackType, m_spellInfo);
+            caster->ProcDamageAndSpell(unitTarget, real_caster ? procAttacker : uint32(PROC_FLAG_NONE), procVictim, procEx, wholeHeal, m_attackType, m_spellInfo);
         }
 
         int32 gain = caster->DealHeal(unitTarget, addhealth, m_spellInfo, crit, absorb);
