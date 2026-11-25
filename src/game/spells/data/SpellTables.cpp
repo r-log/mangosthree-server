@@ -372,8 +372,8 @@ namespace
         { 31572, 57531 },
     };
 
-    /// Arcane Potency's buffs and the hidden aura each casts on the mage, whose crit chance names Arcane Missiles'
-    /// missiles and Blizzard's ticks.
+    /// Arcane Potency's buffs and, for each, the hidden aura that Arcane Missiles' or Blizzard's launch casts on the
+    /// mage, whose crit chance names Arcane Missiles' missiles and Blizzard's ticks.
     constexpr SpellAnswer ARCANE_POTENCY_HIDDEN[] =
     {
         { 57529, 33421 },

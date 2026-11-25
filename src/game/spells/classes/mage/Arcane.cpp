@@ -216,7 +216,8 @@ namespace
     /// 57531) has one of its charges taken (Mage::UseArcanePotencyCharge), one per channel however many missiles or
     /// ticks it gives, then casts the buff's hidden aura (GetArcanePotencyHiddenAura) on himself, triggered. The hidden
     /// aura's crit chance names the missiles and the ticks for the aura's own 10 s, which run on after the channel and
-    /// after the buff is gone: a second channel inside them still takes it. Nothing for a caster without the buff.
+    /// after the buff is gone: a second channel's missiles or ticks inside them still get the crit. Nothing for a
+    /// caster without the buff.
     SpellHandlerOutcome<void> ArcanePotencyChannelLaunch(LaunchContext& ctx)
     {
         if (uint32 const hidden = GetArcanePotencyHiddenAura(Mage::UseArcanePotencyCharge(ctx.caster)))
