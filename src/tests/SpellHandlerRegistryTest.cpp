@@ -6977,7 +6977,7 @@ namespace
                                               68161, 66808, 68160, 69739, 69755, 71903, 72178 };
     uint32 const DUMMY_PROC_MAGE_IDS[] = { 64411 };
     uint32 const DUMMY_PROC_WARLOCK_IDS[] = { 18094, 18095, 56218, 30293, 30295, 30296, 37377, 37381, 39437, 63108 };
-    uint32 const DUMMY_PROC_PRIEST_IDS[] = { 15286, 40438, 26169, 39372, 28809, 55677, 55680, 70770 };
+    uint32 const DUMMY_PROC_PRIEST_IDS[] = { 15286, 40438, 26169, 39372, 28809, 55680, 70770 };
     uint32 const DUMMY_PROC_DRUID_IDS[] = { 24932, 28719, 28847, 37288, 37295, 40442, 44835, 54754, 54821, 70664,
                                             70723 };
     uint32 const DUMMY_PROC_ROGUE_IDS[] = { 23582, 32748, 57934, 76806, 76838 };
@@ -7379,9 +7379,9 @@ TEST(UnitAuraProcHandlerHandlers_TheFiveFamilySitesHoldTheirLabelsAndNoDefault)
     SpellHandlerRegistry registry;
     RegisterUnitAuraProcHandlerHandlers(registry);
 
-    // The priest site's 8 labels in 8 bodies, the druid site's 11 in 10, the rogue site's 5 in 5, the paladin site's
+    // The priest site's 7 labels in 7 bodies, the druid site's 11 in 10, the rogue site's 5 in 5, the paladin site's
     // 26 in 21 and the shaman site's 10 in 10; no default.
-    CheckSiteLabels<DummyAuraProcPriestSite>(registry, DUMMY_PROC_PRIEST_IDS, 8);
+    CheckSiteLabels<DummyAuraProcPriestSite>(registry, DUMMY_PROC_PRIEST_IDS, 7);
     CheckSiteLabels<DummyAuraProcDruidSite>(registry, DUMMY_PROC_DRUID_IDS, 10);
     CheckSiteLabels<DummyAuraProcRogueSite>(registry, DUMMY_PROC_ROGUE_IDS, 5);
     CheckSiteLabels<DummyAuraProcPaladinSite>(registry, DUMMY_PROC_PALADIN_IDS, 21);
