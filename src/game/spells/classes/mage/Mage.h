@@ -384,9 +384,11 @@ namespace Mage
     int32 InvisibilityThreatPercent(uint32 spellId);
 
     /// Whether Offensive State (79684) refuses to roll for an event of `procSpellId`: Arcane Missiles (5143) and its
-    /// missiles (7268), so the channel never brings Arcane Missiles! (79683) back; Ice Shards' Chilled (12484, 12485)
-    /// and Piercing Chill's chill (83154), the chills a talent's aura casts, whose hits start the procs of the auras
-    /// that can proc from procs. Defined in Mage.cpp.
+    /// missiles (7268), so the channel never brings Arcane Missiles! (79683) back; and the chills and freezes the
+    /// mage's auras and his ring cast for him, whose cast ends are his and harmful: Frost Armor's Chilled (7321), Ice
+    /// Shards' Chilled (12484, 12485), Piercing Chill's chill (83154) and Ring of Frost's freeze (82691); and the
+    /// debuffs his spells put on himself, whose cast ends are his and harmful too: Arcane Blast's buff (36032) and Ice
+    /// Block's Hypothermia (41425). Defined in Mage.cpp.
     bool OffensiveStateRefuses(uint32 procSpellId);
 
     /// Whether a mage's talents stop Arcane Missiles! (79683) from coming: he holds Hot Streak (44445) or a rank of

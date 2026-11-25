@@ -107,7 +107,7 @@
 // one mage, and a refresh; 966 Ignite banking two Fireball crits that overlap; 967 a staged Fire mage's Pyroblast
 // applies Critical Mass and his Arcane Blast crit gives back mana through Master of Elements; 968 an Impact Fire Blast
 // stuns one Camel and copies the mage's DoTs to the two beside it, not the far one; 969 a killing blow on a Fire mage
-// with Cauterize, and the burn that follows; 970 Living Bomb's explosion starts the mage's procs, and a bomb whose
+// with Cauterize, and the burn that follows; 970 Living Bomb's explosion rolls no Arcane Missiles!, and a bomb whose
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
 // first one's end takes it off; 973 the orb of a Fire mage without Fire Power skips a critter and a polymorphed
@@ -131,8 +131,8 @@
 // DoTs' unhasted period, with Flashburn once in each share and the Camel's damage-taken effects once in the tick.
 // 949 Combustion takes its Ignite and Glyph of Frostfire parts at the mastery the mage has when it casts, after mastery
 // rating was added between their hits and the cast.
-// 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
-// neither, and Living Bomb's cast rolls Impact.
+// 942 a staged Fire mage's Slow and Polymorph casts roll Arcane Missiles! as they end and their hits never roll Impact,
+// a Slow that misses rolls Arcane Missiles! and not Impact, and Living Bomb's cast rolls Impact.
 // 948 Molten Armor's hit rolls Impact and Arcane Missiles!, never ignites, never starts another Molten Armor, and does
 // not break the Polymorph, Blind or Frost Nova on the Camel it hits.
 // 943 a hit-capped Frost mage's Water Elemental casts twenty Waterbolts at a Camel three levels above it and none
@@ -215,6 +215,11 @@
 // give at most one charge for each Camel they chill, Blizzard's Chilled among them. 1117 1012's mage and Camels: a
 // Frostbolt crit that kills its target chills, in one chill cast, the two Camels nearest where it stood, the second
 // at nine yards, and never a third at nine and a half yards or one beyond.
+// 1118 a staged Frost mage's Offensive State rolls Arcane Missiles! as each of his harmful casts ends and never at a
+// hit: by call, the cast end of a Frostbolt or of Shattered Barrier's freeze gives it, and a Frostbolt's hit or the
+// cast end of Frost Armor's Chilled, Blizzard's Chilled, Piercing Chill's chill or Ring of Frost's freeze none; his
+// Counterspell at a Camel that casts nothing and his Ice Barrier broken with no Camel in reach of its freeze give it,
+// and his Cone of Cold at two Camels gives it once.
 // 1120 a staged Frost mage's Frostfire Orb gives him neither Fingers of Frost nor Brain Freeze at the talent's first
 // rank, and at its second rank Fingers of Frost from its hits and Brain Freeze from the ends of their casts.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
@@ -284,9 +289,8 @@
 // same.
 // 1125 a staged Arcane mage gets the Run Speed Marker with Improved Blink's buff, Sprint and Darkflight; it refuses a
 // second Sprint while it stands, and goes when each buff ends, long before its own 30 s.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1119, 1120 and 1122-1125 (Qualify)
-// fingerprints every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any
-// script binding.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1120 and 1122-1125 (Qualify) fingerprints every
+// spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -4190,10 +4194,9 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1029, 1100-1117, 1119, 1120, 1122, 1123, 1124, 1125): a human mage staged to level 85 with the
-     * scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario
-     * does to him once staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the
-     * scenario keeps it
+     * 998-1000, 1010-1029, 1100-1120, 1122, 1123, 1124, 1125): a human mage staged to level 85 with the scenario's
+     * talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him
+     * once staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
      * Camel (50249, or the creature TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its
      * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -8098,19 +8101,20 @@ namespace Harness
     /**
      * S970 `mage-fire-living-bomb-rules`: Living Bomb (44457) cast by a staged mage with no talents who learned the
      * spell, without haste rating, so a bomb lasts its 12 s. Once staged, his Offensive State (79684) is taken off and
-     * put back at kOffensiveStatePoints, so each damaging spell of his the proc accepts casts Arcane Missiles! (79683,
-     * 20 s) on him; he knows no Hot Streak, so nothing refuses it. Before the first cast he takes Precision (13843, +6%
-     * spell hit), so no cast can miss a level-85 Camel. The explosion (44461), which the Camel casts for him when the
-     * aura runs out, is one of his hits and starts his procs: it casts 79683 on him again. A bomb whose Camel dies
-     * leaves with AURA_REMOVE_BY_DEATH and does not explode. Steps: Living Bomb, left to run out its 12 s; 13 s after
-     * it, the Camel's swing at him, which is no spell of his; Living Bomb again; 2 s later he deals the Camel its
-     * health as plain damage. A cast is read kReadMs after it; at the swing's read the scenario notes the time 79683
-     * has left on him.
+     * put back at kOffensiveStatePoints, so the end of each harmful cast of his casts Arcane Missiles! (79683, 20 s) on
+     * him; he knows no Hot Streak, so nothing refuses it. Before the first cast he takes Precision (13843, +6% spell
+     * hit), so no cast can miss a level-85 Camel. The explosion (44461), which the Camel casts for him when the aura
+     * runs out, is one of his hits and starts his procs at its hit, but the end of its cast is the Camel's, so it does
+     * not cast 79683 on him again. A bomb whose Camel dies leaves with AURA_REMOVE_BY_DEATH and does not explode.
+     * Steps: Living Bomb, left to run out its 12 s; 13 s after it, the Camel's swing at him, which is no spell of his;
+     * Living Bomb again; 2 s later he deals the Camel its health as plain damage. A cast is read kReadMs after it; at
+     * the swing's read the scenario notes the time 79683 has left on him.
      *
      * `rules`: `expiry=<the 44461 damage logs in the first step's windows> refreshed=<yes when 79683 has more than
      * kRefreshedAboveMs left on him at the swing's read> death=<the 44461 damage logs in the kill's windows, none for
-     * none>`; OK at one, yes and none, with the Camel dead at the kill's read. Cast again at the explosion, 1.3 s
-     * before that read, 79683 has about 18.7 s left; not cast again: none on him.
+     * none>`; OK at one, no and none, with 79683 on him at the swing's read and the Camel dead at the kill's read.
+     * Cast at the first bomb's cast alone, 79683 has about 6.7 s left at that read; cast again at the explosion, 1.3 s
+     * before it, it would have about 18.7 s.
      */
     class MageFireLivingBombRules : public MageProcScenario
     {
@@ -8218,7 +8222,8 @@ namespace Harness
             const bool dead = kill.read && kill.healthAfter == 0;
             const std::string value = "expiry=" + U(hits[kExpiryStep]) + " refreshed=" + (refreshed ? "yes" : "no") + " death=" +
                                       (hits[kKillStep] ? U(hits[kKillStep]) : std::string("none"));
-            const bool ok = hits[kExpiryStep] == 1 && refreshed && hits[kKillStep] == 0 && dead;
+            const bool ok = hits[kExpiryStep] == 1 && swing.read && leftMs > 0 && !refreshed && hits[kKillStep] == 0 &&
+                            dead;
             const std::string detail = U(kArcaneMissilesBuff) + " on him at the swing's read: " + swing.holder + ", " +
                                        std::to_string(leftMs) + " ms left; the Camel's health at the kill's read " +
                                        U(kill.healthAfter) + "; the " + U(kExplosion) + " damage logs by step: " +
@@ -8245,24 +8250,25 @@ namespace Harness
 
     /**
      * S942 `mage-offensive-state-damageless`: Offensive State (79684) and Impact (12357) on a staged Fire mage, at the
-     * hits of spells that deal no damage. Staged as 968 stages it (Burning Soul 3, Improved Fire Blast 2, Ignite 3 and
-     * Impact 2: no Hot Streak, so nothing refuses Arcane Missiles!); Slow (31589), Polymorph (118) and Living Bomb
-     * (44457) learned. Once staged, his Offensive State is taken off and put back at kOffensiveStatePoints, so each hit
-     * the proc accepts casts Arcane Missiles! (79683) on him; Impact keeps its own 10%. Before each cast he takes
-     * Precision (13843, +6% spell hit), so no cast misses a level-85 Camel but the one meant to. Steps: Slow twice and
-     * Polymorph twice at the Camel, each a hit; a wait, at whose start the Camel casts Wily Wits (75533) on itself, an aura
-     * that makes the next spell cast at it miss; a Slow, which misses; then kBombCasts Living Bombs, kEveryMs apart, so
-     * each lands on the bomb before it and no bomb runs out. A cast is read kReadMs after it. The Camel takes him as
-     * its victim at the first step, so when the first bomb's tick breaks its Polymorph it turns on him and does not run
-     * home and evade the next bomb.
+     * casts and hits of spells that deal no damage. Staged as 968 stages it (Burning Soul 3, Improved Fire Blast 2,
+     * Ignite 3 and Impact 2: no Hot Streak, so nothing refuses Arcane Missiles!); Slow (31589), Polymorph (118) and
+     * Living Bomb (44457) learned. Once staged, his Offensive State is taken off and put back at kOffensiveStatePoints,
+     * so the end of each harmful cast of his, which the proc accepts, casts Arcane Missiles! (79683) on him; Impact
+     * keeps its own 10% at a hit. Before each cast he takes Precision (13843, +6% spell hit), so no cast misses a
+     * level-85 Camel but the one meant to. Steps: Slow twice and Polymorph twice at the Camel, each a hit; a wait, at
+     * whose start the Camel casts Wily Wits (75533) on itself, an aura that makes the next spell cast at it miss; a
+     * Slow, which misses; then kBombCasts Living Bombs, kEveryMs apart, so each lands on the bomb before it and no bomb
+     * runs out. A cast is read kReadMs after it. The Camel takes him as its victim at the first step, so when the first
+     * bomb's tick breaks its Polymorph it turns on him and does not run home and evade the next bomb.
      *
      * `damageless`: `am=<the steps among the four hits at whose read Arcane Missiles! (79683) stood on him>,miss=<the
      * same for the Slow that missed>,veto=<the steps among the five Slow and Polymorph steps at whose read the Impact
      * buff (64343) stood on him>,bomb=<the same over the Living Bomb steps>`; both buffs are taken off him at each
-     * read, so each step's count is its own. OK at four, none, none and one or more, and the last Slow listed as
-     * missed. A hit of a spell with no damage effect rolls Arcane Missiles! and never Impact; a miss rolls neither;
-     * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run. The count of
-     * Impact buffs can read 0 even when Impact does not refuse these spells (each roll is 10% a hit), so the unit test
+     * read, so each step's count is its own. OK at four, one, none and one or more, and the last Slow listed as
+     * missed. The end of each cast of a spell with no damage effect rolls Arcane Missiles!, the Slow that misses
+     * included, and its hit never rolls Impact, nor does the miss; Living Bomb's cast rolls both. The rolls of a step
+     * are seeded, so the counts are the same each run. The count of Impact buffs can read 0 even when Impact does not
+     * refuse these spells (each roll is 10% a hit), so the unit test
      * MageScripts_ImpactRollsOnlyFromSpellsThatDealDamage proves the refusal.
      */
     class MageOffensiveStateDamageless : public MageProcScenario
@@ -8399,7 +8405,7 @@ namespace Harness
             const Seen& missedSlow = st.seen[kMissStep];
             const uint32 miss = Read(missedSlow, "am");
             const std::string value = "am=" + U(am) + ",miss=" + U(miss) + ",veto=" + U(veto) + ",bomb=" + U(bomb);
-            const bool ok = am == kHitSteps && miss == 0 && veto == 0 && bomb >= 1 && missedSlow.missed;
+            const bool ok = am == kHitSteps && miss == 1 && veto == 0 && bomb >= 1 && missedSlow.missed;
             const std::string detail = std::string("the last Slow ") + (missedSlow.missed ? "missed" : "hit") +
                                        "; each count is the steps at whose read the buff stood on him, taken off at each read";
             return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
@@ -10026,14 +10032,15 @@ namespace Harness
      * S948 `mage-fire-molten-armor-procs`: Molten Armor's hit (34913) starts procs, never ignites, never starts another
      * Molten Armor and never breaks Polymorph, Blind or Frost Nova. A Fire mage staged as in 968 (Burning Soul 3,
      * Improved Fire Blast 2, Ignite 3, Impact 2; kSpellPower spell power), Polymorph (118) learned, Precision on him
-     * before each cast and Increased Critical Spell on him at +100 from the first step to the end, so every 34913
-     * crits; the Camel holds Molten Armor (30482) too, put on it in the first step. Steps: Molten Armor cast at
-     * himself; kSwings swings of the Camel at him, each hit of which casts 34913 at the Camel; Polymorph cast at the
-     * Camel; then three phases in which the Camel holds Polymorph, Blind (2094) and Frost Nova (122), and in each step
-     * of a phase he casts 34913 at it by call as the armor's proc does (triggered, naming the holder of 30482), each
-     * read kSwingReadMs after: kStrikes, kBlindStrikes and kNovaStrikes steps. Blind and Frost Nova are put on the
-     * Camel as the GM aura command puts an aura, ready as a cast leaves it and for kPhaseAuraMs, the aura of the phase
-     * before taken off it.
+     * before each cast and Increased Critical Spell on him at kArmorCritAuraPoints from the first step to the end, so
+     * every 34913 crits. The Camel holds Molten Armor (30482) too, put on it in the first step, and its -5 to the crit
+     * chance of a spell cast at it would leave 99.23% at +100, where his sheet crit with his Molten Armor reads
+     * 104.23%; at kArmorCritAuraPoints it leaves 109.23%. Steps: Molten Armor cast at himself; kSwings swings of the
+     * Camel at him, each hit of which casts 34913 at the Camel; Polymorph cast at the Camel; then three phases in which
+     * the Camel holds Polymorph, Blind (2094) and Frost Nova (122), and in each step of a phase he casts 34913 at it by
+     * call as the armor's proc does (triggered, naming the holder of 30482), each read kSwingReadMs after: kStrikes,
+     * kBlindStrikes and kNovaStrikes steps. Blind and Frost Nova are put on the Camel as the GM aura command puts an
+     * aura, ready as a cast leaves it and for kPhaseAuraMs, the aura of the phase before taken off it.
      *
      * `armorProcs`: `crits=<34913 hits that crit>/<34913 hits>,ignite=<steps with 12654 on the Camel or cast>,
      * impact=<swings after which 64343 was on him>,answered=<34913 hits the Camel dealt>,
@@ -10058,7 +10065,7 @@ namespace Harness
         uint32 CasterAura() const override { return kPrecision; }
         uint32 Watched() const override { return kPolymorph; }
         bool WatchedOnTarget() const override { return true; }
-        int32 NonCritAuraPoints() const override { return kCritAuraPoints; }
+        int32 NonCritAuraPoints() const override { return kArmorCritAuraPoints; }
 
         std::vector<Step> Steps() const override
         {
@@ -10198,6 +10205,9 @@ namespace Harness
         static constexpr uint32 kStrikes = 3;
         static constexpr uint32 kBlindStrikes = 3;
         static constexpr uint32 kNovaStrikes = 30;
+        /// Increased Critical Spell's points on him: 10 above kCritAuraPoints, so the Camel's Molten Armor (-5) leaves
+        /// every 34913 above 100%.
+        static constexpr int32 kArmorCritAuraPoints = kCritAuraPoints + 10;
         static constexpr int32 kPhaseAuraMs = 120000;
         static constexpr uint32 kPolyStep = kSwings + 1;
         static constexpr uint32 kFirstStrike = kSwings + 2;
@@ -16259,9 +16269,9 @@ namespace Harness
      * uses Arcane Missiles! up, and neither the cast nor its missiles (7268) roll Offensive State (79684). Staged with
      * Improved Counterspell (11255, rank 1 of 2, an Arcane talent that touches neither spell), so the stage learns the
      * Arcane tree's spells; Arcane Missiles learned. Once staged, his Offensive State is taken off and cast again at
-     * kOffensiveStatePoints, so every hit its proc accepts would cast Arcane Missiles!. Before each cast at the Camel he
-     * takes Precision (13843, +6% spell hit), so no missile misses a level-85 Camel, and the crit aura at -100, so none
-     * crits. Steps, kShortMs apart unless named:
+     * kOffensiveStatePoints, so the end of each harmful cast of his that its proc accepts would cast Arcane Missiles!.
+     * Before each cast at the Camel he takes Precision (13843, +6% spell hit), so no missile misses a level-85 Camel,
+     * and the crit aura at -100, so none crits. Steps, kShortMs apart unless named:
      *  1. Arcane Missiles at the Camel without Arcane Missiles!: refused; then he selects the Camel, as a client does
      *     before it casts at it;
      *  2. Arcane Missiles! cast by him at himself, triggered;
@@ -22447,13 +22457,14 @@ namespace Harness
      * learns the Arcane tree's spells; Slow (31589: 35 yards, one target of his at a time), Focus Magic (54646: +3%
      * spell crit on a friendly unit other than him; its proc on the unit's spell crit casts 54648, +3% spell crit for
      * 10 s, on him) and Flame Orb (82731) learned. Once staged his Offensive State is taken off and cast again at
-     * kOffensiveStatePoints, so every hit its proc accepts casts Arcane Missiles! (79683), and Mana Adept is taken off;
-     * a second mage, B, is spawned kSecondOffset yards to his side and staged to level 85 with Fireball (133). Camels A
-     * and B stand ten yards ahead, kTargetSpacing apart, and C kFarAhead yards beyond A, past Slow's 35 yards and
-     * inside 40 as Spell::CheckRange counts them (the centres' distance less both combat reaches and the melee offset,
-     * 4.33 yards here, against the range plus 1.25: C's 43.2 yards count 38.8); each casts Hit Me (100446, +20% spell
-     * hit for whoever casts at it) on itself at its spawn, so the orb's hits never miss. Before each cast at a Camel he
-     * takes Precision and the crit aura at -100. Steps, kEveryMs apart unless named:
+     * kOffensiveStatePoints, so the end of each harmful cast of his that its proc accepts casts Arcane Missiles!
+     * (79683), and Mana Adept is taken off; a second mage, B, is spawned kSecondOffset yards to his side and staged to
+     * level 85 with Fireball (133). Camels A and B stand ten yards ahead, kTargetSpacing apart, and C kFarAhead yards
+     * beyond A, past Slow's 35 yards and inside 40 as Spell::CheckRange counts them (the centres' distance less both
+     * combat reaches and the melee offset, 4.33 yards here, against the range plus 1.25: C's 43.2 yards count 38.8);
+     * each casts Hit Me (100446, +20% spell hit for whoever casts at it) on itself at its spawn, so the orb's hits
+     * never miss. Before each cast at a Camel he takes Precision and the crit aura at -100. Steps, kEveryMs apart
+     * unless named:
      *  1. Slow at A; he selects A, as a client does before it casts at it; 2. Slow at B; 3. Slow at C, refused;
      *  4. Glyph of Slow (63091: Slow's range +5 yards) cast by him at himself, triggered, as a glyph slot applies its
      *     spell; 5. Slow at C;
@@ -25075,11 +25086,11 @@ namespace Harness
     };
 
     /**
-     * What the Frost proof scenarios (1020-1024, 1116) share: a staged Frost mage with kProofSpellPower spell power,
-     * 1197 with his intellect's, who takes Precision (13843, +6% spell hit) before each cast, so none misses, and the
-     * crit aura at kNoCritPoints, so none crits; the prints of the passives every staged Frost mage holds that can proc
-     * and of what they cast; his cast at a point as the cast handler starts a ground cast; and the reads the scenarios
-     * keep.
+     * What the Frost proof scenarios (1020-1024, 1116, 1118) share: a staged Frost mage with kProofSpellPower spell
+     * power, 1197 with his intellect's, who takes Precision (13843, +6% spell hit) before each cast, so none misses,
+     * and the crit aura at kNoCritPoints, so none crits; the prints of the passives every staged Frost mage holds that
+     * can proc and of what they cast; his cast at a point as the cast handler starts a ground cast; and the reads the
+     * scenarios keep.
      */
     class MageFrostProofScenario : public MageProcScenario
     {
@@ -27511,6 +27522,369 @@ namespace Harness
         }
     };
 
+    /**
+     * S1118 `mage-offensive-state-cast-end`: Offensive State (79684) on a staged Frost mage (MageFrostProofScenario):
+     * Piercing Ice 1 (a Frost talent, so the stage teaches the Frost tree's spells), then Counterspell (2139), Cone of
+     * Cold (120), Ice Barrier (11426), Shattered Barrier 2 (54787) and Ice Shards 2 (12487) learned; no Brain Freeze
+     * and no Hot Streak, so nothing stops Arcane Missiles! (79683). Once staged, his Offensive State is taken off and
+     * cast again at kOffensiveStatePoints, so every event its row takes and its script lets through casts Arcane
+     * Missiles! on him. Camel 1 stands kOutsideYards in front of him and Camel 2 kCamelGap yards to its side, both
+     * outside the ten yards of Shattered Barrier's freeze (83073). A cast step is read kCastReadMs after it acts.
+     * Steps:
+     *  1. a wait at whose act the scenario makes kCalls procs of Frostbolt (116) on him by call, as Spell::cast makes
+     *     one as a cast ends (Unit::ProcDamageAndSpell at Camel 1 with the harmful-spell flag and PROC_EX_CAST_END),
+     *     each with Arcane Missiles! taken off him first, and keeps the calls that left him holding it;
+     *  2. the same with PROC_EX_NORMAL_HIT, the hit kind of a hit that lands;
+     *  3. a wait at whose act the scenario makes kChillCalls cast-end procs, as in step 1, of each of Frost Armor's
+     *     Chilled (7321), Blizzard's Chilled at Ice Shards' second rank (12485), Piercing Chill's chill (83154) and
+     *     Ring of Frost's freeze (82691) at Camel 1, and of Shattered Barrier's freeze at himself, as its cast names
+     *     him, and keeps each spell's count apart;
+     *  4-13. ten Counterspells at Camel 1, which casts nothing, each with its cooldown taken off him by call first;
+     *  14-33. ten times Ice Barrier at himself, its cooldown taken off him by call first, then the Camel's blow of
+     *     kBlow frost damage at him, which uses the barrier up, so Shattered Barrier casts its freeze around him;
+     *  34. a wait at whose act both Camels are moved (Unit::NearTeleportTo) kConeYards in front of him, kCamelGap
+     *     yards apart, inside Cone of Cold's twelve yards;
+     *  35-44. ten Cones of Cold at Camel 1, kConeEveryMs apart, each with its cooldown taken off him by call first.
+     * At every read from step 4 on he is read for Arcane Missiles! and it is taken off him, so each step shows only
+     * what it gave. Right after each blow acts the scenario keeps the Camels that hold his 83073, and at each cone's
+     * read the Camels that hold his slow (120).
+     *
+     * `offensiveState`: `castEnd=<the cast-end calls that left him holding 79683>/<kCalls>,hit=<the same for the hit
+     * calls>/<kCalls>,chilled=<7321>:<12485>:<83154>:<82691>/<kChillCalls>,barrier=<83073's calls>/<kChillCalls>,
+     * counterspell=<the Counterspell steps with a 79683 put>/10,break=<the blow steps with one>/10,coc=<the most 79683
+     * puts in one cone step>`. A put is an SMSG_AURA_UPDATE sent to him that puts 79683 in a slot that did not show
+     * it already: Arcane Missiles! has no spell visual, so its triggered cast sends no SMSG_SPELL_GO, and a second cast
+     * of it while he holds it clears the slot before it puts the aura again. OK when castEnd is kCalls of kCalls, hit
+     * 0, chilled 0:0:0:0, barrier kChillCalls of kChillCalls, counterspell and break 10 of 10 and coc 1, with an
+     * SMSG_SPELL_GO of 83073 in each blow's windows, no Camel holding his 83073 after a blow and both Camels slowed by
+     * each cone: Offensive State rolls once as each harmful cast of his ends, a Counterspell at a Camel that casts
+     * nothing and a freeze that reaches no unit included, never at a hit, and never for the chills and freezes his
+     * auras cast.
+     */
+    class MageOffensiveStateCastEnd : public MageFrostProofScenario
+    {
+    public:
+        MageOffensiveStateCastEnd()
+            : MageFrostProofScenario("mage-offensive-state-cast-end", 1118, "offensiveState") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11157, 0 } }; }
+        std::vector<uint32> Spells() const override
+        {
+            return { kCounterspell, kConeOfCold, kIceBarrier, kShatteredBarrierTwo, kIceShardsTwo };
+        }
+        float TargetDistance() const override { return kOutsideYards; }
+        std::vector<std::pair<float, float> > ExtraTargets() const override { return { { 0.0f, kCamelGap } }; }
+        uint32 CastEveryMs() const override { return kStepMs; }
+        uint32 CastReadMs() const override { return kCastReadMs; }
+
+        void AfterStage(Player& p) override
+        {
+            p.RemoveAurasDueToSpell(kOffensiveState);
+            int32 points = kOffensiveStatePoints;
+            p.CastCustomSpell(&p, kOffensiveState, &points, NULL, NULL, true);
+            Aura const* offensiveState = p.GetAura(kOffensiveState, EFFECT_INDEX_0);
+            m_rec.Note("his " + U(kOffensiveState) + " taken off and cast again at " +
+                       U(uint32(kOffensiveStatePoints)) + ": " +
+                       (offensiveState ? "its effect 0 holds " + std::to_string(offensiveState->GetModifier()->m_amount)
+                                       : std::string("not on him")));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            std::vector<Step> steps = { Wait(kWaitMs), Wait(kWaitMs), Wait(kWaitMs) };
+            for (uint32 i = 0; i < kCasts; ++i)
+            {
+                Step counter = AuraCastAt(kCounterspell, kCamelOne, kStepMs);
+                counter.clearCooldown = true;
+                steps.push_back(counter);
+            }
+            for (uint32 i = 0; i < kCasts; ++i)
+            {
+                Step barrier = SelfAura(kIceBarrier, kStepMs);
+                barrier.clearCooldown = true;
+                steps.push_back(barrier);
+                steps.push_back(Blow(kBlow, SPELL_SCHOOL_MASK_FROST, kStepMs));
+            }
+            steps.push_back(Wait(kWaitMs));
+            for (uint32 i = 0; i < kCasts; ++i)
+            {
+                Step cone = Cast(kConeOfCold, false);
+                cone.target = kCamelOne;
+                cone.clearCooldown = true;
+                cone.everyMs = kConeEveryMs;
+                steps.push_back(cone);
+            }
+            return steps;
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return ProofPrints({
+                // 116: 72 fields, fnv e7ba11a7
+                { 116, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 17 }, { "eff1.EffectBonusCoefficient", 1064396915 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 3 }, { "eff1.EffectRealPointsPerLevel", 1056964608 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 120: 72 fields, fnv 491702bc
+                { 120, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -60 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.EffectRadiusIndex_0", 32 }, { "eff0.ImplicitTarget_0", 104 }, { "eff1.present", 1 }, { "eff1.Effect", 2 }, { "eff1.EffectBasePoints", 97 }, { "eff1.EffectBonusCoefficient", 1046160081 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectDieSides", 11 }, { "eff1.EffectRadiusIndex_0", 32 }, { "eff1.EffectRealPointsPerLevel", 1061997773 }, { "eff1.ImplicitTarget_0", 104 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.EffectRadiusIndex_0", 32 }, { "eff2.ImplicitTarget_0", 104 }, { "eff2.EffectIndex", 2 } } },
+                // 2139: 26 fields, fnv ea673d74
+                { 2139, { { "eff0.present", 1 }, { "eff0.Effect", 68 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11151: 26 fields, fnv 4b0a6fa0
+                { 11151, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 17592186175520 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11426: 26 fields, fnv 89b76b89
+                { 11426, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 438 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.EffectRealPointsPerLevel", 1077097267 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 54787: 26 fields, fnv 07d15130
+                { 54787, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 1 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 83073: 26 fields, fnv f15f9a73
+                { 83073, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 26 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 7 }, { "eff0.EffectRadiusIndex_0", 13 }, { "eff0.ImplicitTarget_0", 22 }, { "eff0.ImplicitTarget_1", 15 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12487: 49 fields, fnv 1f5c0d29
+                { 12487, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 988 }, { "eff0.EffectSpellClassMask.Flags", 128 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", 5 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 5 }, { "eff1.EffectSpellClassMask.Flags", 131072 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 7321: 72 fields, fnv 80d7371c
+                { 7321, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -30 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 342 }, { "eff1.EffectBasePoints", -20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMechanic", 8 }, { "eff1.ImplicitTarget_0", 6 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 12485: 49 fields, fnv 3e9d5de6
+                { 12485, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.EffectIndex", 2 } } },
+                // 83154: 49 fields, fnv 8662bd20
+                { 83154, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 33 }, { "eff0.EffectBasePoints", -40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 11 }, { "eff0.EffectRadiusIndex_1", 13 }, { "eff0.ImplicitTarget_0", 53 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 118 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 127 }, { "eff2.EffectRadiusIndex_1", 13 }, { "eff2.ImplicitTarget_0", 6 }, { "eff2.ImplicitTarget_1", 16 }, { "eff2.EffectIndex", 2 } } },
+                // 82691: 26 fields, fnv f045cca8
+                { 82691, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 12 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMechanic", 13 }, { "eff0.EffectRadiusIndex_1", 9 }, { "eff0.ImplicitTarget_0", 87 }, { "eff0.ImplicitTarget_1", 16 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            });
+        }
+
+        /// Steps 1 to 3's acts: the procs by call. Each blow's act: the Camels holding his 83073. Step 34's act: the
+        /// Camels moved. Each cone's read: the Camels holding his slow. Every read from step 4 on: Arcane Missiles!
+        /// read and taken off him.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+        {
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            if (!atRead && (k == kCastEndStep || k == kHitStep))
+            {
+                const uint32 procEx = k == kCastEndStep ? uint32(PROC_EX_CAST_END) : uint32(PROC_EX_NORMAL_HIT);
+                reads["buff"] = BuffsByCall(p, target, kFrostbolt, procEx, kCalls);
+                m_rec.Note(std::string(k == kCastEndStep ? "cast-end" : "hit") + " procs of " + U(kFrostbolt) +
+                           " by call, " + U(kCalls) + ": " + Shown(reads["buff"]) + " left him holding " +
+                           U(kArcaneMissilesBuff));
+            }
+            else if (!atRead && k == kChillStep)
+            {
+                std::string text;
+                for (uint32 spell : { kFrostArmorChill, kBlizzardChill, kPiercingChill, kRingFreeze, kBarrierFreeze })
+                {
+                    Unit* victim = spell == kBarrierFreeze ? static_cast<Unit*>(p) : static_cast<Unit*>(target);
+                    reads[U(spell)] = BuffsByCall(p, victim, spell, PROC_EX_CAST_END, kChillCalls);
+                    text += (text.empty() ? "" : "; ") + U(spell) + ": " + Shown(reads[U(spell)]);
+                }
+                m_rec.Note("cast-end procs by call, " + U(kChillCalls) + " of each, that left him holding " +
+                           U(kArcaneMissilesBuff) + ": " + text);
+            }
+            else if (!atRead && IsBlowStep(k))
+            {
+                int64 rooted = 0;
+                std::string text;
+                for (uint32 camel = 0; camel < st.targets.size(); ++camel)
+                {
+                    Creature* unit = Get(st.targets[camel]);
+                    const bool held = unit && unit->GetSpellAuraHolder(kBarrierFreeze, st.player);
+                    rooted += held ? 1 : 0;
+                    const std::string yards =
+                        unit ? std::to_string(int(unit->Where().DistanceTo(p->Where()))) : std::string("?");
+                    text += (camel ? "; " : "") + std::string("Camel ") + U(camel + 1) + " at " + yards + " yd " +
+                            (held ? "holds it" : "not");
+                }
+                reads["rooted"] = rooted;
+                m_rec.Note("his " + U(kIceBarrier) + ": " + HolderOf(p, kIceBarrier) + "; his " + U(kBarrierFreeze) +
+                           " on each Camel: " + text);
+            }
+            else if (!atRead && k == kApproachStep)
+            {
+                std::string text;
+                for (uint32 camel = 0; camel < st.targets.size(); ++camel)
+                {
+                    Creature* unit = Get(st.targets[camel]);
+                    if (!unit)
+                    {
+                        continue;
+                    }
+                    const float x = p->Where().X() + kConeYards;
+                    const float y = p->Where().Y() + (camel ? kCamelGap : -kCamelGap) / 2.0f;
+                    unit->NearTeleportTo(x, y, Ground(x, y, P0.z), unit->Where().Facing());
+                    char buf[96];
+                    snprintf(buf, sizeof(buf), "Camel %u moved to %.2f yards from him", camel + 1,
+                             unit->Where().DistanceTo(p->Where()));
+                    text += (text.empty() ? "" : "; ") + std::string(buf);
+                }
+                m_rec.Note(text);
+            }
+            if (!atRead || k < kFirstCounterStep)
+            {
+                return;
+            }
+            if (k >= kFirstConeStep)
+            {
+                int64 slowed = 0;
+                std::string text;
+                for (uint32 camel = 0; camel < st.targets.size(); ++camel)
+                {
+                    Creature* unit = Get(st.targets[camel]);
+                    const bool held = unit && unit->GetSpellAuraHolder(kConeOfCold, st.player);
+                    slowed += held ? 1 : 0;
+                    text += (camel ? "; " : "") + std::string("Camel ") + U(camel + 1) + (held ? " holds it" : " not");
+                }
+                reads["slowed"] = slowed;
+                m_rec.Note("his " + U(kConeOfCold) + " on each Camel: " + text);
+            }
+            const bool held = p->HasAura(kArcaneMissilesBuff);
+            p->RemoveAurasDueToSpell(kArcaneMissilesBuff);
+            m_rec.Note("at the read: his " + U(kArcaneMissilesBuff) + (held ? " taken off" : " was not on him"));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps || st.seen.size() != kSteps)
+            {
+                return "BUG(the steps did not run)";
+            }
+            const int64 castEnd = Kept(st, kCastEndStep, "buff");
+            const int64 hit = Kept(st, kHitStep, "buff");
+            std::string chilled;
+            bool chillsNone = true;
+            for (uint32 spell : { kFrostArmorChill, kBlizzardChill, kPiercingChill, kRingFreeze })
+            {
+                const int64 count = Kept(st, kChillStep, U(spell));
+                chilled += (chilled.empty() ? "" : ":") + Shown(count);
+                chillsNone = chillsNone && count == 0;
+            }
+            const int64 barrier = Kept(st, kChillStep, U(kBarrierFreeze));
+            const std::vector<uint32> puts = AuraPuts(st, kArcaneMissilesBuff);
+            uint32 counterspell = 0, breaks = 0, freezes = 0, rooted = 0, rootReads = 0;
+            uint32 cone = 0, conePuts = 0, bothSlowed = 0;
+            for (uint32 i = 0; i < kCasts; ++i)
+            {
+                counterspell += puts[kFirstCounterStep + i] ? 1 : 0;
+                const uint32 blow = kFirstBarrierStep + 2 * i + 1;
+                breaks += puts[blow] ? 1 : 0;
+                freezes += Triggered(st.seen[blow], kBarrierFreeze) ? 1 : 0;
+                const int64 held = Kept(st, blow, "rooted");
+                rooted += held > 0 ? uint32(held) : 0;
+                rootReads += held >= 0 ? 1 : 0;
+                const uint32 coneStep = kFirstConeStep + i;
+                cone = std::max<uint32>(cone, puts[coneStep]);
+                conePuts += puts[coneStep];
+                bothSlowed += Kept(st, coneStep, "slowed") == int64(kCamels) ? 1 : 0;
+            }
+            const std::string value = "castEnd=" + Shown(castEnd) + "/" + U(kCalls) + ",hit=" + Shown(hit) + "/" +
+                                      U(kCalls) + ",chilled=" + chilled + "/" + U(kChillCalls) + ",barrier=" +
+                                      Shown(barrier) + "/" + U(kChillCalls) + ",counterspell=" + U(counterspell) +
+                                      "/" + U(kCasts) + ",break=" + U(breaks) + "/" + U(kCasts) + ",coc=" + U(cone);
+            const bool ok = castEnd == int64(kCalls) && hit == 0 && chillsNone && barrier == int64(kChillCalls) &&
+                            counterspell == kCasts && breaks == kCasts && cone == 1 && freezes == kCasts &&
+                            rooted == 0 && rootReads == kCasts && bothSlowed == kCasts;
+            const std::string detail = "wanted 79683 from every cast-end call and from no hit call, from no cast end "
+                                       "of the four chills and freezes and from every one of Shattered Barrier's "
+                                       "freeze, from each Counterspell and each broken barrier, and once from each "
+                                       "Cone of Cold; " + U(kBarrierFreeze) + " went in " + U(freezes) + " of the " +
+                                       "blows' windows and held " + U(rooted) + " Camels; the cones put " +
+                                       U(conePuts) + " in all and slowed both Camels " + U(bothSlowed) + " times)";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kFrostbolt = 116;
+        static constexpr uint32 kCounterspell = 2139;
+        static constexpr uint32 kConeOfCold = 120;
+        static constexpr uint32 kIceBarrier = 11426;
+        static constexpr uint32 kShatteredBarrierTwo = 54787;
+        static constexpr uint32 kIceShardsTwo = 12487;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kArcaneMissilesBuff = 79683;
+        static constexpr uint32 kFrostArmorChill = 7321;
+        static constexpr uint32 kBlizzardChill = 12485;
+        static constexpr uint32 kPiercingChill = 83154;
+        static constexpr uint32 kRingFreeze = 82691;
+        static constexpr uint32 kBarrierFreeze = 83073;
+        static constexpr int32 kOffensiveStatePoints = 100;
+        static constexpr uint32 kCalls = 200;
+        static constexpr uint32 kChillCalls = 50;
+        static constexpr uint32 kCasts = 10;
+        static constexpr uint32 kBlow = 25000;
+        static constexpr uint32 kCamels = 2;
+        static constexpr float kOutsideYards = 16.0f;
+        static constexpr float kConeYards = 8.0f;
+        static constexpr float kCamelGap = 3.0f;
+        static constexpr uint32 kStepMs = 1000;
+        static constexpr uint32 kConeEveryMs = 2000;
+        static constexpr uint32 kCastReadMs = 400;
+        static constexpr uint32 kWaitMs = 500;
+        static constexpr uint32 kCamelOne = 0;
+        static constexpr uint32 kCastEndStep = 0;
+        static constexpr uint32 kHitStep = 1;
+        static constexpr uint32 kChillStep = 2;
+        static constexpr uint32 kFirstCounterStep = 3;
+        static constexpr uint32 kFirstBarrierStep = kFirstCounterStep + kCasts;
+        static constexpr uint32 kApproachStep = kFirstBarrierStep + 2 * kCasts;
+        static constexpr uint32 kFirstConeStep = kApproachStep + 1;
+        static constexpr size_t kSteps = kFirstConeStep + kCasts;
+
+        /// Whether step k is one of the blows that break his barrier.
+        static bool IsBlowStep(uint32 k)
+        {
+            return k >= kFirstBarrierStep && k < kApproachStep && (k - kFirstBarrierStep) % 2 == 1;
+        }
+
+        /// Of `calls` procs of `spellId` with the hit kind `procEx` on him by call at `victim`, each made with Arcane
+        /// Missiles! taken off him first, the ones that left him holding it; it is taken off at the end. kNone when
+        /// the spell store lacks the spell.
+        static int64 BuffsByCall(Player* p, Unit* victim, uint32 spellId, uint32 procEx, uint32 calls)
+        {
+            SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
+            if (!spell)
+            {
+                return kNone;
+            }
+            int64 held = 0;
+            for (uint32 call = 0; call < calls; ++call)
+            {
+                p->RemoveAurasDueToSpell(kArcaneMissilesBuff);
+                p->ProcDamageAndSpell(victim, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT, PROC_FLAG_NONE, procEx, 0,
+                                      BASE_ATTACK, spell);
+                held += p->HasAura(kArcaneMissilesBuff) ? 1 : 0;
+            }
+            p->RemoveAurasDueToSpell(kArcaneMissilesBuff);
+            return held;
+        }
+
+        /// By step, how many SMSG_AURA_UPDATE packets sent to him put `spellId` in a slot that did not show it
+        /// already: each put is sent twice, and a second cast of the aura clears the slot before it puts it again.
+        std::vector<uint32> AuraPuts(St const& st, uint32 spellId) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::map<uint32, uint32> shown;         // slot -> the spell the last update put there, 0 for none
+            std::vector<uint32> puts(st.steps.size(), 0);
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                for (std::string const& window : StepWindows(k))
+                {
+                    std::vector<Recorder::Seen const*> updates = m_rec.SeenIn(window, SMSG_AURA_UPDATE);
+                    for (size_t i = 0; i < updates.size(); ++i)
+                    {
+                        Recorder::Seen const& update = *updates[i];
+                        std::string text;
+                        uint32 slot = 0, spell = 0;
+                        if (update.payload.empty() ||
+                            !Trace::DecodeAuraUpdate(&update.payload[0], update.payload.size(), roles, text) ||
+                            sscanf(text.c_str(), "target=self slot=%u spell=%u", &slot, &spell) != 2)
+                        {
+                            continue;
+                        }
+                        if (spell == spellId && shown[slot] != spellId)
+                        {
+                            ++puts[k];
+                        }
+                        shown[slot] = spell;
+                    }
+                }
+            }
+            return puts;
+        }
+    };
+
     void RegisterSpellScenarios(Runner& r)
     {
         r.Register(new SpellDirectDamage());
@@ -27624,5 +27998,6 @@ namespace Harness
         r.Register(new MageArcaneImages());
         r.Register(new MageFrostFingersOnHit());
         r.Register(new MageFrostPiercingChillKilled());
+        r.Register(new MageOffensiveStateCastEnd());
     }
 }
