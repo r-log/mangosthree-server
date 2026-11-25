@@ -3489,14 +3489,14 @@ void SpellAuraHolder::SendAuraUpdate(bool remove) const
 
 namespace
 {
-    /// Whether `unit` holds a buff that carries the speed-buff marker (CarriesSpeedBuffMarker) and is not on its way
-    /// out.
+    /// Whether `unit`'s holder map holds a buff that carries the speed-buff marker (CarriesSpeedBuffMarker). A holder
+    /// being removed has left the map before its boosts run, so it is never among them.
     bool HoldsSpeedBuffMarkerCarrier(Unit const& unit)
     {
         Unit::SpellAuraHolderMap const& holders = unit.GetSpellAuraHolderMap();
         for (Unit::SpellAuraHolderMap::const_iterator itr = holders.begin(); itr != holders.end(); ++itr)
         {
-            if (!itr->second->IsDeleted() && CarriesSpeedBuffMarker(*itr->second->GetSpellProto()))
+            if (CarriesSpeedBuffMarker(*itr->second->GetSpellProto()))
             {
                 return true;
             }
