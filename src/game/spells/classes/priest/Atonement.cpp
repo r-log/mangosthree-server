@@ -72,7 +72,8 @@ namespace
     }
 
     /// A unit Atonement may heal around the enemy `center`, for `caster`: alive and targetable, no totem, in the
-    /// caster's phase, friendly to him, him included, and with its edge within `reach` yards of the enemy's centre
+    /// caster's phase, a friend to him (to a player caster, by faction whatever the PvP flag), him included, and
+    /// with its edge within `reach` yards of the enemy's centre
     /// (the heal's yards plus the enemy's combat reach).
     class AreaFriendCheck
     {
@@ -84,8 +85,9 @@ namespace
 
             bool operator()(Unit* u)
             {
+                Player const* viewer = m_caster.GetCharmerOrOwnerPlayerOrPlayerItself();
                 if (!u->IsTargetableForAttack() || u->IsTotem() || !u->Where().ShareFrame(m_caster.Where()) ||
-                    !m_caster.IsFriendlyTo(u))
+                    (viewer ? !SeesAsFriend(*viewer, *u) : !m_caster.IsFriendlyTo(u)))
                 {
                     return false;
                 }
@@ -116,7 +118,7 @@ namespace
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
         }
-        if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.victim || !ctx.damage)
+        if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.victim || !ctx.damage || !ctx.caster.IsAlive())
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
         }
