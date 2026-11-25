@@ -180,9 +180,10 @@ namespace
     }
 
     /// 79684: Offensive State: a mage whose talents do not stop Arcane Missiles! (Mage::SuppressesArcaneMissiles:
-    /// Hot Streak or Brain Freeze) rolls the aura's percent after each spell hit the proc accepts, and on success casts
-    /// Arcane Missiles! (79683) on himself; a mage with one of them never does. Arcane Missiles and its missiles, Ice
-    /// Shards' Chilled and Piercing Chill's chill never roll (Mage::OffensiveStateRefuses).
+    /// Hot Streak or Brain Freeze) rolls the aura's percent after each offensive cast of his ends, once for the cast
+    /// whatever it hits, and on success casts Arcane Missiles! (79683) on himself; a mage with one of them never does.
+    /// Arcane Missiles and its missiles, and the chills and freezes his auras and his ring cast for him, never roll
+    /// (Mage::OffensiveStateRefuses).
     ProcOutcome OffensiveStateProc(OnProcContext& ctx)
     {
         if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
@@ -288,12 +289,19 @@ bool Mage::OffensiveStateRefuses(uint32 procSpellId)
 {
     constexpr uint32 ARCANE_MISSILES = 5143;
     constexpr uint32 ARCANE_MISSILES_MISSILE = 7268;
+    // the chill Frost Armor casts at a unit that strikes the mage
+    constexpr uint32 FROST_ARMOR_CHILL = 7321;
+    // the chills Ice Shards casts at the units Blizzard hits
     constexpr uint32 ICE_SHARDS_CHILL_RANK_ONE = 12484;
     constexpr uint32 ICE_SHARDS_CHILL_RANK_TWO = 12485;
+    // the chill Piercing Chill casts at a Frostbolt crit's target
     constexpr uint32 PIERCING_CHILL_CHILL = 83154;
+    // the freeze Ring of Frost's ring casts for the mage at the units in its band
+    constexpr uint32 RING_OF_FROST_FREEZE = 82691;
     return procSpellId == ARCANE_MISSILES || procSpellId == ARCANE_MISSILES_MISSILE ||
-           procSpellId == ICE_SHARDS_CHILL_RANK_ONE || procSpellId == ICE_SHARDS_CHILL_RANK_TWO ||
-           procSpellId == PIERCING_CHILL_CHILL;
+           procSpellId == FROST_ARMOR_CHILL || procSpellId == ICE_SHARDS_CHILL_RANK_ONE ||
+           procSpellId == ICE_SHARDS_CHILL_RANK_TWO || procSpellId == PIERCING_CHILL_CHILL ||
+           procSpellId == RING_OF_FROST_FREEZE;
 }
 
 bool Mage::SuppressesArcaneMissiles(Unit const& mage)
