@@ -247,6 +247,8 @@
 // its last charge, and the use of Energy Cloak, which casts the same spell, gives none.
 // 1108 a staged Arcane mage's Invisibility fades in over 3 s, with Prismatic Cloak 3 makes him invisible at once, and
 // ends either way when he casts a spell.
+// 1121 a staged Arcane mage's Invisibility with Glyph of Invisibility casts Invisibility Speed on him, which raises his
+// run speed by its own 40% while he is invisible and goes when his Invisibility is cancelled.
 // 1109 a staged Arcane mage's Arcane Missiles fly at the Camel the channel started on: a switch of his selection to
 // another Camel during the channel moves no missile, and a cast at a Camel he has not selected fires all its missiles.
 // 1110 a staged Arcane mage's Mana Adept adds 12% at full mana, 6% at half and 1.5% a mastery point, Arcane
@@ -20684,6 +20686,167 @@ namespace Harness
     };
 
     /**
+     * S1121 `mage-invisibility-glyph-speed`: Glyph of Invisibility (56366, GlyphProperties 325) on a staged Arcane
+     * mage. The glyph's aura adds 40 through SPELLMOD_EFFECT3 to Invisibility (32612), whose third effect,
+     * SEE_WHILE_INVISIBLE, is 0 in the client's data; the client's texts name the speed that amount stands for as
+     * Invisibility Speed's (87833: MOD_INCREASE_SPEED at its effect 0 value of 40, with no duration, its restrictions
+     * row excluding its caster on the Run Speed Marker, 96223). Staged as 1108 stages him: Improved Counterspell
+     * (11255, rank 1 of 2, an Arcane talent that touches none of these spells), so the stage learns the Arcane tree's
+     * spells; Invisibility (66) learned, the glyph in a major slot. Once staged, his Offensive State (79684) and Mana
+     * Adept (76547) are taken off. Steps (F the time of step 1):
+     *  1. Invisibility's fade (66), cast by him at himself, triggered, at F, read at F+3.5 s: its expiry at F+3 s casts
+     *     32612 on him;
+     *  2. a wait at F+4 s, read kSwingReadMs after it;
+     *  3. his 32612 cancelled as the client's right-click does, at F+6 s, read kSwingReadMs after it.
+     * Right after each step acts and at its read, the scenario keeps whether he holds 66, 32612 and 87833 and his run
+     * speed in hundredths of the base, and notes 32612's effect 2 amount, 87833's effect 0 amount and whether he holds
+     * the marker, which no category judges.
+     *
+     * `invisSpeed`: `up=<32612>,<87833>,<speed>,down=<87833>,<speed>`, each holder 1 when he holds it and 0 when not,
+     * the speed his run speed in hundredths of the base: up at step 1's read, down at step 3's. OK at
+     * `up=1,1,<100 + B>,down=0,100`, B 87833's effect 0 base points in the spell store (40).
+     */
+    class MageInvisibilityGlyphSpeed : public MageProcScenario
+    {
+    public:
+        MageInvisibilityGlyphSpeed() : MageProcScenario("mage-invisibility-glyph-speed", 1121, "invisSpeed") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kFade }; }
+        std::vector<uint32> Glyphs() const override { return { kGlyphOfInvisibilitySlot }; }
+        uint32 CastReadMs() const override { return kFadeReadMs; }
+        uint32 Watched() const override { return kInvisibilitySpeed; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kGlyphOfInvisibility) + (p.HasAura(kGlyphOfInvisibility) ? " on him" : " not on him") +
+                       "; " + U(kFade) + (p.HasSpell(kFade) ? " known" : " unknown"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            return { SelfAura(kFade, kFadeToWaitMs), Wait(kWaitToCancelMs), SelfRemoval(kInvisibility, kEndMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 66: 49 fields, fnv a17ad32c
+                { 66, { { "eff0.present", 0 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 23 }, { "eff1.EffectAuraPeriod", 1000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectTriggerSpell", 35009 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.EffectBasePoints", 100 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectIndex", 2 } } },
+                { 35009, { { "absent", 1 } } },
+                // 32612: 72 fields, fnv c904b48b
+                { 32612, { { "eff0.present", 1 }, { "eff0.Effect", 176 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 18 }, { "eff1.EffectBasePoints", 340 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRealPointsPerLevel", 1084227584 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 335 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 56366: 26 fields, fnv 5b1b742c
+                { 56366, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 107 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 23 }, { "eff0.EffectSpellClassMask.Flags", 18014398509481984 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 87833: 26 fields, fnv 8adc3189
+                { 87833, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 31 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 96223: 26 fields, fnv ba87eed9
+                { 96223, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// Right after each step acts (`atRead` false) and at its read: whether he holds 66, 32612 and 87833 and his
+        /// run speed in hundredths of the base, kept in Seen::reads under `a_` for the act; noted with 32612's effect 2
+        /// amount, 87833's effect 0 amount and the marker's holder.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            const std::string prefix = atRead ? "" : "a_";
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            reads[prefix + "fade"] = p->HasAura(kFade) ? 1 : 0;
+            reads[prefix + "invisible"] = p->HasAura(kInvisibility) ? 1 : 0;
+            reads[prefix + "speed"] = p->HasAura(kInvisibilitySpeed) ? 1 : 0;
+            reads[prefix + "run"] = int64(std::lround(p->GetSpeedRate(MOVE_RUN) * 100.0f));
+            Aura const* switchAura = p->GetAura(kInvisibility, EFFECT_INDEX_2);
+            Aura const* speedAura = p->GetAura(kInvisibilitySpeed, EFFECT_INDEX_0);
+            char run[64];
+            snprintf(run, sizeof(run), "his run speed %.4f of the base", p->GetSpeedRate(MOVE_RUN));
+            const std::string switchAmount = switchAura ? std::to_string(switchAura->GetModifier()->m_amount) : "none";
+            const std::string speedAmount = speedAura ? std::to_string(speedAura->GetModifier()->m_amount) : "none";
+            m_rec.Note(std::string(atRead ? "at the read" : "right after the step acts") + ": " + U(kFade) + " " +
+                       HolderOf(p, kFade) + "; " + U(kInvisibility) + " " + HolderOf(p, kInvisibility) +
+                       ", its effect 2 at " + switchAmount + "; " + U(kInvisibilitySpeed) + " " +
+                       HolderOf(p, kInvisibilitySpeed) + ", its effect 0 at " + speedAmount + "; " + run +
+                       "; the marker " + U(kMarker) + " " + HolderOf(p, kMarker) + " (noted, not judged)");
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            SpellEntry const* speed = sSpellStore.LookupEntry(kInvisibilitySpeed);
+            SpellEffectEntry const* speedEffect = speed ? speed->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+            const int64 bonus = speedEffect ? int64(speedEffect->EffectBasePoints) : -1;
+            const std::string up = Num(Kept(st, kFadeStep, "invisible")) + "," + Num(Kept(st, kFadeStep, "speed")) +
+                                   "," + Num(Kept(st, kFadeStep, "run"));
+            const std::string down = Num(Kept(st, kCancelStep, "speed")) + "," + Num(Kept(st, kCancelStep, "run"));
+            const std::string value = "up=" + up + ",down=" + down;
+            const bool ok = bonus > 0 && up == "1,1," + Num(100 + bonus) && down == "0,100";
+            return (ok ? "OK(" : "BUG(") + value + "; whether he holds 32612 and 87833 and his run speed in " +
+                   "hundredths of the base at the read after the fade, then whether he holds 87833 and his run speed " +
+                   "at the read after 32612 is cancelled; 87833's effect 0 base points in the spell store " +
+                   Num(bonus) + ")";
+        }
+
+    private:
+        static constexpr uint32 kFade = 66;
+        static constexpr uint32 kInvisibility = 32612;
+        static constexpr uint32 kInvisibilitySpeed = 87833;
+        static constexpr uint32 kMarker = 96223;
+        static constexpr uint32 kGlyphOfInvisibility = 56366;
+        static constexpr uint32 kGlyphOfInvisibilitySlot = 325;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kFadeReadMs = 3500;         ///< the fade to its read, after its 3 s
+        static constexpr uint32 kFadeToWaitMs = 4000;       ///< the fade to the wait
+        static constexpr uint32 kWaitToCancelMs = 2000;     ///< the wait to the cancel
+        static constexpr uint32 kEndMs = 1000;              ///< the cancel to the end of the record
+        static constexpr size_t kSteps = 3;
+        static constexpr uint32 kFadeStep = 0;
+        static constexpr uint32 kCancelStep = 2;
+
+        /// A read ReadOwn kept for step k; -1 when it kept none of that name.
+        static int64 Kept(St const& st, uint32 k, char const* name)
+        {
+            if (k >= st.seen.size())
+            {
+                return -1;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(name);
+            return i == st.seen[k].reads.end() ? -1 : i->second;
+        }
+
+        static std::string Num(int64 v)
+        {
+            return std::to_string(v);
+        }
+    };
+
+    /**
      * S1109 `mage-arcane-missiles-channel-target`: Arcane Missiles (5143) on a staged Arcane mage with two Camels, A and
      * B, in a line across his front. Each missile (7268) aims at implicit target 77, the unit the channel started on
      * (his channel object), not at his selection. Staged with Improved Counterspell (11255, rank 1 of 2, an Arcane
@@ -26697,6 +26860,7 @@ namespace Harness
         r.Register(new MageArcaneBlink());
         r.Register(new MageArcaneAbsorbs());
         r.Register(new MageArcanePrismaticCloak());
+        r.Register(new MageInvisibilityGlyphSpeed());
         r.Register(new MageArcaneChannelTarget());
         r.Register(new MageArcanePassives());
         r.Register(new MageArcaneCooldowns());
