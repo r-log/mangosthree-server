@@ -286,7 +286,7 @@
 // same.
 // 1125 a staged Arcane mage gets the Run Speed Marker with Improved Blink's buff, Sprint and Darkflight; it refuses a
 // second Sprint while it stands, and goes when each buff ends, long before its own 30 s.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1119, 1120 and 1122-1125 (Qualify)
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117 and 1119-1125 (Qualify)
 // fingerprints every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any
 // script binding.
 namespace Harness
@@ -4192,7 +4192,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1029, 1100-1117, 1119, 1120, 1122, 1123, 1124, 1125): a human mage staged to level 85 with the
+     * 998-1000, 1010-1029, 1100-1117, 1119-1125): a human mage staged to level 85 with the
      * scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario
      * does to him once staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the
      * scenario keeps it
