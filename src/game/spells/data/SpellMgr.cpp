@@ -2727,6 +2727,12 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // Power Word: Barrier's ward (81782) and Glyph of Power Word: Barrier's healing (90785) stand together on one unit
+    if ((spellId_1 == 81782 && spellId_2 == 90785) || (spellId_1 == 90785 && spellId_2 == 81782))
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)
