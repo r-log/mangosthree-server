@@ -185,6 +185,10 @@ namespace
     uint32 const IMAGE_DUMMY_EFFECT_IDS[] = { 55342, 45204 };
     uint32 const IMAGE_TARGET_IDS[] = { 58836 };
 
+    // The ids the lockout scripts of the haste spells hold at the target and aura-apply hooks beside the mage's:
+    // Bloodlust, Heroism, Time Warp and Ancient Hysteria (LustLockoutTest tests their bodies).
+    uint32 const LUST_IDS[] = { 2825, 32182, 80353, 90355 };
+
     // The id the after-cast script holds: Blast Wave, which calls the free Flamestrike for Improved Flamestrike.
     uint32 const BLAST_WAVE_IDS[] = { 11113 };
 
@@ -1812,12 +1816,13 @@ TEST(MageScripts_BlinkKeepsOneTarget)
         CHECK(registry.Find<SelectTargetsHook>(spellId) != NULL);
         CHECK(game.Find<SelectTargetsHook>(spellId) == registry.Find<SelectTargetsHook>(spellId));
     }
-    // The target hook also holds Piercing Chill's chill (83154).
+    // The target hook also holds Piercing Chill's chill (83154), and the haste spells' lockout script.
     CHECK_EQ(game.CountAt(SelectTargetsHook::Key), sizeof(BLINK_IDS) / sizeof(uint32) +
                                                    sizeof(ORB_TARGET_IDS) / sizeof(uint32) +
                                                    sizeof(RING_FREEZE_IDS) / sizeof(uint32) +
                                                    sizeof(PIERCING_CHILL_CHILL_IDS) / sizeof(uint32) +
-                                                   sizeof(IMAGE_TARGET_IDS) / sizeof(uint32));
+                                                   sizeof(IMAGE_TARGET_IDS) / sizeof(uint32) +
+                                                   sizeof(LUST_IDS) / sizeof(uint32));
 
     // Blink sets the count the cut after the hook keeps to one and continues, so the cut runs; the list is untouched.
     BareCreature caster;
@@ -2343,7 +2348,8 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
              sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
              sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32) +
              sizeof(INVISIBILITY_IDS) / sizeof(uint32) +
-             sizeof(ICE_BARRIER_IDS) / sizeof(uint32) + sizeof(POLYMORPH_IDS) / sizeof(uint32));
+             sizeof(ICE_BARRIER_IDS) / sizeof(uint32) + sizeof(POLYMORPH_IDS) / sizeof(uint32) +
+             sizeof(LUST_IDS) / sizeof(uint32));
 
     // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
     // the call before the add, and a removal by re-application or with no caster, change nothing and let the holder's

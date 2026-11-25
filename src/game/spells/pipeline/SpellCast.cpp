@@ -610,18 +610,8 @@ void Spell::cast(bool skipCheck)
         case SPELLFAMILY_SHAMAN:
         {
             SpellEffectEntry const* spellEffect = m_spellInfo->GetSpellEffect(EFFECT_INDEX_0);
-            // Bloodlust
-            if (m_spellInfo->ID == 2825)
-            {
-                AddPrecastSpell(57724);                     // Sated
-            }
-            // Heroism
-            else if (m_spellInfo->ID == 32182)
-            {
-                AddPrecastSpell(57723);                     // Exhaustion
-            }
             // Spirit Walk
-            else if (m_spellInfo->ID == 58875)
+            if (m_spellInfo->ID == 58875)
             {
                 AddPrecastSpell(58876);
             }

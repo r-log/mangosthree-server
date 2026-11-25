@@ -274,12 +274,15 @@
 // the Fire images', base mana, Fireballs and lowest mana over their 30 s are recorded; a fifth summon's images stop
 // the Frostbolts they are casting at the Camel when he polymorphs it, nothing of theirs hits it after, and the
 // Polymorph holds.
+// 1123 a staged Frost mage's Time Warp hastes him and his Water Elemental and puts Temporal Displacement on both; a
+// second Time Warp hastes neither while they hold it, a third neither while he holds Sated and the pet Temporal
+// Displacement; with the lockouts taken off, his Bloodlust hastes both and puts Sated on both.
 // 1124 a staged Fire mage's Fade takes his threat on the Camel to 0 for its 10 s and keeps him on the Camel's list,
 // holds off the threat his Fire Blast earns under it and gives all of it back when it ends; a second Fade does the
 // same.
 // 1125 a staged Arcane mage gets the Run Speed Marker with Improved Blink's buff, Sprint and Darkflight; it refuses a
 // second Sprint while it stands, and goes when each buff ends, long before its own 30 s.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1119, 1120 and 1124-1125 (Qualify)
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1119, 1120 and 1123-1125 (Qualify)
 // fingerprints every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any
 // script binding.
 namespace Harness
@@ -4185,9 +4188,10 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1029, 1100-1117, 1119, 1120, 1124, 1125): a human mage staged to level 85 with the scenario's
-     * talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him
-     * once staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
+     * 998-1000, 1010-1029, 1100-1117, 1119, 1120, 1123, 1124, 1125): a human mage staged to level 85 with the
+     * scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario
+     * does to him once staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the
+     * scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
      * Camel (50249, or the creature TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its
      * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -23720,6 +23724,243 @@ namespace Harness
     };
 
     /**
+     * S1123 `mage-time-warp-lockout`: Time Warp (80353) and Bloodlust (2825) and the lockouts the client's texts give
+     * them, Temporal Displacement (80354) and Sated (57724), on a staged Frost mage and his Water Elemental (510):
+     * Piercing Ice 3 and Shatter 2 name the Frost tree, Time Warp is learned, and the pet is built for him after he is
+     * staged, kPetOffset yards to his side. Steps, a cast read kReadMs after it, any other kSwingReadMs after it:
+     *  1. Time Warp at T;
+     *  2. Time Warp again at T+2 s, its cooldown taken off first (the stepped clock never runs it out);
+     *  3. his Time Warp and 4. his Temporal Displacement cancelled by call (Unit::RemoveAurasDueToSpellByCancel); the
+     *     pet keeps both;
+     *  5. Sated cast by him at himself, triggered;
+     *  6. Time Warp a third time at T+5 s, its cooldown taken off first;
+     *  7. a wait at whose act Time Warp, Temporal Displacement, Sated, Exhaustion (57723) and Insanity (95809) are
+     *     taken off him and his pet by call;
+     *  8. Bloodlust cast by him at himself, triggered.
+     * At the reads of steps 1, 2, 6 and 8 the scenario keeps, for him and for his pet, whether the step's haste (80353,
+     * or 2825 at step 8) landed with the step's cast (its holder's full duration less its time left is under
+     * kFreshMs), whether the step's lockout (80354, or 57724 at step 8) stands, and that lockout's full duration.
+     *
+     * `lockout`: `first=<his 80353>,<his 80354>,<pet 80353>,<pet 80354>,second=<his 80353>,<pet 80353>,sated=<his
+     * 80353>,<pet 80353>,bloodlust=<his 2825>,<his 57724>,<pet 2825>,<pet 57724>`, at the reads of steps 1, 2, 6 and 8:
+     * 1 for a haste that landed with the step's cast or a lockout that stands, 0 otherwise. OK at
+     * `first=1,1,1,1,second=0,0,sated=0,0,bloodlust=1,1,1,1` with each lockout that stands at the full duration of its
+     * SpellDuration row (600000): every unit Time Warp hastes, the pet and the caster included, gets Temporal
+     * Displacement; Time Warp hastes no unit that holds it or Sated; Bloodlust hastes both and puts Sated on both.
+     */
+    class MageTimeWarpLockout : public MageProcScenario
+    {
+    public:
+        MageTimeWarpLockout() : MageProcScenario("mage-time-warp-lockout", 1123, "lockout") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 11157, 2 }, { 11158, 1 } }; }
+        std::vector<uint32> Spells() const override { return { kTimeWarp }; }
+        uint32 PetEntry() const override { return kWaterElemental; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 Watched() const override { return kTimeWarp; }
+        bool NotesBeforeStep() const override { return true; }
+
+        std::vector<Step> Steps() const override
+        {
+            Step again = AuraCast(kTimeWarp, kAgainToCancelMs);
+            again.clearCooldown = true;
+            Step lockedOut = AuraCast(kTimeWarp, kLockedOutToClearMs);
+            lockedOut.clearCooldown = true;
+            return { AuraCast(kTimeWarp, kFirstToAgainMs), again, SelfRemoval(kTimeWarp, kCancelEveryMs),
+                     SelfRemoval(kTemporalDisplacement, kCancelEveryMs), SelfAura(kSated, kSatedToCastMs), lockedOut,
+                     Wait(kClearToBloodlustMs), SelfAura(kBloodlust, kEndMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 80353: 72 fields, fnv 9585b365
+                { 80353, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 192 }, { "eff0.EffectBasePoints", 30 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_0", 12 }, { "eff0.ImplicitTarget_0", 56 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 61 }, { "eff1.EffectBasePoints", 30 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRadiusIndex_0", 12 }, { "eff1.ImplicitTarget_0", 56 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 65 }, { "eff2.EffectBasePoints", 30 }, { "eff2.EffectBonusCoefficient", 1065353216 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectRadiusIndex_0", 12 }, { "eff2.ImplicitTarget_0", 56 }, { "eff2.EffectIndex", 2 } } },
+                // 80354: 26 fields, fnv f73d524f
+                { 80354, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 2825: 72 fields, fnv 9585b365
+                { 2825, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 192 }, { "eff0.EffectBasePoints", 30 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_0", 12 }, { "eff0.ImplicitTarget_0", 56 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 61 }, { "eff1.EffectBasePoints", 30 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectRadiusIndex_0", 12 }, { "eff1.ImplicitTarget_0", 56 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 65 }, { "eff2.EffectBasePoints", 30 }, { "eff2.EffectBonusCoefficient", 1065353216 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectRadiusIndex_0", 12 }, { "eff2.ImplicitTarget_0", 56 }, { "eff2.EffectIndex", 2 } } },
+                // 57724: 26 fields, fnv f73d524f
+                { 57724, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 25 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12953: 26 fields, fnv 5ddaf0d2
+                { 12953, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 7 }, { "eff0.EffectSpellClassMask.Flags", 17592186175520 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 12982: 49 fields, fnv 78c33ea5
+                { 12982, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 112 }, { "eff0.EffectBasePoints", 10 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 5506664021758583 }, { "eff0.EffectSpellClassMask.Flags2", 160 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 20 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 76613: 49 fields, fnv a5f94991
+                { 76613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBonusCoefficient", 1075838976 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 911 }, { "eff0.EffectSpellClassMask.Flags", 4943714068337271 }, { "eff0.EffectSpellClassMask.Flags2", 32 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 250 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At the act of the wait (step 7), Time Warp and the four lockouts taken off him and his pet by call; at every
+        /// act, a note of what each holds. At the reads of steps 1, 2, 6 and 8, for him and his pet: whether the step's
+        /// haste landed with its cast, whether its lockout stands, and that lockout's full duration (-1 for none).
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            Pet* pet = p->GetPet();
+            if (!atRead && k == kClearStep)
+            {
+                for (Unit* unit : { static_cast<Unit*>(p), static_cast<Unit*>(pet) })
+                {
+                    if (!unit)
+                    {
+                        continue;
+                    }
+                    for (uint32 spell : { kTimeWarp, kTemporalDisplacement, kSated, kExhaustion, kInsanity })
+                    {
+                        unit->RemoveAurasDueToSpell(spell);
+                    }
+                }
+                m_rec.Note("Time Warp and the four lockouts taken off him and his pet by call");
+            }
+            const uint32 haste = k == kBloodlustStep ? kBloodlust : kTimeWarp;
+            const uint32 lockout = k == kBloodlustStep ? kSated : kTemporalDisplacement;
+            m_rec.Note(std::string(atRead ? "at the read" : "at the act") + ": him " + Held(p, haste, lockout) +
+                       "; his pet " + (pet ? Held(pet, haste, lockout) : std::string("none")));
+            if (!atRead || (k != kFirstStep && k != kAgainStep && k != kLockedOutStep && k != kBloodlustStep))
+            {
+                return;
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            reads["self"] = Landed(p, haste);
+            reads["selfLockout"] = p->GetSpellAuraHolder(lockout) ? 1 : 0;
+            reads["selfLockoutLength"] = HolderDuration(p, lockout);
+            if (pet)
+            {
+                reads["pet"] = Landed(pet, haste);
+                reads["petLockout"] = pet->GetSpellAuraHolder(lockout) ? 1 : 0;
+                reads["petLockoutLength"] = HolderDuration(pet, lockout);
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const std::string first = ReadText(st, kFirstStep, "self") + "," +
+                                      ReadText(st, kFirstStep, "selfLockout") + "," +
+                                      ReadText(st, kFirstStep, "pet") + "," + ReadText(st, kFirstStep, "petLockout");
+            const std::string second = ReadText(st, kAgainStep, "self") + "," + ReadText(st, kAgainStep, "pet");
+            const std::string sated = ReadText(st, kLockedOutStep, "self") + "," + ReadText(st, kLockedOutStep, "pet");
+            const std::string bloodlust = ReadText(st, kBloodlustStep, "self") + "," +
+                                          ReadText(st, kBloodlustStep, "selfLockout") + "," +
+                                          ReadText(st, kBloodlustStep, "pet") + "," +
+                                          ReadText(st, kBloodlustStep, "petLockout");
+            const std::string value = "first=" + first + ",second=" + second + ",sated=" + sated + ",bloodlust=" +
+                                      bloodlust;
+
+            SpellEntry const* displacement = sSpellStore.LookupEntry(kTemporalDisplacement);
+            SpellEntry const* satedRow = sSpellStore.LookupEntry(kSated);
+            const int32 displacementLength = displacement ? GetSpellMaxDuration(displacement) : -1;
+            const int32 satedLength = satedRow ? GetSpellMaxDuration(satedRow) : -1;
+            const bool lengthsOk = displacementLength > 0 && satedLength > 0 &&
+                                   LengthsMatch(st, kFirstStep, displacementLength) &&
+                                   LengthsMatch(st, kBloodlustStep, satedLength);
+            const std::string lengths = "the full durations of " + U(kTemporalDisplacement) + " on him and his pet " +
+                                        std::to_string(ReadOf(st, kFirstStep, "selfLockoutLength")) + "/" +
+                                        std::to_string(ReadOf(st, kFirstStep, "petLockoutLength")) + " of its row's " +
+                                        std::to_string(displacementLength) + " ms, of " + U(kSated) + " " +
+                                        std::to_string(ReadOf(st, kBloodlustStep, "selfLockoutLength")) + "/" +
+                                        std::to_string(ReadOf(st, kBloodlustStep, "petLockoutLength")) +
+                                        " of its row's " + std::to_string(satedLength) + " ms";
+            const bool ok = value == "first=1,1,1,1,second=0,0,sated=0,0,bloodlust=1,1,1,1" && lengthsOk;
+            return (ok ? "OK(" : "BUG(") + value + "; " + lengths + "; a haste 1 when it landed with the step's " +
+                   "cast, a lockout 1 when it stands; every unit Time Warp hastes gets Temporal Displacement, Time " +
+                   "Warp hastes no unit that holds it or Sated, Bloodlust hastes both and puts Sated on both)";
+        }
+
+    private:
+        static constexpr uint32 kTimeWarp = 80353;
+        static constexpr uint32 kTemporalDisplacement = 80354;
+        static constexpr uint32 kBloodlust = 2825;
+        static constexpr uint32 kSated = 57724;
+        static constexpr uint32 kExhaustion = 57723;
+        static constexpr uint32 kInsanity = 95809;
+        static constexpr uint32 kWaterElemental = 510;
+        static constexpr uint32 kReadMs = 500;              ///< a cast to its read
+        static constexpr int32 kFreshMs = 1000;             ///< a haste that has run less than this is the step's
+        static constexpr uint32 kFirstToAgainMs = 2000;     ///< the first Time Warp to the second, past its GCD
+        static constexpr uint32 kAgainToCancelMs = 1000;    ///< the second Time Warp to the first cancel
+        static constexpr uint32 kCancelEveryMs = 500;       ///< a cancel to the next step
+        static constexpr uint32 kSatedToCastMs = 1000;      ///< Sated to the third Time Warp, 3 s after the second
+        static constexpr uint32 kLockedOutToClearMs = 1000; ///< the third Time Warp to the wait that takes them off
+        static constexpr uint32 kClearToBloodlustMs = 500;  ///< that wait to Bloodlust
+        static constexpr uint32 kEndMs = 1000;              ///< Bloodlust to the end of the record
+        static constexpr size_t kSteps = 8;
+        static constexpr uint32 kFirstStep = 0;
+        static constexpr uint32 kAgainStep = 1;
+        static constexpr uint32 kLockedOutStep = 5;
+        static constexpr uint32 kClearStep = 6;
+        static constexpr uint32 kBloodlustStep = 7;
+
+        /// Whether `unit`'s holder of `spell` has run less than kFreshMs of its full duration: 1, else 0 (none counts
+        /// as 0).
+        static int64 Landed(Unit* unit, uint32 spell)
+        {
+            SpellAuraHolder* holder = unit ? unit->GetSpellAuraHolder(spell) : NULL;
+            return holder && holder->GetAuraMaxDuration() - holder->GetAuraDuration() < kFreshMs ? 1 : 0;
+        }
+
+        /// `unit`'s holders of `haste` and `lockout`, each as HolderOf finds it, with its time left of its full
+        /// duration.
+        std::string Held(Unit* unit, uint32 haste, uint32 lockout)
+        {
+            std::string text;
+            for (uint32 spell : { haste, lockout })
+            {
+                SpellAuraHolder* holder = unit->GetSpellAuraHolder(spell);
+                text += (text.empty() ? "" : ", ") + U(spell) + " " + HolderOf(unit, spell) +
+                        (holder ? " (" + std::to_string(holder->GetAuraDuration()) + " of " +
+                                  std::to_string(holder->GetAuraMaxDuration()) + " ms)"
+                                : std::string());
+            }
+            return text;
+        }
+
+        /// What ReadOwn kept under `key` for step k; -2 when unread.
+        static int64 ReadOf(St const& st, uint32 k, char const* key)
+        {
+            if (k >= st.seen.size())
+            {
+                return -2;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(key);
+            return i == st.seen[k].reads.end() ? -2 : i->second;
+        }
+
+        /// A kept 1 or 0 as written; `unread` for a step not read or a pet that was missing.
+        static std::string ReadText(St const& st, uint32 k, char const* key)
+        {
+            const int64 value = ReadOf(st, k, key);
+            return value == 1 ? "1" : value == 0 ? "0" : "unread";
+        }
+
+        /// Whether each lockout step k found standing on him and his pet holds the full duration `length`.
+        static bool LengthsMatch(St const& st, uint32 k, int32 length)
+        {
+            for (char const* who : { "self", "pet" })
+            {
+                const std::string held = std::string(who) + "Lockout";
+                if (ReadOf(st, k, held.c_str()) == 1 && ReadOf(st, k, (held + "Length").c_str()) != length)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+    };
+
+    /**
      * S1014 `mage-frost-improved-coc`: Improved Cone of Cold's freeze (83302), for a staged Frost mage: Piercing Ice
      * 3 and Shatter 2, then Improved Cone of Cold 2 (12489); Cone of Cold (120) and Ice Lance (30455) learned,
      * kSpellPower spell power; before each cast he takes Precision (13843, +6% spell hit), so no cast misses. Camel 1
@@ -27229,6 +27470,7 @@ namespace Harness
         r.Register(new MageFrostImprovedConeOfCold());
         r.Register(new MageFrostRing());
         r.Register(new MageFrostWaterElemental());
+        r.Register(new MageTimeWarpLockout());
         r.Register(new MageFrostPetAssist());
         r.Register(new MageFrostCooldowns());
         r.Register(new MageFrostPassives());
