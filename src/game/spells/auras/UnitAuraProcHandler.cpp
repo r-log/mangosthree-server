@@ -1015,13 +1015,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
                     break;
                 }
-                // Divine Aegis
-                case 2820:
-                {
-                    basepoints[0] = damage * triggerAmount / 100;
-                    triggered_spell_id = 47753;
-                    break;
-                }
                 // Empowered Renew
                 case 3021:
                 {
