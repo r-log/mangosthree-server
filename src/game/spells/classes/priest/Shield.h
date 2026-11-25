@@ -33,9 +33,9 @@
  * @brief Power Word: Shield's amount and what its end gives its caster: the leaves of Shield.cpp.
  *
  * Shield.cpp registers two rows on Power Word: Shield (17): at the aura-amount hook its whole amount is reckoned,
- * raised by Improved Power Word: Shield and by the Shield Discipline mastery (ShieldAmount, AbsorbMastery), and at the
- * aura-remove hook a shield used up or dispelled gives its caster Rapture's mana (RaptureFires, RaptureMana), once in
- * the energize's recovery time, which his cooldown store keeps.
+ * raised by Improved Power Word: Shield, Twin Disciplines and the Shield Discipline mastery (ShieldAmount,
+ * AbsorbMastery), and at the aura-remove hook a shield used up or dispelled gives its caster Rapture's mana
+ * (RaptureFires, RaptureMana), once in the energize's recovery time, which his cooldown store keeps.
  */
 
 namespace Priest
@@ -49,9 +49,10 @@ namespace Priest
     int32 AbsorbMastery(Unit const& caster);
 
     /// The amount of a Power Word: Shield whose base and spell power part come to `amount`, raised by
-    /// `improvedPercent` (Improved Power Word: Shield's rank) and by `masteryPercent` (AbsorbMastery), each a factor of
-    /// its own, truncated once; a percent of 0 or less raises nothing, and an amount of 0 or less stays as it is.
-    int32 ShieldAmount(int32 amount, int32 improvedPercent, int32 masteryPercent);
+    /// `improvedPercent` (Improved Power Word: Shield's rank), `twinPercent` (Twin Disciplines' rank, its healing done)
+    /// and `masteryPercent` (AbsorbMastery), each a factor of its own, truncated once, the product the client's tooltip
+    /// takes; a percent of 0 or less raises nothing, and an amount of 0 or less stays as it is.
+    int32 ShieldAmount(int32 amount, int32 improvedPercent, int32 twinPercent, int32 masteryPercent);
 
     /// Whether a Power Word: Shield removed in `mode` gives its caster Rapture's mana: one whose last point damage used
     /// up (AURA_REMOVE_BY_SHIELD_BREAK) or one dispelled (AURA_REMOVE_BY_DISPEL); no other removal.

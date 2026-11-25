@@ -23,13 +23,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield and the
-/// mastery, Rapture's removal modes and mana, the two rows the file registers, in the game's table too, and the
-/// exits of its two scripts that change nothing. The scripts run on a bare Creature (update fields allocated; no
-/// map, template or AI), whose holder map holds the test's empty holders where a script asks whether it holds an aura;
-/// an empty holder has no aura, so its effect 0 amount is 0. No case reaches a cast or a lookup of the spell store,
-/// so the rows other tests leave there change nothing here. Scenario 1202 records the amount as the clients are told
-/// it, the heal, the mana and the lockout, the energize's recovery time in his cooldown store, in play.
+/// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield, Twin
+/// Disciplines and the mastery, Rapture's removal modes and mana, the two rows the file registers, in the game's
+/// table too, and the exits of its two scripts that change nothing. The scripts run on a bare Creature (update fields
+/// allocated; no map, template or AI), whose holder map holds the test's empty holders where a script asks whether it
+/// holds an aura; an empty holder has no aura, so its effect 0 amount is 0. No case reaches a cast or a lookup of the
+/// spell store, so the rows other tests leave there change nothing here. Scenario 1202 records the amount as the
+/// clients are told it, the heal, the mana and the lockout, the energize's recovery time in his cooldown store, in
+/// play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/Shield.h"
@@ -103,27 +104,33 @@ namespace
     }
 }
 
-TEST(PriestShield_TheAmountIsRaisedByImprovedPowerWordShieldAndByTheMasteryEachAFactor)
+TEST(PriestShield_TheAmountIsRaisedByImprovedPowerWordShieldTwinDisciplinesAndTheMasteryEachAFactor)
 {
-    // Improved Power Word: Shield's two ranks (14748, 14768: 10 and 20) and the mastery's 8 points at 2.5 a point (20).
-    CHECK_EQ(Priest::ShieldAmount(10000, 0, 0), int32(10000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 10, 0), int32(11000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 20, 0), int32(12000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 0, 20), int32(12000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 20, 20), int32(14400));
-    CHECK_EQ(Priest::ShieldAmount(10000, 10, 20), int32(13200));
+    // Improved Power Word: Shield's two ranks (14748, 14768: 10 and 20), Twin Disciplines' three (47586, 47587, 47588:
+    // 2, 4 and 6) and the mastery's 8 points at 2.5 a point (20).
+    CHECK_EQ(Priest::ShieldAmount(10000, 0, 0, 0), int32(10000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 10, 0, 0), int32(11000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 0, 0), int32(12000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 0, 6, 0), int32(10600));
+    CHECK_EQ(Priest::ShieldAmount(10000, 0, 0, 20), int32(12000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 0, 20), int32(14400));
+    CHECK_EQ(Priest::ShieldAmount(10000, 10, 0, 20), int32(13200));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 6, 20), int32(15264));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 2, 20), int32(14688));
 
-    // Truncated once, after both factors: 1707 x 1.2 x 1.2 is 2458.08; truncated after each it would be 2457.
-    CHECK_EQ(Priest::ShieldAmount(1707, 20, 20), int32(2458));
-    CHECK_EQ(Priest::ShieldAmount(1, 20, 20), int32(1));
+    // Truncated once, after every factor: 1707 x 1.2 x 1.2 is 2458.08, truncated after each it would be 2457; with
+    // Twin Disciplines 3, 1707 x 1.2 x 1.06 x 1.2 is 2605.56.
+    CHECK_EQ(Priest::ShieldAmount(1707, 20, 0, 20), int32(2458));
+    CHECK_EQ(Priest::ShieldAmount(1707, 20, 6, 20), int32(2605));
+    CHECK_EQ(Priest::ShieldAmount(1, 20, 6, 20), int32(1));
 
     // A percent of 0 or less raises nothing; an amount of 0 or less stays as it is.
-    CHECK_EQ(Priest::ShieldAmount(10000, -20, -20), int32(10000));
-    CHECK_EQ(Priest::ShieldAmount(0, 20, 20), int32(0));
-    CHECK_EQ(Priest::ShieldAmount(-5, 20, 20), int32(-5));
+    CHECK_EQ(Priest::ShieldAmount(10000, -20, -6, -20), int32(10000));
+    CHECK_EQ(Priest::ShieldAmount(0, 20, 6, 20), int32(0));
+    CHECK_EQ(Priest::ShieldAmount(-5, 20, 6, 20), int32(-5));
 
     // A large shield does not overflow on the way.
-    CHECK_EQ(Priest::ShieldAmount(1000000, 20, 50), int32(1800000));
+    CHECK_EQ(Priest::ShieldAmount(1000000, 20, 6, 50), int32(1908000));
 }
 
 TEST(PriestShield_RaptureComesFromAShieldUsedUpOrDispelledAlone)
@@ -173,8 +180,10 @@ TEST(PriestShield_PowerWordShieldHoldsTheAuraAmountAndRemoveScriptsInTheGame)
     CHECK(game.Find<AuraRemoveHook>(POWER_WORD_SHIELD) == registry.Find<AuraRemoveHook>(POWER_WORD_SHIELD));
 
     // The talents and spells the scripts read hold no row of their own at either hook: Improved Power Word: Shield's
-    // ranks, Shield Discipline, Rapture's ranks and its energize, Borrowed Time's ranks and its haste.
-    for (uint32 spellId : { 14748u, 14768u, 77484u, 47535u, 47536u, 47537u, 47755u, 52795u, 52797u, 59888u })
+    // ranks, Twin Disciplines', Shield Discipline, Rapture's ranks and its energize, Borrowed Time's ranks and its
+    // haste.
+    for (uint32 spellId : { 14748u, 14768u, 47586u, 47587u, 47588u, 77484u, 47535u, 47536u, 47537u, 47755u, 52795u,
+                            52797u, 59888u })
     {
         CHECK(game.Find<AuraAmountHook>(spellId) == NULL);
         CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);

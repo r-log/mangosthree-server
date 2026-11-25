@@ -38,8 +38,10 @@ namespace
     /// The id the shield's scripts hold at the aura-amount and aura-remove hooks.
     uint32 const SHIELD_IDS[] = { POWER_WORD_SHIELD };
 
-    /// Improved Power Word: Shield's ranks and Rapture's, the highest first: a priest knows one rank of each.
+    /// Improved Power Word: Shield's ranks, Twin Disciplines' and Rapture's, the highest first: a priest knows one rank
+    /// of each.
     uint32 const IMPROVED_POWER_WORD_SHIELD[] = { 14768, 14748 };
+    uint32 const TWIN_DISCIPLINES[] = { 47588, 47587, 47586 };
     uint32 const RAPTURE[] = { 47537, 47536, 47535 };
 
     /// The first of `ranks` that `unit` holds; 0 when he holds none.
@@ -65,11 +67,12 @@ namespace
 
     /// 17: Power Word: Shield: when its absorb is made, the amount is the whole shield: the base the engine reckoned,
     /// plus the spell power part (the caster's spell power of the shield's school times the coefficient the absorb
-    /// kind takes), raised by the effect 0 percent of the Improved Power Word: Shield rank the caster holds and by his
-    /// Shield Discipline mastery (Priest::ShieldAmount, Priest::AbsorbMastery). The absorb aura adds no spell power
-    /// part at its apply for a spell with this row (Aura::HandleSchoolAbsorb), so the holder's slot update, sent before
-    /// the apply, carries the whole amount, and its boosts, Glyph of Power Word: Shield's heal among them, read it. A
-    /// shield made while its target loads, or with no caster, keeps the amount the engine reckoned.
+    /// kind takes), raised by the effect 0 percent of the Improved Power Word: Shield rank the caster holds, by the
+    /// effect 1 percent of his Twin Disciplines rank (its healing done) and by his Shield Discipline mastery
+    /// (Priest::ShieldAmount, Priest::AbsorbMastery), as the client's own tooltip reckons it. The absorb aura adds no
+    /// spell power part at its apply for a spell with this row (Aura::HandleSchoolAbsorb), so the holder's slot update,
+    /// sent before the apply, carries the whole amount, and its boosts, Glyph of Power Word: Shield's heal among them,
+    /// read it. A shield made while its target loads, or with no caster, keeps the amount the engine reckoned.
     SpellHandlerOutcome<void> ShieldAuraAmount(AuraAmountContext& ctx)
     {
         if (!ctx.caster || ctx.target.IsLoading() || ctx.effIndex != EFFECT_INDEX_0)
@@ -81,7 +84,9 @@ namespace
                                                             SPELL_BONUS_KIND_ABSORB);
         int32 const improvedPercent = HeldAmount(*ctx.caster, HeldRank(*ctx.caster, IMPROVED_POWER_WORD_SHIELD),
                                                  EFFECT_INDEX_0);
-        ctx.amount = Priest::ShieldAmount(ctx.amount + part, improvedPercent, Priest::AbsorbMastery(*ctx.caster));
+        int32 const twinPercent = HeldAmount(*ctx.caster, HeldRank(*ctx.caster, TWIN_DISCIPLINES), EFFECT_INDEX_1);
+        ctx.amount = Priest::ShieldAmount(ctx.amount + part, improvedPercent, twinPercent,
+                                          Priest::AbsorbMastery(*ctx.caster));
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -127,15 +132,16 @@ int32 Priest::AbsorbMastery(Unit const& caster)
     return holder ? AuraHandle(*holder).Amount(EFFECT_INDEX_0) : 0;
 }
 
-int32 Priest::ShieldAmount(int32 amount, int32 improvedPercent, int32 masteryPercent)
+int32 Priest::ShieldAmount(int32 amount, int32 improvedPercent, int32 twinPercent, int32 masteryPercent)
 {
     if (amount <= 0)
     {
         return amount;
     }
     int64 const improved = 100 + (improvedPercent > 0 ? improvedPercent : 0);
+    int64 const twin = 100 + (twinPercent > 0 ? twinPercent : 0);
     int64 const mastery = 100 + (masteryPercent > 0 ? masteryPercent : 0);
-    return int32(int64(amount) * improved * mastery / 10000);
+    return int32(int64(amount) * improved * twin * mastery / 1000000);
 }
 
 bool Priest::RaptureFires(AuraRemoveMode mode)
