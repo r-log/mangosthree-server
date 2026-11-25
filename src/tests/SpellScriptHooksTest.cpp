@@ -29,7 +29,7 @@
 /// handle's reads, its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to,
 /// RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and the period, tick
 /// time, duration and amount a copy keeps, the low-health multiplier a script query answers from the caster's
-/// class-script auras, and the game table, whose only hook rows are the mage's scripts.
+/// class-script auras, and the game table, whose only hook rows are the class scripts'.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -51,6 +51,7 @@
 /// creature's holder map; each holder the effect takes leaves through Unit::RemoveSpellAuraHolder.
 
 #include "TestHarness.h"
+#include "SpellHandlerGolden.h"
 #include "spells/SpellScriptHooks.h"
 #include "combat/CombatNotices.h"
 #include "spells/SpellScriptQueries.h"
@@ -60,11 +61,13 @@
 #include "DBCStores.h"
 #include "data/ServerSpellStore.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <ctime>
 #include <list>
 #include <new>
+#include <utility>
 #include <vector>
 
 namespace
@@ -531,22 +534,20 @@ TEST(SpellScriptHooks_TheSeventeenKeysAre100To116AboveEveryLegacySite)
     CHECK(LaunchHook::Key > AfterCastHook::Key);
     CHECK(CastStartHook::Key > LaunchHook::Key);
 
-    // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
-    // check-proc, proc, damage-done, crit-chance, dummy aura, aura-apply, aura-remove, periodic-tick, dummy-effect,
-    // after-cast, launch, cast-start and after-hit hooks, and the lust scripts at the target and aura-apply hooks.
+    // Every key the game registers sits at a legacy site, below the first hook, or at one of the seventeen hooks,
+    // where the class scripts' rows are (SpellScriptHooks_TheGameTableHoldsTheClassScriptsAndNoOtherHookRow).
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
     {
         belowHooks += game.CountAt(site);
     }
-    CHECK_EQ(belowHooks + game.CountAt(SelectTargetsHook::Key) + game.CountAt(CheckProcHook::Key) +
-             game.CountAt(OnProcHook::Key) + game.CountAt(DamageDoneHook::Key) + game.CountAt(CritChanceHook::Key) +
-             game.CountAt(DummyAuraHook::Key) + game.CountAt(AuraApplyHook::Key) + game.CountAt(AuraRemoveHook::Key) +
-             game.CountAt(PeriodicTickHook::Key) + game.CountAt(DummyEffectHook::Key) +
-             game.CountAt(AfterCastHook::Key) + game.CountAt(LaunchHook::Key) + game.CountAt(CastStartHook::Key) +
-             game.CountAt(AfterHitHook::Key),
-             game.Count());
+    std::size_t atHooks = 0;
+    for (uint32 key : keys)
+    {
+        atHooks += game.CountAt(key);
+    }
+    CHECK_EQ(belowHooks + atHooks, game.Count());
 }
 
 TEST(SpellScriptHooks_TheCastStartHookCarriesTheSpellTheTargetAndTheCastTime)
@@ -1369,48 +1370,33 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
     delete source;
 }
 
-TEST(SpellScriptHooks_TheGameTableHoldsTheMageAndLustScriptsAndNoOtherHookRow)
+TEST(SpellScriptHooks_TheGameTableHoldsTheClassScriptsAndNoOtherHookRow)
 {
-    // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's, Arcane Potency's two
-    // buffs', Fingers of Frost's three, Brain Freeze's three, Invocation's two and Reactive Barrier's two ranks', the
-    // proc hook the mage's 27 proc scripts, the target hook Blink's, the orbs' scans', the ring's freeze's, Piercing
-    // Chill's chill's, Initialize Images' and the four haste spells' (Bloodlust's, Heroism's, Time Warp's and Ancient
-    // Hysteria's), the damage-done hook the 22 spells Frostburn's class mask covers and Torment the Weak's three ranks,
-    // the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook
-    // Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s, Arcane Missiles', Ice Barrier's,
-    // Invisibility's state's, the seven forms of Polymorph's and the four haste spells', the aura-remove hook Hot
-    // Streak's buff's, Mage Ward's, Mana Shield's, Ice Barrier's, Invisibility's state's, Pyromaniac's ten, Arcane
-    // Missiles!'s and the seven forms of Polymorph's and the ring's freeze's, the periodic-tick hook Ring of Frost's,
-    // the dummy-effect hook Ritual of Refreshment's, Combustion's, Impact's spread, Flame Orb's, Frostfire Orb's, the
-    // orbs' scans', Mirror Image's and Clone Me!'s, the after-cast hook Blast Wave's, Replenish Mana's and the Water
-    // Elemental's Freeze's, the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's, Fireball's, Ice Block's,
-    // Arcane Missiles' and Blizzard's, the cast-start hook Frostbolt's, and the after-hit hook Frostbolt's, Cone of
-    // Cold's, Blizzard's damage's and Frostfire Bolt's (MageScriptsTest and LustLockoutTest name their ids); no other hook holds a row.
-    uint32 const emptyKeys[] =
+    // Every row at a hook is a class script's (RegisterClassScripts: the mage's, the haste spells' and the priest's;
+    // MageScriptsTest, LustLockoutTest and PriestScriptsTest name their ids and bodies): at each hook the class scripts
+    // hold as many rows as goldens/spell_handler_keys.txt lists there, and the game's table no other; every key of
+    // theirs is a line of the golden and a key of the game's table.
+    uint32 const hooks[] =
     {
-        CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
+        CheckCastHook::Key, SelectTargetsHook::Key, EffectValueHook::Key, DummyEffectHook::Key, AfterHitHook::Key,
+        AuraAmountHook::Key, AuraApplyHook::Key, AuraRemoveHook::Key, PeriodicTickHook::Key, CheckProcHook::Key,
+        OnProcHook::Key, DamageDoneHook::Key, CritChanceHook::Key, DummyAuraHook::Key, AfterCastHook::Key,
+        LaunchHook::Key, CastStartHook::Key,
     };
+    SpellHandlerRegistry const& classes = SpellHandlerGolden::ClassScripts();
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    for (uint32 key : emptyKeys)
+    for (uint32 key : hooks)
     {
-        CHECK_EQ(game.CountAt(key), std::size_t(0));
+        CHECK_EQ(classes.CountAt(key), SpellHandlerGolden::CountAt(key));
+        CHECK_EQ(game.CountAt(key), classes.CountAt(key));
     }
-    CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(16));
-    CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(27));
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(10));
-    CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(25));
-    CHECK_EQ(game.CountAt(CritChanceHook::Key), std::size_t(26));
-    CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(25));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(24));
-    CHECK_EQ(game.CountAt(PeriodicTickHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(9));
-    CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(3));
-    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(7));
-    CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(4));
-    CHECK_EQ(game.Count(), std::size_t(1402));
-    CHECK_EQ(game.CountDefaults(), std::size_t(29));
+    std::vector<std::pair<uint32, uint32> > const theirs = classes.Keys();
+    std::vector<std::pair<uint32, uint32> > const all = game.Keys();
+    CHECK(std::includes(all.begin(), all.end(), theirs.begin(), theirs.end()));
+    for (std::pair<uint32, uint32> const& key : theirs)
+    {
+        CHECK(SpellHandlerGolden::Holds(key));
+    }
 }
 
 namespace

@@ -186,6 +186,18 @@ namespace Harness
         uint32                 m_pendingSeed;   ///< the seed base Start was given, held until the read answers
         uint32                 m_startToken;    ///< incremented by every Start that stages a read; the callback's ticket
     };
+
+    /// A scenario file of Harness/, Scenarios<Topic>.cpp, and the function it defines to register its scenarios on a
+    /// runner, Register<Topic>Scenarios.
+    struct ScenarioFile
+    {
+        char const* topic;                          ///< the file's name without "Scenarios" and ".cpp"
+        void (*registerScenarios)(Runner& r);       ///< Register<topic>Scenarios
+    };
+
+    /// Every Harness/Scenarios<Topic>.cpp, by file name, as src/game/CMakeLists.txt found them at configure time. The
+    /// runner registers each file's scenarios from this list, so a new scenario file needs no line in any other file.
+    std::vector<ScenarioFile> const& ScenarioFiles();
 }
 
 #define sHarness MaNGOS::Singleton<Harness::Runner>::Instance()

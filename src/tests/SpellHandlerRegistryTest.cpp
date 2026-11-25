@@ -341,6 +341,7 @@
 ///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
 
 #include "TestHarness.h"
+#include "SpellHandlerGolden.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/handlers/AuraShapeshiftHandlers.h"
@@ -827,7 +828,8 @@ TEST(AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances)
 
     // The game's table is the same one.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyApplyWarriorSite::Key), std::size_t(6));
+    CHECK_EQ(game.CountAt(AuraDummyApplyWarriorSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyApplyWarriorSite::Key));
     for (uint32 spellId : stances)
     {
         CHECK(game.Find<AuraDummyApplyWarriorSite>(spellId) == registry.Find<AuraDummyApplyWarriorSite>(spellId));
@@ -896,26 +898,17 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(146));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
-    // transmitted-object site's row and default, the periodic auras' 26 rows and 4 defaults, the energize site's
-    // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, the
-    // quest-complete site's row, the three targeting sites' 10, 1 and 2 rows and two defaults, the max-targets and
-    // radius sites' 1 and 8 rows, the cast-check site's 2 rows and default, the
-    // target-check site's 3 rows and default, the weapon-damage site's 6 rows, the school-damage, trigger-spell
-    // and two teleport sites' 73, 6, 3 and 3 rows, the generic dummy-effect site's 216 rows, the seven dummy-effect
-    // family sites' 6, 11, 4, 4, 4, 2 and 1 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and
-    // five defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the five periodic dummy
-    // tick sites' 44, 1, 2, 1 and 2 rows and five defaults, the five boost sites' 7, 1, 2, 6 and 4 rows and four
-    // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
-    // script-effect site's 283 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows,
-    // the eight dummy proc sites' 37, 1, 10, 8, 11, 5, 26 and 10 rows, the haste, crit-chance and two
-    // proc-trigger sites' 2, 1, 16 and 19 rows, the mage scripts' 171 rows on the check-proc, proc, target,
-    // periodic-tick, damage-done, crit-chance, dummy aura, aura-apply, aura-remove, dummy-effect, after-cast, launch,
-    // cast-start and after-hit hooks, and the lust scripts' 8 rows on the target and aura-apply hooks.
+    // The game's table holds these with the rows of every other legacy file and of the class scripts
+    // (RegisterClassScripts); goldens/spell_handler_keys.txt lists each of its keys and
+    // SpellHandlerRegistry_TheGameTableMatchesItsGolden counts them. Its defaults are the transform site's, the
+    // transmitted-object site's, the periodic auras' four, the energize site's, the resurrect site's, the targeting
+    // sites' two, the cast-check site's, the target-check site's, the six trigger-spell aura sites' five, the
+    // damage-tick site's, the five periodic dummy tick sites' five, the five boost sites' four and the script-effect
+    // family sites' two: 29.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1402));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
-    CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(34));
+    CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyRemoveSite::Key));
 }
 
 TEST(AuraDummyHandlers_TheDruidSiteHoldsItsTwoLabelsAndNoDefault)
@@ -1021,7 +1014,8 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyFourLabelsAndNoDefault)
     CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(61900) == NULL);
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(34));
+    CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyRemoveSite::Key));
     for (uint32 spellId : stances)
     {
         CHECK(game.Find<AuraDummyRemoveSite>(spellId) == registry.Find<AuraDummyRemoveSite>(spellId));
@@ -1286,7 +1280,8 @@ TEST(AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault)
     CHECK(registry.Find<AuraDummyRemoveSite>(19548) == NULL);
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyQuestTameSite::Key), std::size_t(18));
+    CHECK_EQ(game.CountAt(AuraDummyQuestTameSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyQuestTameSite::Key));
     for (uint32 spellId : tames)
     {
         CHECK(game.Find<AuraDummyQuestTameSite>(spellId) == registry.Find<AuraDummyQuestTameSite>(spellId));
@@ -1363,7 +1358,8 @@ TEST(AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels)
     CHECK(registry.Find<AuraDummyRemoveSite>(29266) == NULL);
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(40));
+    CHECK_EQ(game.CountAt(AuraDummyApplyRemoveGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyApplyRemoveGenericSite::Key));
     for (uint32 spellId : feigns)
     {
         CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(spellId) == feignDeath);
@@ -1476,8 +1472,10 @@ TEST(AuraDummyHandlers_TheFamilyApplyRemoveSitesHoldTheirLabelsAndNoDefault)
     }
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyRogueSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraDummyHunterSite::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AuraDummyRogueSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyRogueSite::Key));
+    CHECK_EQ(game.CountAt(AuraDummyHunterSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyHunterSite::Key));
     CHECK(game.FindDefault<AuraDummyRogueSite>() == NULL);
     CHECK(game.FindDefault<AuraDummyHunterSite>() == NULL);
     CHECK(game.Find<AuraDummyRogueSite>(57934) == registry.Find<AuraDummyRogueSite>(57934));
@@ -1609,7 +1607,8 @@ TEST(AuraDummyHandlers_TheGenericApplySiteHoldsItsFortyOneLabelsAndNoDefault)
     CHECK_EQ(removalKeys, std::size_t(7));
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyApplyGenericSite::Key), std::size_t(41));
+    CHECK_EQ(game.CountAt(AuraDummyApplyGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraDummyApplyGenericSite::Key));
     CHECK(game.FindDefault<AuraDummyApplyGenericSite>() == NULL);
     for (uint32 spellId : labels)
     {
@@ -1704,7 +1703,8 @@ TEST(AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault)
     CHECK(game.Find<AuraTransformSite>(29266) == NULL);
 
     // The game's table holds the same rows and the same default.
-    CHECK_EQ(game.CountAt(AuraTransformSite::Key), std::size_t(9));
+    CHECK_EQ(game.CountAt(AuraTransformSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraTransformSite::Key));
     for (uint32 spellId : labels)
     {
         CHECK(game.Find<AuraTransformSite>(spellId) == registry.Find<AuraTransformSite>(spellId));
@@ -1769,7 +1769,8 @@ TEST(AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault)
     CHECK(game.Find<AuraThreatSite>(29266) == NULL);
 
     // The game's table holds the same rows and no default.
-    CHECK_EQ(game.CountAt(AuraThreatSite::Key), std::size_t(2));
+    CHECK_EQ(game.CountAt(AuraThreatSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraThreatSite::Key));
     CHECK(game.Find<AuraThreatSite>(26400) == arcaneShroud);
     CHECK(game.Find<AuraThreatSite>(28862) == eyeOfDiminution);
     CHECK(game.FindDefault<AuraThreatSite>() == NULL);
@@ -1840,7 +1841,8 @@ TEST(SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault)
     CHECK(game.Find<SpellEffectTransmittedSite>(29266) == NULL);
 
     // The game's table holds the same row and the same default.
-    CHECK_EQ(game.CountAt(SpellEffectTransmittedSite::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(SpellEffectTransmittedSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectTransmittedSite::Key));
     CHECK(game.Find<SpellEffectTransmittedSite>(29886) == createSoulwell);
     CHECK(game.FindDefault<SpellEffectTransmittedSite>() == onMiss);
 }
@@ -2164,7 +2166,8 @@ TEST(AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault)
     }
     CHECK(SharedWith(28200, AuraProcTriggerSite::Key) == AuraProcTriggerSite::Key);
     CHECK(SharedWith(50720, AuraProcTriggerSite::Key) == AuraBoostGenericSite::Key);
-    CHECK_EQ(game.CountAt(AuraProcTriggerSite::Key), std::size_t(2));
+    CHECK_EQ(game.CountAt(AuraProcTriggerSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraProcTriggerSite::Key));
     CHECK(game.Find<AuraProcTriggerSite>(28200) == ascendance);
     CHECK(game.Find<AuraProcTriggerSite>(50720) == vigilance);
     CHECK(game.FindDefault<AuraProcTriggerSite>() == onMiss);
@@ -2231,7 +2234,8 @@ TEST(AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault)
         CHECK((other != AuraPeriodicTriggerSite::Key) == (spellId == 66));
         CHECK(game.Find<AuraPeriodicTriggerSite>(spellId) == registry.Find<AuraPeriodicTriggerSite>(spellId));
     }
-    CHECK_EQ(game.CountAt(AuraPeriodicTriggerSite::Key), std::size_t(4));
+    CHECK_EQ(game.CountAt(AuraPeriodicTriggerSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraPeriodicTriggerSite::Key));
     CHECK(game.FindDefault<AuraPeriodicTriggerSite>() == onMiss);
 }
 
@@ -2280,7 +2284,8 @@ TEST(AuraPeriodicHandlers_TheEnergizeSiteHoldsItsFiveLabelsAndTheDefault)
         CHECK(!HeldByAnotherSite(game, AuraPeriodicEnergizeSite::Key, spellId));
         CHECK(game.Find<AuraPeriodicEnergizeSite>(spellId) == registry.Find<AuraPeriodicEnergizeSite>(spellId));
     }
-    CHECK_EQ(game.CountAt(AuraPeriodicEnergizeSite::Key), std::size_t(5));
+    CHECK_EQ(game.CountAt(AuraPeriodicEnergizeSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraPeriodicEnergizeSite::Key));
     CHECK(game.FindDefault<AuraPeriodicEnergizeSite>() == onMiss);
 }
 
@@ -2318,7 +2323,8 @@ TEST(AuraPeriodicHandlers_TheRogueSiteHoldsItsOneLabelAndNoDefault)
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(!HeldByAnotherSite(game, AuraPeriodicDummyRogueSite::Key, 31666));
-    CHECK_EQ(game.CountAt(AuraPeriodicDummyRogueSite::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AuraPeriodicDummyRogueSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraPeriodicDummyRogueSite::Key));
     CHECK(game.Find<AuraPeriodicDummyRogueSite>(31666) == masterOfSubtlety);
     CHECK(game.FindDefault<AuraPeriodicDummyRogueSite>() == NULL);
 }
@@ -2371,7 +2377,8 @@ TEST(AuraPeriodicHandlers_TheIncreaseHealthSiteHoldsItsFourteenLabelsAndTheDefau
         CHECK(game.Find<AuraIncreaseHealthSite>(spellId) == flatBody);
         CHECK(!HeldByAnotherSite(game, AuraIncreaseHealthSite::Key, spellId));
     }
-    CHECK_EQ(game.CountAt(AuraIncreaseHealthSite::Key), std::size_t(14));
+    CHECK_EQ(game.CountAt(AuraIncreaseHealthSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraIncreaseHealthSite::Key));
     CHECK(game.FindDefault<AuraIncreaseHealthSite>() == onMiss);
 }
 
@@ -2502,7 +2509,8 @@ TEST(SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
     {
         CHECK(game.Find<SpellEffectEnergizeSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectEnergizeSite::Key), std::size_t(9));
+    CHECK_EQ(game.CountAt(SpellEffectEnergizeSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectEnergizeSite::Key));
     CHECK(game.FindDefault<SpellEffectEnergizeSite>() == onMiss);
 }
 
@@ -2632,7 +2640,8 @@ TEST(SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLab
     {
         CHECK(game.Find<SpellEffectActivateObjectSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectActivateObjectSite::Key), std::size_t(33));
+    CHECK_EQ(game.CountAt(SpellEffectActivateObjectSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectActivateObjectSite::Key));
     CHECK(game.FindDefault<SpellEffectActivateObjectSite>() == NULL);
 }
 
@@ -2731,7 +2740,8 @@ TEST(SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDe
     {
         CHECK(game.Find<SpellEffectResurrectSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectResurrectSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(SpellEffectResurrectSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectResurrectSite::Key));
     CHECK(game.FindDefault<SpellEffectResurrectSite>() == onMiss);
 }
 
@@ -2912,7 +2922,8 @@ TEST(SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault)
     {
         CHECK(game.Find<SpellTargetAllEnemyInAreaSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellTargetAllEnemyInAreaSite::Key), std::size_t(10));
+    CHECK_EQ(game.CountAt(SpellTargetAllEnemyInAreaSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellTargetAllEnemyInAreaSite::Key));
     CHECK(game.FindDefault<SpellTargetAllEnemyInAreaSite>() == onMiss);
     CHECK(SharedWith(31347, SpellTargetAllEnemyInAreaSite::Key) == AuraTriggerSpellGenericSite::Key);
     CHECK(SharedWith(30769, SpellTargetAllEnemyInAreaSite::Key) == SpellEffectScriptGenericSite::Key);
@@ -2999,7 +3010,8 @@ TEST(SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault)
     {
         CHECK(game.Find<SpellTargetEffectDummySite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellTargetEffectDummySite::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(SpellTargetEffectDummySite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellTargetEffectDummySite::Key));
     CHECK(game.FindDefault<SpellTargetEffectDummySite>() == onMiss);
 }
 
@@ -3201,7 +3213,8 @@ TEST(SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault)
     {
         CHECK(game.Find<SpellCheckCastAuraDummySite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellCheckCastAuraDummySite::Key), std::size_t(2));
+    CHECK_EQ(game.CountAt(SpellCheckCastAuraDummySite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellCheckCastAuraDummySite::Key));
     CHECK(game.FindDefault<SpellCheckCastAuraDummySite>() == onMiss);
 }
 
@@ -3292,7 +3305,8 @@ TEST(SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault)
     {
         CHECK(game.Find<SpellCheckTargetSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellCheckTargetSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(SpellCheckTargetSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellCheckTargetSite::Key));
     CHECK(game.FindDefault<SpellCheckTargetSite>() == onMiss);
 }
 
@@ -3417,7 +3431,8 @@ TEST(SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndN
     {
         CHECK(game.Find<SpellEffectWeaponDmgSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectWeaponDmgSite::Key), std::size_t(6));
+    CHECK_EQ(game.CountAt(SpellEffectWeaponDmgSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectWeaponDmgSite::Key));
     CHECK(game.FindDefault<SpellEffectWeaponDmgSite>() == NULL);
 }
 
@@ -3565,7 +3580,8 @@ TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyThreeLa
     {
         CHECK(game.Find<SpellEffectSchoolDmgSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectSchoolDmgSite::Key), std::size_t(73));
+    CHECK_EQ(game.CountAt(SpellEffectSchoolDmgSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectSchoolDmgSite::Key));
     CHECK(game.FindDefault<SpellEffectSchoolDmgSite>() == NULL);
 }
 
@@ -3759,7 +3775,8 @@ TEST(SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSixLabelsAndNo
     {
         CHECK(game.Find<SpellEffectTriggerSpellSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectTriggerSpellSite::Key), std::size_t(6));
+    CHECK_EQ(game.CountAt(SpellEffectTriggerSpellSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectTriggerSpellSite::Key));
     CHECK(game.FindDefault<SpellEffectTriggerSpellSite>() == NULL);
 }
 
@@ -3854,7 +3871,8 @@ TEST(SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsA
     {
         CHECK(game.Find<SpellEffectTeleportRecallSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectTeleportRecallSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(SpellEffectTeleportRecallSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectTeleportRecallSite::Key));
     CHECK(game.FindDefault<SpellEffectTeleportRecallSite>() == NULL);
 }
 
@@ -3920,7 +3938,8 @@ TEST(SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAnd
     {
         CHECK(game.Find<SpellEffectTeleportPostSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectTeleportPostSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(SpellEffectTeleportPostSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectTeleportPostSite::Key));
     CHECK(game.FindDefault<SpellEffectTeleportPostSite>() == NULL);
 }
 
@@ -4195,7 +4214,8 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     {
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(216));
+    CHECK_EQ(game.CountAt(SpellEffectDummyGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectDummyGenericSite::Key));
     CHECK(game.FindDefault<SpellEffectDummyGenericSite>() == NULL);
     CHECK(SharedWith(20577, SpellEffectDummyGenericSite::Key) == SpellTargetEffectDummySite::Key);
     CHECK(SharedWith(29126, SpellEffectDummyGenericSite::Key) == SpellEffectScriptGenericSite::Key);
@@ -4358,7 +4378,8 @@ TEST(SpellEffectDummyHandlers_TheMageSiteHoldsColdSnapAndNoDefault)
     {
         CHECK(game.Find<SpellEffectDummyMageSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
+    CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectDummyMageSite::Key));
     CHECK(game.FindDefault<SpellEffectDummyMageSite>() == NULL);
 }
 
@@ -4461,7 +4482,8 @@ TEST(SpellEffectDummyHandlers_TheWarriorSiteHoldsItsElevenLabelsAndNoDefault)
     {
         CHECK(game.Find<SpellEffectDummyWarriorSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectDummyWarriorSite::Key), std::size_t(11));
+    CHECK_EQ(game.CountAt(SpellEffectDummyWarriorSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectDummyWarriorSite::Key));
     CHECK(game.FindDefault<SpellEffectDummyWarriorSite>() == NULL);
 }
 
@@ -4549,7 +4571,8 @@ TEST(SpellEffectDummyHandlers_TheRogueSiteHoldsItsFourLabelsAndNoDefault)
     {
         CHECK(game.Find<SpellEffectDummyRogueSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectDummyRogueSite::Key), std::size_t(4));
+    CHECK_EQ(game.CountAt(SpellEffectDummyRogueSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectDummyRogueSite::Key));
     CHECK(game.FindDefault<SpellEffectDummyRogueSite>() == NULL);
 }
 
@@ -4640,7 +4663,8 @@ TEST(SpellEffectDummyHandlers_TheHunterSiteHoldsItsFourLabelsAndNoDefault)
     {
         CHECK(game.Find<SpellEffectDummyHunterSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectDummyHunterSite::Key), std::size_t(4));
+    CHECK_EQ(game.CountAt(SpellEffectDummyHunterSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectDummyHunterSite::Key));
     CHECK(game.FindDefault<SpellEffectDummyHunterSite>() == NULL);
 }
 
@@ -4739,7 +4763,8 @@ TEST(SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault)
         CHECK(game.Find<SpellEffectDummyPaladinSite>(spellId) == NULL);
     }
     CHECK(game.Find<SpellEffectTriggerSpellSite>(31980) != NULL);
-    CHECK_EQ(game.CountAt(SpellEffectDummyPaladinSite::Key), std::size_t(4));
+    CHECK_EQ(game.CountAt(SpellEffectDummyPaladinSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectDummyPaladinSite::Key));
     CHECK(game.FindDefault<SpellEffectDummyPaladinSite>() == NULL);
 }
 
@@ -4878,15 +4903,19 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(147));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
 
-    // The game's table holds these with the other files' 1255 rows and 17 defaults.
+    // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
+    // class scripts' alone.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1402));
-    CHECK_EQ(game.CountDefaults(), std::size_t(29));
-    CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
-    CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
-    CHECK_EQ(game.CountAt(AuraPeriodicDamageTickSite::Key), std::size_t(8));
-    CHECK_EQ(game.CountAt(AuraPeriodicDummyTickGenericSite::Key), std::size_t(44));
-    CHECK_EQ(game.CountAt(AuraBoostGenericSite::Key), std::size_t(7));
+    CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraTriggerSpellGenericSite::Key));
+    CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraTriggerSpellCustomSite::Key));
+    CHECK_EQ(game.CountAt(AuraPeriodicDamageTickSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraPeriodicDamageTickSite::Key));
+    CHECK_EQ(game.CountAt(AuraPeriodicDummyTickGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraPeriodicDummyTickGenericSite::Key));
+    CHECK_EQ(game.CountAt(AuraBoostGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraBoostGenericSite::Key));
 }
 
 TEST(AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault)
@@ -4947,7 +4976,8 @@ TEST(AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault)
     }
     CHECK(SharedWith(31347, AuraTriggerSpellGenericSite::Key) == SpellTargetAllEnemyInAreaSite::Key);
     CHECK(game.Find<SpellTargetAllEnemyInAreaSite>(31347) != NULL);
-    CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
+    CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraTriggerSpellGenericSite::Key));
     CHECK(game.FindDefault<AuraTriggerSpellGenericSite>() == onMiss);
 }
 
@@ -5035,8 +5065,8 @@ namespace
     uint32 const PERIODIC_MANA_LEECH_TICK_IDS[] = { 32960, 21056, 31447 };
 
     // Every label of `Site` is found on `registry` and on the game's table with the same body, the bodies are
-    // `expected` distinct functions, no label is another site's key but the one the shared list names, and an id
-    // the switch never held is no key.
+    // `expected` distinct functions, no label is another site's key but the one the shared list names, the game's
+    // site holds no row but these and the class scripts', and an id the switch never held is no key.
     template <class Site, std::size_t N>
     void CheckSiteLabels(SpellHandlerRegistry const& registry, uint32 const (&ids)[N], std::size_t expected)
     {
@@ -5054,7 +5084,7 @@ namespace
         }
         CHECK_EQ(distinct.size(), expected);
         CHECK_EQ(registry.CountAt(Site::Key), N);
-        CHECK_EQ(game.CountAt(Site::Key), N);
+        CHECK_EQ(game.CountAt(Site::Key), SpellHandlerGolden::RowsWithClassScripts(registry, Site::Key));
         CHECK(game.FindDefault<Site>() == registry.FindDefault<Site>());
         CHECK(registry.Find<Site>(12345) == NULL);
     }
@@ -5761,13 +5791,15 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(302));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 1100 rows and 27 defaults.
+    // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
+    // class scripts' alone.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1402));
-    CHECK_EQ(game.CountDefaults(), std::size_t(29));
-    CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(283));
-    CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
-    CHECK_EQ(game.CountAt(SpellEffectScriptHunterSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectScriptGenericSite::Key));
+    CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectScriptWarlockSite::Key));
+    CHECK_EQ(game.CountAt(SpellEffectScriptHunterSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellEffectScriptHunterSite::Key));
 }
 
 TEST(SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults)
@@ -6452,11 +6484,11 @@ TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(20));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1382 rows and 29 defaults.
+    // The game's table holds these with the other files' rows and defaults; its site holds this file's rows and the
+    // class scripts' alone.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1402));
-    CHECK_EQ(game.CountDefaults(), std::size_t(29));
-    CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
+    CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellAllowedInLocationSite::Key));
 }
 
 TEST(SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault)
@@ -6731,13 +6763,15 @@ TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(11));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1391 rows and 29 defaults.
+    // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
+    // class scripts' alone.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1402));
-    CHECK_EQ(game.CountDefaults(), std::size_t(29));
-    CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
-    CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
-    CHECK_EQ(game.CountAt(MeleeDamageTakenSite::Key), std::size_t(3));
+    CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellDamageTakenSite::Key));
+    CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SpellHealingDoneSite::Key));
+    CHECK_EQ(game.CountAt(MeleeDamageTakenSite::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, MeleeDamageTakenSite::Key));
 }
 
 TEST(UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault)
@@ -7072,7 +7106,6 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     // and two proc-trigger sites, and no default: 145 rows and 145 keys, none twice. The mage dummy proc site's
     // row is RegisterMageScripts'.
     std::size_t const perSite[] = { 37, 0, 10, 8, 11, 5, 26, 10, 2, 1, 16, 19 };
-    std::size_t const inGame[] = { 37, 1, 10, 8, 11, 5, 26, 10, 2, 1, 16, 19 };
     uint32 const siteKeys[] = { DummyAuraProcGenericSite::Key, DummyAuraProcMageSite::Key,
                                 DummyAuraProcWarlockSite::Key, DummyAuraProcPriestSite::Key,
                                 DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
@@ -7093,13 +7126,12 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(145));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1257 rows and 29 defaults.
+    // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
+    // class scripts' alone (the mage dummy proc site's row among them).
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1402));
-    CHECK_EQ(game.CountDefaults(), std::size_t(29));
     for (std::size_t k = 0; k < 12; ++k)
     {
-        CHECK_EQ(game.CountAt(siteKeys[k]), inGame[k]);
+        CHECK_EQ(game.CountAt(siteKeys[k]), SpellHandlerGolden::RowsWithClassScripts(registry, siteKeys[k]));
     }
 }
 
