@@ -48,9 +48,10 @@ namespace
     /// 73325: Leap of Faith's effect 0, a dummy: the unit it lands on, when it is not the priest himself
     /// (Priest::LeapOfFaithPulls), casts, triggered by this spell, 92832 at the point LandingDistance() yards ahead of
     /// the priest along his facing, at his height (Priest::LeapOfFaithLanding). 92832's effect 0, a SPELL_EFFECT_JUMP2
-    /// at the cast's destination (Spell::EffectJump), moves the unit there on a jump whose arc lies between that
-    /// effect's two heights and sends its spline. The unit then casts, triggered, 92572, the 1.5 second dummy aura
-    /// 73325's effect 1 names, at itself. Return(): the effect is the script's; nothing is cast at the priest himself.
+    /// at the cast's destination (Spell::EffectJump), moves the unit there at the spell tables' speed
+    /// (Spells::JumpSpeed, 50 yd/s) on the arc of natural gravity, facing along its path, and sends its spline. The
+    /// unit then casts, triggered, 92572, the 1.5 second dummy aura 73325's effect 1 names, at itself. Return(): the
+    /// effect is the script's; nothing is cast at the priest himself.
     SpellHandlerOutcome<void> LeapOfFaithEffect(DummyEffectContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.target)

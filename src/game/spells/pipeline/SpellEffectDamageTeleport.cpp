@@ -748,15 +748,15 @@ void Spell::EffectJump(SpellEffectEntry const* effect)
 
     // A jump the spell tables name flies on the arc of natural gravity, as its retail spline does: a bow of g*T^2/8
     // about the chord, T the leg's own time (its 3D length from the caster's centre, the spline's, over the speed), so
-    // the spline's vertical acceleration (amplitude * 8 / T^2) is the client's gravity on any slope.
+    // the spline's vertical acceleration (amplitude * 8 / T^2) is the client's gravity on any slope. The jumper faces
+    // along its path, as retail's spline does (no final facing).
     if (tableSpeed > 0.0f)
     {
         const float dx = x - m_caster->Where().X();
         const float dy = y - m_caster->Where().Y();
         const float dz = z - m_caster->Where().Z();
         const float flight = std::sqrt(dx * dx + dy * dy + dz * dz) / speed;
-        m_caster->GetMotionMaster()->MoveJump(x, y, z, o, speed, float(Movement::gravity) * flight * flight / 8.0f,
-                                              NULL);
+        m_caster->GetMotionMaster()->MoveJump(x, y, z, speed, float(Movement::gravity) * flight * flight / 8.0f);
         return;
     }
 
