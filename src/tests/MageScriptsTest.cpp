@@ -2288,7 +2288,7 @@ TEST(MageScripts_InvisibilityFadeTakesATenthPerTick)
     CHECK_EQ(Mage::InvisibilityThreatPercent(0), int32(0));
 }
 
-TEST(MageScripts_InvisibilityRunsOnTheAuraApplyAndRemoveHooksAndActsOnlyForAPet)
+TEST(MageScripts_InvisibilityRunsOnTheAuraApplyAndRemoveHooksAndActsOnlyForAPetOrItsSpeed)
 {
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
@@ -2305,8 +2305,9 @@ TEST(MageScripts_InvisibilityRunsOnTheAuraApplyAndRemoveHooksAndActsOnlyForAPet)
         CHECK(SpellHandlerRegistry::Game().Find<AuraRemoveHook>(spellId) == NULL);
     }
 
-    // A mage with no pet: the apply, at the call before the add and after it, and the removal for every reason, cast
-    // nothing, take nothing off him and let the holder's other steps run.
+    // A mage with no pet and no Invisibility Speed, of a holder with no third effect: the apply, at the call before the
+    // add and after it, and the removal for every reason, cast nothing, take nothing off him and let the holder's
+    // other steps run.
     BareCreature mage;
     SpellRowStorage row;
     HolderStorage storage;
@@ -3583,6 +3584,123 @@ TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
     CHECK_EQ(holder->GetStackAmount(), uint32(1));
     CHECK_EQ(AuraHandle(*holder).Amount(EFFECT_INDEX_0), int32(-40));
     delete holder;
+}
+
+namespace
+{
+    const uint32 kInvisibility = 32612;
+    const uint32 kInvisibilitySpeed = 87833;
+    const uint32 kThirdEffectSpell = 94290;
+
+    // A spell of three auras at the target whose apply and removal change nothing on the unit, put into the stores
+    // once; a holder of it stands in for Invisibility's, its third effect the one Glyph of Invisibility raises.
+    SpellEntry const* StoredThirdEffectSpell()
+    {
+        static StoredAuras rows;
+        return StoreAuras(rows, kThirdEffectSpell, MAX_EFFECT_INDEX, 0);
+    }
+
+    // Invisibility Speed in the spell store for the scope, a row with only its id, so that a holder of it can be made
+    // through its constructor and leave through the engine's removal; the store lacks it again after.
+    class StoredInvisibilitySpeed
+    {
+        public:
+            StoredInvisibilitySpeed()
+            {
+                m_spell.Entry().ID = kInvisibilitySpeed;
+                sSpellStore.SetEntry(kInvisibilitySpeed, &m_spell.Entry());
+            }
+
+            ~StoredInvisibilitySpeed()
+            {
+                sSpellStore.SetEntry(kInvisibilitySpeed, NULL);
+            }
+
+        private:
+            ServerSpell m_spell;
+    };
+}
+
+TEST(MageScripts_InvisibilitysSpeedIsSwitchedByTheAmountOfItsHoldersThirdEffect)
+{
+    // Glyph of Invisibility raises Invisibility's third effect (SEE_WHILE_INVISIBLE, 0 in the client's data) to 40
+    // through SPELLMOD_EFFECT3. A holder whose third effect holds 40, or any amount above 0, gives Invisibility Speed
+    // (87833); one whose third effect holds 0 or less gives none, and so do one with 40 at another effect and one with
+    // no aura at all.
+    SpellEntry const* spell = StoredThirdEffectSpell();
+    BareCreature mage;
+    for (int32 amount : { 40, 1 })
+    {
+        SpellAuraHolder* switched = HolderWithOneAura(spell, mage, EFFECT_INDEX_2, amount);
+        CHECK_EQ(Mage::InvisibilitySpeedFor(AuraHandle(*switched)), kInvisibilitySpeed);
+        delete switched;
+    }
+    for (int32 amount : { 0, -40 })
+    {
+        SpellAuraHolder* unswitched = HolderWithOneAura(spell, mage, EFFECT_INDEX_2, amount);
+        CHECK_EQ(Mage::InvisibilitySpeedFor(AuraHandle(*unswitched)), uint32(0));
+        delete unswitched;
+    }
+    for (SpellEffectIndex other : { EFFECT_INDEX_0, EFFECT_INDEX_1 })
+    {
+        SpellAuraHolder* elsewhere = HolderWithOneAura(spell, mage, other, 40);
+        CHECK_EQ(Mage::InvisibilitySpeedFor(AuraHandle(*elsewhere)), uint32(0));
+        delete elsewhere;
+    }
+    HolderStorage storage;
+    CHECK_EQ(Mage::InvisibilitySpeedFor(AuraHandle(EmptyHolder(storage))), uint32(0));
+}
+
+TEST(MageScripts_InvisibilityCastsItsSpeedForASwitchedHolderAndTakesItAwayHoweverItEnds)
+{
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    SpellEntry const* spell = StoredThirdEffectSpell();
+    SpellRowStorage row;
+    BareCreature mage;
+    REQUIRE(sSpellStore.LookupEntry(kInvisibilitySpeed) == NULL);
+    SpellAuraHolder* unswitched = HolderWithOneAura(spell, mage, EFFECT_INDEX_2, 0);
+    SpellAuraHolder* switched = HolderWithOneAura(spell, mage, EFFECT_INDEX_2, 40);
+
+    // A holder whose third effect holds 0, at the call before the add and at the call after it, and a holder whose
+    // third effect holds 40 at the call before the add, cast nothing and let the holder's other steps run. At the call
+    // after the add the holder of 40 goes on to the mage's cast of Invisibility Speed (87833) at himself, which the
+    // test's spell store lacks, so nothing is cast. The mage holds no holder after any of them.
+    for (bool real : { false, true })
+    {
+        AuraApplyContext apply(mage, &mage, SpellRow(row, kInvisibility), AuraHandle(*unswitched), real);
+        CHECK(registry.Dispatch<AuraApplyHook>(kInvisibility, apply).IsContinue());
+    }
+    AuraApplyContext beforeTheAdd(mage, &mage, SpellRow(row, kInvisibility), AuraHandle(*switched), false);
+    CHECK(registry.Dispatch<AuraApplyHook>(kInvisibility, beforeTheAdd).IsContinue());
+    AuraApplyContext afterTheAdd(mage, &mage, SpellRow(row, kInvisibility), AuraHandle(*switched), true);
+    CHECK(registry.Dispatch<AuraApplyHook>(kInvisibility, afterTheAdd).IsContinue());
+    CHECK(mage.GetSpellAuraHolderMap().empty());
+
+    // The removal takes his Invisibility Speed off him for every reason Invisibility ends, whatever its holder's third
+    // effect held, and lets the holder's other steps run; the speed's holder leaves through the engine's removal.
+    StoredInvisibilitySpeed stored;
+    AuraRemoveMode const modes[] =
+    {
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
+        AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DAMAGE,
+    };
+    for (SpellAuraHolder* invisibility : { unswitched, switched })
+    {
+        for (AuraRemoveMode mode : modes)
+        {
+            SpellAuraHolder* speed = new SpellAuraHolder(sSpellStore.LookupEntry(kInvisibilitySpeed), &mage, NULL, NULL,
+                                                         NULL);
+            mage.HoldAura(kInvisibilitySpeed, *speed);
+            CHECK(mage.GetSpellAuraHolder(kInvisibilitySpeed) == speed);
+            AuraRemoveContext remove(mage, &mage, SpellRow(row, kInvisibility), AuraHandle(*invisibility), mode);
+            CHECK(registry.Dispatch<AuraRemoveHook>(kInvisibility, remove).IsContinue());
+            CHECK(mage.GetSpellAuraHolder(kInvisibilitySpeed) == NULL);
+            CHECK(mage.GetSpellAuraHolderMap().empty());
+        }
+    }
+    delete unswitched;
+    delete switched;
 }
 
 namespace
