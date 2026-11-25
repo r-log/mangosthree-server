@@ -31,6 +31,8 @@
 
 #include <cstddef>
 #include <list>
+#include <map>
+#include <utility>
 
 class Item;
 class GameObject;
@@ -60,8 +62,9 @@ struct SpellEntry;
  *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
  *   effect; otherwise the family switches and the script library run. A body may cast, remove auras and shorten the
- *   time a unit's aura has left (AuraHandle::Shorten), and keep a count across the cast's effects and targets in the
- *   cast's script word.
+ *   time a unit's aura has left (AuraHandle::Shorten), cast a dispel and learn what it took off
+ *   (DummyEffectContext::CastTriggeredDispel), and keep a count across the cast's effects and targets in the cast's
+ *   script word.
  * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
  *   cast and remove auras, and set the stacks and amounts of a holder through AuraHandle.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
@@ -217,6 +220,32 @@ class AuraHandle
         SpellAuraHolder& m_holder;
 };
 
+/// What a unit has lost of the auras a dispel can take: the stacks it holds of the auras whose spells' dispel types a
+/// mask names, noted by spell and caster when the watch is made, against those it holds when Taken is asked. A dispel
+/// names the holder it takes by its spell and its caster (Unit::RemoveAuraHolderDueToSpellByDispel) and takes it a
+/// stack at a time. Its bodies sit in SpellScriptHooks.cpp.
+class DispelWatch
+{
+    public:
+        /// Notes the stacks of each holder of `unit` whose spell's dispel type is one of `dispelMask`'s (the bits of
+        /// GetDispellMask), by its spell id and its caster's guid. `unit` must outlive the watch.
+        DispelWatch(Unit const& unit, uint32 dispelMask);
+
+        /// The stacks noted that `unit` no longer holds: of each holder noted, the stacks it has lost, all of them for
+        /// one it no longer holds, whatever took them. A holder added since and stacks gained count nothing.
+        uint32 Taken() const;
+
+    private:
+        typedef std::map<std::pair<uint32, uint64>, uint32> Stacks;   ///< stacks by (spell id, raw caster guid)
+
+        /// The stacks of `unit`'s holders whose spells' dispel types `dispelMask` names, by spell and caster.
+        static Stacks Held(Unit const& unit, uint32 dispelMask);
+
+        Unit const& m_unit;
+        uint32 m_mask;
+        Stacks m_before;
+};
+
 /// CheckCast's context. Value: SpellCastResult.
 struct CheckCastContext
 {
@@ -287,6 +316,12 @@ struct DummyEffectContext
     /// The caster casts `spellId` at `to`, triggered by this spell. `basePoints`, when given, holds
     /// MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// The caster casts the dispel `spellId` at `to` as CastTriggered casts it, and answers the stacks of `to`'s auras
+    /// the cast took off (DispelWatch), of the dispel types its SPELL_EFFECT_DISPEL effects name in the client's data:
+    /// the signal that the dispel took something. A cast that lands later than this call, at its own speed or at
+    /// this spell's, has taken nothing yet, and answers 0. Nothing is cast, and 0 answered, for a spell not in the
+    /// store.
+    uint32 CastTriggeredDispel(Unit& to, uint32 spellId);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
 

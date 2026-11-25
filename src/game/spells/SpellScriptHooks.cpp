@@ -25,6 +25,8 @@
 
 #include "spells/SpellScriptHooks.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
+#include "DBCStores.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
@@ -83,6 +85,62 @@ namespace
             from.CastSpell(&to, spellId, true, castItem, triggeredByAura, originalCaster, triggeredBy);
         }
     }
+
+    /// The dispel types the SPELL_EFFECT_DISPEL effects of `spell` name, as the bits of GetDispellMask; 0 for none.
+    uint32 DispelMaskOf(SpellEntry const& spell)
+    {
+        uint32 mask = 0;
+        for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+        {
+            SpellEffectEntry const* effect = spell.GetSpellEffect(SpellEffectIndex(i));
+            if (effect && effect->Effect == SPELL_EFFECT_DISPEL)
+            {
+                mask |= GetDispellMask(DispelType(effect->EffectMiscValue_0));
+            }
+        }
+        return mask;
+    }
+}
+
+DispelWatch::DispelWatch(Unit const& unit, uint32 dispelMask)
+    : m_unit(unit), m_mask(dispelMask), m_before(Held(unit, dispelMask))
+{
+}
+
+uint32 DispelWatch::Taken() const
+{
+    Stacks const now = Held(m_unit, m_mask);
+    uint32 taken = 0;
+    for (Stacks::const_iterator noted = m_before.begin(); noted != m_before.end(); ++noted)
+    {
+        Stacks::const_iterator const kept = now.find(noted->first);
+        uint32 const left = kept == now.end() ? 0 : kept->second;
+        if (left < noted->second)
+        {
+            taken += noted->second - left;
+        }
+    }
+    return taken;
+}
+
+DispelWatch::Stacks DispelWatch::Held(Unit const& unit, uint32 dispelMask)
+{
+    Stacks held;
+    if (!dispelMask)
+    {
+        return held;
+    }
+    Unit::SpellAuraHolderMap const& holders = unit.GetSpellAuraHolderMap();
+    for (Unit::SpellAuraHolderMap::const_iterator i = holders.begin(); i != holders.end(); ++i)
+    {
+        SpellAuraHolder const* holder = i->second;
+        uint32 const dispel = holder->GetSpellProto()->GetDispel();
+        if (dispel < 32 && ((uint32(1) << dispel) & dispelMask))
+        {
+            held[std::make_pair(holder->GetId(), holder->GetCasterGuid().GetRawValue())] += holder->GetStackAmount();
+        }
+    }
+    return held;
 }
 
 void AuraHandle::Shorten(int32 ms)
@@ -106,6 +164,18 @@ void AuraHandle::Shorten(int32 ms)
 void DummyEffectContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)
 {
     CastTriggeredSpell(caster, to, spellId, basePoints, NULL, NULL, ObjectGuid(), &spell);
+}
+
+uint32 DummyEffectContext::CastTriggeredDispel(Unit& to, uint32 spellId)
+{
+    SpellEntry const* dispel = sSpellStore.LookupEntry(spellId);
+    if (!dispel)
+    {
+        return 0;
+    }
+    DispelWatch const watch(to, DispelMaskOf(*dispel));
+    CastTriggered(to, spellId);
+    return watch.Taken();
 }
 
 void DummyEffectContext::RemoveAura(Unit& from, uint32 spellId)
