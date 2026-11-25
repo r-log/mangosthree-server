@@ -6977,7 +6977,7 @@ namespace
                                               68161, 66808, 68160, 69739, 69755, 71903, 72178 };
     uint32 const DUMMY_PROC_MAGE_IDS[] = { 64411 };
     uint32 const DUMMY_PROC_WARLOCK_IDS[] = { 18094, 18095, 56218, 30293, 30295, 30296, 37377, 37381, 39437, 63108 };
-    uint32 const DUMMY_PROC_PRIEST_IDS[] = { 15286, 40438, 26169, 39372, 28809, 55677, 55680, 70770 };
+    uint32 const DUMMY_PROC_PRIEST_IDS[] = { 15286, 40438, 26169, 39372, 28809, 55680, 70770 };
     uint32 const DUMMY_PROC_DRUID_IDS[] = { 24932, 28719, 28847, 37288, 37295, 40442, 44835, 54754, 54821, 70664,
                                             70723 };
     uint32 const DUMMY_PROC_ROGUE_IDS[] = { 23582, 32748, 57934, 76806, 76838 };
@@ -7102,10 +7102,10 @@ namespace
 
 TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 37, 0, 10, 8, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 19 at the haste, crit-chance
-    // and two proc-trigger sites, and no default: 145 rows and 145 keys, none twice. The mage dummy proc site's
+    // 37, 0, 10, 7, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 19 at the haste, crit-chance
+    // and two proc-trigger sites, and no default: 144 rows and 144 keys, none twice. The mage dummy proc site's
     // row is RegisterMageScripts'.
-    std::size_t const perSite[] = { 37, 0, 10, 8, 11, 5, 26, 10, 2, 1, 16, 19 };
+    std::size_t const perSite[] = { 37, 0, 10, 7, 11, 5, 26, 10, 2, 1, 16, 19 };
     uint32 const siteKeys[] = { DummyAuraProcGenericSite::Key, DummyAuraProcMageSite::Key,
                                 DummyAuraProcWarlockSite::Key, DummyAuraProcPriestSite::Key,
                                 DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
@@ -7113,8 +7113,8 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
                                 HasteAuraProcRogueSite::Key, SpellCritChanceAuraProcMageSite::Key,
                                 ProcTriggerSpellAuraProcGenericSite::Key, ProcTriggerSpellAuraProcTriggeredSite::Key };
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(145));
-    CHECK_EQ(registry.Count(), std::size_t(145));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(144));
+    CHECK_EQ(registry.Count(), std::size_t(144));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     for (std::size_t k = 0; k < 12; ++k)
     {
@@ -7122,8 +7122,8 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key is taken.
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(145));
-    CHECK_EQ(registry.Count(), std::size_t(145));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(144));
+    CHECK_EQ(registry.Count(), std::size_t(144));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
@@ -7379,9 +7379,9 @@ TEST(UnitAuraProcHandlerHandlers_TheFiveFamilySitesHoldTheirLabelsAndNoDefault)
     SpellHandlerRegistry registry;
     RegisterUnitAuraProcHandlerHandlers(registry);
 
-    // The priest site's 8 labels in 8 bodies, the druid site's 11 in 10, the rogue site's 5 in 5, the paladin site's
+    // The priest site's 7 labels in 7 bodies, the druid site's 11 in 10, the rogue site's 5 in 5, the paladin site's
     // 26 in 21 and the shaman site's 10 in 10; no default.
-    CheckSiteLabels<DummyAuraProcPriestSite>(registry, DUMMY_PROC_PRIEST_IDS, 8);
+    CheckSiteLabels<DummyAuraProcPriestSite>(registry, DUMMY_PROC_PRIEST_IDS, 7);
     CheckSiteLabels<DummyAuraProcDruidSite>(registry, DUMMY_PROC_DRUID_IDS, 10);
     CheckSiteLabels<DummyAuraProcRogueSite>(registry, DUMMY_PROC_ROGUE_IDS, 5);
     CheckSiteLabels<DummyAuraProcPaladinSite>(registry, DUMMY_PROC_PALADIN_IDS, 21);

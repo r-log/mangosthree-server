@@ -779,21 +779,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcPriest28809(DummyAu
 {
     ctx.triggered_spell_id = 28810;
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
-// Glyph of Dispel Magic
-}
-
-/// 55677: Glyph of Dispel Magic: for a friendly target, the base points are the aura's percent of its maximum health;
-/// fails otherwise
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcPriest55677(DummyAuraProcContext& ctx)
-{
-    if (!ctx.target->IsFriendlyTo(ctx.unit))
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    ctx.basepoints[0] = int32(ctx.target->GetMaxHealth() * ctx.triggerAmount / 100);
-    // triggered_spell_id in spell data
-    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 // Glyph of Prayer of Healing
 }
 
@@ -2492,7 +2477,6 @@ uint32 RegisterUnitAuraProcHandlerHandlers(SpellHandlerRegistry& registry)
         { 26169, &DummyAuraProcPriest26169 },
         { 39372, &DummyAuraProcPriest39372 },
         { 28809, &DummyAuraProcPriest28809 },
-        { 55677, &DummyAuraProcPriest55677 },
         { 55680, &DummyAuraProcPriest55680 },
         { 70770, &DummyAuraProcPriest70770 },
     };
