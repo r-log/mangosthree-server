@@ -346,6 +346,14 @@ write_source_file_list(Harness/HarnessScenarioFiles.inc.in
     ${CMAKE_CURRENT_BINARY_DIR}/generated/HarnessScenarioFiles.inc
     HARNESS_SCENARIO_FILE "^Scenarios([A-Za-z0-9_]+)\\.cpp$" ${SRC_GRP_HARNESS})
 
+# Every spells/classes/priest/<Mechanic>.cpp but Priest.cpp registers its rows through Priest::Register<Mechanic>,
+# which Priest.cpp calls from this list (the domain target's generated directory).
+file(GLOB SRC_GRP_SPELLS_CLASSES_PRIEST spells/classes/priest/*.cpp)
+list(FILTER SRC_GRP_SPELLS_CLASSES_PRIEST EXCLUDE REGEX "/Priest\\.cpp$")
+write_source_file_list(spells/classes/priest/PriestScriptFiles.inc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/PriestScriptFiles.inc
+    PRIEST_SCRIPT_FILE "^([A-Za-z0-9_]+)\\.cpp$" ${SRC_GRP_SPELLS_CLASSES_PRIEST})
+
 add_library(data STATIC
     ${SRC_GRP_DATA}
     ${SRC_GRP_DATA_DBC}
@@ -424,6 +432,12 @@ target_include_directories(domain
         pvp/battleground
         pvp/outdoor
         social
+)
+
+# PriestScriptFiles.inc, written above.
+target_include_directories(domain
+    PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 
 if(MSVC)

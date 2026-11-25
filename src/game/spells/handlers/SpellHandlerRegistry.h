@@ -382,4 +382,10 @@ class SpellHandlerRegistry
         std::map<uint32, ErasedFunction> m_defaults;
 };
 
+/// Registers the rows of the class scripts: the mage's (RegisterMageScripts), those of the haste spells the classes
+/// share (RegisterLustScripts) and the priest's (RegisterPriestScripts), in that order. The game's table runs it after
+/// the legacy handler files. Returns the rows and defaults registered; a row whose key was taken does not change the
+/// table, so a caller that finds fewer keys than rows has a duplicate.
+uint32 RegisterClassScripts(SpellHandlerRegistry& registry);
+
 #endif
