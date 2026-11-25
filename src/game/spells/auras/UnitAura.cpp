@@ -402,6 +402,20 @@ static void CarryPeriodicTimers(SpellAuraHolder* holder, SpellAuraHolder* previo
 }
 
 /**
+ * @brief Whether the holders of a spell from different casters stand side by side on one unit, each its own.
+ *
+ * Divine Aegis (47753): each caster's shield on a unit is his own holder; another caster's shield neither replaces it
+ * nor is replaced by it. A caster's new holder still takes the place of his own.
+ *
+ * @param spellId The spell of the holders.
+ * @return True for Divine Aegis; otherwise, false.
+ */
+static bool StandsPerCaster(uint32 spellId)
+{
+    return spellId == 47753;
+}
+
+/**
  * @brief Makes room for one more target of a spell its caster may keep on only so many targets at a time.
  *
  * Reads each of the caster's entries of the spell, oldest first, as the target the holder is being added to, a unit
@@ -481,7 +495,8 @@ static void RemoveTargetsOverLimit(Unit& caster, Unit& target, SpellEntry const*
  * A periodic effect its caster applies again, of a spell that does not stack, keeps the time its old aura had to the
  * next tick and lasts its full duration after it (CarryPeriodicTimers); a damage-over-time effect that carries its
  * remaining damage spreads the old and the new totals over the new tick count. A holder whose script capped its stack
- * (SpellAuraHolder::SetStackCap) and that is at its cap is refreshed by its caster's re-application.
+ * (SpellAuraHolder::SetStackCap) and that is at its cap is refreshed by its caster's re-application. A holder of a
+ * spell whose casters' holders stand side by side (StandsPerCaster) leaves another caster's holder of it on the unit.
  *
  * @param holder The aura holder to add.
  * @return True if the holder remained applied; otherwise, false.
@@ -584,6 +599,12 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
                 // can be only single
                 RemoveSpellAuraHolder(foundHolder, AURA_REMOVE_BY_STACK);
                 break;
+            }
+
+            // another caster's holder of a spell whose casters' holders stand side by side stays
+            if (StandsPerCaster(aurSpellInfo->ID))
+            {
+                continue;
             }
 
             bool stop = false;
@@ -836,6 +857,9 @@ void Unit::RemoveRankAurasDueToSpell(uint32 spellId)
 /**
  * @brief Removes non-stacking auras that conflict with an incoming aura holder.
  *
+ * Another caster's holder of the incoming holder's own spell stays when that spell's casters' holders stand side by
+ * side (StandsPerCaster).
+ *
  * @param holder The incoming aura holder.
  * @return True if conflicts were resolved and the holder may proceed; otherwise, false.
  */
@@ -883,6 +907,12 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         }
 
         uint32 i_spellId = i_spellProto->ID;
+
+        // another caster's holder of a spell whose casters' holders stand side by side stays
+        if (i_spellId == spellId && StandsPerCaster(spellId) && holder->GetCasterGuid() != i->second->GetCasterGuid())
+        {
+            continue;
+        }
 
         // early checks that spellId is passive non stackable spell
         if (IsPassiveSpell(i_spellProto))
