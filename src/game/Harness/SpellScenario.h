@@ -89,7 +89,7 @@ namespace Harness
     /// The spell scenarios' helpers. Every file that includes this header reads them unqualified.
     namespace SpellScenarioTools
     {
-        const Pt P0 = { -3122.6f, -261.3f, 46.0f };   // Mulgore, the plain every family starts on
+        inline const Pt P0 = { -3122.6f, -261.3f, 46.0f };   // Mulgore, the plain every family starts on
 
         inline std::string U(uint64 v)
         {
@@ -338,10 +338,10 @@ namespace Harness
         /// (:1592-1598), the six aura-duration radii (:1600-1618) and the caster-scale radius
         /// (:1619-1623). A spell outside the list reaches only that function's constant labels or
         /// its defaults.
-        const uint32 kDynamicRadiusLabels[] = { 61916, 46771, 63482, 74452, 24811, 28241, 54363, 66881, 67638, 67639, 67640, 56438 };
+        inline constexpr uint32 kDynamicRadiusLabels[] = { 61916, 46771, 63482, 74452, 24811, 28241, 54363, 66881, 67638, 67639, 67640, 56438 };
 
         /// The spell-ID labels whose bodies pick at random; the guard refuses them.
-        const uint32 kRawRandLabels[] = { 51690, 45449, 31789, 46203, 66741 };
+        inline constexpr uint32 kRawRandLabels[] = { 51690, 45449, 31789, 46203, 66741 };
 
         /// True for the three targets of SpellTargeting.cpp:322-324's random chain fill.
         inline bool RandomChain(uint32 target)
