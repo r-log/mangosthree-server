@@ -660,4 +660,11 @@ Aura* CreateAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* curr
  * Creates the aura holder that owns aura effects for a spell application.
  */
 SpellAuraHolder* CreateSpellAuraHolder(SpellEntry const* spellproto, Unit* target, WorldObject* caster, Item* castItem = NULL, SpellEntry const* triggeredBy = NULL);
+
+/**
+ * Takes `holder`, a shield its target holds whose points ran out, off that target, and no other holder: it is removed
+ * as broken (AURA_REMOVE_BY_SHIELD_BREAK), so the clients around the target hear its points depleted before its slot
+ * empties. A holder of the same spell from another caster stays.
+ */
+void RemoveDepletedShield(SpellAuraHolder* holder);
 #endif

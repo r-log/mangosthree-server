@@ -1114,3 +1114,57 @@ TEST(SpellTables_ABuffThatCarriesNoMarkerLeavesIt)
     unit.RemoveSpellAuraHolder(marker, AURA_REMOVE_BY_EXPIRE);
     CHECK(unit.GetSpellAuraHolderMap().empty());
 }
+
+// A shield whose points ran out leaves through RemoveDepletedShield, which takes that holder alone: another caster's
+// holder of the same spell stays, where the removal by spell id takes both. The holders are made as the marker tests
+// make theirs, on a spell row of the test's own put into the spell store; the second caster is a creature guid that
+// the bare creature, never in a world, looks up as no unit.
+namespace
+{
+    const uint32 kShieldSpell = 94337;
+
+    MarkerRowStorage s_shieldRow = {};
+
+    void StoreShieldSpell()
+    {
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        sSpellStore.SetEntry(kShieldSpell, &RestrictedSpell(s_shieldRow, kShieldSpell, 0));
+    }
+}
+
+TEST(SpellTables_ADepletedShieldLeavesAndTheOtherCastersHolderStays)
+{
+    StoreShieldSpell();
+    const ObjectGuid otherCaster(HIGHGUID_UNIT, uint32(50249), uint32(7));
+
+    MarkerBearer unit;
+    SpellAuraHolder* own = unit.Hold(kShieldSpell);
+    SpellAuraHolder* other = unit.Hold(kShieldSpell);
+    other->SetCasterGuid(otherCaster);
+    CHECK_EQ(unit.GetSpellAuraHolderMap().size(), size_t(2));
+
+    RemoveDepletedShield(own);
+    CHECK_EQ(unit.GetSpellAuraHolderMap().size(), size_t(1));
+    CHECK(unit.GetSpellAuraHolder(kShieldSpell) == other);
+    CHECK(unit.GetSpellAuraHolder(kShieldSpell, otherCaster) == other);
+
+    unit.RemoveSpellAuraHolder(other, AURA_REMOVE_BY_EXPIRE);
+    CHECK(unit.GetSpellAuraHolderMap().empty());
+}
+
+TEST(SpellTables_TheRemovalBySpellIdTakesEveryCastersShield)
+{
+    StoreShieldSpell();
+    MarkerBearer unit;
+    unit.Hold(kShieldSpell);
+    SpellAuraHolder* other = unit.Hold(kShieldSpell);
+    other->SetCasterGuid(ObjectGuid(HIGHGUID_UNIT, uint32(50249), uint32(7)));
+
+    unit.RemoveAurasDueToSpell(kShieldSpell, NULL, AURA_REMOVE_BY_SHIELD_BREAK);
+    CHECK(unit.GetSpellAuraHolderMap().empty());
+}

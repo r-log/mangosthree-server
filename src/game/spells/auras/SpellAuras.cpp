@@ -775,6 +775,11 @@ SpellAuraHolder* CreateSpellAuraHolder(SpellEntry const* spellproto, Unit* targe
     return new SpellAuraHolder(spellproto, target, caster, castItem, triggeredBy);
 }
 
+void RemoveDepletedShield(SpellAuraHolder* holder)
+{
+    holder->GetTarget()->RemoveSpellAuraHolder(holder, AURA_REMOVE_BY_SHIELD_BREAK);
+}
+
 /**
  * @brief Sets the aura modifier data used by the handler logic.
  *
