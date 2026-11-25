@@ -26,12 +26,14 @@
 /// Tests of spells/classes/priest/LeapOfFaith.cpp: the row the file registers, in the game's table too; the units
 /// Leap of Faith pulls; where the pulled unit lands; and the dummy row at the effect, the missing target and the
 /// priest himself, which it leaves without a cast. The row runs on bare Creatures (update fields allocated; no world,
-/// map, template or AI). Scenario 1211 records the pull in play.
+/// map, template or AI). Also the speed the spell tables give its jump (Spells::JumpSpeed,
+/// spells/data/SpellTables.cpp). Scenario 1211 records the pull in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/LeapOfFaith.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
+#include "spells/data/SpellTables.h"
 #include "Creature.h"
 #include "DBCStructure.h"
 #include "ObjectGuid.h"
@@ -46,6 +48,7 @@ namespace
     uint32 const LEAP_OF_FAITH_JUMP = 92832;
     uint32 const LEAP_OF_FAITH_AURA = 92572;
     uint32 const LEAP_OF_FAITH_FRONT = 92833;
+    uint32 const HEROIC_LEAP = 6544;
 
     // A creature with its update fields allocated and no world, map, template or AI.
     class BareCreature : public Creature
@@ -168,4 +171,17 @@ TEST(PriestLeapOfFaith_TheRowLeavesTheOtherEffectAndCastsNothingWithoutAnotherUn
     CHECK(game.Dispatch<DummyEffectHook>(LEAP_OF_FAITH_SPELL, self).IsReturn());
     CHECK_EQ(value, int32(0));
     CHECK_EQ(word, int32(0));
+}
+
+TEST(PriestLeapOfFaith_TheTablesMoveItsJumpAtFiftyYardsASecondAndNoOtherSpell)
+{
+    // Leap of Faith's jump: 50 yards a second, the retail spline's.
+    CHECK_EQ(Spells::JumpSpeed(LEAP_OF_FAITH_JUMP), 50.0f);
+
+    // Leap of Faith itself, its aura, the spell whose radius places the landing, a jump with a Spell.dbc speed of its
+    // own (Heroic Leap) and no spell: none, so the jump effect keeps their speed.
+    for (uint32 spellId : { LEAP_OF_FAITH_SPELL, LEAP_OF_FAITH_AURA, LEAP_OF_FAITH_FRONT, HEROIC_LEAP, uint32(0) })
+    {
+        CHECK_EQ(Spells::JumpSpeed(spellId), 0.0f);
+    }
 }
