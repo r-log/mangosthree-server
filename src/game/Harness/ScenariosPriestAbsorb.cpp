@@ -33,9 +33,10 @@
 
 /**
  * @file ScenariosPriestAbsorb.cpp
- * @brief The priest's absorb scenarios, orders 1200-1201: the order a hit spends a unit's damage shields in, the
- * amount a shield has left sent after each hit, a used-up shield's points-depleted notice and its removal, and a heal
- * over time's tick cut by the heal absorbs of the unit it heals.
+ * @brief The priest's absorb scenarios, orders 1200, 1201 and 1213: the order a hit spends a unit's damage shields
+ * in, the amount a shield has left sent after each hit, a used-up shield's points-depleted notice and its removal, a
+ * heal over time's tick cut by the heal absorbs of the unit it heals, and Reflective Shield reflecting from the
+ * priest's own shield on himself alone.
  */
 
 namespace Harness
@@ -275,29 +276,27 @@ namespace Harness
         };
 
         /**
-         * S1200 `priest-absorb-order`: a hit spends Divine Aegis (47753) before every older damage shield, and the
-         * clients hear each shield's amount after a hit and each used-up shield's points depleted before its slot
-         * empties. Put on him by call, in this order: Ice Barrier (11426) at kBarrierAmount, Power Word: Shield (17) at
-         * kShieldAmount, Divine Aegis at kAegisAmount, each his own; all three absorb every school. Steps:
-         *  1. a wait, the three put on him at it;
+         * S1200 `priest-absorb-order`: a hit spends Divine Aegis (47753) before an older Power Word: Shield (17), and
+         * the clients hear each shield's amount after a hit and a used-up shield's points depleted before its slot
+         * empties.
+         * Put on him by call, his own, in this order: Power Word: Shield at kShieldAmount, then Divine Aegis at
+         * kAegisAmount; both absorb every school. Put by call, the shield brings no Weakened Soul. Steps:
+         *  1. a wait, the two shields put on him at it;
          *  2. the Camel's blow of kFirstBlow physical damage, less than Divine Aegis holds: it drains Divine Aegis
-         *     alone, which stays, and its amount is sent;
-         *  3. the Camel's blow of kSecondBlow: it uses Divine Aegis up, which is removed as broken with its points
-         *     depleted told first, and the rest drains the oldest shield still on him, Ice Barrier, whose amount is
-         *     sent.
-         * Power Word: Shield is on him only while Divine Aegis does not throw it off: the stacking rule of the two
-         * priest shields decides that, which this scenario does not judge; it reads where it stands (`pws`). Ice
-         * Barrier, applied before it, is the shield the rest of a hit reaches either way.
+         *     alone, which stays and sends its amount, and Power Word: Shield keeps its amount;
+         *  3. the Camel's blow of kSecondBlow: it uses Divine Aegis up, whose points depleted are told right before
+         *     the update that empties its slot, and the rest drains Power Word: Shield, which sends its amount.
          *
-         * `absorbOrder`: `order=<the shield the first blow drained, 47753 or 11426; none when neither alone>,
-         * resend=<the effect 0 amount of the 47753 update for him in the first blow's windows; none>,depleted=<the
-         * spell/effect of the points-depleted notice for him in the second blow's windows, the spell read from the slot
-         * it names; none>,rest=<the effect 0 amount of the 11426 update for him in the second blow's windows; none>,
-         * pws=<stands or gone at step 1's read>`. OK when the shields were put at their amounts, the order is 47753,
-         * the resent amount is Divine Aegis's at the first blow's read (kAegisAmount - kFirstBlow), the notice names
-         * Divine Aegis's slot and effect 0 and the next packet empties that slot, Divine Aegis is gone at the second
-         * blow's read, and the rest is Ice Barrier's amount there (kBarrierAmount less what Divine Aegis did not take
-         * of kSecondBlow). His health is set to his maximum before each blow, and both blows are absorbed whole.
+         * `absorbOrder`: `stand=<the shields on him at step 1's read: both, 17, 47753 or none>,order=<with both
+         * standing, the shield the first blow drained while the other kept its amount, 47753 or 17; none
+         * otherwise>,resend=<the effect 0 amount of the 47753 update for him in the first blow's windows;
+         * none>,depleted=<the spell/effect of the points-depleted notice for him in the second blow's windows, the
+         * spell read from the slot it names; none>,rest=<the effect 0 amount of the 17 update for him in the second
+         * blow's windows; none>`. OK when both stood at their amounts, the order is 47753, the resent amount is Divine
+         * Aegis's at the first blow's read (kAegisAmount - kFirstBlow), the notice names Divine Aegis's slot and effect
+         * 0 and the next packet empties that slot, Divine Aegis is gone at the second blow's read, and the rest is
+         * Power Word: Shield's amount there (kShieldAmount less what Divine Aegis did not take of kSecondBlow). His
+         * health is set to his maximum before each blow; with both shields standing, both blows are absorbed whole.
          */
         class PriestAbsorbOrder : public PriestAbsorbScenario
         {
@@ -316,8 +315,6 @@ namespace Harness
             std::vector<SpellPrint> Prints() const override
             {
                 return {
-                    // 11426: 26 fields
-                    { 11426, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 438 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.EffectRealPointsPerLevel", 1077097267 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                     // 17: 26 fields
                     { 17, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                     // 47753: 26 fields
@@ -332,23 +329,19 @@ namespace Harness
                 {
                     if (k == kPutStep)
                     {
-                        PutWithAmount(p, kBarrier, kAuraMs, kBarrierAmount);
                         PutWithAmount(p, kShield, kAuraMs, kShieldAmount);
                         PutWithAmount(p, kAegis, kAuraMs, kAegisAmount);
-                        seen.reads["barrierSlot"] = SlotOf(p, kBarrier);
+                        seen.reads["shieldSlot"] = SlotOf(p, kShield);
                         seen.reads["aegisSlot"] = SlotOf(p, kAegis);
-                        m_rec.Note("put on him: " + U(kBarrier) + " (slot " + std::to_string(SlotOf(p, kBarrier)) +
-                                   "), " + U(kShield) + " (slot " + std::to_string(SlotOf(p, kShield)) + "), " +
-                                   U(kAegis) + " (slot " + std::to_string(SlotOf(p, kAegis)) + ")");
+                        m_rec.Note("put on him: " + U(kShield) + " (slot " + std::to_string(SlotOf(p, kShield)) +
+                                   "), " + U(kAegis) + " (slot " + std::to_string(SlotOf(p, kAegis)) + ")");
                     }
                     return;
                 }
-                seen.reads["barrier"] = AmountOf(p, kBarrier);
                 seen.reads["shield"] = AmountOf(p, kShield);
                 seen.reads["aegis"] = AmountOf(p, kAegis);
-                m_rec.Note("on him: " + U(kBarrier) + " " + std::to_string(AmountOf(p, kBarrier)) + ", " + U(kShield) +
-                           " " + std::to_string(AmountOf(p, kShield)) + ", " + U(kAegis) + " " +
-                           std::to_string(AmountOf(p, kAegis)) + " (-1 for none)");
+                m_rec.Note("on him: " + U(kShield) + " " + std::to_string(AmountOf(p, kShield)) + ", " + U(kAegis) +
+                           " " + std::to_string(AmountOf(p, kAegis)) + " (-1 for none)");
             }
 
             std::string Own(St const& st) const override
@@ -358,24 +351,26 @@ namespace Harness
                     return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
                 }
                 const uint64 self = st.player.GetRawValue();
-                const int64 barrier0 = Kept(st, kPutStep, "barrier");
+                const int64 shield0 = Kept(st, kPutStep, "shield");
                 const int64 aegis0 = Kept(st, kPutStep, "aegis");
-                const int64 barrier1 = Kept(st, kFirstBlowStep, "barrier");
+                const int64 shield1 = Kept(st, kFirstBlowStep, "shield");
                 const int64 aegis1 = Kept(st, kFirstBlowStep, "aegis");
-                const int64 barrier2 = Kept(st, kSecondBlowStep, "barrier");
+                const int64 shield2 = Kept(st, kSecondBlowStep, "shield");
                 const int64 aegis2 = Kept(st, kSecondBlowStep, "aegis");
                 const int64 aegisSlot = Kept(st, kPutStep, "aegisSlot");
-                const int64 barrierSlot = Kept(st, kPutStep, "barrierSlot");
-                const bool put = barrier0 == kBarrierAmount && aegis0 == kAegisAmount;
+                const int64 shieldSlot = Kept(st, kPutStep, "shieldSlot");
+                const bool put = shield0 == kShieldAmount && aegis0 == kAegisAmount;
 
+                const std::string stand = shield0 >= 0 && aegis0 >= 0 ? std::string("both")
+                                          : shield0 >= 0 ? U(kShield) : aegis0 >= 0 ? U(kAegis) : std::string("none");
                 std::string order = "none";
-                if (aegis1 == aegis0 - int64(kFirstBlow) && barrier1 == barrier0)
+                if (stand == "both" && aegis1 == aegis0 - int64(kFirstBlow) && shield1 == shield0)
                 {
                     order = U(kAegis);
                 }
-                else if (barrier1 == barrier0 - int64(kFirstBlow) && aegis1 == aegis0)
+                else if (stand == "both" && shield1 == shield0 - int64(kFirstBlow) && aegis1 == aegis0)
                 {
-                    order = U(kBarrier);
+                    order = U(kShield);
                 }
 
                 int64 resent = -1;
@@ -403,7 +398,7 @@ namespace Harness
                     {
                         const int64 slot = int64(notice.slot);
                         const std::string spell = slot == aegisSlot ? U(kAegis)
-                                                  : slot == barrierSlot ? U(kBarrier) : "slot" + U(notice.slot);
+                                                  : slot == shieldSlot ? U(kShield) : "slot" + U(notice.slot);
                         depleted = spell + "/" + U(notice.effect);
                         AuraUpdateRead next;
                         emptiedNext = slot == aegisSlot && i + 1 < second.size() &&
@@ -412,40 +407,37 @@ namespace Harness
                                       next.spell == 0 && next.slot == notice.slot;
                     }
                     else if (second[i]->opcode == SMSG_AURA_UPDATE && ReadAuraUpdate(second[i]->payload, update) &&
-                             update.target == self && update.spell == kBarrier && update.amountSent)
+                             update.target == self && update.spell == kShield && update.amountSent)
                     {
                         rest = update.amount;
                     }
                 }
 
                 const int64 aegisLeft = int64(kAegisAmount) - int64(kFirstBlow);
-                const int64 restWanted = int64(kBarrierAmount) - (int64(kSecondBlow) - aegisLeft);
+                const int64 restWanted = int64(kShieldAmount) - (int64(kSecondBlow) - aegisLeft);
                 const bool ok = put && order == U(kAegis) && aegis1 == aegisLeft && resent == aegis1 &&
-                                depleted == U(kAegis) + "/0" && emptiedNext && aegis2 == -1 && barrier2 == restWanted &&
-                                rest == barrier2;
+                                depleted == U(kAegis) + "/0" && emptiedNext && aegis2 == -1 && shield2 == restWanted &&
+                                rest == shield2;
                 const std::string resentText = resent < 0 ? std::string("none") : std::to_string(resent);
                 const std::string restText = rest < 0 ? std::string("none") : std::to_string(rest);
-                const std::string value = "order=" + order + ",resend=" + resentText + ",depleted=" + depleted +
-                                          ",rest=" + restText + ",pws=" +
-                                          (Kept(st, kPutStep, "shield") >= 0 ? "stands" : "gone");
+                const std::string value = "stand=" + stand + ",order=" + order + ",resend=" + resentText +
+                                          ",depleted=" + depleted + ",rest=" + restText;
                 const std::string detail =
-                    "put: " + U(kBarrier) + " " + std::to_string(barrier0) + ", " + U(kAegis) + " " +
-                    std::to_string(aegis0) + " (wanted " + U(uint32(kBarrierAmount)) + ", " + U(uint32(kAegisAmount)) +
-                    "); after the blow of " + U(kFirstBlow) + ": " + std::to_string(barrier1) + ", " +
-                    std::to_string(aegis1) + "; after the blow of " + U(kSecondBlow) + ": " + std::to_string(barrier2) +
+                    "put: " + U(kShield) + " " + std::to_string(shield0) + ", " + U(kAegis) + " " +
+                    std::to_string(aegis0) + " (wanted " + U(uint32(kShieldAmount)) + ", " + U(uint32(kAegisAmount)) +
+                    "); after the blow of " + U(kFirstBlow) + ": " + std::to_string(shield1) + ", " +
+                    std::to_string(aegis1) + "; after the blow of " + U(kSecondBlow) + ": " + std::to_string(shield2) +
                     ", " + std::to_string(aegis2) + " (-1 for none); the notice " +
                     (emptiedNext ? "followed by" : "not followed by") + " the update that empties its slot; wanted " +
-                    "order=" + U(kAegis) + ",resend=" + std::to_string(aegisLeft) + ",depleted=" + U(kAegis) +
-                    "/0,rest=" + std::to_string(restWanted) + "; pws not judged";
+                    "stand=both,order=" + U(kAegis) + ",resend=" + std::to_string(aegisLeft) + ",depleted=" +
+                    U(kAegis) + "/0,rest=" + std::to_string(restWanted);
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
         private:
-            static constexpr uint32 kBarrier = 11426;
             static constexpr uint32 kShield = 17;
             static constexpr uint32 kAegis = 47753;
-            static constexpr int32 kBarrierAmount = 20000;
-            static constexpr int32 kShieldAmount = 10000;
+            static constexpr int32 kShieldAmount = 20000;
             static constexpr int32 kAegisAmount = 4000;
             static constexpr uint32 kFirstBlow = 3000;
             static constexpr uint32 kSecondBlow = 5000;
@@ -575,11 +567,157 @@ namespace Harness
             static constexpr uint32 kTickStep = 1;
             static constexpr uint32 kAfterTickStep = 2;
         };
+
+        /**
+         * S1213 `priest-reflective-shield`: Reflective Shield reflects from the priest's own Power Word: Shield (17) on
+         * himself and from no shield of his on another player. The priest knows Reflective Shield's second rank (33202,
+         * a dummy aura whose 45% of what his shield absorbs comes back at the attacker as 33619), learned as a talent
+         * rank; a second harness player, a human warrior, stands kOtherOffset yards to his side. Each shield is his,
+         * put by call at kShieldAmount, with no Weakened Soul; each hit is the call the Camel's melee hit makes on its
+         * victim (Unit::CalculateDamageAbsorbAndResist with the reflect allowed), kHit physical damage the shield takes
+         * whole. Steps:
+         *  1. a wait: his shield put on himself, then the Camel's hit on him;
+         *  2. a wait: his shield put on the other player, then the Camel's hit on the other player;
+         *  3. a wait, for the last read.
+         *
+         * `reflect`: `self=<33619 when a SPELL_GO of 33619 he cast came in step 1's windows, else none>,other=<33619
+         * when a SPELL_GO of 33619 the other player cast came in step 2's windows, else none>`. OK when each hit was
+         * absorbed whole, self=33619 and other=none.
+         */
+        class PriestReflectiveShield : public PriestAbsorbScenario
+        {
+        public:
+            PriestReflectiveShield() : PriestAbsorbScenario("priest-reflective-shield", 1213, "reflect") {}
+
+        protected:
+            bool TakesDamage() const override { return true; }
+
+            std::vector<uint32> Spells() const override { return { kReflectiveShieldRank2 }; }
+
+            void AfterStage(Player& /*p*/) override
+            {
+                m_other = ObjectGuid();
+                const float y = P0.y + kOtherOffset;
+                if (Player* other = SpawnPlayer(P0.x, y, Ground(P0.x, y, P0.z), PlayerFacing()))
+                {
+                    m_other = other->GetObjectGuid();
+                }
+            }
+
+            std::vector<Step> Steps() const override
+            {
+                return { Wait(kSwingEveryMs), Wait(kSwingEveryMs), Wait(kSwingEveryMs) };
+            }
+
+            std::vector<SpellPrint> Prints() const override
+            {
+                return {
+                    // 17: 26 fields
+                    { 17, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 69 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 127 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                    // 33202: 26 fields
+                    { 33202, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 45 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 5064 }, { "eff0.EffectSpellClassMask.Flags", 1 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                    // 33619: 26 fields
+                    { 33619, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                };
+            }
+
+            void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
+            {
+                Seen& seen = st.seen[k];
+                Player* other = m_other ? sPlayerRegistry.Find(m_other) : NULL;
+                if (atRead)
+                {
+                    seen.reads["shieldSelf"] = AmountOf(p, kShield);
+                    seen.reads["shieldOther"] = other ? AmountOf(other, kShield) : -1;
+                    m_rec.Note("his " + U(kShield) + " " + std::to_string(AmountOf(p, kShield)) +
+                               ", the other player's " +
+                               (other ? std::to_string(AmountOf(other, kShield)) : std::string("(no other player)")) +
+                               " (-1 for none)");
+                    return;
+                }
+                Unit* shielded = k == kSelfStep ? static_cast<Unit*>(p)
+                                 : k == kOtherStep ? static_cast<Unit*>(other) : NULL;
+                if (!shielded)
+                {
+                    if (k == kOtherStep)
+                    {
+                        m_rec.Note("no other player stands beside him; the step does nothing");
+                    }
+                    return;
+                }
+                PutWithAmount(shielded, kShield, kAuraMs, kShieldAmount, p);
+                uint32 absorb = 0;
+                uint32 resist = 0;
+                shielded->CalculateDamageAbsorbAndResist(target, SPELL_SCHOOL_MASK_NORMAL, DIRECT_DAMAGE, kHit, &absorb,
+                                                         &resist, true);
+                seen.reads["absorbed"] = absorb;
+                m_rec.Note(std::string("his ") + U(kShield) + " put on " +
+                           (k == kSelfStep ? "himself" : "the other player") + "; the Camel's hit of " + U(kHit) +
+                           " on " + (k == kSelfStep ? "him" : "the other player") + ": absorbed " + U(absorb) +
+                           ", resisted " + U(resist));
+            }
+
+            std::string Own(St const& st) const override
+            {
+                if (st.steps.size() != kSteps)
+                {
+                    return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+                }
+                const std::string self = ReflectCaster(kSelfStep, "self") ? U(kReflect) : std::string("none");
+                const std::string other = ReflectCaster(kOtherStep, "other") ? U(kReflect) : std::string("none");
+                const int64 absorbedSelf = Kept(st, kSelfStep, "absorbed");
+                const int64 absorbedOther = Kept(st, kOtherStep, "absorbed");
+                const bool whole = absorbedSelf == int64(kHit) && absorbedOther == int64(kHit);
+                const bool ok = whole && self == U(kReflect) && other == "none";
+                const std::string value = "self=" + self + ",other=" + other;
+                const std::string detail =
+                    "the hit of " + U(kHit) + " absorbed " + std::to_string(absorbedSelf) + " on him and " +
+                    std::to_string(absorbedOther) + " on the other player (-2 for not run); 33202 sends back " +
+                    U(kHit * kReflectPercent / 100) + " of a whole hit; wanted self=" + U(kReflect) + ",other=none";
+                return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
+            }
+
+        private:
+            static constexpr uint32 kReflectiveShieldRank2 = 33202;
+            static constexpr uint32 kReflectPercent = 45;
+            static constexpr uint32 kReflect = 33619;
+            static constexpr uint32 kShield = 17;
+            static constexpr int32 kShieldAmount = 10000;
+            static constexpr uint32 kHit = 2000;
+            static constexpr float kOtherOffset = 4.0f;
+            static constexpr size_t kSteps = 3;
+            static constexpr uint32 kSelfStep = 0;
+            static constexpr uint32 kOtherStep = 1;
+
+            ObjectGuid m_other;                 ///< the second harness player, spawned after the stage
+
+            /// Whether a SPELL_GO of 33619 whose caster is the recorder's role `role` came in step k's windows.
+            bool ReflectCaster(uint32 k, char const* role) const
+            {
+                const std::string caster = std::string(" caster=") + role;
+                std::vector<Recorder::Seen const*> packets = StepPackets(k);
+                for (size_t i = 0; i < packets.size(); ++i)
+                {
+                    std::string text;
+                    uint32 spell = 0;
+                    if (packets[i]->opcode == SMSG_SPELL_GO && !packets[i]->payload.empty() &&
+                        Trace::DecodeSpellCast(true, &packets[i]->payload[0], packets[i]->payload.size(), m_rec.Roles(),
+                                               text) &&
+                        sscanf(text.c_str(), "spell=%u", &spell) == 1 && spell == kReflect &&
+                        text.find(caster + " ") != std::string::npos)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
     }
 
     void RegisterPriestAbsorbScenarios(Runner& r)
     {
         r.Register(new PriestAbsorbOrder());
         r.Register(new PriestHotHealAbsorb());
+        r.Register(new PriestReflectiveShield());
     }
 }
