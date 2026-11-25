@@ -791,13 +791,6 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
                                 crit_chance += (*i)->GetModifier()->m_amount;
                             }
                             break;
-                        case 7997:                          // Renewed Hope
-                        case 7998:
-                            if (pVictim->HasAura(6788))
-                            {
-                                crit_chance += (*i)->GetModifier()->m_amount;
-                            }
-                            break;
                         default:
                             break;
                     }
@@ -810,27 +803,6 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
                 // Custom crit by class
                 switch(spellProto->GetSpellFamilyName())
                 {
-                    case SPELLFAMILY_PRIEST:
-                        // Flash Heal
-                        if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000800)))
-                        {
-                            if (pVictim->GetHealth() > pVictim->GetMaxHealth() / 2)
-                            {
-                                break;
-                            }
-                            AuraList const& mDummyAuras = GetAurasByType(SPELL_AURA_DUMMY);
-                            for (AuraList::const_iterator i = mDummyAuras.begin(); i != mDummyAuras.end(); ++i)
-                            {
-                                // Improved Flash Heal
-                                if ((*i)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_PRIEST &&
-                                    (*i)->GetSpellProto()->SpellIconID == 2542)
-                                {
-                                    crit_chance += (*i)->GetModifier()->m_amount;
-                                    break;
-                                }
-                            }
-                        }
-                        break;
                     case SPELLFAMILY_DRUID:
                         // Improved Insect Swarm (Starfire part)
                         if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000004)))
@@ -1045,13 +1017,6 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
             case 3736: // Hateful Totem of the Third Wind / Increased Lesser Healing Wave / LK Arena (4/5/6) Totem of the Third Wind / Savage Totem of the Third Wind
                 DoneTotal += (*i)->GetModifier()->m_amount;
                 break;
-            case 7997: // Renewed Hope
-            case 7998:
-                if (pVictim->HasAura(6788))
-                {
-                    DoneTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-                }
-                break;
             case   21: // Test of Faith
             case 6935:
             case 6918:
@@ -1180,9 +1145,10 @@ uint32 Unit::SpellHealingBonusTaken(Unit* pCaster, SpellEntry const* spellProto,
     // apply benefit affected by the spell power coefficient
     TakenTotal = pCaster->SpellBonusWithCoeffs(spellProto, TakenTotal, TakenAdvertisedBenefit, 0, damagetype, false, SPELL_BONUS_KIND_HEAL);
 
+    // A healing-received aura raises only the heals of the unit that put it on: its caster's.
     AuraList const& mHealingGet = GetAurasByType(SPELL_AURA_MOD_HEALING_RECEIVED);
     for (AuraList::const_iterator i = mHealingGet.begin(); i != mHealingGet.end(); ++i)
-        if ((*i)->isAffectedOnSpell(spellProto))
+        if ((*i)->GetCasterGuid() == pCaster->GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
         {
             TakenTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
         }
