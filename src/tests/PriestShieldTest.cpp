@@ -25,22 +25,27 @@
 
 /// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield, Twin
 /// Disciplines and the mastery, Rapture's removal modes and mana, the two rows the file registers, in the game's
-/// table too, and the exits of its two scripts that change nothing. The scripts run on a bare Creature (update fields
+/// table too, and the exits of its two scripts that change nothing; and Glyph of Power Word: Shield's heal, which
+/// Spells::HealTakesNoDoneBonus keeps from the healing-done bonus. The scripts run on a bare Creature (update fields
 /// allocated; no map, template or AI), whose holder map holds the test's empty holders where a script asks whether it
-/// holds an aura; an empty holder has no aura, so its effect 0 amount is 0. No case reaches a cast or a lookup of the
-/// spell store, so the rows other tests leave there change nothing here. Scenario 1202 records the amount as the
-/// clients are told it, the heal, the mana and the lockout, the energize's recovery time in his cooldown store, in
-/// play.
+/// holds an aura; an empty holder has no aura, so its effect 0 amount is 0. No case reaches a cast, and only the glyph
+/// heal's test reads the spell store: it puts its own rows there and takes its spell rows out again, so the rows other
+/// tests leave there change nothing here. Scenario 1202 records the amount as the clients are told it, the heal, the
+/// mana and the lockout, the energize's recovery time in his cooldown store, in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/Shield.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellTables.h"
+#include "data/ServerSpellStore.h"
 #include "Creature.h"
+#include "DBCStores.h"
 #include "DBCStructure.h"
 
 #include <cstddef>
+#include <vector>
 
 namespace
 {
@@ -56,10 +61,15 @@ namespace
             }
 
             // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist. The holders
-            // HoldAura put in the map are the test's own storage and leave the map first.
+            // HoldAura put in the map are the test's own storage and leave the map first, and the lists ListAura
+            // filled are emptied.
             ~BareCreature()
             {
                 m_auras.Holders().clear();
+                for (AuraType type : m_listedTypes)
+                {
+                    m_auras.ByType(type).clear();
+                }
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
             }
@@ -69,6 +79,16 @@ namespace
             {
                 m_auras.AddHolder(spellId, &holder);
             }
+
+            // Puts `aura` in the list of `type`, so the unit's reads of that aura type read its amount.
+            void ListAura(AuraType type, Aura* aura)
+            {
+                m_auras.ByType(type).push_back(aura);
+                m_listedTypes.push_back(type);
+            }
+
+        private:
+            std::vector<AuraType> m_listedTypes;
     };
 
     struct SpellRowStorage
@@ -131,6 +151,94 @@ TEST(PriestShield_TheAmountIsRaisedByImprovedPowerWordShieldTwinDisciplinesAndTh
 
     // A large shield does not overflow on the way.
     CHECK_EQ(Priest::ShieldAmount(1000000, 20, 6, 50), int32(1908000));
+}
+
+namespace
+{
+    uint32 const GLYPH_HEAL = 56160;
+    uint32 const kOtherHeal = 94470;            // a heal no table names
+    uint32 const kHealingDoneAura = 94471;      // stands for Twin Disciplines 3/3's healing done
+    uint32 const kMagicCategories = 94472;
+
+    ServerSpell s_glyphHeal;
+    ServerSpell s_otherHeal;
+    ServerSpell s_healingDone;
+    SpellCategoriesEntry s_magicCategories;
+
+    // Puts the two heals, each of the magic damage class (as 56160's row is in the client's data, so it can crit), and
+    // the healing-done aura's spell, one effect whose apply and removal change nothing on a unit, into the stores; the
+    // categories and the effect once.
+    void StoreHealRows()
+    {
+        static bool stored = false;
+        if (!stored)
+        {
+            s_magicCategories = SpellCategoriesEntry();
+            s_magicCategories.DefenseType = SPELL_DAMAGE_CLASS_MAGIC;
+            sSpellCategoriesStore.SetEntry(kMagicCategories, &s_magicCategories);
+            s_healingDone.effect = SpellEffectEntry();
+            s_healingDone.effect.SpellID = kHealingDoneAura;
+            s_healingDone.effect.EffectIndex = EFFECT_INDEX_0;
+            s_healingDone.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            s_healingDone.effect.EffectAura = SPELL_AURA_MOD_DAMAGE_FROM_CASTER;
+            s_healingDone.effect.ImplicitTarget_0 = TARGET_SELF;
+            AddSpellEffectEntry(&s_healingDone.effect);
+            stored = true;
+        }
+        s_glyphHeal.Entry().ID = GLYPH_HEAL;
+        s_glyphHeal.Entry().CategoriesID = kMagicCategories;
+        s_otherHeal.Entry().ID = kOtherHeal;
+        s_otherHeal.Entry().CategoriesID = kMagicCategories;
+        s_healingDone.Entry().ID = kHealingDoneAura;
+        sSpellStore.SetEntry(GLYPH_HEAL, &s_glyphHeal.Entry());
+        sSpellStore.SetEntry(kOtherHeal, &s_otherHeal.Entry());
+        sSpellStore.SetEntry(kHealingDoneAura, &s_healingDone.Entry());
+    }
+
+    // Takes the three spell rows out of the spell store again.
+    void ForgetHealRows()
+    {
+        for (uint32 spellId : { GLYPH_HEAL, kOtherHeal, kHealingDoneAura })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(PriestShield_TheGlyphHealIsAFifthOfTheShieldWithNoHealingDoneBonusAndTwiceThatOnACrit)
+{
+    // The table names Glyph of Power Word: Shield's heal alone.
+    CHECK(Spells::HealTakesNoDoneBonus(GLYPH_HEAL));
+    for (uint32 spellId : { 0u, 17u, 2061u, 2060u, 47750u, 33110u, 139u, 47753u })
+    {
+        CHECK(!Spells::HealTakesNoDoneBonus(spellId));
+    }
+
+    // A shield of 10600, Twin Disciplines 3/3's 6% counted in it: the holder's boosts cast the glyph's 20% of it.
+    int32 const shield = 10600;
+    int32 const glyphPercent = 20;
+    uint32 const cast = uint32(shield * glyphPercent / 100);
+    CHECK_EQ(cast, uint32(2120));
+
+    // The priest holds Twin Disciplines 3/3's 6% healing done. The glyph's heal takes none of it and heals 2120, a crit
+    // twice that; a magic heal no table names takes it, 2120 x 1.06.
+    StoreHealRows();
+    {
+        BareCreature priest;
+        SpellAuraHolder* twin = new SpellAuraHolder(&s_healingDone.Entry(), &priest, NULL, NULL, NULL);
+        int32 basePoints = 6;
+        twin->AddAura(CreateAura(&s_healingDone.Entry(), EFFECT_INDEX_0, &basePoints, twin, &priest), EFFECT_INDEX_0);
+        priest.ListAura(SPELL_AURA_MOD_HEALING_DONE_PERCENT, twin->GetAuraByEffectIndex(EFFECT_INDEX_0));
+        CHECK_EQ(s_glyphHeal.Entry().GetDmgClass(), uint32(SPELL_DAMAGE_CLASS_MAGIC));
+
+        uint32 const healed = priest.SpellHealingBonusDone(&priest, &s_glyphHeal.Entry(), int32(cast), HEAL);
+        CHECK_EQ(healed, uint32(2120));
+        CHECK_EQ(priest.SpellCriticalHealingBonus(&s_glyphHeal.Entry(), healed, &priest), uint32(4240));
+        CHECK_EQ(priest.SpellHealingBonusDone(&priest, &s_otherHeal.Entry(), int32(cast), HEAL), uint32(2247));
+        delete twin;
+    }
+    ForgetHealRows();
+    CHECK(sSpellStore.LookupEntry(GLYPH_HEAL) == NULL);
 }
 
 TEST(PriestShield_RaptureComesFromAShieldUsedUpOrDispelledAlone)

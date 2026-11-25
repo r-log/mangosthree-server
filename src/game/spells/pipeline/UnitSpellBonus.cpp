@@ -31,6 +31,7 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 #include "QuestDef.h"
 #include "Player.h"
 #include "Creature.h"
@@ -994,8 +995,8 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
             return owner->SpellHealingBonusDone(pVictim, spellProto, healamount, damagetype, stack);
         }
 
-    // No heal amount for this class spells
-    if (spellProto->GetDmgClass() == SPELL_DAMAGE_CLASS_NONE)
+    // No heal amount for this class spells, nor for a heal the table keeps from the done bonus
+    if (spellProto->GetDmgClass() == SPELL_DAMAGE_CLASS_NONE || Spells::HealTakesNoDoneBonus(spellProto->ID))
     {
         return healamount < 0 ? 0 : healamount;
     }
