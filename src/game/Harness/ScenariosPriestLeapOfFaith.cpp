@@ -24,6 +24,7 @@
  */
 
 #include "StagedCasterScenario.h"
+#include "wire/MonsterMoveCodec.h"
 
 #include <cmath>
 #include <cstdio>
@@ -46,7 +47,10 @@ namespace Harness
          * S1211 `priest-leap-of-faith`: Leap of Faith (73325) pulls the friendly unit it is cast at to the priest: its
          * dummy effect has the unit cast, triggered, the jump 92832 at the point the radius of 92833's effect 0 (1
          * yard) ahead of him, whose jump effect moves the unit there and sends its spline, then the dummy aura 92572
-         * at itself.
+         * at itself. The jump moves at kRetailSpeed, the speed the retail 4.3.4 sniff (kerhong/Sniffs15595,
+         * 2012-05-28) measures in its five pulls (packets 21369, 39813, 67099, 99028 and 133404: the 3D leg over the
+         * MoveTime, 49.95 to 50.00), on one parabolic leg of the client's gravity, as each of those splines carries
+         * it.
          * Staged: a level 85 human priest (StagedCasterScenario with CLASS_PRIEST) with no talents and Leap of Faith
          * learned, facing the Camel kCamelYards yards in front of him. Steps, kStepMs apart, each a wait whose own read
          * comes right after it acts:
@@ -55,13 +59,19 @@ namespace Harness
          *  2. the Camel's distance from him noted.
          * A distance is the one between the two units' centres on the ground plane, in whole yards, rounded.
          *
-         * `leap`: `casts=<casts>,jump=<moves>,start=<yards>,end=<yards>`, where <casts> is the spells of 73325, 92832
-         * and 92572 whose SMSG_SPELL_GO step 1's windows hold, in that order and joined by `+`, `none` for none of
-         * them; <moves> is the number of SMSG_MONSTER_MOVE packets in those windows; <yards> is the Camel's distance
+         * `leap`: `casts=<casts>,jump=<moves>,speed=<speed>,gravity=<gravity>,points=<points>,start=<yards>,
+         * end=<yards>`, where <casts> is the spells of 73325, 92832 and 92572 whose SMSG_SPELL_GO step 1's windows
+         * hold, in that order and joined by `+`, `none` for none of them; <moves> is the number of SMSG_MONSTER_MOVE
+         * packets in those windows; <speed>, <gravity> and <points> are read from the first of them that the wire
+         * codec decodes (Wire::DecodeMonsterMove) with a trajectory (Wire::kSplineFlagTrajectory): its 3D leg, start
+         * to destination, over its duration, in whole yards a second; its vertical acceleration, in whole yards a
+         * second squared; its path's point count; each `-` when no such packet came; <yards> is the Camel's distance
          * from him at step 1, before the cast, then at step 2. 92832, triggered with no visual and no speed, sends no
-         * SMSG_SPELL_GO (Spell::IsNeedSendToClient); its jump is the move and the end distance. OK at casts holding
-         * 73325 and 92572, at least one move, a start of at least kStartYards and an end of at most kPulledYards, with
-         * the Camel friendly to him at the cast. The detail text names the landing distance, the radius of 92833's
+         * SMSG_SPELL_GO (Spell::IsNeedSendToClient); its jump is the move. OK at casts holding 73325 and 92572, a
+         * trajectory read with one point, a speed within kSpeedSlack of kRetailSpeed, a vertical acceleration within
+         * kGravitySlack (a fraction) of the client's gravity (Movement::gravity), a start of at least kStartYards and
+         * an end of at most kPulledYards, with the Camel friendly to him at the cast. The detail text names the
+         * unrounded duration, leg, speed and vertical acceleration, and the landing distance, the radius of 92833's
          * effect 0 in the client's data; 92833's print pins the radius index that effect holds.
          */
         class PriestLeapOfFaith : public StagedCasterScenario
@@ -147,18 +157,34 @@ namespace Harness
                     casts = "none";
                 }
                 const uint32 moves = MovesIn(0);
+                const JumpRead jump = JumpIn(0);
+                const float gravity = float(Movement::gravity);
+                const bool flies = jump.read && jump.points == 1 &&
+                                   std::fabs(jump.speed - kRetailSpeed) <= kSpeedSlack &&
+                                   std::fabs(jump.gravity - gravity) <= kGravitySlack * gravity;
                 const int64 start = Kept(st, 0, "yards");
                 const int64 end = Kept(st, 1, "yards");
                 const bool ok = Kept(st, 0, "friendly") == 1 && Triggered(seen, kLeapOfFaith) &&
-                                Triggered(seen, kJumpAura) && moves > 0 && start >= kStartYards && end >= 0 &&
+                                Triggered(seen, kJumpAura) && flies && start >= kStartYards && end >= 0 &&
                                 end <= kPulledYards;
-                const std::string value = "casts=" + casts + ",jump=" + U(moves) + ",start=" + Number(start) +
-                                          ",end=" + Number(end);
+                const std::string value =
+                    "casts=" + casts + ",jump=" + U(moves) +
+                    ",speed=" + (jump.read ? std::to_string(std::lround(jump.speed)) : std::string("-")) +
+                    ",gravity=" + (jump.read ? std::to_string(std::lround(jump.gravity)) : std::string("-")) +
+                    ",points=" + (jump.read ? U(jump.points) : std::string("-")) + ",start=" + Number(start) +
+                    ",end=" + Number(end);
+                const std::string spline =
+                    jump.read ? "its spline " + U(jump.durationMs) + " ms over " + TwoDecimals(jump.leg) +
+                                    " yards, " + TwoDecimals(jump.speed) + " yards a second, vertical acceleration " +
+                                    TwoDecimals(jump.gravity)
+                              : std::string("no spline with a trajectory");
                 const std::string detail =
                     "wanted his " + U(kLeapOfFaith) + " at the friendly Camel, then " + U(kJump) + " (no go: " +
                     "triggered, no visual) and " + U(kJumpAura) + " cast by it, an SMSG_MONSTER_MOVE for its " +
-                    "jump, and the Camel, at least " + std::to_string(kStartYards) + " yards from him at the cast, " +
-                    "at most " +
+                    "jump with one point at " + OneDecimal(kRetailSpeed) + " yards a second (within " +
+                    OneDecimal(kSpeedSlack) + ") and the client's gravity " + TwoDecimals(gravity) + " (within " +
+                    std::to_string(std::lround(kGravitySlack * 100.0f)) + "%), " + spline + ", and the Camel, at " +
+                    "least " + std::to_string(kStartYards) + " yards from him at the cast, at most " +
                     std::to_string(kPulledYards) + " yards from him " + U(kStepMs) +
                     " ms later; it lands " + OneDecimal(LandingYards()) + " yards ahead of him (" + U(kFront) +
                     "'s effect 0 radius)";
@@ -175,6 +201,20 @@ namespace Harness
             static constexpr int64 kPulledYards = 5;
             static constexpr uint32 kStepMs = 2000;
             static constexpr size_t kSteps = 2;
+            static constexpr float kRetailSpeed = 50.0f;
+            static constexpr float kSpeedSlack = 0.5f;
+            static constexpr float kGravitySlack = 0.02f;
+
+            /// A jump as an SMSG_MONSTER_MOVE tells it to the clients.
+            struct JumpRead
+            {
+                bool read = false;          ///< a monster move whose flags hold the trajectory was read whole
+                uint32 durationMs = 0;      ///< its duration
+                uint32 points = 0;          ///< its path's point count
+                float leg = 0.0f;           ///< the 3D distance from its start to its destination
+                float speed = 0.0f;         ///< `leg` over the duration, in yards a second
+                float gravity = 0.0f;       ///< its vertical acceleration
+            };
 
             /// The distance between the centres of `a` and `b` on the ground plane, in whole yards, rounded.
             static int64 Yards(Unit const* a, Unit const* b)
@@ -194,6 +234,58 @@ namespace Harness
                     moves += uint32(m_rec.SeenIn(windows[w], SMSG_MONSTER_MOVE).size());
                 }
                 return moves;
+            }
+
+            /// The first SMSG_MONSTER_MOVE in step k's windows that ReadJump reads; `read` false when none.
+            JumpRead JumpIn(uint32 k) const
+            {
+                const std::vector<std::string> windows = StepWindows(k);
+                for (size_t w = 0; w < windows.size(); ++w)
+                {
+                    std::vector<Recorder::Seen const*> moves = m_rec.SeenIn(windows[w], SMSG_MONSTER_MOVE);
+                    for (size_t i = 0; i < moves.size(); ++i)
+                    {
+                        JumpRead jump;
+                        if (ReadJump(moves[i]->payload, jump))
+                        {
+                            return jump;
+                        }
+                    }
+                }
+                return JumpRead();
+            }
+
+            /// Reads an SMSG_MONSTER_MOVE body with the wire codec (Wire::DecodeMonsterMove): its point count (a linear
+            /// path's destination and middle points, an uncompressed path's points), its duration, its leg from its
+            /// start to its last point and its vertical acceleration. False when the body does not decode, when its
+            /// flags lack the trajectory, and for a duration of 0.
+            static bool ReadJump(std::vector<uint8> const& payload, JumpRead& jump)
+            {
+                if (payload.empty())
+                {
+                    return false;
+                }
+                ByteBuffer body;
+                body.append(&payload[0], payload.size());
+                Wire::MonsterMove move;
+                if (!Wire::DecodeMonsterMove(body, SMSG_MONSTER_MOVE, move).ok() ||
+                    !(move.flags & Wire::kSplineFlagTrajectory) || !move.duration)
+                {
+                    return false;
+                }
+                const bool linear = move.path == Wire::SplinePath::Linear;
+                Wire::Vec3 const& to =
+                    linear ? move.destination : (move.points.empty() ? move.start : move.points.back());
+                const float dx = to.x - move.start.x;
+                const float dy = to.y - move.start.y;
+                const float dz = to.z - move.start.z;
+                jump.read = true;
+                jump.durationMs = move.duration;
+                jump.points = linear ? uint32(move.packedOffsets.size() + 1) : uint32(move.points.size());
+                jump.leg = std::sqrt(dx * dx + dy * dy + dz * dz);
+                jump.speed = jump.leg * 1000.0f / float(move.duration);
+                jump.gravity = move.verticalAcceleration;
+                return true;
             }
 
             /// The radius of kFront's effect 0 in the client's data; 0 when the store lacks the spell or the effect.
@@ -225,6 +317,14 @@ namespace Harness
             {
                 char text[32];
                 snprintf(text, sizeof(text), "%.1f", value);
+                return text;
+            }
+
+            /// `value` with two decimals.
+            static std::string TwoDecimals(float value)
+            {
+                char text[32];
+                snprintf(text, sizeof(text), "%.2f", value);
                 return text;
             }
         };
