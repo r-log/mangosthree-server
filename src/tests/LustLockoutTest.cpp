@@ -25,18 +25,21 @@
 
 /// Tests of the lockout the four haste spells share: the rows RegisterLustScripts registers, in the game's table too;
 /// Spells::HoldsLustLockout on a unit that holds each lockout, a haste or nothing; the target script, which drops the
-/// units that hold a lockout and keeps the others in their order; and the aura-apply script, which casts nothing at the
+/// units that hold a lockout and keeps the others in their order; the aura-apply script, which casts nothing at the
 /// call before the holder is added and leaves a unit that holds a lockout as it is, whose calls each continue so the
-/// holder's boosts run. The cast the apply makes needs a live unit and the lockout in the spell store, so
-/// the test's unit, a bare Creature (update fields allocated; no map, template or AI), sees the store refuse it;
-/// scenario 1123 records the cast. A holder put in the creature's holder map stands for an aura it holds.
+/// holder's boosts run; and the no-stack check, which lets each lockout stand with its haste spell and with another
+/// aura of its icon. The cast the apply makes needs a live unit and the lockout in the spell store, so the test's
+/// unit, a bare Creature (update fields allocated; no map, template or AI), sees the store refuse it; scenario 1123
+/// records the cast. A holder put in the creature's holder map stands for an aura it holds.
 
 #include "TestHarness.h"
 #include "spells/LustLockout.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/data/SpellTables.h"
+#include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"
+#include "data/ServerSpellStore.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
@@ -252,4 +255,91 @@ TEST(LustLockout_TheAuraApplyScriptCastsNothingBeforeTheAddAndLetsTheBoostsRun)
     }
     CHECK_EQ(locked.GetSpellAuraHolderMap().size(), std::size_t(1));
     CHECK(locked.HasAura(80354));
+}
+
+namespace
+{
+    // The stacking test's records, kept alive for the rest of the run: the class options of the haste spells'
+    // families, and Spell.dbc rows with no effects, of the ids, icons and class options of the client's data, beside
+    // three generic rows that are no lockout, each of a lockout's icon. The test takes the spell rows out of the spell
+    // store again.
+    const uint32 kOptionsMage = 94440;
+    const uint32 kOptionsShaman = 94441;
+    const uint32 kOptionsHunter = 94442;
+    const uint32 kOtherIcon44 = 94443;
+    const uint32 kOtherIcon4895 = 94444;
+    const uint32 kOtherIcon2014 = 94445;
+
+    struct IconRow
+    {
+        uint32 spellId;
+        uint32 icon;
+        uint32 options;                             // 0 for a generic spell
+    };
+
+    // Bloodlust (icon 38) and Heroism (2288) under the shaman's options, Time Warp (4895) under the mage's, Ancient
+    // Hysteria (95) under the hunter's; Sated and Exhaustion (44), Temporal Displacement (4895) and Insanity (2014),
+    // generic; the three other rows.
+    IconRow const ICON_ROWS[] =
+    {
+        { 2825, 38, kOptionsShaman }, { 32182, 2288, kOptionsShaman }, { 80353, 4895, kOptionsMage },
+        { 90355, 95, kOptionsHunter }, { 57724, 44, 0 }, { 57723, 44, 0 }, { 80354, 4895, 0 }, { 95809, 2014, 0 },
+        { kOtherIcon44, 44, 0 }, { kOtherIcon4895, 4895, 0 }, { kOtherIcon2014, 2014, 0 },
+    };
+
+    SpellClassOptionsEntry s_optionsMage;
+    SpellClassOptionsEntry s_optionsShaman;
+    SpellClassOptionsEntry s_optionsHunter;
+    ServerSpell s_iconRows[sizeof(ICON_ROWS) / sizeof(ICON_ROWS[0])];
+}
+
+TEST(LustLockout_EachLockoutStacksWithItsHasteAndWithAnotherAuraOfItsIcon)
+{
+    // Time Warp and Temporal Displacement share icon 4895, and two auras of one icon with no spell modifier effect do
+    // not stack (the generic same-icon rule), so a new holder of either would remove the other's from its unit. A
+    // lockout is exempt from the rule, both ways: against its own haste spell and against another aura of its icon
+    // that is no lockout.
+    s_optionsMage.SpellClassSet = SPELLFAMILY_MAGE;
+    s_optionsShaman.SpellClassSet = SPELLFAMILY_SHAMAN;
+    s_optionsShaman.SpellClassMask = ClassFamilyMask(UI64LIT(0x40) << 32);
+    s_optionsHunter.SpellClassSet = SPELLFAMILY_HUNTER;
+    s_optionsHunter.SpellClassMask = ClassFamilyMask(UI64LIT(0x10000000) << 32);
+    sSpellClassOptionsStore.SetEntry(kOptionsMage, &s_optionsMage);
+    sSpellClassOptionsStore.SetEntry(kOptionsShaman, &s_optionsShaman);
+    sSpellClassOptionsStore.SetEntry(kOptionsHunter, &s_optionsHunter);
+    for (std::size_t i = 0; i < sizeof(ICON_ROWS) / sizeof(ICON_ROWS[0]); ++i)
+    {
+        SpellEntry& row = s_iconRows[i].Entry();
+        row.ID = ICON_ROWS[i].spellId;
+        row.SpellIconID = ICON_ROWS[i].icon;
+        row.ClassOptionsID = ICON_ROWS[i].options;
+        sSpellStore.SetEntry(ICON_ROWS[i].spellId, &row);
+    }
+
+    // Each haste spell, its lockout, and the other row of the lockout's icon.
+    uint32 const pairs[][3] =
+    {
+        { 2825, 57724, kOtherIcon44 }, { 32182, 57723, kOtherIcon44 }, { 80353, 80354, kOtherIcon4895 },
+        { 90355, 95809, kOtherIcon2014 },
+    };
+    for (auto const& pair : pairs)
+    {
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(pair[1], pair[0]));
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(pair[0], pair[1]));
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(pair[1], pair[2]));
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(pair[2], pair[1]));
+    }
+
+    // The rule itself stands for Time Warp and another aura of its icon, and between two lockouts of one icon, Sated
+    // and Exhaustion, of which a unit keeps one: either refuses every haste spell.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(80353, kOtherIcon4895));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIcon4895, 80353));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(57724, 57723));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(57723, 57724));
+
+    for (IconRow const& row : ICON_ROWS)
+    {
+        sSpellStore.SetEntry(row.spellId, NULL);
+    }
+    CHECK(sSpellStore.LookupEntry(80354) == NULL);
 }

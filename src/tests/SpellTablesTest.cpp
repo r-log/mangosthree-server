@@ -661,6 +661,21 @@ TEST(SpellTables_EachHasteSpellAnswersItsOwnLockoutAndNoOtherSpellAnswersOne)
     CHECK_EQ(LustSpellAt(1000), uint32(0));
 }
 
+TEST(SpellTables_TheLockoutsAreTheLustTablesAnswersAndNoOtherSpell)
+{
+    // Sated, Exhaustion, Temporal Displacement and Insanity are lockouts.
+    for (uint32 spellId : { 57724u, 57723u, 80354u, 95809u })
+    {
+        CHECK(IsLustLockout(spellId));
+    }
+
+    // The haste spells themselves, Frostbolt (116) and any other id are none.
+    for (uint32 spellId : { 2825u, 32182u, 80353u, 90355u, 116u, 0u, 12345u })
+    {
+        CHECK(!IsLustLockout(spellId));
+    }
+}
+
 TEST(SpellTables_TheDeathPreventionRowsAreCheatDeathGuardianSpiritAndCauterize)
 {
     // Cauterize: effect 0 holds the chance (50/100), effect 1 the health percent (40); 87023 heals through its effect 1;
