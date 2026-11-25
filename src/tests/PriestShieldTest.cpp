@@ -25,11 +25,11 @@
 
 /// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield and the
 /// mastery, Rapture's removal modes, mana and lockout, the two rows the file registers, in the game's table too, and
-/// the exits of its two scripts that cast nothing. The scripts run on a bare Creature (update fields allocated; no
+/// the exits of its two scripts that change nothing. The scripts run on a bare Creature (update fields allocated; no
 /// map, template or AI), whose holder map holds the test's empty holders where a script asks whether it holds an aura;
 /// an empty holder has no aura, so its effect 0 amount is 0, and its script words are 0. The tests read no row of the
-/// spell store, so the rows other tests leave there change nothing here. Scenario 1202 records the amount, the heal,
-/// the mana and the lockout in play.
+/// spell store, so the rows other tests leave there change nothing here. Scenario 1202 records the amount as the
+/// clients are told it, the heal, the mana and the lockout in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/Shield.h"
@@ -187,26 +187,26 @@ TEST(PriestShield_RaptureWaitsOutItsEnergizesRecoveryTime)
     CHECK(!Priest::RaptureLockedOut(13000, 13000 - 0x40000000u, 12000));
 }
 
-TEST(PriestShield_PowerWordShieldHoldsTheAuraApplyAndRemoveScriptsInTheGame)
+TEST(PriestShield_PowerWordShieldHoldsTheAuraAmountAndRemoveScriptsInTheGame)
 {
     // Two rows on 17, one at each hook, no default.
     SpellHandlerRegistry registry;
     CHECK_EQ(Priest::RegisterShield(registry), uint32(2));
     CHECK_EQ(registry.Count(), std::size_t(2));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
-    CHECK_EQ(registry.CountAt(AuraApplyHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AuraAmountHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(1));
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK(registry.Find<AuraApplyHook>(POWER_WORD_SHIELD) != NULL);
+    CHECK(registry.Find<AuraAmountHook>(POWER_WORD_SHIELD) != NULL);
     CHECK(registry.Find<AuraRemoveHook>(POWER_WORD_SHIELD) != NULL);
-    CHECK(game.Find<AuraApplyHook>(POWER_WORD_SHIELD) == registry.Find<AuraApplyHook>(POWER_WORD_SHIELD));
+    CHECK(game.Find<AuraAmountHook>(POWER_WORD_SHIELD) == registry.Find<AuraAmountHook>(POWER_WORD_SHIELD));
     CHECK(game.Find<AuraRemoveHook>(POWER_WORD_SHIELD) == registry.Find<AuraRemoveHook>(POWER_WORD_SHIELD));
 
     // The talents and spells the scripts read hold no row of their own at either hook: Improved Power Word: Shield's
     // ranks, Shield Discipline, Rapture's ranks and its energize, Borrowed Time's ranks and its haste.
     for (uint32 spellId : { 14748u, 14768u, 77484u, 47535u, 47536u, 47537u, 47755u, 52795u, 52797u, 59888u })
     {
-        CHECK(game.Find<AuraApplyHook>(spellId) == NULL);
+        CHECK(game.Find<AuraAmountHook>(spellId) == NULL);
         CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);
     }
 }
@@ -222,7 +222,7 @@ TEST(PriestShield_TheMasteryIsTheShieldDisciplineHoldersAmountAndNothingWithoutI
     CHECK_EQ(Priest::AbsorbMastery(caster), int32(0));
 }
 
-TEST(PriestShield_TheScriptsCastNothingAndLetTheBoostsRunOutsideTheirCase)
+TEST(PriestShield_TheScriptsChangeNothingAndLetTheBoostsRunOutsideTheirCase)
 {
     SpellHandlerRegistry registry;
     Priest::RegisterShield(registry);
@@ -232,15 +232,18 @@ TEST(PriestShield_TheScriptsCastNothingAndLetTheBoostsRunOutsideTheirCase)
     SpellAuraHolder& holder = EmptyHolder(storage);
     SpellEntry const& shield = SpellRow(row, POWER_WORD_SHIELD);
 
-    // The apply: the call before the add and a shield whose caster cannot be found change nothing, and a shield with no
-    // aura at effect 0 keeps its 0. Each lets the boosts run.
-    AuraApplyContext beforeAdd(priest, &priest, shield, AuraHandle(holder), false);
-    CHECK(registry.Dispatch<AuraApplyHook>(POWER_WORD_SHIELD, beforeAdd).IsContinue());
-    AuraApplyContext noCaster(priest, NULL, shield, AuraHandle(holder), true);
-    CHECK(registry.Dispatch<AuraApplyHook>(POWER_WORD_SHIELD, noCaster).IsContinue());
-    AuraApplyContext noAura(priest, &priest, shield, AuraHandle(holder), true);
-    CHECK(registry.Dispatch<AuraApplyHook>(POWER_WORD_SHIELD, noAura).IsContinue());
-    CHECK_EQ(AuraHandle(holder).Amount(EFFECT_INDEX_0), int32(0));
+    // The amount: a shield with no caster, and an effect other than the absorb, keep the amount the engine reckoned;
+    // a caster with no spell power (a creature, with no spell power aura), no talent and no mastery leaves it too.
+    int32 amount = 8136;
+    AuraAmountContext noCaster(NULL, priest, shield, EFFECT_INDEX_0, amount);
+    CHECK(registry.Dispatch<AuraAmountHook>(POWER_WORD_SHIELD, noCaster).IsContinue());
+    CHECK_EQ(amount, int32(8136));
+    AuraAmountContext otherEffect(&priest, priest, shield, EFFECT_INDEX_1, amount);
+    CHECK(registry.Dispatch<AuraAmountHook>(POWER_WORD_SHIELD, otherEffect).IsContinue());
+    CHECK_EQ(amount, int32(8136));
+    AuraAmountContext plain(&priest, priest, shield, EFFECT_INDEX_0, amount);
+    CHECK(registry.Dispatch<AuraAmountHook>(POWER_WORD_SHIELD, plain).IsContinue());
+    CHECK_EQ(amount, int32(8136));
 
     // The removal: every mode but a break and a dispel, a caster who cannot be found and a caster who knows no Rapture
     // cast nothing.

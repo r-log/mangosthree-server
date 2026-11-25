@@ -52,6 +52,7 @@
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/SpellScriptHooks.h"
 #include "ObjectLookup.h"
 #include "Policies/Singleton.h"
 #include "Creature.h"
@@ -655,8 +656,10 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
                 DoneActualBenefit = caster->GetMaxHealth() * 0.20f;
             }
             // A shield with a spell_bonus_data row: the caster's spell power of the shield's school and attack power,
-            // each times the coefficient the absorb kind takes
-            else if (sSpellMgr.GetSpellBonusData(spellProto->ID))
+            // each times the coefficient the absorb kind takes; a shield whose aura-amount script reckoned its whole
+            // amount when the aura was made takes nothing more
+            else if (sSpellMgr.GetSpellBonusData(spellProto->ID) &&
+                     !SpellHandlerRegistry::Game().Find<AuraAmountHook>(spellProto->ID))
             {
                 int32 const spellPower = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto));
                 DoneActualBenefit = float(caster->SpellBonusWithCoeffs(spellProto, 0, spellPower, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_ABSORB));

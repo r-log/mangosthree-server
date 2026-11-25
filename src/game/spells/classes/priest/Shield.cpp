@@ -37,7 +37,7 @@ namespace
     uint32 const SHIELD_DISCIPLINE = 77484;
     uint32 const RAPTURE_ENERGIZE = 47755;
 
-    /// The id the shield's scripts hold at the aura-apply and aura-remove hooks.
+    /// The id the shield's scripts hold at the aura-amount and aura-remove hooks.
     uint32 const SHIELD_IDS[] = { POWER_WORD_SHIELD };
 
     /// Improved Power Word: Shield's ranks and Rapture's, the highest first: a priest knows one rank of each.
@@ -66,24 +66,25 @@ namespace
         return energize ? GetSpellRecoveryTime(energize) : 0;
     }
 
-    /// 17: Power Word: Shield: at the holder's add, its amount, the base and the spell power part the absorb aura took,
-    /// is raised by the effect 0 percent of the Improved Power Word: Shield rank its caster holds and by his Shield
-    /// Discipline mastery (Priest::ShieldAmount, Priest::AbsorbMastery), so the holder's boosts, Glyph of Power Word:
-    /// Shield's heal among them, read the raised amount. The write tells the clients a raised amount; they were sent
-    /// the holder's slot before the absorb aura took its spell power part, so a shield left as it is shows them its
-    /// base until a hit sends its amount. A shield loaded with its owner keeps the amount it was saved with, and a
-    /// shield whose caster cannot be found is left as it is. The holder's boosts still run.
-    SpellHandlerOutcome<void> ShieldAuraApply(AuraApplyContext& ctx)
+    /// 17: Power Word: Shield: when its absorb is made, the amount is the whole shield: the base the engine reckoned,
+    /// plus the spell power part (the caster's spell power of the shield's school times the coefficient the absorb
+    /// kind takes), raised by the effect 0 percent of the Improved Power Word: Shield rank the caster holds and by his
+    /// Shield Discipline mastery (Priest::ShieldAmount, Priest::AbsorbMastery). The absorb aura adds no spell power
+    /// part at its apply for a spell with this row (Aura::HandleSchoolAbsorb), so the holder's slot update, sent before
+    /// the apply, carries the whole amount, and its boosts, Glyph of Power Word: Shield's heal among them, read it. A
+    /// shield made while its target loads, or with no caster, keeps the amount the engine reckoned.
+    SpellHandlerOutcome<void> ShieldAuraAmount(AuraAmountContext& ctx)
     {
-        if (!ctx.real || ctx.target.IsLoading() || !ctx.caster)
+        if (!ctx.caster || ctx.target.IsLoading() || ctx.effIndex != EFFECT_INDEX_0)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
-        int32 const amount = ctx.aura.Amount(EFFECT_INDEX_0);
+        int32 const spellPower = ctx.caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(&ctx.spell));
+        int32 const part = ctx.caster->SpellBonusWithCoeffs(&ctx.spell, 0, spellPower, 0, SPELL_DIRECT_DAMAGE, true,
+                                                            SPELL_BONUS_KIND_ABSORB);
         SpellAuraHolder* improved = HeldRank(*ctx.caster, IMPROVED_POWER_WORD_SHIELD);
         int32 const improvedPercent = improved ? AuraHandle(*improved).Amount(EFFECT_INDEX_0) : 0;
-        int32 const raised = Priest::ShieldAmount(amount, improvedPercent, Priest::AbsorbMastery(*ctx.caster));
-        ctx.aura.SetAmount(EFFECT_INDEX_0, raised);
+        ctx.amount = Priest::ShieldAmount(ctx.amount + part, improvedPercent, Priest::AbsorbMastery(*ctx.caster));
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -128,7 +129,7 @@ namespace
 
 uint32 Priest::RegisterShield(SpellHandlerRegistry& registry)
 {
-    uint32 rows = RegisterRanks<AuraApplyHook>(registry, SHIELD_IDS, &ShieldAuraApply);
+    uint32 rows = RegisterRanks<AuraAmountHook>(registry, SHIELD_IDS, &ShieldAuraAmount);
     rows += RegisterRanks<AuraRemoveHook>(registry, SHIELD_IDS, &ShieldAuraRemove);
     return rows;
 }

@@ -32,15 +32,15 @@
  * @file Shield.h
  * @brief Power Word: Shield's amount and what its end gives its caster: the leaves of Shield.cpp.
  *
- * Shield.cpp registers two rows on Power Word: Shield (17): at the aura-apply hook its amount is raised by Improved
- * Power Word: Shield and by the Shield Discipline mastery (ShieldAmount, AbsorbMastery), and at the aura-remove hook a
- * shield used up or dispelled gives its caster Rapture's mana (RaptureFires, RaptureMana), once in the energize's
- * recovery time (RaptureLockedOut, RaptureLockoutEnd).
+ * Shield.cpp registers two rows on Power Word: Shield (17): at the aura-amount hook its whole amount is reckoned,
+ * raised by Improved Power Word: Shield and by the Shield Discipline mastery (ShieldAmount, AbsorbMastery), and at the
+ * aura-remove hook a shield used up or dispelled gives its caster Rapture's mana (RaptureFires, RaptureMana), once in
+ * the energize's recovery time (RaptureLockedOut, RaptureLockoutEnd).
  */
 
 namespace Priest
 {
-    /// Registers Power Word: Shield's aura-apply and aura-remove rows on `registry`; answers 2, the rows registered.
+    /// Registers Power Word: Shield's aura-amount and aura-remove rows on `registry`; answers 2, the rows registered.
     uint32 RegisterShield(SpellHandlerRegistry& registry);
 
     /// The percent the Shield Discipline mastery (77484) adds to `caster`'s absorbs: the effect 0 amount of his holder
