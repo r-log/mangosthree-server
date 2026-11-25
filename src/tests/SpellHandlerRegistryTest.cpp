@@ -7102,10 +7102,10 @@ namespace
 
 TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 37, 0, 10, 8, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 19 at the haste, crit-chance
-    // and two proc-trigger sites, and no default: 145 rows and 145 keys, none twice. The mage dummy proc site's
+    // 37, 0, 10, 7, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 19 at the haste, crit-chance
+    // and two proc-trigger sites, and no default: 144 rows and 144 keys, none twice. The mage dummy proc site's
     // row is RegisterMageScripts'.
-    std::size_t const perSite[] = { 37, 0, 10, 8, 11, 5, 26, 10, 2, 1, 16, 19 };
+    std::size_t const perSite[] = { 37, 0, 10, 7, 11, 5, 26, 10, 2, 1, 16, 19 };
     uint32 const siteKeys[] = { DummyAuraProcGenericSite::Key, DummyAuraProcMageSite::Key,
                                 DummyAuraProcWarlockSite::Key, DummyAuraProcPriestSite::Key,
                                 DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
@@ -7113,8 +7113,8 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
                                 HasteAuraProcRogueSite::Key, SpellCritChanceAuraProcMageSite::Key,
                                 ProcTriggerSpellAuraProcGenericSite::Key, ProcTriggerSpellAuraProcTriggeredSite::Key };
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(145));
-    CHECK_EQ(registry.Count(), std::size_t(145));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(144));
+    CHECK_EQ(registry.Count(), std::size_t(144));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     for (std::size_t k = 0; k < 12; ++k)
     {
@@ -7122,8 +7122,8 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key is taken.
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(145));
-    CHECK_EQ(registry.Count(), std::size_t(145));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(144));
+    CHECK_EQ(registry.Count(), std::size_t(144));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
