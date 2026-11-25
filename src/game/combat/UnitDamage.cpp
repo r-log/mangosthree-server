@@ -347,12 +347,12 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                     {
                         break;
                     }
-                    Unit* caster = (*i)->GetCaster();
-                    if (!caster)
+                    // only the priest's own shield on himself reflects
+                    if ((*i)->GetCasterGuid() != GetObjectGuid())
                     {
                         break;
                     }
-                    AuraList const& vOverRideCS = caster->GetAurasByType(SPELL_AURA_DUMMY);
+                    AuraList const& vOverRideCS = GetAurasByType(SPELL_AURA_DUMMY);
                     for (AuraList::const_iterator k = vOverRideCS.begin(); k != vOverRideCS.end(); ++k)
                     {
                         switch ((*k)->GetModifier()->m_miscvalue)
