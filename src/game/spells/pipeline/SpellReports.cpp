@@ -303,6 +303,12 @@ void Spell::SendChannelUpdate(uint32 time)
 /**
  * @brief Starts channeling visuals and channel state for the spell.
  *
+ * The caster's channel object becomes the dynamic object of a channel whose effect 0 is a persistent area aura; else
+ * the caster himself when the cast lands on him alone, no other unit and no game object; else the first unit other
+ * than the caster that effect 0 lands on, skipping one whose reflection of the spell missed the caster; else, when the
+ * cast lands on no unit, the first game object effect 0 lands on. With none of them the channel object is left as it
+ * is.
+ *
  * @param duration The channel duration in milliseconds.
  */
 void Spell::SendChannelStart(uint32 duration)
@@ -313,6 +319,12 @@ void Spell::SendChannelStart(uint32 duration)
     if (m_spellInfo->GetSpellEffectIdByIndex(EFFECT_INDEX_0) == SPELL_EFFECT_PERSISTENT_AREA_AURA)
     {
         target = m_caster->GetDynObject(m_spellInfo->ID, EFFECT_INDEX_0);
+    }
+    // a channel that lands on its caster alone shows the caster
+    else if (m_UniqueTargetInfo.size() == 1 && m_UniqueGOTargetInfo.empty() &&
+             m_UniqueTargetInfo.front().targetGUID == m_caster->GetObjectGuid())
+    {
+        target = m_caster;
     }
     // select first not resisted target from target list for _0_ effect
     else if (!m_UniqueTargetInfo.empty())
