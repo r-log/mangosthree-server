@@ -67,17 +67,13 @@ void BuildAuraUpdateAllPacket(WorldPacket& packet, Unit const& target);
 /// and guid bytes 6 and 1; a guid byte is there only when its mask bit is set, XORed with 1.
 void BuildAuraPointsDepletedPacket(WorldPacket& packet, ObjectGuid target, uint8 slot, uint8 effectIndex);
 
-/// The effect of `holder`'s spell whose points ran out when the holder was removed as broken: the first effect whose
-/// aura absorbs damage of a school, damage for mana or healing; 0 when none does.
-uint8 DepletedEffectOf(SpellAuraHolder const& holder);
-
-/// The auras' notices, each built here: an aura's change goes to the units around its target, the
-/// visible auras to the viewer's own client. A holder removed as broken (AURA_REMOVE_BY_SHIELD_BREAK) has its points
-/// depleted told first, then its slot emptied.
+/// The auras' notices, each built here: an aura's change and a damage shield's points running out go to the units
+/// around its target, the visible auras to the viewer's own client.
 class SessionAuraNotices : public AuraNotices
 {
     public:
         void AuraUpdate(SpellAuraHolder const& holder, bool removed) override;
+        void AuraPointsDepleted(SpellAuraHolder const& holder, uint8 effectIndex) override;
         void VisibleAuras(Player& viewer, Unit const& target) override;
 };
 

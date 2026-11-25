@@ -105,6 +105,9 @@ class  SpellAuraHolder
         void _AddSpellAuraHolder();
         void _RemoveSpellAuraHolder();
         void SendAuraUpdate(bool remove) const;
+        /// The units around the target are told the points of its effect `index`, a damage absorb, ran out, when the
+        /// holder sits in a visible slot of a target in the world.
+        void SendAuraPointsDepleted(SpellEffectIndex index) const;
         void HandleSpellSpecificBoosts(bool apply);
         void CleanupTriggeredSpells();
 
@@ -662,9 +665,10 @@ Aura* CreateAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* curr
 SpellAuraHolder* CreateSpellAuraHolder(SpellEntry const* spellproto, Unit* target, WorldObject* caster, Item* castItem = NULL, SpellEntry const* triggeredBy = NULL);
 
 /**
- * Takes `holder`, a shield its target holds whose points ran out, off that target, and no other holder: it is removed
- * as broken (AURA_REMOVE_BY_SHIELD_BREAK), so the clients around the target hear its points depleted before its slot
- * empties. A holder of the same spell from another caster stays.
+ * Takes `holder`, a damage shield its target holds whose points ran out, off that target, and no other holder: the
+ * clients around the target hear the points of each of its damage absorbs (SPELL_AURA_SCHOOL_ABSORB,
+ * SPELL_AURA_MANA_SHIELD) at 0 or below depleted, then it is removed as broken (AURA_REMOVE_BY_SHIELD_BREAK). A holder
+ * of the same spell from another caster stays.
  */
 void RemoveDepletedShield(SpellAuraHolder* holder);
 #endif

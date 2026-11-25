@@ -47,6 +47,10 @@ void AuraNotices::AuraUpdate(SpellAuraHolder const& /*holder*/, bool /*removed*/
 {
 }
 
+void AuraNotices::AuraPointsDepleted(SpellAuraHolder const& /*holder*/, uint8 /*effectIndex*/)
+{
+}
+
 void AuraNotices::VisibleAuras(Player& /*viewer*/, Unit const& /*target*/)
 {
 }

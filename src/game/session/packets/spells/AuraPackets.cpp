@@ -136,31 +136,17 @@ void BuildAuraPointsDepletedPacket(WorldPacket& packet, ObjectGuid target, uint8
     packet.WriteGuidBytes<6, 1>(target);
 }
 
-uint8 DepletedEffectOf(SpellAuraHolder const& holder)
-{
-    for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
-    {
-        SpellEffectEntry const* effect = holder.GetSpellProto()->GetSpellEffect(SpellEffectIndex(i));
-        if (effect && (effect->EffectAura == SPELL_AURA_SCHOOL_ABSORB || effect->EffectAura == SPELL_AURA_MANA_SHIELD ||
-                       effect->EffectAura == SPELL_AURA_HEAL_ABSORB))
-        {
-            return i;
-        }
-    }
-    return 0;
-}
-
 void SessionAuraNotices::AuraUpdate(SpellAuraHolder const& holder, bool removed)
 {
     WorldPacket data;
-    // a shield whose points ran out (removed as broken) has its points depleted told before its slot empties
-    if (removed && holder.GetRemoveMode() == AURA_REMOVE_BY_SHIELD_BREAK)
-    {
-        BuildAuraPointsDepletedPacket(data, holder.GetTarget()->GetObjectGuid(), holder.GetAuraSlot(),
-                                      DepletedEffectOf(holder));
-        holder.GetTarget()->SendMessageToSet(&data, true);
-    }
     BuildAuraUpdatePacket(data, holder, removed);
+    holder.GetTarget()->SendMessageToSet(&data, true);
+}
+
+void SessionAuraNotices::AuraPointsDepleted(SpellAuraHolder const& holder, uint8 effectIndex)
+{
+    WorldPacket data;
+    BuildAuraPointsDepletedPacket(data, holder.GetTarget()->GetObjectGuid(), holder.GetAuraSlot(), effectIndex);
     holder.GetTarget()->SendMessageToSet(&data, true);
 }
 

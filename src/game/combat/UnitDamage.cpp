@@ -560,11 +560,11 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
             incanterAbsorption += currentAbsorb;
         }
 
-        // a shield the damage used up is removed as broken
+        // a shield the damage used up is removed as broken, its own holder alone (RemoveDepletedShield)
         (*i)->GetModifier()->m_amount -= currentAbsorb;
         if ((*i)->GetModifier()->m_amount <= 0)
         {
-            RemoveAurasDueToSpell((*i)->GetId(), NULL, AURA_REMOVE_BY_SHIELD_BREAK);
+            RemoveDepletedShield((*i)->GetHolder());
             next = vManaShield.begin();
         }
 
