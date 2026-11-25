@@ -533,7 +533,7 @@ TEST(SpellScriptHooks_TheSeventeenKeysAre100To116AboveEveryLegacySite)
 
     // Every key the game registers sits at a legacy site, below the first hook, but the mage's scripts at the target,
     // check-proc, proc, damage-done, crit-chance, dummy aura, aura-apply, aura-remove, periodic-tick, dummy-effect,
-    // after-cast, launch, cast-start and after-hit hooks.
+    // after-cast, launch, cast-start and after-hit hooks, and the lust scripts at the target and aura-apply hooks.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::size_t belowHooks = 0;
     for (uint32 site = 0; site < uint32(SPELL_SCRIPT_HOOK_CHECK_CAST); ++site)
@@ -1369,22 +1369,23 @@ TEST(SpellScriptHooks_CopyAuraHolderKeepsTheSourcesPeriodTickTimeAndAmount)
     delete source;
 }
 
-TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
+TEST(SpellScriptHooks_TheGameTableHoldsTheMageAndLustScriptsAndNoOtherHookRow)
 {
     // The check-proc hook holds Impact's two ranks', Clearcasting's, Arcane Blast's buff's, Arcane Potency's two
     // buffs', Fingers of Frost's three, Brain Freeze's three, Invocation's two and Reactive Barrier's two ranks', the
     // proc hook the mage's 27 proc scripts, the target hook Blink's, the orbs' scans', the ring's freeze's, Piercing
-    // Chill's chill's and Initialize Images', the damage-done hook the 22 spells Frostburn's class mask covers and
-    // Torment the Weak's three ranks, the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living
-    // Bomb's, the aura-apply hook Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s, Arcane
-    // Missiles', Ice Barrier's, Invisibility's state's and the seven forms of Polymorph's, the aura-remove hook Hot
+    // Chill's chill's, Initialize Images' and the four haste spells' (Bloodlust's, Heroism's, Time Warp's and Ancient
+    // Hysteria's), the damage-done hook the 22 spells Frostburn's class mask covers and Torment the Weak's three ranks,
+    // the crit-chance hook the 26 spells Shatter's covers, the dummy aura hook Living Bomb's, the aura-apply hook
+    // Pyromaniac's ten (its eight DoTs and two ranks), Arcane Missiles!'s, Arcane Missiles', Ice Barrier's,
+    // Invisibility's state's, the seven forms of Polymorph's and the four haste spells', the aura-remove hook Hot
     // Streak's buff's, Mage Ward's, Mana Shield's, Ice Barrier's, Invisibility's state's, Pyromaniac's ten, Arcane
     // Missiles!'s and the seven forms of Polymorph's and the ring's freeze's, the periodic-tick hook Ring of Frost's,
-    // the dummy-effect hook Combustion's, Impact's spread, Flame Orb's, Frostfire Orb's, the orbs' scans', Mirror
-    // Image's and Clone Me!'s, the after-cast hook Blast Wave's, Replenish Mana's and the Water Elemental's Freeze's,
-    // the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's, Fireball's and Ice Block's, the cast-start hook
-    // Frostbolt's, and the after-hit hook Frostbolt's, Cone of Cold's, Blizzard's damage's and Frostfire Bolt's
-    // (MageScriptsTest names their ids); no other hook holds a row.
+    // the dummy-effect hook Ritual of Refreshment's, Combustion's, Impact's spread, Flame Orb's, Frostfire Orb's, the
+    // orbs' scans', Mirror Image's and Clone Me!'s, the after-cast hook Blast Wave's, Replenish Mana's and the Water
+    // Elemental's Freeze's, the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's, Fireball's, Ice Block's,
+    // Arcane Missiles' and Blizzard's, the cast-start hook Frostbolt's, and the after-hit hook Frostbolt's, Cone of
+    // Cold's, Blizzard's damage's and Frostfire Bolt's (MageScriptsTest and LustLockoutTest name their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
@@ -1396,19 +1397,19 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     }
     CHECK_EQ(game.CountAt(CheckProcHook::Key), std::size_t(16));
     CHECK_EQ(game.CountAt(OnProcHook::Key), std::size_t(27));
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(6));
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), std::size_t(10));
     CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(25));
     CHECK_EQ(game.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(game.CountAt(DummyAuraHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(21));
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key), std::size_t(25));
     CHECK_EQ(game.CountAt(AuraRemoveHook::Key), std::size_t(24));
     CHECK_EQ(game.CountAt(PeriodicTickHook::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(8));
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(9));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(3));
-    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(5));
+    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(7));
     CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(4));
-    CHECK_EQ(game.Count(), std::size_t(1391));
+    CHECK_EQ(game.Count(), std::size_t(1402));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 

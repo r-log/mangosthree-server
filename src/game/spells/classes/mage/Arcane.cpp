@@ -212,6 +212,21 @@ namespace
         return SpellHandlerOutcome<bool>::Continue();
     }
 
+    /// 5143, 10: Arcane Missiles and Blizzard: as the channel starts, a caster holding an Arcane Potency buff (57529 or
+    /// 57531) has one of its charges taken (Mage::UseArcanePotencyCharge), one per channel however many missiles or
+    /// ticks it gives, then casts the buff's hidden aura (GetArcanePotencyHiddenAura) on himself, triggered. The hidden
+    /// aura's crit chance names the missiles and the ticks for the aura's own 10 s, which run on after the channel and
+    /// after the buff is gone: a second channel's missiles or ticks inside them still get the crit. Nothing for a
+    /// caster without the buff.
+    SpellHandlerOutcome<void> ArcanePotencyChannelLaunch(LaunchContext& ctx)
+    {
+        if (uint32 const hidden = GetArcanePotencyHiddenAura(Mage::UseArcanePotencyCharge(ctx.caster)))
+        {
+            ctx.caster.CastSpell(&ctx.caster, hidden, true);
+        }
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
     uint32 const TORMENT_THE_WEAK[] = { 29447, 55339, 55340 };
     uint32 const SLOW = 31589;
 
@@ -348,6 +363,9 @@ namespace
     uint32 const ARCANE_MISSILES_CHANNEL[] = { 5143 };
     uint32 const ARCANE_BLAST_BUFF[] = { 36032 };
     uint32 const ARCANE_POTENCY_BUFFS[] = { 57529, 57531 };
+    /// Arcane Potency's buffs, the second rank's first: the order Mage::UseArcanePotencyCharge looks for them in.
+    uint32 const ARCANE_POTENCY_BUFFS_BY_RANK[] = { 57531, 57529 };
+    uint32 const ARCANE_POTENCY_CHANNELS[] = { 10, 5143 };
     uint32 const NETHER_VORTEX[] = { 86181, 86209 };
     uint32 const FOCUS_MAGIC[] = { 54646 };
     uint32 const INVOCATION[] = { 84722, 84723 };
@@ -389,6 +407,24 @@ bool Mage::DealsOrTriggersDamage(SpellEntry const& spell)
         }
     }
     return false;
+}
+
+uint32 Mage::UseArcanePotencyCharge(Unit& mage)
+{
+    for (uint32 buff : ARCANE_POTENCY_BUFFS_BY_RANK)
+    {
+        SpellAuraHolder* holder = mage.GetSpellAuraHolder(buff);
+        if (!holder || !AuraHandle(*holder).Charges())
+        {
+            continue;
+        }
+        if (AuraHandle(*holder).DropCharge())
+        {
+            mage.RemoveAurasDueToSpell(buff);
+        }
+        return buff;
+    }
+    return 0;
 }
 
 bool Mage::CountsAsSlow(uint32 auraType, int32 amount)
@@ -512,6 +548,7 @@ uint32 Mage::RegisterArcane(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AuraApplyHook>(registry, ARCANE_MISSILES_CHANNEL, &ArcaneMissilesChannelApply);
     rows += RegisterRanks<CheckProcHook>(registry, ARCANE_BLAST_BUFF, &ArcaneBlastBuffCheckProc);
     rows += RegisterRanks<CheckProcHook>(registry, ARCANE_POTENCY_BUFFS, &ArcanePotencyBuffCheckProc);
+    rows += RegisterRanks<LaunchHook>(registry, ARCANE_POTENCY_CHANNELS, &ArcanePotencyChannelLaunch);
     rows += RegisterRanks<DamageDoneHook>(registry, TORMENT_THE_WEAK, &TormentTheWeakDamageDone);
     rows += RegisterRanks<OnProcHook>(registry, NETHER_VORTEX, &NetherVortexProc);
     rows += RegisterRanks<OnProcHook>(registry, FOCUS_MAGIC, &FocusMagicProc);

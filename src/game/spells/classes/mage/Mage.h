@@ -399,6 +399,11 @@ namespace Mage
     /// Mage.cpp.
     bool SuppressesArcaneMissiles(Unit const& mage);
 
+    /// The Ritual of Refreshment rank a caster of `level` casts: 92827 (the Conjured Mana Cake table) from 85, 92824
+    /// (the Strudel table) from 80, 74650 (the Biscuit table) below, the levels the tables' food asks for. Defined in
+    /// Mage.cpp.
+    uint32 RitualOfRefreshmentRank(uint32 level);
+
     /// What keeps Arcane Missiles Aurastate (79808), the aura Arcane Missiles (5143) asks for on its caster, on a mage
     /// exactly while he holds Arcane Missiles! (79683).
     enum AurastateStep
@@ -421,6 +426,12 @@ namespace Mage
     /// Whether `spell` deals damage (Spells::DealsDamage), or a spell one of its effects names as its trigger spell
     /// does, as Arcane Missiles' missile (7268) does for the channel (5143); one level down. Defined in Arcane.cpp.
     bool DealsOrTriggersDamage(SpellEntry const& spell);
+
+    /// Takes one charge of Arcane Potency's buff off `mage`, of the second rank's buff (57531) when he holds it with a
+    /// charge left, else of the first rank's (57529): one charge fewer, the holder removed when that was its last.
+    /// Answers the buff whose charge it took; 0, and nothing taken, when he holds neither with a charge left. Defined
+    /// in Arcane.cpp.
+    uint32 UseArcanePotencyCharge(Unit& mage);
 
     /// Whether an aura of `auraType` whose amount is `amount` snares or slows the unit it is on, for Torment the Weak:
     /// a negative amount of a movement-speed slow (SPELL_AURA_MOD_DECREASE_SPEED), of an attack-speed aura

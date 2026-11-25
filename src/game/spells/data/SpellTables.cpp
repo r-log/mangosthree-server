@@ -372,6 +372,14 @@ namespace
         { 31572, 57531 },
     };
 
+    /// Arcane Potency's buffs and, for each, the hidden aura that Arcane Missiles' or Blizzard's launch casts on the
+    /// mage, whose crit chance names Arcane Missiles' missiles and Blizzard's ticks.
+    constexpr SpellAnswer ARCANE_POTENCY_HIDDEN[] =
+    {
+        { 57529, 33421 },
+        { 57531, 33713 },
+    };
+
     constexpr SpellAnswer SECOND_WIND[] =
     {
         { 29834, 29841 },
@@ -724,6 +732,7 @@ namespace
     static_assert(SortedBySpellId(AURA_TARGET_LIMITS), "aura target limit rows are sorted, each once");
     static_assert(SortedBySpellId(FRIENDLY_VIEWER_DISPLAYS), "friendly viewer display rows are sorted, each once");
     static_assert(SortedBySpellId(ARCANE_POTENCY), "Arcane Potency rows are sorted, each once");
+    static_assert(SortedBySpellId(ARCANE_POTENCY_HIDDEN), "Arcane Potency hidden aura rows are sorted, each once");
     static_assert(SortedBySpellId(SECOND_WIND), "Second Wind rows are sorted, each once");
     static_assert(SortedBySpellId(RAPID_RECUPERATION), "Rapid Recuperation rows are sorted, each once");
     static_assert(SortedBySpellId(FLAMETONGUE_WEAPON), "Flametongue Weapon rows are sorted, each once");
@@ -906,6 +915,11 @@ uint32 GetArcanePotencyProcSpell(uint32 rankSpellId)
     return AnswerOf(ARCANE_POTENCY, rankSpellId);
 }
 
+uint32 GetArcanePotencyHiddenAura(uint32 buffSpellId)
+{
+    return AnswerOf(ARCANE_POTENCY_HIDDEN, buffSpellId);
+}
+
 uint32 GetSecondWindProcSpell(uint32 rankSpellId)
 {
     return AnswerOf(SECOND_WIND, rankSpellId);
@@ -959,6 +973,43 @@ bool IsBlazingSpeedRank(uint32 spellId)
 bool CountsForIncantersAbsorption(uint32 spellId)
 {
     return Holds(INCANTERS_ABSORPTION_SHIELDS, spellId);
+}
+
+namespace
+{
+    /// The haste spells that put a lockout on each unit they haste, and that lockout, whose holder none of the four
+    /// hastes ("Cannot benefit from Time Warp or other similar effects.").
+    constexpr SpellAnswer LUST_LOCKOUTS[] =
+    {
+        { 2825, 57724 },    // Bloodlust: Sated
+        { 32182, 57723 },   // Heroism: Exhaustion
+        { 80353, 80354 },   // Time Warp: Temporal Displacement
+        { 90355, 95809 },   // Ancient Hysteria: Insanity
+    };
+
+    static_assert(SortedBySpellId(LUST_LOCKOUTS), "lust lockout rows are sorted, each once");
+}
+
+uint32 LustLockoutOf(uint32 spellId)
+{
+    return AnswerOf(LUST_LOCKOUTS, spellId);
+}
+
+uint32 LustSpellAt(uint32 index)
+{
+    return index < sizeof(LUST_LOCKOUTS) / sizeof(LUST_LOCKOUTS[0]) ? LUST_LOCKOUTS[index].spellId : 0;
+}
+
+bool IsLustLockout(uint32 spellId)
+{
+    for (SpellAnswer const& row : LUST_LOCKOUTS)
+    {
+        if (row.answer == spellId)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 DeathPreventionRow const* DeathPreventionFor(uint32 spellId)
@@ -1087,4 +1138,21 @@ bool HasNegativeForceReactionAura(uint32 spellId)
 bool HasNegativePhaseAura(uint32 spellId)
 {
     return Holds(NEGATIVE_PHASE_AURAS, spellId);
+}
+
+namespace
+{
+    /// Run Speed Marker: the hidden aura a speed buff's aura restrictions row excludes its caster on.
+    constexpr uint32 SPEED_BUFF_MARKER = 96223;
+}
+
+uint32 SpeedBuffMarker()
+{
+    return SPEED_BUFF_MARKER;
+}
+
+bool CarriesSpeedBuffMarker(SpellEntry const& spell)
+{
+    SpellAuraRestrictionsEntry const* restrictions = spell.GetSpellAuraRestrictions();
+    return restrictions && restrictions->ExcludeCasterAuraSpell == SPEED_BUFF_MARKER;
 }
