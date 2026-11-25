@@ -28,9 +28,10 @@
 /// the chance of its explosion, the cost share its hits refund through Master of Elements, the units an orb owned by
 /// its mage takes, the enemy its scan keeps, their rows at the dummy-effect and target hooks with their creature AI's
 /// factory, and the script words a script reads
-/// of a unit's holder (SpellScriptQueries). The spells and faction templates the leaves read are put into the stores
-/// as the client's data holds them, once for the rest of the run; no other test reads them. The units are bare
-/// creatures (update fields allocated; no map, template or AI) placed in map 0's world frame.
+/// of a unit's holder and the unit whose procs the end of an orb's cast starts (SpellScriptQueries). The spells and
+/// faction templates the leaves read are put into the stores as the client's data holds them, once for the rest of the
+/// run; no other test reads them. The units are bare creatures (update fields allocated; no map, template or AI)
+/// placed in map 0's world frame, and a bare pet.
 
 #include "TestHarness.h"
 #include "spells/classes/mage/Mage.h"
@@ -39,6 +40,7 @@
 #include "spells/SpellScriptQueries.h"
 #include "ai/CreatureAI.h"
 #include "Creature.h"
+#include "Pet.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "data/ServerSpellStore.h"
@@ -83,8 +85,36 @@ namespace
                 Place().EnterFrame(Geometry::Frame::World(0, 0), Geometry::Vector3(x, 0.0f, 0.0f), 0.0f);
             }
 
+            // Gives the creature a guid of its entry and `low`.
+            void TakeGuid(uint32 low)
+            {
+                Object::_Create(low, GetEntry(), HIGHGUID_UNIT);
+            }
+
         private:
             uint32 m_type;
+    };
+
+    // A pet with its update fields allocated and no world, map, template, owner or AI.
+    class OrbTestPet : public Pet
+    {
+        public:
+            OrbTestPet()
+            {
+                _InitValues();
+            }
+
+            ~OrbTestPet()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+
+            // Gives the pet a guid of `low`.
+            void TakeGuid(uint32 low)
+            {
+                Object::_Create(low, 0, HIGHGUID_PET);
+            }
     };
 
     struct HolderStorage
@@ -659,6 +689,43 @@ TEST(MageOrb_AScriptReadsTheWordsOfAUnitsHolder)
     CHECK(ScriptWordOf(orb, 82733, EFFECT_INDEX_0) == NULL);
     holder.SetDeleted();
     CHECK(ScriptWordOf(orb, 82690, EFFECT_INDEX_0) == NULL);
+}
+
+TEST(MageOrb_TheEndOfACastAnOwnedOrbMakesForItsOwnerStartsHisProcs)
+{
+    OrbTestCreature mage;
+    OrbTestCreature orb;
+    OrbTestCreature camel;
+    OrbTestPet pet;
+    mage.TakeGuid(1);
+    orb.TakeGuid(2);
+    camel.TakeGuid(3);
+    pet.TakeGuid(4);
+
+    // An orb no one owns keeps the procs of its cast's end, with the mage as the original caster or with none.
+    CHECK(&Spells::CastEndProcOwner(orb, &mage) == &orb);
+    CHECK(&Spells::CastEndProcOwner(orb, NULL) == &orb);
+
+    // Owned by the mage, its cast for him starts his procs; with no original caster, or itself as the original
+    // caster, it keeps them, and so it does for an original caster other than its owner.
+    orb.SetOwnerGuid(mage.GetObjectGuid());
+    CHECK(&Spells::CastEndProcOwner(orb, &mage) == &mage);
+    CHECK(&Spells::CastEndProcOwner(orb, NULL) == &orb);
+    CHECK(&Spells::CastEndProcOwner(orb, &orb) == &orb);
+    CHECK(&Spells::CastEndProcOwner(orb, &camel) == &orb);
+
+    // A Camel no one owns that casts on itself for the mage, as Living Bomb's explosion and Improved Cone of Cold's
+    // freeze are cast, keeps the procs; so does a Camel another player owns. The mage casting for his orb keeps his.
+    CHECK(&Spells::CastEndProcOwner(camel, &mage) == &camel);
+    camel.SetOwnerGuid(ObjectGuid(HIGHGUID_PLAYER, uint32(4711)));
+    CHECK(&Spells::CastEndProcOwner(camel, &mage) == &camel);
+    CHECK(&Spells::CastEndProcOwner(mage, &orb) == &mage);
+
+    // A pet's cast for its owner starts his procs; for a mage who does not own it, its own.
+    CHECK(&Spells::CastEndProcOwner(pet, &mage) == &pet);
+    pet.SetOwnerGuid(mage.GetObjectGuid());
+    CHECK(&Spells::CastEndProcOwner(pet, &mage) == &mage);
+    CHECK(&Spells::CastEndProcOwner(pet, NULL) == &pet);
 }
 
 namespace

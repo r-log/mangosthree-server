@@ -27,7 +27,8 @@
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
 /// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles, the pairing of Arcane Missiles Aurastate
 /// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
-/// Arcane damage spell, Arcane Potency's buffs spent only by a spell that deals or triggers damage, Ignite's munching
+/// Arcane damage spell, Arcane Potency's buffs spent only by a spell that deals or triggers damage, one of their
+/// charges taken at the launch of Arcane Missiles and Blizzard and the hidden aura of each buff, Ignite's munching
 /// leaves against the roll-over, Clearcasting used up only by a spell its cost modifier makes cheaper, the slows
 /// Torment the Weak counts and its multiplier, Nether Vortex's Slow and its refusals, Focus Magic's buff cast by its
 /// mage at himself and its proc-trigger effect that casts nothing, Invocation's buff from a Counterspell that
@@ -55,7 +56,9 @@
 /// creature's holder map where a script asks whether it holds an aura. The cooldowns Impact and Glyph of Ice Block
 /// clear are a player's: a player on a session with no socket, in no world, whose cooldown sinks the test installs.
 /// Frostfire Bolt's apply runs on a holder made through its constructor on a bare creature, of three auras whose apply
-/// and removal change nothing on the unit.
+/// and removal change nothing on the unit. Arcane Potency's buff at the channels' launch is a holder made through its
+/// constructor on a row of its id alone, put into the spell store for the test, which the unit's own removal takes off
+/// at its last charge; the hidden aura the launch casts is one the test's spell store lacks, so nothing is cast.
 
 #include "TestHarness.h"
 #include "combat/SpellBonus.h"
@@ -67,6 +70,7 @@
 #include "spells/auras/SpellAuras.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/data/SpellTables.h"
 #include "spells/SpellScriptQueries.h"
 #include "spells/PeriodicTiming.h"
 #include "Creature.h"
@@ -206,6 +210,10 @@ namespace
     // The ids the check-proc script of Arcane Potency's buffs holds: the buff of each rank, whose charges a spell that
     // neither deals nor triggers damage never spends.
     uint32 const ARCANE_POTENCY_BUFF_IDS[] = { 57529, 57531 };
+
+    // The ids Arcane Potency's channel script holds at the launch hook: Blizzard and Arcane Missiles, whose launch takes
+    // one charge of the buff and casts its hidden aura.
+    uint32 const ARCANE_POTENCY_CHANNEL_IDS[] = { 10, 5143 };
 
     // The ids Torment the Weak's script holds at the damage-done hook: its three ranks, which the engine runs it for
     // as dummy auras of the caster.
@@ -697,16 +705,16 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // Fingers of Frost, Permafrost's three ranks and Reactive Barrier's two ranks; Arcane: Arcane Potency, Mana Shield,
     // Nether Vortex and Focus Magic. Arcane also: Arcane Missiles! at the aura-apply and aura-remove hooks, Arcane
     // Missiles at the aura-apply hook, Torment the Weak's three ranks at the damage-done hook, the seven forms of
-    // Polymorph at the aura-apply and aura-remove hooks, Mana Shield at the aura-remove hook and Replenish Mana at the
-    // after-cast hook. The orbs: Flame Orb and Frostfire Orb at the dummy-effect hook, and each orb's scan at the
-    // target and dummy-effect hooks. The ring: Ring of Frost at the periodic-tick hook, and the ring's freeze at the
-    // target and aura-remove hooks. The images: Mirror Image and Clone Me! at the dummy-effect hook, and Initialize
-    // Images at the target hook. Impact, Clearcasting, Arcane Blast's buff, Arcane Potency's two buffs, Fingers of
-    // Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two ranks also at the check-proc hook. 179
-    // rows, 176 keys and 3 defaults, none twice.
+    // Polymorph at the aura-apply and aura-remove hooks, Mana Shield at the aura-remove hook, Replenish Mana at the
+    // after-cast hook, and Arcane Missiles and Blizzard at the launch hook. The orbs: Flame Orb and Frostfire Orb at the
+    // dummy-effect hook, and each orb's scan at the target and dummy-effect hooks. The ring: Ring of Frost at the
+    // periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. The images: Mirror Image and Clone
+    // Me! at the dummy-effect hook, and Initialize Images at the target hook. Impact, Clearcasting, Arcane Blast's buff,
+    // Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two
+    // ranks also at the check-proc hook. 181 rows, 178 keys and 3 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(179));
-    CHECK_EQ(registry.Count(), std::size_t(176));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(181));
+    CHECK_EQ(registry.Count(), std::size_t(178));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
@@ -725,7 +733,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(9));
     CHECK_EQ(registry.CountAt(AfterCastHook::Key), std::size_t(3));
-    CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(5));
+    CHECK_EQ(registry.CountAt(LaunchHook::Key), std::size_t(7));
     CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(4));
     CHECK(registry.FindDefault<AuraTriggerSpellMageSite>() != NULL);
@@ -747,7 +755,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
         { &Mage::RegisterClassWide, 16, 13, 3 },
         { &Mage::RegisterFire, 40, 40, 0 },
         { &Mage::RegisterFrost, 78, 78, 0 },
-        { &Mage::RegisterArcane, 33, 33, 0 },
+        { &Mage::RegisterArcane, 35, 35, 0 },
         { &Mage::RegisterOrb, 6, 6, 0 },
         { &Mage::RegisterRing, 3, 3, 0 },
         { &Mage::RegisterImages, 3, 3, 0 },
@@ -761,8 +769,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(179));
-    CHECK_EQ(registry.Count(), std::size_t(176));
+    CHECK_EQ(RegisterMageScripts(registry), uint32(181));
+    CHECK_EQ(registry.Count(), std::size_t(178));
     CHECK_EQ(registry.CountDefaults(), std::size_t(3));
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
@@ -773,7 +781,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(176));
+    CHECK_EQ(mine.size(), std::size_t(178));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -788,6 +796,7 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(1));
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
     CheckRowsInTheGame<LaunchHook>(registry, ICE_BLOCK_LAUNCH_IDS);
+    CheckRowsInTheGame<LaunchHook>(registry, ARCANE_POTENCY_CHANNEL_IDS);
     CheckRowsInTheGame<CastStartHook>(registry, FROSTBOLT_CAST_START_IDS);
     CheckRowsInTheGame<AfterCastHook>(registry, WATER_ELEMENTAL_FREEZE_IDS);
     CheckRowsInTheGame<AuraApplyHook>(registry, ICE_BARRIER_IDS);
@@ -1418,6 +1427,116 @@ TEST(MageScripts_ArcanePotencyBuffsDropTheEventsOfSpellsThatDealOrTriggerNoDamag
         CheckProcContext noSpell(mage, NULL, SpellRow(buffRow, buffId), AuraHandle(holder), NULL, 0x10000,
                                  PROC_EX_CAST_END, 0);
         CHECK(registry.Dispatch<CheckProcHook>(buffId, noSpell).IsContinue());
+    }
+}
+
+namespace
+{
+    // Arcane Potency's second-rank buff (57531) as a Spell.dbc row with its id alone, put into the spell store by the
+    // channel launch test, which takes it out again.
+    ServerSpell s_potencyBuffRow;
+}
+
+TEST(MageScripts_ArcaneMissilesAndBlizzardTakeOneArcanePotencyChargeEachAsTheyStart)
+{
+    // The hidden aura of each buff, from the table: 33421 (+7%) for the first rank's buff and 33713 (+15%) for the
+    // second's; none for any other spell.
+    CHECK_EQ(GetArcanePotencyHiddenAura(57529), uint32(33421));
+    CHECK_EQ(GetArcanePotencyHiddenAura(57531), uint32(33713));
+    CHECK_EQ(GetArcanePotencyHiddenAura(0), uint32(0));
+
+    // The rows: Blizzard and Arcane Missiles share one body at the launch hook, the same in the game's table, and hold
+    // no after-cast row; the missile, Blizzard's tick and Frostbolt hold no launch row.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    CheckRowsInTheGame<LaunchHook>(registry, ARCANE_POTENCY_CHANNEL_IDS);
+    CHECK(registry.Find<LaunchHook>(10) == registry.Find<LaunchHook>(5143));
+    for (uint32 spellId : ARCANE_POTENCY_CHANNEL_IDS)
+    {
+        CHECK(registry.Find<AfterCastHook>(spellId) == NULL);
+    }
+    for (uint32 spellId : { 7268u, 42208u, 116u })
+    {
+        CHECK(registry.Find<LaunchHook>(spellId) == NULL);
+    }
+
+    // A caster without either buff: neither launch takes a charge or casts anything.
+    SpellRowStorage row;
+    BareCreature none;
+    CHECK_EQ(Mage::UseArcanePotencyCharge(none), uint32(0));
+    for (uint32 spellId : ARCANE_POTENCY_CHANNEL_IDS)
+    {
+        LaunchContext launch(none, SpellRow(row, spellId), 0);
+        CHECK(registry.Dispatch<LaunchHook>(spellId, launch).IsContinue());
+    }
+    CHECK(none.GetSpellAuraHolderMap().empty());
+
+    // The second rank's buff at its two charges, a holder made through its constructor on its row put into the spell
+    // store. Arcane Missiles' launch takes one charge and casts 33713, which the test's spell store lacks, so nothing is
+    // cast; a spell with no launch row (Frostbolt) takes none; Blizzard's launch takes the last, and the unit's own
+    // removal takes the holder off him, as the engine's proc handling removes a buff whose last charge it took.
+    s_potencyBuffRow.Entry().ID = 57531;
+    sSpellStore.SetEntry(57531, &s_potencyBuffRow.Entry());
+    CHECK(sSpellStore.LookupEntry(33713) == NULL);
+    BareCreature mage;
+    SpellAuraHolder* buff = new SpellAuraHolder(&s_potencyBuffRow.Entry(), &mage, NULL, NULL, NULL);
+    buff->SetAuraCharges(2, false);
+    mage.HoldAura(57531, *buff);
+    LaunchContext missiles(mage, SpellRow(row, 5143), 0);
+    CHECK(registry.Dispatch<LaunchHook>(5143, missiles).IsContinue());
+    CHECK(mage.GetSpellAuraHolder(57531) == buff);
+    CHECK_EQ(buff->GetAuraCharges(), uint32(1));
+    CHECK(!mage.HasAura(33713));
+    LaunchContext frostbolt(mage, SpellRow(row, 116), 0);
+    CHECK(registry.Dispatch<LaunchHook>(116, frostbolt).IsMiss());
+    CHECK_EQ(buff->GetAuraCharges(), uint32(1));
+    LaunchContext blizzard(mage, SpellRow(row, 10), 0);
+    CHECK(registry.Dispatch<LaunchHook>(10, blizzard).IsContinue());
+    CHECK(mage.GetSpellAuraHolder(57531) == NULL);
+    CHECK(mage.GetSpellAuraHolderMap().empty());
+    sSpellStore.SetEntry(57531, NULL);
+    CHECK(sSpellStore.LookupEntry(57531) == NULL);
+
+    // Of both buffs, the second rank's gives the charge. A holder with no charge left, as the engine's proc handling
+    // leaves one it is about to remove, is passed over and the other buff gives it; with no charge on either, nothing
+    // is taken.
+    BareCreature both;
+    HolderStorage secondStorage;
+    HolderStorage firstStorage;
+    SpellAuraHolder& second = EmptyHolder(secondStorage);
+    SpellAuraHolder& first = EmptyHolder(firstStorage);
+    second.SetAuraCharges(2, false);
+    first.SetAuraCharges(2, false);
+    both.HoldAura(57531, second);
+    both.HoldAura(57529, first);
+    CHECK_EQ(Mage::UseArcanePotencyCharge(both), uint32(57531));
+    CHECK_EQ(second.GetAuraCharges(), uint32(1));
+    CHECK_EQ(first.GetAuraCharges(), uint32(2));
+    second.SetAuraCharges(0, false);
+    CHECK_EQ(Mage::UseArcanePotencyCharge(both), uint32(57529));
+    CHECK_EQ(second.GetAuraCharges(), uint32(0));
+    CHECK_EQ(first.GetAuraCharges(), uint32(1));
+    first.SetAuraCharges(0, false);
+    CHECK_EQ(Mage::UseArcanePotencyCharge(both), uint32(0));
+    CHECK_EQ(first.GetAuraCharges(), uint32(0));
+
+    // The cast end of either hidden aura deals no damage, so the buffs' check-proc script drops it and it spends no
+    // charge; 33421's own class mask holds a bit the buffs' crit modifier names.
+    HolderStorage checkStorage;
+    SpellAuraHolder& checked = EmptyHolder(checkStorage);
+    SpellRowStorage buffRow;
+    SpellRowStorage eventRow;
+    for (uint32 buffId : ARCANE_POTENCY_BUFF_IDS)
+    {
+        for (uint32 hiddenId : { 33421u, 33713u })
+        {
+            SpellEntry const& event = SpellRow(eventRow, hiddenId);
+            CheckProcContext ctx(both, NULL, SpellRow(buffRow, buffId), AuraHandle(checked), &event,
+                                 PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_CAST_END, 0);
+            SpellHandlerOutcome<bool> const outcome = registry.Dispatch<CheckProcHook>(buffId, ctx);
+            CHECK(outcome.IsReturn());
+            CHECK(!outcome.GetValue());
+        }
     }
 }
 
@@ -2670,6 +2789,62 @@ TEST(MageScripts_ArcaneMissilesBuffAndItsAurastateStackWithEachOther)
 
 namespace
 {
+    // The class options and the Spell.dbc rows of the Arcane Potency stacking test: mage spells of class mask 0 and
+    // icon 2120, as Arcane Potency's buffs (57529, 57531) and their hidden auras (33421, 33713) are; the test rows
+    // carry no effects. The test takes the rows out of the spell store again.
+    const uint32 kOptionsArcanePotencyAuras = 94280;
+    const uint32 kOtherIcon2120Spell = 94281;
+    uint32 const ARCANE_POTENCY_AURA_IDS[] = { 57529, 33421, 57531, 33713 };
+
+    SpellClassOptionsEntry s_optionsArcanePotencyAuras;
+    ServerSpell s_arcanePotencyAuras[4];
+    ServerSpell s_otherIcon2120Spell;
+
+    void StoreIcon2120Spell(ServerSpell& spell, uint32 spellId)
+    {
+        spell.Entry().ID = spellId;
+        spell.Entry().ClassOptionsID = kOptionsArcanePotencyAuras;
+        spell.Entry().SpellIconID = 2120;
+        sSpellStore.SetEntry(spellId, &spell.Entry());
+    }
+}
+
+TEST(MageScripts_ArcanePotencysBuffsAndTheirHiddenAurasStackWithEachOther)
+{
+    // In the client's data a buff and its hidden aura are mage auras of icon 2120 with the same crit modifier effect,
+    // which the generic rule takes for one aura: a new holder of either would remove the other's from the mage. The
+    // test rows hold the icon alone, which the generic same-icon rule refuses the same way. Each buff and the hidden
+    // aura of its rank are exempt from it, both ways.
+    s_optionsArcanePotencyAuras.SpellClassMask = ClassFamilyMask(0, 0);
+    s_optionsArcanePotencyAuras.SpellClassSet = SPELLFAMILY_MAGE;
+    sSpellClassOptionsStore.SetEntry(kOptionsArcanePotencyAuras, &s_optionsArcanePotencyAuras);
+    for (std::size_t i = 0; i < 4; ++i)
+    {
+        StoreIcon2120Spell(s_arcanePotencyAuras[i], ARCANE_POTENCY_AURA_IDS[i]);
+    }
+    StoreIcon2120Spell(s_otherIcon2120Spell, kOtherIcon2120Spell);
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(57529, 33421));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(33421, 57529));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(57531, 33713));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(33713, 57531));
+
+    // The rule itself stands for another aura of the icon.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(57529, kOtherIcon2120Spell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIcon2120Spell, 33421));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(57531, kOtherIcon2120Spell));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherIcon2120Spell, 33713));
+
+    for (uint32 spellId : ARCANE_POTENCY_AURA_IDS)
+    {
+        sSpellStore.SetEntry(spellId, NULL);
+    }
+    sSpellStore.SetEntry(kOtherIcon2120Spell, NULL);
+    CHECK(sSpellStore.LookupEntry(57531) == NULL);
+    CHECK(sSpellStore.LookupEntry(33713) == NULL);
+}
+
+namespace
+{
     // The class options and the Spell.dbc rows of the Fingers of Frost stacking test: mage spells of icon 2947, a
     // passive one as the talent's ranks (44543, 44545, 83074) are and one that is not, as the buff (44544) is; the
     // test rows carry no effects. The test takes the rows out of the spell store again.
@@ -3879,7 +4054,8 @@ TEST(MageScripts_ASpellUsesAFingersChargeByTheBuffNotByTheTargetsState)
 TEST(MageScripts_FingersOfFrostsUsersTakeTheChargeAtTheLaunchHookAndNowhereElse)
 {
     // Ice Lance, Deep Freeze, Frostfire Bolt and Fireball share one body at the launch hook, in the game's table too,
-    // and hold no after-cast row; of the other Frost spells only Ice Block holds a launch row, with a body of its own.
+    // and hold no after-cast row; of the other Frost spells only Ice Block holds a launch row, with a body of its own,
+    // and Blizzard holds Arcane Potency's channel row with Arcane Missiles.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -3896,8 +4072,14 @@ TEST(MageScripts_FingersOfFrostsUsersTakeTheChargeAtTheLaunchHookAndNowhereElse)
         CHECK(game.Find<LaunchHook>(spellId) != NULL);
         CHECK(game.Find<LaunchHook>(spellId) != body);
     }
+    for (uint32 spellId : ARCANE_POTENCY_CHANNEL_IDS)
+    {
+        CHECK(game.Find<LaunchHook>(spellId) != NULL);
+        CHECK(game.Find<LaunchHook>(spellId) != body);
+    }
     CHECK_EQ(game.CountAt(LaunchHook::Key),
-             sizeof(FROST_LAUNCH_IDS) / sizeof(uint32) + sizeof(ICE_BLOCK_LAUNCH_IDS) / sizeof(uint32));
+             sizeof(FROST_LAUNCH_IDS) / sizeof(uint32) + sizeof(ICE_BLOCK_LAUNCH_IDS) / sizeof(uint32) +
+             sizeof(ARCANE_POTENCY_CHANNEL_IDS) / sizeof(uint32));
     for (uint32 spellId : { kFrostbolt, kDeepFreezeDamage, 120u, 122u, 11113u })
     {
         CHECK(game.Find<LaunchHook>(spellId) == NULL);

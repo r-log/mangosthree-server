@@ -1382,9 +1382,9 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     // Missiles!'s and the seven forms of Polymorph's and the ring's freeze's, the periodic-tick hook Ring of Frost's,
     // the dummy-effect hook Ritual of Refreshment's, Combustion's, Impact's spread, Flame Orb's, Frostfire Orb's, the
     // orbs' scans', Mirror Image's and Clone Me!'s, the after-cast hook Blast Wave's, Replenish Mana's and the Water
-    // Elemental's Freeze's, the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's, Fireball's and Ice Block's,
-    // the cast-start hook Frostbolt's, and the after-hit hook Frostbolt's, Cone of Cold's, Blizzard's damage's and
-    // Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
+    // Elemental's Freeze's, the launch hook Ice Lance's, Deep Freeze's, Frostfire Bolt's, Fireball's, Ice Block's,
+    // Arcane Missiles' and Blizzard's, the cast-start hook Frostbolt's, and the after-hit hook Frostbolt's, Cone of
+    // Cold's, Blizzard's damage's and Frostfire Bolt's (MageScriptsTest names their ids); no other hook holds a row.
     uint32 const emptyKeys[] =
     {
         CheckCastHook::Key, EffectValueHook::Key, AuraAmountHook::Key,
@@ -1405,10 +1405,10 @@ TEST(SpellScriptHooks_TheGameTableHoldsTheMageScriptsAndNoOtherHookRow)
     CHECK_EQ(game.CountAt(PeriodicTickHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(DummyEffectHook::Key), std::size_t(9));
     CHECK_EQ(game.CountAt(AfterCastHook::Key), std::size_t(3));
-    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(5));
+    CHECK_EQ(game.CountAt(LaunchHook::Key), std::size_t(7));
     CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
     CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(4));
-    CHECK_EQ(game.Count(), std::size_t(1392));
+    CHECK_EQ(game.Count(), std::size_t(1394));
     CHECK_EQ(game.CountDefaults(), std::size_t(29));
 }
 
