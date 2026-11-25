@@ -286,7 +286,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                     continue;
                 }
                 // Reflective Shield (Lady Malande boss)
-                if (spellProto->ID == 41475 && canReflect)
+                if (spellProto->ID == 41475 && canReflect && !reflectTriggeredBy)
                 {
                     if (RemainingDamage < currentAbsorb)
                     {
@@ -299,6 +299,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                     reflectSpell = 33619;
                     reflectTriggeredBy = *i;
                     reflectTriggeredBy->SetInUse(true);     // lock aura from final deletion until processing
+                    reflectTriggeredBy->GetHolder()->SetInUse(true);    // and its holder, past a spent shield's removal
                     break;
                 }
                 if (spellProto->ID == 39228 ||              // Argussian Compass
@@ -341,7 +342,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
             case SPELLFAMILY_PRIEST:
             {
                 // Reflective Shield
-                if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000001)) && canReflect)
+                if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000001)) && canReflect && !reflectTriggeredBy)
                 {
                     if (pCaster == this)
                     {
@@ -353,7 +354,8 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                         break;
                     }
                     AuraList const& vOverRideCS = GetAurasByType(SPELL_AURA_DUMMY);
-                    for (AuraList::const_iterator k = vOverRideCS.begin(); k != vOverRideCS.end(); ++k)
+                    for (AuraList::const_iterator k = vOverRideCS.begin();
+                         k != vOverRideCS.end() && !reflectTriggeredBy; ++k)
                     {
                         switch ((*k)->GetModifier()->m_miscvalue)
                         {
@@ -371,6 +373,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                                 reflectSpell = 33619;
                                 reflectTriggeredBy = *i;
                                 reflectTriggeredBy->SetInUse(true);// lock aura from final deletion until processing
+                                reflectTriggeredBy->GetHolder()->SetInUse(true);    // and its holder
                             } break;
                             default: break;
                         }
@@ -510,6 +513,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
     if (canReflect && reflectSpell)
     {
         CastCustomSpell(pCaster, reflectSpell, &reflectDamage, NULL, NULL, true, NULL, reflectTriggeredBy);
+        reflectTriggeredBy->GetHolder()->SetInUse(false);
         reflectTriggeredBy->SetInUse(false);                // free lock from deletion
     }
 
