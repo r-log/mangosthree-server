@@ -26,10 +26,11 @@
 /// Tests of spells/classes/priest/DivineAegis.cpp and FocusedWill.cpp: which heals make a Divine Aegis shield, the
 /// shield's amount, the priest's own shield added onto itself and held to his cap, which hits give Focused Will, the
 /// rows the two files register, in the game's table too, and the exits of their scripts that cast nothing. The scripts
-/// run on a bare Creature (update fields allocated; no map, template or AI), whose maximum health is 0; the proc spells
-/// are Spell.dbc rows with only their id, not in the spell store. The tests read no row of the spell store, so the rows
-/// other tests leave there change nothing here; Focused Will's percent, which the script reads from the store, is then
-/// 0. Scenarios 1203 and 1214 record the shields and Focused Will in play.
+/// run on a bare Creature (update fields allocated; no map, template or AI), whose maximum health is 0 unless a test
+/// sets it; the proc spells are Spell.dbc rows with only their id, not in the spell store. Only Focused Will's
+/// check-proc test reads the spell store, for the first rank's percent: it puts its own row of 45234 there and takes it
+/// out again, so the rows other tests leave there change nothing here. Scenarios 1203 and 1214 record the shields and
+/// Focused Will in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/DivineAegis.h"
@@ -39,7 +40,9 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/SpellCooldownMgr.h"
+#include "data/ServerSpellStore.h"
 #include "Creature.h"
+#include "DBCStores.h"
 #include "DBCStructure.h"
 
 #include <cstddef>
@@ -378,23 +381,72 @@ TEST(PriestFocusedWill_TheTwoRanksHoldTheCheckProcScriptInTheGame)
     }
 }
 
-TEST(PriestFocusedWill_TheCheckProcLetsACriticalHitThroughAndRefusesWhatThePercentDoesNotPass)
+namespace
 {
-    // The spell store holds no first rank here, so the percent is 0: a critical hit passes, a normal one never does.
+    uint32 const FOCUSED_WILL_RANK_1 = 45234;
+
+    ServerSpell s_focusedWillRank1;
+
+    // Puts Focused Will's first rank into the spell store, its effect 1 holding the client's 10; the effect once.
+    void StoreFocusedWillRow()
+    {
+        static bool stored = false;
+        if (!stored)
+        {
+            s_focusedWillRank1.effect = SpellEffectEntry();
+            s_focusedWillRank1.effect.SpellID = FOCUSED_WILL_RANK_1;
+            s_focusedWillRank1.effect.EffectIndex = EFFECT_INDEX_1;
+            s_focusedWillRank1.effect.EffectBasePoints = 10;
+            AddSpellEffectEntry(&s_focusedWillRank1.effect);
+            stored = true;
+        }
+        s_focusedWillRank1.Entry().ID = FOCUSED_WILL_RANK_1;
+        sSpellStore.SetEntry(FOCUSED_WILL_RANK_1, &s_focusedWillRank1.Entry());
+    }
+
+    // Takes Focused Will's first rank out of the spell store again.
+    void ForgetFocusedWillRow()
+    {
+        sSpellStore.SetEntry(FOCUSED_WILL_RANK_1, NULL);
+    }
+}
+
+TEST(PriestFocusedWill_TheCheckProcReadsThePercentFromTheFirstRankAndLetsACriticalHitThrough)
+{
     SpellHandlerRegistry registry;
     Priest::RegisterFocusedWill(registry);
     BareCreature priest;
+    priest.SetMaxHealth(44019);
     BareCreature attacker;
     SpellRowStorage talentRow;
     HolderStorage storage;
     SpellAuraHolder& holder = EmptyHolder(storage);
     SpellEntry const& talent = SpellRow(talentRow, 45243);
     uint32 const taken = PROC_FLAG_TAKEN_MELEE_HIT | PROC_FLAG_TAKEN_ANY_DAMAGE;
+
+    // With the first rank in the store, its effect 1's 10% of 44019: 4401 is refused, 4402 and a crit pass.
+    StoreFocusedWillRow();
+    CHECK_EQ(sSpellStore.LookupEntry(FOCUSED_WILL_RANK_1)->CalculateSimpleValue(EFFECT_INDEX_1), int32(10));
     for (uint32 rank : FOCUSED_WILL_RANKS)
     {
         CheckProcContext crit(priest, &attacker, talent, AuraHandle(holder), NULL, taken, PROC_EX_CRITICAL_HIT, 500);
         CHECK(registry.Dispatch<CheckProcHook>(rank, crit).IsContinue());
-        CheckProcContext plain(priest, &attacker, talent, AuraHandle(holder), NULL, taken, PROC_EX_NORMAL_HIT, 50000);
+        CheckProcContext above(priest, &attacker, talent, AuraHandle(holder), NULL, taken, PROC_EX_NORMAL_HIT, 4402);
+        CHECK(registry.Dispatch<CheckProcHook>(rank, above).IsContinue());
+        CheckProcContext at(priest, &attacker, talent, AuraHandle(holder), NULL, taken, PROC_EX_NORMAL_HIT, 4401);
+        SpellHandlerOutcome<bool> refused = registry.Dispatch<CheckProcHook>(rank, at);
+        CHECK(refused.IsReturn());
+        CHECK(!refused.GetValue());
+    }
+
+    // With no first rank in the store the percent is 0: a crit still passes, a normal hit never does.
+    ForgetFocusedWillRow();
+    CHECK(sSpellStore.LookupEntry(FOCUSED_WILL_RANK_1) == NULL);
+    for (uint32 rank : FOCUSED_WILL_RANKS)
+    {
+        CheckProcContext crit(priest, &attacker, talent, AuraHandle(holder), NULL, taken, PROC_EX_CRITICAL_HIT, 500);
+        CHECK(registry.Dispatch<CheckProcHook>(rank, crit).IsContinue());
+        CheckProcContext plain(priest, &attacker, talent, AuraHandle(holder), NULL, taken, PROC_EX_NORMAL_HIT, 44019);
         SpellHandlerOutcome<bool> refused = registry.Dispatch<CheckProcHook>(rank, plain);
         CHECK(refused.IsReturn());
         CHECK(!refused.GetValue());

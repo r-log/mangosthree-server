@@ -49,6 +49,7 @@ namespace
     /// the script refuses a normal hit whose damage is not greater than the first rank's percent of his maximum health
     /// (Priest::FocusedWillTakes). A critical hit and a larger hit reach the proc-trigger aura, which gives him its
     /// rank's Focused Will (45241, 45242).
+    /// No tick reaches it: the client's proc mask (0x222a8) outranks its tooltip, and no periodic crit procs at retail.
     SpellHandlerOutcome<bool> FocusedWillCheckProc(CheckProcContext& ctx)
     {
         if (!Priest::FocusedWillTakes(ctx.procEx, ctx.damage, ctx.owner.GetMaxHealth(), FocusedWillPercent()))
