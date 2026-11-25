@@ -2701,6 +2701,13 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // A haste spell's lockout (IsLustLockout) stacks with every aura that is no such lockout, the haste spell that
+    // shares its icon among them; two lockouts are left to the rules below
+    if (IsLustLockout(spellId_1) != IsLustLockout(spellId_2))
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)

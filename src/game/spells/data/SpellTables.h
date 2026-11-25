@@ -164,6 +164,9 @@ uint32 LustLockoutOf(uint32 spellId);
 /// any later index.
 uint32 LustSpellAt(uint32 index);
 
+/// Whether `spellId` is the lockout of a haste spell of LustLockoutOf's table: 57724, 57723, 80354 or 95809.
+bool IsLustLockout(uint32 spellId);
+
 /// How a death-prevention aura saves its bearer from a killing blow.
 enum DeathPreventionShape
 {

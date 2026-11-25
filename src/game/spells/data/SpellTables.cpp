@@ -986,6 +986,18 @@ uint32 LustSpellAt(uint32 index)
     return index < sizeof(LUST_LOCKOUTS) / sizeof(LUST_LOCKOUTS[0]) ? LUST_LOCKOUTS[index].spellId : 0;
 }
 
+bool IsLustLockout(uint32 spellId)
+{
+    for (SpellAnswer const& row : LUST_LOCKOUTS)
+    {
+        if (row.answer == spellId)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 DeathPreventionRow const* DeathPreventionFor(uint32 spellId)
 {
     DeathPreventionRow const* end = std::end(DEATH_PREVENTION);
