@@ -613,7 +613,7 @@ namespace Harness
                 p->RemoveAurasDueToSpell(kFocusedWillBuff);
                 Hit const& hit = kHits[k];
                 const bool crit = hit.crit;
-                const uint32 damage = hit.small ? uint32(uint64(p->GetMaxHealth()) * kCritPercent / 100)
+                const uint32 damage = hit.light ? uint32(uint64(p->GetMaxHealth()) * kCritPercent / 100)
                                                 : uint32(threshold + hit.overThreshold);
                 const uint32 procEx = crit ? uint32(PROC_EX_CRITICAL_HIT) : uint32(PROC_EX_NORMAL_HIT);
                 seen.reads["damage"] = damage;
@@ -660,12 +660,12 @@ namespace Harness
             static constexpr uint64 kCritPercent = 5;
             static constexpr size_t kSteps = 4;
 
-            /// One step's hit: whether it is critical, and its damage: kCritPercent of his maximum health when `small`,
+            /// One step's hit: whether it is critical, and its damage: kCritPercent of his maximum health when `light`,
             /// else T + `overThreshold`.
             struct Hit
             {
                 bool crit;
-                bool small;
+                bool light;
                 uint32 overThreshold;
             };
             static constexpr Hit kHits[kSteps] =
