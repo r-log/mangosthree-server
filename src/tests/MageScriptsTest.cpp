@@ -1301,10 +1301,10 @@ namespace
 
 TEST(MageScripts_AChannelWithNoChannelObjectAimsAtItsOwnUnitTarget)
 {
-    // With his channel object empty, as the server leaves it for a channel at himself, the target is the unit target of
-    // the channel he is casting when its id is the one asked for: the Camel it was cast at, or himself for a channel at
-    // himself. A channel with no unit target, another spell's id, and no channel at all give none; a unit in his
-    // channel object for that channel answers first.
+    // With his channel object empty, as the server leaves it for a channel at him and others, the target is the unit
+    // target of the channel he is casting when its id is the one asked for: the Camel it was cast at, or himself for a
+    // channel at himself. A channel with no unit target, another spell's id, and no channel at all give none; a unit in
+    // his channel object for that channel answers first.
     std::unique_ptr<Spell> channel;
     NamedCreature mage(1);
     NamedCreature camel(2);

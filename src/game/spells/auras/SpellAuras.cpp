@@ -696,8 +696,8 @@ Unit* SingleEnemyTargetAura::GetTriggerTarget() const
 /**
  * @brief Finds the unit a caster's channel started on.
  *
- * The server leaves the channel object empty for a channel at the caster himself, so the channel's own unit target
- * answers then.
+ * The server leaves the channel object empty for a channel that lands on the caster and on other units as well, so
+ * the channel's own unit target answers then.
  *
  * @param caster The channelling unit.
  * @param channelSpellId The channel's spell.
