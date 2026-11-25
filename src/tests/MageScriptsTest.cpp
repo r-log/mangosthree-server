@@ -1085,17 +1085,23 @@ TEST(MageScripts_OffensiveStateNeverRollsForArcaneMissiles)
         CHECK(!Mage::OffensiveStateRefuses(spellId));
     }
 
-    // The proc script: at an amount of 100 the channel's cast and its missiles, the three chills and the ring's freeze
-    // cannot trigger it, at the end of their cast as at a hit, so no charge or cooldown follows; Arcane Blast at the
-    // same amount passes the roll and goes on to the cast of the trigger spell, which the test's effect row does not
-    // name, so the proc fails there.
+    // The debuffs the mage's spells put on himself, whose cast ends are his and harmful, are refused by id: the aura
+    // each Arcane Blast stacks on him (36032) and Ice Block's Hypothermia (41425). Arcane Blast and Ice Block are not.
+    CHECK(Mage::OffensiveStateRefuses(36032));
+    CHECK(Mage::OffensiveStateRefuses(41425));
+    CHECK(!Mage::OffensiveStateRefuses(45438));
+
+    // The proc script: at an amount of 100 the channel's cast and its missiles, the three chills, the ring's freeze
+    // and the two debuffs cannot trigger it, at the end of their cast as at a hit, so no charge or cooldown follows;
+    // Arcane Blast at the same amount passes the roll and goes on to the cast of the trigger spell, which the test's
+    // effect row does not name, so the proc fails there.
     AddProcEffectRows();
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     BareCreature owner;
     HolderStorage storage;
     SpellAuraHolder& holder = EmptyHolder(storage);
-    for (uint32 spellId : { 5143u, 7268u, 7321u, 12484u, 12485u, 83154u, 82691u })
+    for (uint32 spellId : { 5143u, 7268u, 7321u, 12484u, 12485u, 83154u, 82691u, 36032u, 41425u })
     {
         for (uint32 procEx : { uint32(PROC_EX_CAST_END), uint32(PROC_EX_NORMAL_HIT) })
         {
