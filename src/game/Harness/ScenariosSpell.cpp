@@ -18141,14 +18141,15 @@ namespace Harness
      *  5. Cold Snap, its own cooldown taken off him by call first;
      *  6. Flame Orb at rank 2: fifteen hits more.
      *
-     * `orbProcs`: `rankOne=<44544 SPELL_GO in step 1's windows>/<57761 SPELL_GO there>,rankTwo=<44544 SPELL_GO in
-     * steps 4 and 6's windows>/<57761 SPELL_GO there>,hits=<his 95969 damage logs on the Camel in step 1's
-     * windows>/<his 84721 ones in steps 4 and 6's>`. OK when `rankOne` is 0/0, `hits` is 15/30 and each `rankTwo` count
-     * is at most the 84721 hits, the Brain Freeze one above 0: the first rank's hits and their cast ends roll neither
-     * talent, the second rank's hits roll Fingers of Frost and their cast ends Brain Freeze. Brain Freeze's 15% over
-     * thirty cast ends leaves none 0.8% of the time; the rolls are seeded, so two runs agree. The Flame Orb's own hit
-     * (82739) cannot be staged here, where the talent turns the button into the Frostfire Orb; that its rows refuse it
-     * is a unit case.
+     * `orbProcs`: `rankOne=<44544 SPELL_GO in step 1's windows>/<57761 puts there>,rankTwo=<44544 SPELL_GO in steps 4
+     * and 6's windows>/<57761 puts there>,hits=<his 95969 damage logs on the Camel in step 1's windows>/<his 84721 ones
+     * in steps 4 and 6's>`. A 57761 put is an SMSG_AURA_UPDATE sent to him that puts 57761 in a slot that did not show
+     * it already: Brain Freeze's buff has no spell visual, so its triggered cast sends no SMSG_SPELL_GO. OK when
+     * `rankOne` is 0/0, `hits` is 15/30 and each `rankTwo` count is at most the 84721 hits, the Brain Freeze one above
+     * 0: the first rank's hits and their cast ends roll neither talent, the second rank's hits roll Fingers of Frost
+     * and their cast ends Brain Freeze. Brain Freeze's 15% over thirty cast ends leaves none 0.8% of the time; the
+     * rolls are seeded, so two runs agree. The Flame Orb's own hit (82739) cannot be staged here, where the talent
+     * turns the button into the Frostfire Orb; that its rows refuse it is a unit case.
      */
     class MageFrostFrostfireOrbProcs : public MageProcScenario
     {
@@ -18246,12 +18247,12 @@ namespace Harness
             {
                 return "BUG(the steps did not run)";
             }
+            const std::vector<uint32> freezePuts = AuraPuts(st, kBrainFreeze);
             const uint32 fingersOne = GoCount(st.seen[kOrbOneStep].triggered, kFingers);
-            const uint32 freezeOne = GoCount(st.seen[kOrbOneStep].triggered, kBrainFreeze);
+            const uint32 freezeOne = freezePuts[kOrbOneStep];
             const uint32 fingersTwo = GoCount(st.seen[kOrbTwoStep].triggered, kFingers) +
                                       GoCount(st.seen[kOrbThreeStep].triggered, kFingers);
-            const uint32 freezeTwo = GoCount(st.seen[kOrbTwoStep].triggered, kBrainFreeze) +
-                                     GoCount(st.seen[kOrbThreeStep].triggered, kBrainFreeze);
+            const uint32 freezeTwo = freezePuts[kOrbTwoStep] + freezePuts[kOrbThreeStep];
             const uint32 hitsOne = HisHits(st, kOrbOneStep, kRankOneHit);
             const uint32 hitsTwo = HisHits(st, kOrbTwoStep, kRankTwoHit) + HisHits(st, kOrbThreeStep, kRankTwoHit);
             const bool ok = fingersOne == 0 && freezeOne == 0 && hitsOne == kOrbHits && hitsTwo == 2 * kOrbHits &&
@@ -18300,6 +18301,40 @@ namespace Harness
         static uint32 GoCount(std::vector<uint32> const& spells, uint32 spellId)
         {
             return uint32(std::count(spells.begin(), spells.end(), spellId));
+        }
+
+        /// By step, how many SMSG_AURA_UPDATE packets sent to him put `spellId` in a slot that did not show it already:
+        /// each put is sent twice, and a refresh clears the slot before it puts the aura again.
+        std::vector<uint32> AuraPuts(St const& st, uint32 spellId) const
+        {
+            Trace::Roles const& roles = m_rec.Roles();
+            std::map<uint32, uint32> shown;         // slot -> the spell the last update put there, 0 for none
+            std::vector<uint32> puts(st.steps.size(), 0);
+            for (uint32 k = 0; k < st.steps.size(); ++k)
+            {
+                for (std::string const& window : StepWindows(k))
+                {
+                    std::vector<Recorder::Seen const*> updates = m_rec.SeenIn(window, SMSG_AURA_UPDATE);
+                    for (size_t i = 0; i < updates.size(); ++i)
+                    {
+                        Recorder::Seen const& update = *updates[i];
+                        std::string text;
+                        uint32 slot = 0, spell = 0;
+                        if (update.payload.empty() ||
+                            !Trace::DecodeAuraUpdate(&update.payload[0], update.payload.size(), roles, text) ||
+                            sscanf(text.c_str(), "target=self slot=%u spell=%u", &slot, &spell) != 2)
+                        {
+                            continue;
+                        }
+                        if (spell == spellId && shown[slot] != spellId)
+                        {
+                            ++puts[k];
+                        }
+                        shown[slot] = spell;
+                    }
+                }
+            }
+            return puts;
         }
 
         /// His damage logs of `spell` on the Camel in step k's windows.
