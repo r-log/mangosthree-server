@@ -47,8 +47,8 @@
 /// units and its chill's target list, the exits of Frostbolt's, Cone of Cold's and Blizzard's after-hit scripts,
 /// Permafrost's heal and its refusals, Improved Cone of Cold's freeze and Ice Shards' chill by rank, Improved Freeze's
 /// chance by rank, its one roll for a Freeze that hit an enemy and its exit at the after-cast hook, Frost Nova's
-/// cooldown ended at Ice Block's launch with Glyph of Ice Block, and Ritual of Refreshment's rank by level and its exit
-/// at the dummy-effect hook; the orb's rows are counted here and tested in
+/// cooldown ended at Ice Block's launch with Glyph of Ice Block, and Ritual of Refreshment's rank by level, the
+/// cooldown it takes off that rank and its exit at the dummy-effect hook; the orb's rows are counted here and tested in
 /// MageOrbTest, the ring's in MageRingTest. A body that casts, reads a level or creates an item needs a live unit and a
 /// spell; the proc scripts' refusals run on bare Creatures (update fields allocated; no map, template or AI), with the
 /// effect rows the scripts read added to the effect store as the client's data holds them, and a holder put in the
@@ -2183,7 +2183,7 @@ TEST(MageScripts_InvisibilityRunsOnTheAuraApplyAndRemoveHooksAndActsOnlyForAPet)
     CHECK(!mage.HasAura(96243));
 }
 
-TEST(MageScripts_RitualOfRefreshmentsRankIsTheTableWhoseFoodTheLevelAllows)
+TEST(MageScripts_RitualOfRefreshmentRankIsTheTableWhoseFoodTheLevelAllows)
 {
     // 92827 (the Conjured Mana Cake table, the cake at level 85) from 85, 92824 (the Strudel table, level 80) from 80,
     // 74650 (the Biscuit table) below, down to the ritual's own level, 76.
@@ -2212,9 +2212,10 @@ TEST(MageScripts_RitualOfRefreshmentRunsOnTheDummyEffectHook)
     }
 
     // The body on a bare caster of level 85, as the effect at himself calls it: it ends the effect, leaves the
-    // effect's value and the cast's word as they are, and starts no channel of his. A smoke case: the test's store
-    // holds no 92827, so the cast of the rank ends at its lookup and builds nothing, and this case cannot tell the rank
-    // it tried; the leaf's vectors pin the rank and scenario 1122 the cast itself.
+    // effect's value and the cast's word as they are, and starts no channel of his. A smoke case: a creature keeps no
+    // cooldowns of a player's kind, and the test's store holds no 92827, so the cast of the rank ends at its lookup and
+    // builds nothing; this case cannot tell the rank it tried. The leaf's vectors pin the rank, the next test the
+    // cooldown taken off, and scenario 1122 the cast itself.
     BareCreature caster;
     caster.SetUInt32Value(UNIT_FIELD_LEVEL, 85);
     CHECK_EQ(caster.getLevel(), uint32(85));
@@ -2229,6 +2230,63 @@ TEST(MageScripts_RitualOfRefreshmentRunsOnTheDummyEffectHook)
     CHECK_EQ(word, int32(0));
     CHECK(caster.GetCurrentSpell(CURRENT_CHANNELED_SPELL) == NULL);
     CHECK(caster.GetSpellAuraHolderMap().empty());
+}
+
+TEST(MageScripts_RitualOfRefreshmentTakesTheCooldownOffTheRankForTheLevelAlone)
+{
+    // The ritual's cast starts the cooldown of the category it shares with its three ranks (1177, 300 s) before its
+    // effect runs, so all three ranks stand on cooldown when the script runs, and Spell::CheckCast refuses a cast of a
+    // spell on cooldown, triggered or not. On a player of level 85, 80 and 76 the script takes the cooldown off the
+    // rank for his level (92827, 92824, 74650) and leaves the other two on; his client is told nothing. The refusal
+    // itself needs a spell row and a live cast, which a test cannot build: the test's store holds no rank, so the cast
+    // ends at its lookup and starts no cooldown again. Scenario 1122 pins the cast.
+    SpellHandlerRegistry registry;
+    RegisterMageScripts(registry);
+    WorldSession session(1, "ritual", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    SessionPlayer mage(session);
+    static std::vector<uint32> s_cleared;
+    s_cleared.clear();
+    CooldownSinks sinks;
+    sinks.cleared = [](CooldownsClearedFact const& fact)
+    {
+        s_cleared.insert(s_cleared.end(), fact.spellIds.begin(), fact.spellIds.end());
+    };
+    mage.SetCooldownSinks(sinks);
+
+    uint32 const ranks[] = { 74650, 92824, 92827 };
+    for (uint32 rank : ranks)
+    {
+        CHECK(sSpellStore.LookupEntry(rank) == NULL);
+    }
+    struct LevelRank
+    {
+        uint32 level;
+        uint32 rank;
+    };
+    LevelRank const cases[] = { { 85, 92827 }, { 80, 92824 }, { 76, 74650 } };
+    time_t const now = time(NULL);
+    SpellRowStorage row;
+    for (LevelRank const& levelRank : cases)
+    {
+        mage.SetUInt32Value(UNIT_FIELD_LEVEL, levelRank.level);
+        for (uint32 rank : ranks)
+        {
+            mage.GetSpellCooldownMgr().AddSpellCooldown(rank, 0, now + 300);
+        }
+        int32 value = 0;
+        int32 word = 0;
+        DummyEffectContext ctx(mage, &mage, NULL, NULL, SpellRow(row, 43987), EFFECT_INDEX_0, value, ObjectGuid(),
+                               &mage, word);
+        CHECK(registry.Dispatch<DummyEffectHook>(43987, ctx).IsReturn());
+        for (uint32 rank : ranks)
+        {
+            CHECK(mage.GetSpellCooldownMgr().HasSpellCooldown(rank, now) == (rank != levelRank.rank));
+        }
+        CHECK_EQ(value, int32(0));
+        CHECK_EQ(word, int32(0));
+    }
+    CHECK(s_cleared.empty());
+    CHECK(mage.GetCurrentSpell(CURRENT_CHANNELED_SPELL) == NULL);
 }
 
 TEST(MageScripts_PyromaniacFindsNoBurningEnemyForAMageNoEnemyHates)
