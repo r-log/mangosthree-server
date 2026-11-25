@@ -23237,8 +23237,8 @@ namespace Harness
      * staged, kPetOffset yards to his side. Steps, a cast read kReadMs after it, any other kSwingReadMs after it:
      *  1. Time Warp at T;
      *  2. Time Warp again at T+2 s, its cooldown taken off first (the stepped clock never runs it out);
-     *  3. his Time Warp and 4. his Temporal Displacement cancelled, as the client's right-click does; the pet keeps
-     *     both;
+     *  3. his Time Warp and 4. his Temporal Displacement cancelled by call (Unit::RemoveAurasDueToSpellByCancel); the
+     *     pet keeps both;
      *  5. Sated cast by him at himself, triggered;
      *  6. Time Warp a third time at T+5 s, its cooldown taken off first;
      *  7. a wait at whose act Time Warp, Temporal Displacement, Sated, Exhaustion (57723) and Insanity (95809) are
