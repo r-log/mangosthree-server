@@ -280,7 +280,9 @@
 // 1124 a staged Fire mage's Fade takes his threat on the Camel to 0 for its 10 s and keeps him on the Camel's list,
 // holds off the threat his Fire Blast earns under it and gives all of it back when it ends; a second Fade does the
 // same.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1119, 1120, 1123 and 1124 (Qualify)
+// 1125 a staged Arcane mage gets the Run Speed Marker with Improved Blink's buff, Sprint and Darkflight; it refuses a
+// second Sprint while it stands, and goes when each buff ends, long before its own 30 s.
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1119, 1120 and 1123-1125 (Qualify)
 // fingerprints every spell a scenario reaches and refuses the random-pick labels, the random chain targets and any
 // script binding.
 namespace Harness
@@ -4185,10 +4187,11 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996, 998-1000,
-     * 1010-1029, 1100-1117, 1119, 1120, 1123, 1124): a human mage staged to level 85 with the scenario's talents,
-     * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
-     * staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
+     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
+     * 998-1000, 1010-1029, 1100-1117, 1119, 1120, 1123, 1124, 1125): a human mage staged to level 85 with the
+     * scenario's talents, glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario
+     * does to him once staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the
+     * scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
      * Camel (50249, or the creature TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its
      * own) ten yards in front of him (Scenario::SpawnTarget), as 950 stages them; then the scenario's steps, in order:
@@ -12345,6 +12348,247 @@ namespace Harness
         static constexpr uint32 kAfterStep = 3;
         static constexpr uint32 kFadeAgainStep = 4;
         static constexpr uint32 kBackStep = 5;
+    };
+
+    /**
+     * S1125 `mage-run-speed-marker`: the Run Speed Marker (96223), the aura every speed buff's restrictions row names
+     * as the one that excludes its caster, on a staged Arcane mage: it comes with Improved Blink's buff, Sprint and
+     * Darkflight, refuses a second Sprint while it stands, and goes when each buff ends, well inside its own full
+     * duration (its SpellDuration row's). Staged as 1107 stages him: Improved Counterspell (11255, rank 1 of 2) for the
+     * Arcane tree, Blink (1953) and Improved Blink 2 (31570, whose proc casts 46989, 70% more speed for 3 s) learned
+     * through Player::learnSpell, his Offensive State (79684) and Mana Adept (76547) taken off once staged, and Enable
+     * Worgen Altered Form (94293, the worgen-form allowance, aura 352, which Darkflight's worgen transform asks of its
+     * caster) put on him as the GM aura command puts it. Steps (B, S and D the times of steps 1, 3 and 6), a cast read
+     * kReadMs after it, a wait kSwingReadMs after it:
+     *  1. Blink at B: Improved Blink gives him 46989;
+     *  2. a wait, read at B+3.2 s, after 46989's 3 s;
+     *  3. Sprint (2983) cast by him at himself, triggered, at S = B+3.6 s, its cooldown taken off first (Blink's
+     *     category cooldown, which the stepped clock never runs out, holds it);
+     *  4. Sprint again at S+1 s, its cooldown taken off first, so that only the marker can refuse it
+     *     (SPELL_FAILED_CASTER_AURASTATE);
+     *  5. a wait, read at S+8.5 s, after Sprint's 8 s;
+     *  6. Darkflight (68992) cast by him at himself, triggered, at D = S+8.7 s; for a caster with the allowance it
+     *     casts Altered Form (97709) on him before its own aura;
+     *  7. a wait, read at D+10.5 s, after Darkflight's 10 s.
+     * At each read the scenario keeps whether the step's buff (46989 for steps 1-2, 2983 for 3-5, 68992 for 6-7) and
+     * 96223 stand on him, and the marker's full duration; at step 6's read, whether 97709 stands on him.
+     *
+     * `marker`: `blink=<46989>,<96223>/<46989>,<96223>,sprint=<96223>/<the second Sprint>/<2983>,<96223>,
+     * darkflight=<96223>,<97709>/<68992>,<96223>`, at the reads of steps 1/2, 3/4/5 and 6/7: a buff or 97709 `up` or
+     * `none`, the marker `up@<its full duration>` or `none`, the second Sprint `refused` when its SMSG_CAST_FAILED
+     * carries SPELL_FAILED_CASTER_AURASTATE, `landed` when its SPELL_GO came, else the result's name. OK at
+     * `blink=up,up@<M>/none,none,sprint=up@<M>/refused/none,none,darkflight=up@<M>,up/none,none`, M the marker's
+     * SpellDuration row (30000).
+     */
+    class MageRunSpeedMarker : public MageProcScenario
+    {
+    public:
+        MageRunSpeedMarker() : MageProcScenario("mage-run-speed-marker", 1125, "marker") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kBlink, kImprovedBlink }; }
+        uint32 CastReadMs() const override { return kReadMs; }
+        uint32 Watched() const override { return kMarker; }
+        bool NotesBeforeStep() const override { return true; }
+
+        void AfterStage(Player& p) override
+        {
+            for (uint32 spell : { kOffensiveState, kManaAdept })
+            {
+                const bool held = p.HasAura(spell);
+                p.RemoveAurasDueToSpell(spell);
+                m_rec.Note("his " + U(spell) + (held ? " taken off" : " was not on him"));
+            }
+            m_rec.Note("his " + U(kImprovedBlink) + (p.HasAura(kImprovedBlink) ? " on him" : " not on him") + "; " +
+                       U(kBlink) + (p.HasSpell(kBlink) ? " known" : " unknown"));
+            PutAura(&p, kWorgenFormAllowance);
+            m_rec.Note("his " + U(kWorgenFormAllowance) + " put on him: " + HolderOf(&p, kWorgenFormAllowance) +
+                       (p.HasWorgenForm() ? "; he has a worgen form" : "; he has no worgen form"));
+        }
+
+        std::vector<Step> Steps() const override
+        {
+            Step sprint = SelfAura(kSprint, kSprintToAgainMs);
+            sprint.clearCooldown = true;
+            Step sprintAgain = SelfAura(kSprint, kAgainToWaitMs);
+            sprintAgain.clearCooldown = true;
+            sprintAgain.refusal = true;
+            return { AuraCast(kBlink, kBlinkToWaitMs), Wait(kWaitToSprintMs), sprint, sprintAgain,
+                     Wait(kWaitToDarkflightMs), SelfAura(kDarkflight, kDarkflightToWaitMs), Wait(kEndMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 1953: 72 fields, fnv 29f574e1
+                { 1953, { { "eff0.present", 1 }, { "eff0.Effect", 29 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectRadiusIndex_0", 9 }, { "eff0.ImplicitTarget_0", 1 }, { "eff0.ImplicitTarget_1", 55 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 77 }, { "eff1.EffectBonusCoefficient", 1065353216 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 12 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 1 }, { "eff2.Effect", 6 }, { "eff2.EffectAura", 77 }, { "eff2.EffectBonusCoefficient", 1065353216 }, { "eff2.EffectChainAmplitude", 1065353216 }, { "eff2.EffectMiscValue_0", 7 }, { "eff2.ImplicitTarget_0", 1 }, { "eff2.EffectIndex", 2 } } },
+                // 46989: 26 fields, fnv 3ebfae80
+                { 46989, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 31 }, { "eff0.EffectBasePoints", 70 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 14 }, { "eff0.EffectSpellClassMask.Flags", 65536 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 31570: 26 fields, fnv 1cad1ddd
+                { 31570, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 46989 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 96223: 26 fields, fnv ba87eed9
+                { 96223, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 2983: 26 fields, fnv 017eb7d4
+                { 2983, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 31 }, { "eff0.EffectBasePoints", 70 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 68992: 49 fields, fnv 5960b7d2
+                { 68992, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 129 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 3 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 358 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 94293: 26 fields, fnv 43e1506f
+                { 94293, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 352 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 97709: 26 fields, fnv 5cef4d11
+                { 97709, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 358 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 13843: 49 fields, fnv c66a1548
+                { 13843, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 54 }, { "eff0.EffectBasePoints", 6 }, { "eff0.EffectBonusCoefficient", 1065353216 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 55 }, { "eff1.EffectBasePoints", 6 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 23434: 26 fields, fnv 6bb46cc2
+                { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At each read: whether the step's buff and the marker stand on him, and the marker's full duration (-1 for
+        /// none); at Darkflight's read, whether Altered Form stands on him too; at the act, a note of the marker alone.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead)
+            {
+                m_rec.Note("at the act: " + U(kMarker) + " " + HolderOf(p, kMarker) + ", its full duration " +
+                           std::to_string(HolderDuration(p, kMarker)));
+                return;
+            }
+            const uint32 buff = BuffOf(k);
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            reads["buff"] = p->GetSpellAuraHolder(buff) ? 1 : 0;
+            reads["marker"] = p->GetSpellAuraHolder(kMarker) ? 1 : 0;
+            reads["markerLength"] = HolderDuration(p, kMarker);
+            m_rec.Note("at the read: " + U(buff) + " " + HolderOf(p, buff) + "; " + U(kMarker) + " " +
+                       HolderOf(p, kMarker) + ", its full duration " + std::to_string(reads["markerLength"]));
+            if (k == kDarkflightStep)
+            {
+                reads["alteredForm"] = p->GetSpellAuraHolder(kAlteredForm) ? 1 : 0;
+                m_rec.Note("at the read: " + U(kAlteredForm) + " " + HolderOf(p, kAlteredForm));
+            }
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            const std::string blink = Buff(st, kBlinkStep) + "," + Marker(st, kBlinkStep) + "/" +
+                                      Buff(st, kBlinkEndStep) + "," + Marker(st, kBlinkEndStep);
+            const std::string sprint = Marker(st, kSprintStep) + "/" + SecondSprint(st) + "/" +
+                                       Buff(st, kSprintEndStep) + "," + Marker(st, kSprintEndStep);
+            const std::string darkflight = Marker(st, kDarkflightStep) + "," +
+                                           Held(st, kDarkflightStep, "alteredForm") + "/" +
+                                           Buff(st, kDarkflightEndStep) + "," + Marker(st, kDarkflightEndStep);
+            const std::string value = "blink=" + blink + ",sprint=" + sprint + ",darkflight=" + darkflight;
+
+            SpellEntry const* marker = sSpellStore.LookupEntry(kMarker);
+            const int32 rowLength = marker ? GetSpellMaxDuration(marker) : -1;
+            const std::string carried = "up@" + std::to_string(rowLength);
+            const bool ok = rowLength > 0 && blink == "up," + carried + "/none,none" &&
+                            sprint == carried + "/refused/none,none" && darkflight == carried + ",up/none,none";
+            return (ok ? "OK(" : "BUG(") + value + "; the marker's SpellDuration row " + std::to_string(rowLength) +
+                   " ms; each buff and Altered Form up or none and the marker up@<its full duration> or none at the " +
+                   "step's read, the second Sprint refused, landed or its cast result)";
+        }
+
+    private:
+        static constexpr uint32 kBlink = 1953;
+        static constexpr uint32 kImprovedBlink = 31570;
+        static constexpr uint32 kImprovedBlinkSpeed = 46989;
+        static constexpr uint32 kSprint = 2983;
+        static constexpr uint32 kDarkflight = 68992;
+        static constexpr uint32 kMarker = 96223;
+        static constexpr uint32 kWorgenFormAllowance = 94293;
+        static constexpr uint32 kAlteredForm = 97709;
+        static constexpr uint32 kOffensiveState = 79684;
+        static constexpr uint32 kManaAdept = 76547;
+        static constexpr uint32 kReadMs = 500;              ///< a cast to its read
+        static constexpr uint32 kBlinkToWaitMs = 2900;      ///< Blink to the wait read at B+3.2 s
+        static constexpr uint32 kWaitToSprintMs = 700;      ///< that wait to Sprint, at B+3.6 s
+        static constexpr uint32 kSprintToAgainMs = 1000;    ///< Sprint to the second Sprint
+        static constexpr uint32 kAgainToWaitMs = 7200;      ///< the second Sprint to the wait read at S+8.5 s
+        static constexpr uint32 kWaitToDarkflightMs = 500;  ///< that wait to Darkflight, at S+8.7 s
+        static constexpr uint32 kDarkflightToWaitMs = 10200;    ///< Darkflight to the wait read at D+10.5 s
+        static constexpr uint32 kEndMs = 500;               ///< the last wait to the end of the record
+        static constexpr size_t kSteps = 7;
+        static constexpr uint32 kBlinkStep = 0;
+        static constexpr uint32 kBlinkEndStep = 1;
+        static constexpr uint32 kSprintStep = 2;
+        static constexpr uint32 kSecondSprintStep = 3;
+        static constexpr uint32 kSprintEndStep = 4;
+        static constexpr uint32 kDarkflightStep = 5;
+        static constexpr uint32 kDarkflightEndStep = 6;
+
+        /// The buff step k reads: Improved Blink's for Blink and its wait, Sprint for the Sprints and their wait,
+        /// Darkflight for Darkflight and its wait.
+        static uint32 BuffOf(uint32 k)
+        {
+            return k <= kBlinkEndStep ? kImprovedBlinkSpeed : k <= kSprintEndStep ? kSprint : kDarkflight;
+        }
+
+        /// What ReadOwn kept under `key` for step k; -2 when unread.
+        static int64 ReadOf(St const& st, uint32 k, char const* key)
+        {
+            if (k >= st.seen.size())
+            {
+                return -2;
+            }
+            std::map<std::string, int64>::const_iterator i = st.seen[k].reads.find(key);
+            return i == st.seen[k].reads.end() ? -2 : i->second;
+        }
+
+        /// The aura ReadOwn kept under `key` for step k: `up`, `none` or `unread`.
+        static std::string Held(St const& st, uint32 k, char const* key)
+        {
+            const int64 held = ReadOf(st, k, key);
+            return held == 1 ? "up" : held == 0 ? "none" : "unread";
+        }
+
+        /// The step's buff at its read: `up`, `none` or `unread`.
+        static std::string Buff(St const& st, uint32 k)
+        {
+            return Held(st, k, "buff");
+        }
+
+        /// The marker at step k's read: `up@<its full duration>`, `none` or `unread`.
+        static std::string Marker(St const& st, uint32 k)
+        {
+            const int64 held = ReadOf(st, k, "marker");
+            return held == 1 ? "up@" + std::to_string(ReadOf(st, k, "markerLength")) : held == 0 ? "none" : "unread";
+        }
+
+        /// The second Sprint: `refused` when its SMSG_CAST_FAILED carries SPELL_FAILED_CASTER_AURASTATE, `landed` when
+        /// its SPELL_GO came, else the cast result's name; `unread` for a step not read.
+        std::string SecondSprint(St const& st) const
+        {
+            Seen const& seen = st.seen[kSecondSprintStep];
+            if (!seen.read)
+            {
+                return "unread";
+            }
+            if (seen.goSeen)
+            {
+                return "landed";
+            }
+            const int32 result = CastFailedResult(kSecondSprintStep, kSprint);
+            return result == SPELL_FAILED_CASTER_AURASTATE ? std::string("refused") : CastResultName(result);
+        }
     };
 
     /**
@@ -27180,6 +27424,7 @@ namespace Harness
         r.Register(new MageFireImprovedFlamestrikeRankOne());
         r.Register(new MageFireInvisibilityFade());
         r.Register(new MageThreatReduction());
+        r.Register(new MageRunSpeedMarker());
         r.Register(new MageFireShareBeforeTaken());
         r.Register(new MageFireCombustionAtTheCast());
         r.Register(new MageFireCombustionMasteryAtTheCast());
