@@ -55,12 +55,15 @@ namespace Harness
          * Steps, each a wait whose own read comes right after it acts:
          *  1. the second Camel given his faction by call, so it is friendly to him; his mana set to its maximum by
          *     call; then his 62618 at the point where he stands, as the cast handler starts a ground cast (a spell
-         *     whose targets hold the point alone);
+         *     whose targets hold the point alone); right after it, the live 33248 within kSearchYards of him counted,
+         *     the first kept and any other taken away by call (Creature::ForcedDespawn) before its first update, so
+         *     that a cast that summons more barriers than one leaves the run one barrier's casts and packets;
          *  2. the barriers: every live 33248 within kSearchYards of him, the first one's 81781, faction and owner;
          *     81782 on him and on the second Camel, his pushback resisted (SPELL_AURA_REDUCE_PUSHBACK), 90785 on him,
          *     his healing taken modifier; then the Camel's hit on him;
          *  3. he is moved kAwayYards behind the point, as his client's movement word says it
-         *     (MovementHandlers::HandleMoverRelocation);
+         *     (MovementHandlers::HandleMoverRelocation); the areas under that place and under the point, which his
+         *     movement explores (Player::CheckAreaExploreAndOutdoor), are added to the plan's explored areas first;
          *  4. 81782 on him, his pushback resisted and his distance from the barrier; then the Camel's hit on him;
          *  5. Glyph of Power Word: Barrier's aura (55689) put on him as the GM aura command puts it; he is moved back
          *     to the point;
@@ -72,16 +75,16 @@ namespace Harness
          * (his CalculateDamageAbsorbAndResist, then the Camel's DealDamageMods, DealDamage and SendAttackStateUpdate),
          * his health set to its maximum first; the hit is the health he lost.
          *
-         * `barrier`: `barriers=<live 33248 at step 2>,channel=<81781 on the first: 81781, none>,faction=<its
-         * faction>/<his>,owner=<its owner: him, other>,ward=<81782's effect 0 on him at step 2>/<on the second Camel
-         * at step 2>/<on him at step 4>/<at step 6>,pushback=<his pushback resisted at step 2>/<at step 4>,hit=<the
-         * hit at step 2>/<at step 4>,glyph=<90785's effect 0 on him at step 2>/<at step 6>,healing=<his healing taken
-         * modifier at step 2>/<at step 6>,life=<live 33248 at step 7>/<at step 8>,end=<81782's effect 0 on him at
-         * step 8>/<90785's>`, `none` for an aura he does not hold. OK at the second Camel friendly to him at the
-         * cast, one barrier holding 81781, of his faction and his, ward=<W>/<W>/none/<W>, pushback=<P>/0,
-         * hit=<kHit x (100 + W) / 100, one point either way>/<kHit>, glyph=none/<G>, healing=0/<G>, life=1/0 and
-         * end=none/none, where W is 81782's effect 0 value in the client's data (-25), P its effect 1 value (100) and
-         * G 90785's effect 0 value (10).
+         * `barrier`: `barriers=<live 33248 right after the cast>,channel=<81781 on the first at step 2: 81781,
+         * none>,faction=<its faction>/<his>,owner=<its owner: him, other>,ward=<81782's effect 0 on him at step 2>/<on
+         * the second Camel at step 2>/<on him at step 4>/<at step 6>,pushback=<his pushback resisted at step 2>/<at
+         * step 4>,hit=<the hit at step 2>/<at step 4>,glyph=<90785's effect 0 on him at step 2>/<at step
+         * 6>,healing=<his healing taken modifier at step 2>/<at step 6>,life=<live 33248 at step 7>/<at step
+         * 8>,end=<81782's effect 0 on him at step 8>/<90785's>`, `none` for an aura he does not hold. OK at the second
+         * Camel friendly to him at the cast, one barrier right after the cast and at step 2, holding 81781, of his
+         * faction and his, ward=<W>/<W>/none/<W>, pushback=<P>/0, hit=<kHit x (100 + W) / 100, one point either
+         * way>/<kHit>, glyph=none/<G>, healing=0/<G>, life=1/0 and end=none/none, where W is 81782's effect 0 value in
+         * the client's data (-25), P its effect 1 value (100) and G 90785's effect 0 value (10).
          */
         class PriestPowerWordBarrier : public StagedCasterScenario
         {
@@ -149,6 +152,7 @@ namespace Harness
                                    (reads["friendly"] ? "friendly to him" : "not friendly to him") + ", " +
                                    TwoDecimals(p->Where().DistanceTo(friendly->Where())) + " yards from him");
                         CastAtPoint(p, kBarrier, p->Where().X(), p->Where().Y(), p->Where().Z(), uint8(k + 1));
+                        reads["summoned"] = KeepOneBarrier(p);
                         break;
                     }
                     case kInsideStep:
@@ -170,6 +174,8 @@ namespace Harness
                     }
                     case kOutStep:
                     {
+                        PlanExploration(st, P0.x - kAwayYards, P0.y);
+                        PlanExploration(st, P0.x, P0.y);
                         Move(p, P0.x - kAwayYards, P0.y);
                         break;
                     }
@@ -237,7 +243,8 @@ namespace Harness
                     return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
                 }
                 const int64 friendly = Kept(st, kCastStep, "friendly");
-                const int64 barriers = Kept(st, kInsideStep, "barriers");
+                const int64 barriers = Kept(st, kCastStep, "summoned");
+                const int64 kept = Kept(st, kInsideStep, "barriers");
                 const int64 channel = Kept(st, kInsideStep, "channel");
                 const int64 faction = Kept(st, kInsideStep, "faction");
                 const int64 his = Kept(st, kInsideStep, "his");
@@ -265,8 +272,8 @@ namespace Harness
                 const int64 reduced = int64(kHit) * (100 + ward) / 100;
                 const bool hitOk = hitIn >= 0 && reduced >= 0 && hitOut == int64(kHit) &&
                                    InBand(uint32(hitIn), uint32(reduced), uint32(reduced));
-                const bool ok = friendly == 1 && barriers == 1 && channel == 1 && owned == 1 && faction == his &&
-                                ward < 0 && wardIn == ward && wardFriend == ward && wardOut == kNone &&
+                const bool ok = friendly == 1 && barriers == 1 && kept == 1 && channel == 1 && owned == 1 &&
+                                faction == his && ward < 0 && wardIn == ward && wardFriend == ward && wardOut == kNone &&
                                 wardBack == ward && pushback > 0 && pushbackIn == pushback && pushbackOut == 0 &&
                                 hitOk && glyph > 0 && glyphBefore == kNone && glyphAfter == glyph &&
                                 healingBefore == 0 && healingAfter == glyph && lifeLate == 1 && lifeEnd == 0 &&
@@ -284,7 +291,8 @@ namespace Harness
                     Shown(glyphEnd);
                 const std::string detail =
                     "wanted the second Camel friendly to him at the cast and one barrier (" + U(kBarrierCreature) +
-                    ") from his " + U(kBarrier) + " at his feet, holding its " + U(kChannel) + ", of his faction and " +
+                    ") from his " + U(kBarrier) + " at his feet, counted right after the cast (any more are taken " +
+                    "away by call, so that the run keeps one), holding its " + U(kChannel) + ", of his faction and " +
                     "owned by him; " + U(kWard) + " at " + std::to_string(ward) + " (its effect 0 value) on him and " +
                     "on the second Camel inside it, none on him " + U(uint32(kAwayYards)) + " yards away, again on " +
                     "him back inside; his pushback resisted " + std::to_string(pushback) + " (its effect 1 value) " +
@@ -310,6 +318,7 @@ namespace Harness
             static constexpr float kFriendYards = 3.0f;
             static constexpr float kAwayYards = 15.0f;
             static constexpr float kSearchYards = 30.0f;
+            static constexpr size_t kNotedBarriers = 3;
             static constexpr uint32 kStepMs = 1000;
             static constexpr uint32 kLateMs = 9200;
             static constexpr uint32 kEndMs = 11700;
@@ -346,6 +355,40 @@ namespace Harness
                 char buf[160];
                 snprintf(buf, sizeof(buf), "he casts %u at (%.2f, %.2f, %.2f), %.2f yards from him", spellId, x, y, z,
                          p->Where().DistanceTo(Geometry::Vector3(x, y, z)));
+                m_rec.Note(buf);
+            }
+
+            /// The live 33248 within kSearchYards of him right after his cast, counted; the first stays and every other
+            /// one is taken away by call (Creature::ForcedDespawn) before its first update, so that a cast that
+            /// summons more than one barrier leaves the run one barrier's casts and packets. Answers the count.
+            int64 KeepOneBarrier(Player* p)
+            {
+                const std::vector<Creature*> barriers = Barriers(p);
+                for (size_t i = 1; i < barriers.size(); ++i)
+                {
+                    barriers[i]->ForcedDespawn();
+                }
+                m_rec.Note(U(uint32(barriers.size())) + " live " + U(kBarrierCreature) + " within " +
+                           U(uint32(kSearchYards)) + " yards of him right after the cast" +
+                           (barriers.size() > 1 ? "; all but the first taken away by call" : std::string()));
+                return int64(barriers.size());
+            }
+
+            /// The area under (x, y), read off the map's terrain, added to the areas his own movement explores
+            /// (QuestPlan::exploredAreas): the movement word that moves him there explores it
+            /// (Player::CheckAreaExploreAndOutdoor), and noPersistence judges each EXPLORE_AREA criteria the run fires
+            /// against those areas.
+            void PlanExploration(St& st, float x, float y)
+            {
+                Load(x, y);
+                Map* map = GetMap();
+                const uint32 area = map ? map->GetTerrain()->GetAreaId(x, y, Ground(x, y, P0.z)) : 0;
+                if (area)
+                {
+                    st.plan.exploredAreas.insert(area);
+                }
+                char buf[128];
+                snprintf(buf, sizeof(buf), "the area under (%.2f, %.2f): %u, explored by his movement", x, y, area);
                 m_rec.Note(buf);
             }
 
@@ -421,8 +464,8 @@ namespace Harness
             }
 
             /// Keeps the barriers: their count, and of the first its 81781 (1 or 0), its faction, his and whether he
-            /// owns it; notes each one's guid, 81781, channel field, unit flags, display, level, faction, owner,
-            /// creator and distance from him.
+            /// owns it; notes the first kNotedBarriers ones' guid, 81781, channel field, unit flags, display, level,
+            /// faction, owner, creator and distance from him.
             void ReadBarriers(std::map<std::string, int64>& reads, Player* p)
             {
                 const std::vector<Creature*> barriers = Barriers(p);
@@ -433,8 +476,9 @@ namespace Harness
                 reads["his"] = int64(p->getFaction());
                 reads["owned"] = first && first->GetOwnerGuid() == p->GetObjectGuid() ? 1 : 0;
                 std::string text;
-                for (Creature* barrier : barriers)
+                for (size_t i = 0; i < barriers.size() && i < kNotedBarriers; ++i)
                 {
+                    Creature* barrier = barriers[i];
                     char buf[256];
                     snprintf(buf, sizeof(buf),
                              "%s%u: %u %s, channel %u, unit flags 0x%x, display %u, level %u, faction %u, owner %s, "
