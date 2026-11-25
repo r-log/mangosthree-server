@@ -146,7 +146,8 @@ namespace Harness
          * S1202 `priest-shield-amount`: his Power Word: Shield (17) is raised by Improved Power Word: Shield and by the
          * Shield Discipline mastery, the clients are told the raised amount when the shield is put on, Glyph of Power
          * Word: Shield's heal takes its percent of that amount, Borrowed Time adds nothing to it, and a shield used up
-         * gives him Rapture's percent of his maximum mana, then nothing until the energize's recovery time has run.
+         * gives him Rapture's percent of his maximum mana, then nothing until the energize's recovery time, which
+         * his cooldown store keeps, has run: a refusal his client is told as SPELL_FAILED_DONT_REPORT.
          * Staged: Improved Power Word: Shield 2 (14768) as his first talent, which makes Discipline his primary tree
          * and so teaches Shield Discipline (77484); Rapture 3 (47537) and Borrowed Time 2 (52797) learned as talent
          * ranks; the Mastery passive (86475), so his mastery is its 8 points; Glyph of Power Word: Shield (glyph 263,
@@ -159,21 +160,24 @@ namespace Harness
          *  2. a wait: his mana set to half his maximum, then the shield used up;
          *  3. a wait, kBreakToRePutMs later: his health set to half again, then a second shield put on him;
          *  4. a wait: his mana set to half again, then the second shield used up, 5 s after the first break, inside
-         *     the 12 s recovery time of Rapture's energize (47755);
+         *     the 12 s recovery time of Rapture's energize (47755), which his cooldown store refuses;
          *  5. a wait, kLockoutWaitMs later: a third shield put on him as in step 3;
-         *  6. a wait: the third shield used up as in step 4, 13 s after the first break, past the recovery time.
+         *  6. a wait: 47755's cooldown taken off him by call, standing in for the 12 s of the wall clock (time(NULL))
+         *     the stepped world does not move, then the third shield used up as in step 4, 13 s after the first break.
          *
          * `shieldAmount`: `amount=<the shield's effect 0 amount right after step 1's put>,shown=<the effect 0 amount
          * of the last SMSG_AURA_UPDATE of 17 for him in step 1's windows; none>,heal=<the first 56160 heal log he
          * sent himself in step 1's windows, `c` added for a crit; none>,energize=<the 47755 energize amounts in step
-         * 2's windows; none>/<in step 4's; none>/<in step 6's; none>`. With plain = the shield's base
+         * 2's windows; none>/<in step 4's; none>/<in step 6's; none>,refused=<the result of the first
+         * SMSG_CAST_FAILED of 47755 in step 4's windows; none>`. With plain = the shield's base
          * (Unit::CalculateSpellDamage) plus its spell power part (Unit::SpellBonusWithCoeffs with the absorb kind),
          * I = 14768's effect 0 percent, M = 77484's effect 0 bonus coefficient times his mastery points, truncated,
          * G = 55672's effect 0 percent and R = 47537's effect 0 percent, all read from the client's data at step 1: OK
          * when the amount is plain x (100 + I) x (100 + M) / 10000, truncated, one point either side allowed, the later
          * shields' amounts are the first's, shown is the amount, the heal is amount x G / 100 and no crit, each shield
-         * was used up whole and gone after, and the energizes are his maximum mana at the step x R / 100, none, and
-         * his maximum mana at step 6 x R / 100.
+         * was used up whole and gone after, the energizes are his maximum mana at the step x R / 100, none, and his
+         * maximum mana at step 6 x R / 100, and the second energize was refused as SPELL_FAILED_DONT_REPORT (28),
+         * as the retail client is told inside the lockout.
          */
         class PriestShieldAmount : public StagedCasterScenario
         {
@@ -263,6 +267,12 @@ namespace Harness
                 }
                 if (use)
                 {
+                    if (k == kLastBreakStep)
+                    {
+                        p->RemoveSpellCooldown(kRaptureEnergize);
+                        m_rec.Note("his cooldown of " + U(kRaptureEnergize) + " taken off by call, for the 12 s of "
+                                   "time(NULL) the stepped world does not move; stored keys [" + CooldownKeys(p) + "]");
+                    }
                     const int64 before = AmountOf(p, kShield);
                     p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA) / 2);
                     seen.reads["maxMana"] = p->GetMaxPower(POWER_MANA);
@@ -337,6 +347,7 @@ namespace Harness
                 const int64 manaWanted = maxMana * rapture / 100;
                 const int64 lastMaxMana = Kept(st, kLastBreakStep, "maxMana");
                 const int64 lastManaWanted = lastMaxMana * rapture / 100;
+                const int32 refused = CastFailedResult(kSecondBreakStep, kRaptureEnergize);
                 bool usedUp = true;
                 const uint32 breaks[] = { kBreakStep, kSecondBreakStep, kLastBreakStep };
                 const int64 puts[] = { amount, secondAmount, lastAmount };
@@ -351,14 +362,16 @@ namespace Harness
                                 secondAmount == amount && lastAmount == amount && shown == amount && healed &&
                                 !healCrit && int64(heal) == amount * glyph / 100 && usedUp &&
                                 energized == std::to_string(manaWanted) && energizedAgain.empty() &&
-                                energizedLast == std::to_string(lastManaWanted);
+                                energizedLast == std::to_string(lastManaWanted) &&
+                                refused == int32(SPELL_FAILED_DONT_REPORT);
 
                 const std::string none = "none";
+                const std::string refusedText = refused < 0 ? none : std::to_string(refused);
                 const std::string value =
                     "amount=" + std::to_string(amount) + ",shown=" + (shown < 0 ? none : std::to_string(shown)) +
                     ",heal=" + (healed ? U(heal) + (healCrit ? "c" : "") : none) + ",energize=" +
                     (energized.empty() ? none : energized) + "/" + (energizedAgain.empty() ? none : energizedAgain) +
-                    "/" + (energizedLast.empty() ? none : energizedLast);
+                    "/" + (energizedLast.empty() ? none : energizedLast) + ",refused=" + refusedText;
                 const int64 centipoints = Kept(st, kPutStep, "masteryCentipoints");
                 char points[32];
                 snprintf(points, sizeof(points), "%lld.%02lld", (long long)(centipoints / 100),
@@ -385,7 +398,8 @@ namespace Harness
                     std::to_string(rapture) + "% of his maximum mana " + std::to_string(maxMana) + ", " +
                     std::to_string(manaWanted) + ", then none inside the recovery time, then " +
                     std::to_string(rapture) + "% of " + std::to_string(lastMaxMana) + ", " +
-                    std::to_string(lastManaWanted) + ", past it";
+                    std::to_string(lastManaWanted) + ", past it; wanted the second refused as " +
+                    std::to_string(int32(SPELL_FAILED_DONT_REPORT));
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
