@@ -243,6 +243,8 @@
 // Shield that damage uses up knocks back the Camels within 6 yards and not one at 10, a cancelled one knocks back none,
 // the use of his Mana Gem gives Improved Mana Gem's buff at 2% of his maximum mana on both of its effects, also with
 // its last charge, and the use of Energy Cloak, which casts the same spell, gives none.
+// 1122 a staged mage of level 85 casts Ritual of Refreshment and opens the Refreshment Portal of its third rank, whose
+// table gives the Conjured Mana Cake.
 // 1108 a staged Arcane mage's Invisibility fades in over 3 s, with Prismatic Cloak 3 makes him invisible at once, and
 // ends either way when he casts a spell.
 // 1109 a staged Arcane mage's Arcane Missiles fly at the Camel the channel started on: a switch of his selection to
@@ -272,7 +274,7 @@
 // 1124 a staged Fire mage's Fade takes his threat on the Camel to 0 for its 10 s and keeps him on the Camel's list,
 // holds off the threat his Fire Blast earns under it and gives all of it back when it ends; a second Fade does the
 // same.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117 and 1124 (Qualify) fingerprints every
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1122 and 1124 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4177,7 +4179,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1029, 1100-1117, 1124): a human mage staged to level 85 with the scenario's talents,
+     * 998-1000, 1010-1029, 1100-1117, 1122, 1124): a human mage staged to level 85 with the scenario's talents,
      * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
      * staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
@@ -19915,6 +19917,144 @@ namespace Harness
     };
 
     /**
+     * S1122 `mage-ritual-of-refreshment`: Ritual of Refreshment (43987) on a staged mage of level 85. Its one effect is
+     * a dummy at himself; each of its three ranks summons a Refreshment Portal (a summoning ritual) at his feet: 74650
+     * the portal 186811, whose table gives the Conjured Mana Biscuit (level 65), 92824 the portal 207385 (the Conjured
+     * Mana Strudel, level 80) and 92827 the portal 207388 (the Conjured Mana Cake, level 85). Staged with Improved
+     * Counterspell (11255, rank 1 of 2, an Arcane talent that touches none of these spells), so the stage learns the
+     * Arcane tree's spells; Ritual of Refreshment learned through Player::learnSpell, as the stage learns its spells.
+     * One step: Ritual of Refreshment cast by him at himself, triggered, read kReadMs after it and kEndMs before the
+     * end; a triggered cast takes no reagent (two Arcane Powder), mana or cooldown, which neither the dummy nor a rank
+     * reads. At the read the scenario keeps how many of each portal stand within kPortalRange yards of him, the spell
+     * in his channel slot (0 for none) and his channel spell field.
+     *
+     * `ritual`: `portal=<the entries of the portals at the read, in kPortals' order, each once for each portal of it,
+     * joined by +; none for none>`, then the channel slot and field, which the verdict does not judge. OK at
+     * `portal=207388`, the portal of the rank for level 85.
+     */
+    class MageRitualOfRefreshment : public MageProcScenario
+    {
+    public:
+        MageRitualOfRefreshment() : MageProcScenario("mage-ritual-of-refreshment", 1122, "ritual") {}
+
+    protected:
+        std::vector<std::pair<uint32, uint32> > Talents() const override { return { { 9166, 0 } }; }
+        std::vector<uint32> Spells() const override { return { kRitual }; }
+        uint32 CastReadMs() const override { return kReadMs; }
+
+        std::vector<Step> Steps() const override
+        {
+            return { SelfAura(kRitual, kEndMs) };
+        }
+
+        std::vector<SpellPrint> Prints() const override
+        {
+            return {
+                // 43987: 26 fields, fnv 1b2f1172
+                { 43987, { { "eff0.present", 1 }, { "eff0.Effect", 3 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 92827: 26 fields, fnv 517e5beb
+                { 92827, { { "eff0.present", 1 }, { "eff0.Effect", 50 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 207388 }, { "eff0.EffectRadiusIndex_0", 8 }, { "eff0.ImplicitTarget_0", 47 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79684: 26 fields, fnv 8068d7f8
+                { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79683: 26 fields, fnv 0d0f7f9c
+                { 79683, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 79808: 26 fields, fnv 0d0f7f9c
+                { 79808, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71761: 26 fields, fnv 6b2bec1a
+                { 71761, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 71757 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 71757: 26 fields, fnv 73f2d232
+                { 71757, { { "eff0.present", 1 }, { "eff0.Effect", 2 }, { "eff0.EffectBasePoints", 1468 }, { "eff0.EffectBonusCoefficient", 1073985094 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectDieSides", 273 }, { "eff0.EffectRealPointsPerLevel", 1110704128 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 11255: 26 fields, fnv cb63d629
+                { 11255, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 18469 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 18469: 26 fields, fnv 3204750c
+                { 18469, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 27 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 6 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+            };
+        }
+
+        /// At the read: how many of each portal (kPortals) stand within kPortalRange yards of him, the spell in his
+        /// channel slot (0 for none) and his channel spell field, kept in Seen::reads.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
+        {
+            if (!atRead)
+            {
+                return;
+            }
+            std::map<std::string, int64>& reads = st.seen[k].reads;
+            std::string text;
+            for (uint32 entry : kPortals)
+            {
+                std::list<GameObject*> found;
+                MaNGOS::GameObjectEntryInPosRangeCheck check(*p, entry, p->Where().X(), p->Where().Y(), p->Where().Z(),
+                                                             kPortalRange);
+                MaNGOS::GameObjectListSearcher<MaNGOS::GameObjectEntryInPosRangeCheck> searcher(found, check);
+                Cell::VisitGridObjects(p, searcher, kPortalRange);
+                reads[PortalKey(entry)] = int64(found.size());
+                text += (text.empty() ? "" : ", ") + U(entry) + " x" + U(uint64(found.size()));
+            }
+            Spell const* channel = p->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+            reads["slot"] = channel ? int64(channel->m_spellInfo->ID) : 0;
+            reads["field"] = int64(p->GetUInt32Value(UNIT_CHANNEL_SPELL));
+            m_rec.Note("at the read: the portals within " + U(uint32(kPortalRange)) + " yards of him " + text +
+                       "; his channel slot " + std::to_string(reads["slot"]) + ", his channel spell field " +
+                       std::to_string(reads["field"]));
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != kSteps)
+            {
+                return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
+            }
+            std::map<std::string, int64> const& reads = st.seen[0].reads;
+            std::string portal;
+            for (uint32 entry : kPortals)
+            {
+                std::map<std::string, int64>::const_iterator i = reads.find(PortalKey(entry));
+                for (int64 n = i == reads.end() ? 0 : i->second; n > 0; --n)
+                {
+                    portal += (portal.empty() ? "" : "+") + U(entry);
+                }
+            }
+            if (reads.empty())
+            {
+                portal = "unread";
+            }
+            else if (portal.empty())
+            {
+                portal = "none";
+            }
+            const bool ok = portal == U(kCakePortal);
+            return (ok ? "OK(" : "BUG(") + std::string("portal=") + portal + "; the Refreshment Portals within " +
+                   U(uint32(kPortalRange)) + " yards of him " + U(kReadMs) + " ms after the cast, " + U(kCakePortal) +
+                   " wanted, the portal of the rank for level 85 (92827); his channel slot " +
+                   std::to_string(Kept(st, "slot")) + ", his channel spell field " + std::to_string(Kept(st, "field")) +
+                   ")";
+        }
+
+    private:
+        static constexpr uint32 kRitual = 43987;
+        static constexpr uint32 kCakePortal = 207388;
+        static constexpr uint32 kPortals[] = { 186811, 207385, kCakePortal };
+        static constexpr float kPortalRange = 10.0f;
+        static constexpr uint32 kReadMs = 500;
+        static constexpr uint32 kEndMs = 1000;
+        static constexpr size_t kSteps = 1;
+
+        /// The key under which ReadOwn keeps the count of the portal `entry`.
+        static std::string PortalKey(uint32 entry)
+        {
+            return "portal" + U(entry);
+        }
+
+        /// The read ReadOwn kept under `name`; -1 when it kept none of that name.
+        static int64 Kept(St const& st, char const* name)
+        {
+            std::map<std::string, int64>::const_iterator i = st.seen[0].reads.find(name);
+            return i == st.seen[0].reads.end() ? -1 : i->second;
+        }
+    };
+
+    /**
      * S1106 `mage-arcane-absorbs`: Incanter's Absorption (44395, rank 2 of 2) and Improved Mana Gem (31585, rank 2 of
      * 2) on a staged Arcane mage. Incanter's Absorption: what his Mana Shield (1463) or his Mage Ward (543) absorbs
      * gives him 44413, spell damage at 20% of the amount, for 10 s; an absorb while 44413 runs gives the new share plus
@@ -26459,6 +26599,7 @@ namespace Harness
         r.Register(new MageArcaneCooldowns());
         r.Register(new MageArcaneMana());
         r.Register(new MageArcaneUtility());
+        r.Register(new MageRitualOfRefreshment());
         r.Register(new MageFrostPiercingChill());
         r.Register(new MageFrostPermafrost());
         r.Register(new MageFrostImprovedConeOfCold());
