@@ -56,7 +56,8 @@ namespace Harness
          *  1. Smite: one stack of 81661, and the marker (87154);
          *  2. Holy Fire: its hit gives the second stack; its ticks, which run on into steps 3 and 4, give none;
          *  3. to 5. Smite: the third to the fifth stack;
-         *  6. Archangel: the stacks consumed: 81700 on him at 81700's effect 0 value for each stack, 87152's mana, its
+         *  6. Smite at the stack limit: still five stacks, the buff and the marker refreshed;
+         *  7. Archangel: the stacks consumed: 81700 on him at 81700's effect 0 value for each stack, 87152's mana, its
          *     effect 0 value in percent of his maximum mana for each stack, the stacks and the marker gone, and
          *     Archangel on its category's recovery.
          *
@@ -64,18 +65,18 @@ namespace Harness
          * client was last told of 81661 by the end of each step's windows: the stack of its last SMSG_AURA_UPDATE, 0
          * once its slot was cleared; - before any>,marker=<1 when he holds 87154 at the read, else 0>,damage=<Smite's
          * damage percent through his spell modifiers at the read>,cost=<Smite's cost percent likewise>,archangel=<his
-         * 81700's effect 0 amount / its maximum duration at step 6's read; none>,energize=<the amounts of 87152's
-         * SMSG_SPELLENERGIZELOG at step 6; none>,cooldown=<on when 87151 is on cooldown for him at step 6's read, else
-         * off>,refused=<the result of a SMSG_CAST_FAILED of 87151 at step 6; none>`. With D, C = 81661's effect 0 and
+         * 81700's effect 0 amount / its maximum duration at step 7's read; none>,energize=<the amounts of 87152's
+         * SMSG_SPELLENERGIZELOG at step 7; none>,cooldown=<on when 87151 is on cooldown for him at step 7's read, else
+         * off>,refused=<the result of a SMSG_CAST_FAILED of 87151 at step 7; none>`. With D, C = 81661's effect 0 and
          * 1 values, L = its stack limit, H = 81700's effect 0 value, M = 87152's effect 0 value, B = 81700's duration,
          * the category and recovery of 81700 and the category of 87151, his maximum mana, and P, Q = Smite's damage
          * and cost percents through his modifiers before any stack, all read right after step 1's cast starts, and
          * S(k) = the smaller of k and L after the k-th cast: OK when D, L, H, M, B, P, Q and the recovery are
          * positive, C is negative, 81700 and 87151 share their category, 87151's effect 1 holds the recovery in
-         * seconds; at each of steps 1 to 5 he holds S(k) stacks, his client was told S(k), he holds the marker and no
+         * seconds; at each of steps 1 to 6 he holds S(k) stacks, his client was told S(k), he holds the marker and no
          * 81660, his Smite's damage percent is P + D x S(k) and its cost percent Q + C x S(k), with no 81700 and
-         * Archangel not on cooldown; at step 6 no SMSG_CAST_FAILED came, 81700 and 87152 were cast, his 81700 holds
-         * H x S(5) for B milliseconds, 87152 gave his maximum mana x M x S(5) / 100, he holds no stack and no marker,
+         * Archangel not on cooldown; at step 7 no SMSG_CAST_FAILED came, 81700 and 87152 were cast, his 81700 holds
+         * H x S(6) for B milliseconds, 87152 gave his maximum mana x M x S(6) / 100, he holds no stack and no marker,
          * his client was told the stack's slot was cleared, his Smite is back to P and Q percent, and Archangel is on
          * cooldown.
          */
@@ -98,7 +99,7 @@ namespace Harness
             std::vector<Step> Steps() const override
             {
                 return { Cast(kSmite, false), Cast(kHolyFire, false), Cast(kSmite, false), Cast(kSmite, false),
-                         Cast(kSmite, false), AuraCast(kArchangel, 0) };
+                         Cast(kSmite, false), Cast(kSmite, false), AuraCast(kArchangel, 0) };
             }
 
             std::vector<SpellPrint> Prints() const override
@@ -259,8 +260,8 @@ namespace Harness
             static constexpr uint32 kMana = 87152;
             static constexpr uint32 kSmite = 585;
             static constexpr uint32 kHolyFire = 14914;
-            static constexpr size_t kSteps = 6;
-            static constexpr uint32 kArchangelStep = 5;
+            static constexpr size_t kSteps = 7;
+            static constexpr uint32 kArchangelStep = 6;
 
             /// What ReadOwn kept of step k under `name`; -2 when the step was not read.
             static int64 Kept(St const& st, uint32 k, char const* name)

@@ -66,12 +66,12 @@ namespace
 
     /// 81659, 81662: Evangelism: its dummy effect's proc flags take the priest's harmful spell hits and his periodic
     /// damage, and its class mask takes Smite and Penance's bolts alone. The script takes a hit of Smite, Holy Fire or
-    /// Penance's bolt that dealt damage (Priest::EvangelismFromHit), so Holy Fire's hit, which the class mask lacks,
-    /// procs as Smite's does. Every other event is left to the class mask and the hit kind: Holy Fire's ticks, the
-    /// misses and the other spells give no stack. A body that changes nothing: the holders are being walked.
+    /// Penance's bolt, a wholly absorbed one included (Priest::EvangelismFromHit), so Holy Fire's hit, which the class
+    /// mask lacks, procs as Smite's does. Every other event is left to the class mask and the hit kind: Holy Fire's
+    /// ticks, the misses and the other spells give no stack. A body that changes nothing: the holders are being walked.
     SpellHandlerOutcome<bool> EvangelismCheckProc(CheckProcContext& ctx)
     {
-        if (Priest::EvangelismFromHit(ctx.procSpell ? ctx.procSpell->ID : 0, ctx.procFlag, ctx.procEx, ctx.damage))
+        if (Priest::EvangelismFromHit(ctx.procSpell ? ctx.procSpell->ID : 0, ctx.procFlag, ctx.procEx))
         {
             return SpellHandlerOutcome<bool>::Return(true);
         }
@@ -86,7 +86,7 @@ namespace
     /// did not stay on him.
     ProcOutcome EvangelismProc(OnProcContext& ctx)
     {
-        if (!ctx.procSpell || !Priest::EvangelismFromHit(ctx.procSpell->ID, ctx.procFlag, ctx.procEx, ctx.damage))
+        if (!ctx.procSpell || !Priest::EvangelismFromHit(ctx.procSpell->ID, ctx.procFlag, ctx.procEx))
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
         }
@@ -124,8 +124,9 @@ namespace
     /// category's recovery, from the client's data, on the category's spells, Archangel among them: that is
     /// Archangel's cooldown. With no stack nothing is cast and nothing taken off.
     /// The Dark Evangelism arm, Mind Flay's stacks (87117, 87118) consumed into Dark Archangel (87153), is not done
-    /// here: this body leaves those stacks, that spell and the marker they stand for as it finds them, and the family
-    /// switches and the script library run after it.
+    /// here: this body leaves those stacks, that spell and the marker they stand for as it finds them. That arm belongs
+    /// inside this body, before 81700's cast: the cast puts the category's recovery on 87153 too, so a Dark Archangel
+    /// cast after it, here or in a later hook, is refused as not ready.
     SpellHandlerOutcome<void> ArchangelEffect(DummyEffectContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0)
@@ -171,10 +172,10 @@ bool Priest::EvangelismFromSpell(uint32 spellId)
     return spellId == SMITE || spellId == HOLY_FIRE || spellId == PENANCE_BOLT;
 }
 
-bool Priest::EvangelismFromHit(uint32 spellId, uint32 procFlag, uint32 procEx, uint32 damage)
+bool Priest::EvangelismFromHit(uint32 spellId, uint32 procFlag, uint32 procEx)
 {
     return EvangelismFromSpell(spellId) && (procFlag & PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT) &&
-           (procEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT)) && damage;
+           (procEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT));
 }
 
 uint32 Priest::EvangelismStack(uint32 rankSpellId)
