@@ -174,14 +174,13 @@
 // lockout his Frostbolt takes its full cast time and global cooldown; his global cooldown takes the talent's modifier
 // first and haste and the 1.0 to 1.5 s hold only above one second, so the second rank's is 0.9 s with or without
 // haste; Glyph of Icy Veins removes a creature's and a player's cast slow and keeps Power Infusion.
-// 1012 a staged Frost mage's Frostbolt crit with Piercing Chill 2 chills the two Camels nearest its target within ten
-// yards, one at nine yards, one chill cast each, and never the target, a third Camel at nine and a half yards or one
-// beyond; a hit that is no crit chills none; each chill's hit is a roll of Fingers of Frost's row and each chill cast's
-// end one of Brain Freeze's. 1013 Permafrost 3 heals the Water Elemental through its own heal for 15% of each
-// Frostbolt and Cone of Cold hit, a crit's included, and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of
-// Cold 2 has each Camel the cone hits freeze itself for the mage for four seconds, in the frozen state, but a creature
-// immune to roots, which shows Immune instead; an Ice Lance with a Fingers of Frost charge then finds its target
-// frozen and spends the charge.
+// 1012 a staged Frost mage's Frostbolt crit with Piercing Chill 2 chills, in one chill cast, its target and the Camel
+// nearest it, at three yards, and never a third Camel at nine yards or one beyond; a hit that is no crit chills none;
+// each chill's hit is a roll of Fingers of Frost's row and each chill cast's end one of Brain Freeze's.
+// 1013 Permafrost 3 heals the Water Elemental through its own heal for 15% of each Frostbolt and Cone of Cold hit, a
+// crit's included, and nothing for Ice Lance and Fire Blast. 1014 Improved Cone of Cold 2 has each Camel the cone hits
+// freeze itself for the mage for four seconds, in the frozen state, but a creature immune to roots, which shows Immune
+// instead; an Ice Lance with a Fingers of Frost charge then finds its target frozen and spends the charge.
 // 1015 a staged Frost mage's Ice Barrier broken by damage roots, with Shattered Barrier, the two Camels within ten
 // yards of him and not the third; replaced, dispelled, cancelled or run out it roots none; Glyph of Ice Barrier adds
 // 30% to the whole absorb. 1016 Reactive Barrier casts the free Ice Barrier for a swing that leaves him below half
@@ -213,7 +212,9 @@
 // roll for the cast; cast at a point where no enemy stands, it gives none.
 // 1116 a staged Frost mage's Fingers of Frost rolls when a chill of its row lands: by call, a hit's proc event gives
 // charges and a cast end's none; ten Frostbolts at a Camel in Ice Block give none; a Cone of Cold and a Blizzard tick
-// give at most one charge for each Camel they chill, Blizzard's Chilled among them.
+// give at most one charge for each Camel they chill, Blizzard's Chilled among them. 1117 1012's mage and Camels: a
+// Frostbolt crit that kills its target chills, in one chill cast, the two Camels nearest where it stood, the second
+// at nine yards, and never a third at nine and a half yards or one beyond.
 // 1100 a staged Arcane mage's Arcane Missiles: refused without Arcane Missiles!, cast with it, which it uses up, three
 // missiles and then five with Improved Arcane Missiles and Missile Barrage, no Arcane Missiles! from the channel, and the
 // aura the spell asks for kept on him exactly while Arcane Missiles! is.
@@ -274,7 +275,7 @@
 // 1124 a staged Fire mage's Fade takes his threat on the Camel to 0 for its 10 s and keeps him on the Camel's list,
 // holds off the threat his Fire Blast earns under it and gives all of it back when it ends; a second Fade does the
 // same.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1116, 1119 and 1124 (Qualify) fingerprints every
+// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029, 1100-1117, 1119 and 1124 (Qualify) fingerprints every
 // spell a scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
 namespace Harness
 {
@@ -4179,7 +4180,7 @@ namespace Harness
 
     /**
      * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1029, 1100-1116, 1119, 1124): a human mage staged to level 85 with the scenario's talents,
+     * 998-1000, 1010-1029, 1100-1117, 1119, 1124): a human mage staged to level 85 with the scenario's talents,
      * glyphs, spell power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once
      * staged (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
@@ -4215,6 +4216,8 @@ namespace Harness
      *    the steps after it run;
      *  - his health set to its maximum by call, read kSwingReadMs after;
      *  - a kill: he deals the Camel its health as plain damage (Unit::DealDamage, no spell), read kSwingReadMs after;
+     *    a killing cast (KillingCast) is a cast whose hit kills the Camel, its health set below the hit by an earlier
+     *    step, and the achievement plan counts that kill as it counts a kill step's;
      *  - a removal: the holder of the step's spell taken off the Camel, by dispel
      *    (Unit::RemoveAuraHolderDueToSpellByDispel, one stack) or by the plain call (Unit::RemoveAurasDueToSpell),
      *    read kSwingReadMs after;
@@ -4275,7 +4278,7 @@ namespace Harness
             for (size_t i = 0; i < steps.size(); ++i)
             {
                 plan.takesDamage = plan.takesDamage || steps[i].swing || steps[i].blow || steps[i].swingAtMs;
-                if (steps[i].kill)
+                if (steps[i].kill || steps[i].killing)
                 {
                     ++plan.kills[TargetEntry()];
                 }
@@ -4483,6 +4486,7 @@ namespace Harness
             uint32 healthPermille = 0;          ///< a swing's: his health set to this many thousandths of his maximum
                                                 ///< first, at least 1; 0 for SwingHealth()'s
             bool kill = false;                  ///< the mage deals the Camel its health as plain damage
+            bool killing = false;               ///< a cast whose hit kills the Camel: the plan counts the kill
             bool wait = false;                  ///< nothing done: the step only marks a moment for its reads
             bool selfRemoval = false;           ///< the holder of `spell` on the mage cancelled as the client's right-click does
             bool noCasterAura = false;          ///< a cast that takes the scenario's caster aura off him instead of putting it on
@@ -4658,6 +4662,14 @@ namespace Harness
             Step s;
             s.kill = true;
             s.everyMs = everyMs;
+            return s;
+        }
+        /// A cast of `spell` at the Camel, which must crit when `crit` and not otherwise, whose hit kills the Camel:
+        /// the scenario has set the Camel's health below the hit first.
+        static Step KillingCast(uint32 spell, bool crit)
+        {
+            Step s = Cast(spell, crit);
+            s.killing = true;
             return s;
         }
         /// Whether a step is a cast of the mage's, at the Camel or at himself: neither a swing, a removal, a blow, a
@@ -22799,16 +22811,18 @@ namespace Harness
      *
      * `chill`: `chilled=<the Camels holding his 83154 at the crit's read>,casts=<83154 SPELL_GO in the crit's
      * windows>/<in the non-crit's>,fingers=<by-call hit procs that left him holding 44544>/<kCalls>,
-     * brainFreeze=<by-call cast-end procs that left him holding 57761>/<kCalls>`. OK at `chilled=2+3,casts=2/0` with
-     * both by-call counts above 0: the crit chills the two Camels nearest its target within ten yards, the second at
-     * nine yards, one chill cast at each, never its target, the third at nine and a half yards nor the one beyond; the
+     * brainFreeze=<by-call cast-end procs that left him holding 57761>/<kCalls>`. OK at `chilled=1+2,casts=1/0` with
+     * both by-call counts above 0: one chill cast, at the crit's target, chills the target itself and the Camel nearest
+     * it, at three yards, and neither the Camel at nine yards, the one at nine and a half nor the one beyond; the
      * non-crit chills none; and each chill's hit is a roll of Fingers of Frost's row and its cast's end a roll of Brain
      * Freeze's.
      */
     class MageFrostPiercingChill : public MageProcScenario
     {
     public:
-        MageFrostPiercingChill() : MageProcScenario("mage-frost-piercing-chill", 1012, "chill") {}
+        MageFrostPiercingChill() : MageFrostPiercingChill("mage-frost-piercing-chill", 1012, "chill") {}
+        MageFrostPiercingChill(char const* name, int order, char const* ownCategory)
+            : MageProcScenario(name, order, ownCategory) {}
 
     protected:
         std::vector<std::pair<uint32, uint32> > Talents() const override
@@ -22880,17 +22894,7 @@ namespace Harness
             Seen& seen = st.seen[k];
             if (atRead && k == kCritStep)
             {
-                std::string text;
-                int64 mask = 0;
-                for (uint32 camel = 0; camel < st.targets.size(); ++camel)
-                {
-                    Creature* unit = Get(st.targets[camel]);
-                    const bool held = unit && unit->GetSpellAuraHolder(kChill, st.player);
-                    mask |= held ? int64(1) << camel : 0;
-                    text += (camel ? "; " : "") + std::string("Camel ") + U(camel + 1) + (held ? " holds it" : " not");
-                }
-                seen.reads["chilled"] = mask;
-                m_rec.Note("his 83154 on each Camel: " + text);
+                ReadChilled(st, seen);
             }
             else if (!atRead && st.steps[k].wait)
             {
@@ -22922,16 +22926,7 @@ namespace Harness
             {
                 return "BUG(the steps did not run)";
             }
-            const int64 mask = Kept(st, kCritStep, "chilled");
-            std::string chilled;
-            for (uint32 camel = 0; mask > 0 && camel < 64; ++camel)
-            {
-                if (mask & (int64(1) << camel))
-                {
-                    chilled += (chilled.empty() ? "" : "+") + U(camel + 1);
-                }
-            }
-            chilled = mask == kNone ? std::string("unread") : chilled.empty() ? std::string("none") : chilled;
+            const std::string chilled = ChilledText(Kept(st, kCritStep, "chilled"));
             const uint32 critCasts = Count(st.seen[kCritStep].triggered, kChill);
             const uint32 plainCasts = Count(st.seen[kPlainStep].triggered, kChill);
             const int64 fingers = Kept(st, 2, "fingers");
@@ -22941,15 +22936,14 @@ namespace Harness
                                       std::to_string(brainFreeze) + "/" + U(kCalls);
             Seen const& crit = st.seen[kCritStep];
             Seen const& plain = st.seen[kPlainStep];
-            const bool ok = crit.logRead && crit.crit && plain.logRead && !plain.crit && chilled == "2+3" &&
-                            critCasts == 2 && plainCasts == 0 && fingers > 0 && brainFreeze > 0;
-            const std::string detail = "wanted the crit to chill Camels 2 and 3 alone, one chill cast each, the "
+            const bool ok = crit.logRead && crit.crit && plain.logRead && !plain.crit && chilled == "1+2" &&
+                            critCasts == 1 && plainCasts == 0 && fingers > 0 && brainFreeze > 0;
+            const std::string detail = "wanted the crit to chill Camels 1 and 2 alone, in one chill cast, the "
                                        "non-crit none, Fingers of Frost's row to take the chill's hit and Brain "
                                        "Freeze's its cast end)";
             return ok ? value + "(OK: " + detail : "BUG(" + value + ": " + detail;
         }
 
-    private:
         static constexpr uint32 kFrostbolt = 116;
         static constexpr uint32 kChill = 83154;
         static constexpr uint32 kFingersOfFrost = 44544;
@@ -22978,6 +22972,98 @@ namespace Harness
         {
             return uint32(std::count(spells.begin(), spells.end(), spellId));
         }
+
+        /// Keeps in `seen` the Camels holding his chill, as a mask of their indexes in St::targets (`chilled`), and
+        /// notes each Camel.
+        void ReadChilled(St const& st, Seen& seen)
+        {
+            std::string text;
+            int64 mask = 0;
+            for (uint32 camel = 0; camel < st.targets.size(); ++camel)
+            {
+                Creature* unit = Get(st.targets[camel]);
+                const bool held = unit && unit->GetSpellAuraHolder(kChill, st.player);
+                mask |= held ? int64(1) << camel : 0;
+                text += (camel ? "; " : "") + std::string("Camel ") + U(camel + 1) + (held ? " holds it" : " not");
+            }
+            seen.reads["chilled"] = mask;
+            m_rec.Note("his 83154 on each Camel: " + text);
+        }
+
+        /// The Camels of a `chilled` mask, 1-based and joined by `+`: "none" for an empty mask, "unread" for kNone.
+        static std::string ChilledText(int64 mask)
+        {
+            std::string chilled;
+            for (uint32 camel = 0; mask > 0 && camel < 64; ++camel)
+            {
+                if (mask & (int64(1) << camel))
+                {
+                    chilled += (chilled.empty() ? "" : "+") + U(camel + 1);
+                }
+            }
+            return mask == kNone ? std::string("unread") : chilled.empty() ? std::string("none") : chilled;
+        }
+    };
+
+    /**
+     * S1117 `mage-frost-piercing-chill-killed`: 1012's mage, Camels and prints (MageFrostPiercingChill), with a
+     * Frostbolt crit that kills Camel 1. Steps: Frostbolt at Camel 1, which must not crit, so Camel 1 is in combat and
+     * regains no health until the crit; Camel 1's health set to kLowestPct percent of its maximum (774 of 77490 at
+     * level 85), below what a Frostbolt crit of his deals (about 2900); Frostbolt at Camel 1, which must crit and kills
+     * it (KillingCast), read kCastReadMs after it.
+     *
+     * `chill`: `chilled=<the Camels holding his 83154 at the crit's read>,casts=<83154 SPELL_GO in the crit's
+     * windows>`. OK at `chilled=2+3,casts=1` with Camel 1 dead at that read: one chill cast, at the Frostbolt's target,
+     * chills the two Camels nearest where it lies, the second at nine yards, and neither Camel 1, which is dead, nor
+     * the third Camel at nine and a half yards nor the one beyond.
+     */
+    class MageFrostPiercingChillKilled : public MageFrostPiercingChill
+    {
+    public:
+        MageFrostPiercingChillKilled() : MageFrostPiercingChill("mage-frost-piercing-chill-killed", 1117, "chill") {}
+
+    protected:
+        std::vector<Step> Steps() const override
+        {
+            return { Cast(kFrostbolt, false), TargetHealth(kLowestPct, kHealthEveryMs), KillingCast(kFrostbolt, true) };
+        }
+
+        /// The crit's read: the Camels holding his chill, and whether Camel 1 is dead.
+        void ReadOwn(St& st, uint32 k, bool atRead, Player* /*p*/, Creature* /*target*/) override
+        {
+            if (!atRead || k != kKillStep)
+            {
+                return;
+            }
+            Seen& seen = st.seen[k];
+            ReadChilled(st, seen);
+            Creature* first = st.targets.empty() ? NULL : Get(st.targets[0]);
+            const bool dead = first && !first->IsAlive();
+            seen.reads["dead"] = dead ? 1 : 0;
+            m_rec.Note(std::string("Camel 1 ") + (dead ? "dead" : "alive") + " at the crit's read");
+        }
+
+        std::string Own(St const& st) const override
+        {
+            if (st.steps.size() != 3 || st.seen.size() != 3)
+            {
+                return "BUG(the steps did not run)";
+            }
+            const std::string chilled = ChilledText(Kept(st, kKillStep, "chilled"));
+            const uint32 casts = Count(st.seen[kKillStep].triggered, kChill);
+            const bool dead = Kept(st, kKillStep, "dead") == 1;
+            const std::string value = "chilled=" + chilled + ",casts=" + U(casts);
+            Seen const& crit = st.seen[kKillStep];
+            const bool ok = crit.logRead && crit.crit && dead && chilled == "2+3" && casts == 1;
+            const std::string detail = "wanted the crit to kill Camel 1 and one chill cast to chill Camels 2 and 3 "
+                                       "alone)";
+            return ok ? value + "(OK: " + detail : "BUG(" + value + (dead ? "" : ",Camel 1 alive") + ": " + detail;
+        }
+
+    private:
+        static constexpr uint32 kLowestPct = 1;
+        static constexpr uint32 kHealthEveryMs = 400;
+        static constexpr uint32 kKillStep = 2;
     };
 
     /**
@@ -26664,5 +26750,6 @@ namespace Harness
         r.Register(new MageFrostImprovedFreeze());
         r.Register(new MageArcaneImages());
         r.Register(new MageFrostFingersOnHit());
+        r.Register(new MageFrostPiercingChillKilled());
     }
 }
