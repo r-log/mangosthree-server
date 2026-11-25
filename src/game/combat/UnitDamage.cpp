@@ -68,6 +68,22 @@ namespace
         Aura* aura = holder->GetAuraByEffectIndex(SpellEffectIndex(effect));
         return aura ? aura->GetModifier()->m_amount : 0;
     }
+
+    /// Whether a hit spends the damage shield `first` before `second` (Spells::AbsorbSpendOrder).
+    bool SpentBefore(Aura const* first, Aura const* second)
+    {
+        return Spells::AbsorbSpendOrder(first->GetId()) < Spells::AbsorbSpendOrder(second->GetId());
+    }
+
+    /// The clients around `holder`'s target are told the amounts its effects hold now, when it sits in a visible slot
+    /// and its update sends them (AFLAG_EFFECT_AMOUNT_SEND).
+    void SendShieldAmounts(SpellAuraHolder const& holder)
+    {
+        if (holder.GetAuraSlot() < MAX_AURAS && (holder.GetAuraFlags() & AFLAG_EFFECT_AMOUNT_SEND))
+        {
+            holder.SendAuraUpdate(false);
+        }
+    }
 }
 
 /**
@@ -190,10 +206,25 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
     // The death-prevention auras the blow meets, with their rows
     std::vector<std::pair<Aura*, DeathPreventionRow const*> > deathPreventions;
 
-    // absorb without mana cost
+    // The shields the hit took points from and left standing, in the order it spent them
+    std::vector<Aura*> drained;
+
+    // absorb without mana cost, the shields in the order a hit spends them: those Spells::AbsorbSpendOrder places
+    // first, then every other in the order it was applied
     AuraList const& vSchoolAbsorb = GetAurasByType(SPELL_AURA_SCHOOL_ABSORB);
-    for (AuraList::const_iterator i = vSchoolAbsorb.begin(); i != vSchoolAbsorb.end() && RemainingDamage > 0; ++i)
+    std::vector<Aura*> spendOrder(vSchoolAbsorb.begin(), vSchoolAbsorb.end());
+    if (spendOrder.size() > 1)
     {
+        std::stable_sort(spendOrder.begin(), spendOrder.end(), SpentBefore);
+    }
+    for (std::vector<Aura*>::const_iterator i = spendOrder.begin(); i != spendOrder.end() && RemainingDamage > 0; ++i)
+    {
+        // a shield this unit lost while an earlier one was spent is not spent
+        if (std::find(vSchoolAbsorb.begin(), vSchoolAbsorb.end(), *i) == vSchoolAbsorb.end())
+        {
+            continue;
+        }
+
         Modifier* mod = (*i)->GetModifier();
         if (!(mod->m_miscvalue & schoolMask))
         {
@@ -430,33 +461,48 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
             incanterAbsorption += currentAbsorb;
         }
 
-        // Reduce shield amount
+        // Reduce shield amount; a holder with charges sends its update when it drops one
+        SpellAuraHolder* holder = (*i)->GetHolder();
+        const bool chargeSends = holder->GetAuraCharges() != 0;
         mod->m_amount -= currentAbsorb;
-        if ((*i)->GetHolder()->DropAuraCharge())
+        if (holder->DropAuraCharge())
         {
             mod->m_amount = 0;
         }
-        // Need remove it later
+        // A shield the hit used up is removed below, and the clients hear what one it left standing has left
         if (mod->m_amount <= 0)
         {
             existExpired = true;
         }
+        else if (currentAbsorb > 0 && !chargeSends)
+        {
+            drained.push_back(*i);
+        }
     }
 
-    // Remove all expired absorb auras
+    // Each shield the hit used up leaves, its own holder alone (RemoveDepletedShield)
     if (existExpired)
     {
         for (AuraList::const_iterator i = vSchoolAbsorb.begin(); i != vSchoolAbsorb.end();)
         {
             if ((*i)->GetModifier()->m_amount <= 0)
             {
-                RemoveAurasDueToSpell((*i)->GetId(), NULL, AURA_REMOVE_BY_SHIELD_BREAK);
+                RemoveDepletedShield((*i)->GetHolder());
                 i = vSchoolAbsorb.begin();
             }
             else
             {
                 ++i;
             }
+        }
+    }
+
+    // The clients hear what each shield the hit left standing has left, once the used-up ones are gone
+    for (Aura* shield : drained)
+    {
+        if (std::find(vSchoolAbsorb.begin(), vSchoolAbsorb.end(), shield) != vSchoolAbsorb.end())
+        {
+            SendShieldAmounts(*shield->GetHolder());
         }
     }
 

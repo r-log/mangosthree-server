@@ -31,7 +31,9 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <vector>
 
 TEST(SpellTables_TheGooberSpellsAnswerTheirReplacementsAndAnyOtherIdItself)
 {
@@ -650,6 +652,28 @@ TEST(SpellTables_IncantersAbsorptionCountsManaShieldAndMageWardAlone)
     {
         CHECK(!CountsForIncantersAbsorption(spellId));
     }
+}
+
+TEST(SpellTables_DivineAegisIsTheShieldAHitSpendsFirst)
+{
+    CHECK_EQ(Spells::AbsorbSpendOrder(47753), uint32(0));
+
+    // Power Word: Shield (17), Ice Barrier (11426), Mage Ward (543), Mana Shield (1463) and any other id share the
+    // place after it.
+    for (uint32 spellId : { 17u, 11426u, 543u, 1463u, 0u, 12345u })
+    {
+        CHECK_EQ(Spells::AbsorbSpendOrder(spellId), uint32(1));
+    }
+
+    // Sorted stably by it, the shields a unit holds in the order they were applied put Divine Aegis first, however
+    // late it came, and keep the rest in their order.
+    std::vector<uint32> held = { 17, 11426, 47753, 543 };
+    std::stable_sort(held.begin(), held.end(), [](uint32 first, uint32 second)
+    {
+        return Spells::AbsorbSpendOrder(first) < Spells::AbsorbSpendOrder(second);
+    });
+    const std::vector<uint32> spent = { 47753, 17, 11426, 543 };
+    CHECK(held == spent);
 }
 
 TEST(SpellTables_EachHasteSpellAnswersItsOwnLockoutAndNoOtherSpellAnswersOne)

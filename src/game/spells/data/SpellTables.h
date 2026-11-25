@@ -159,6 +159,14 @@ bool IsBlazingSpeedRank(uint32 spellId);
 /// (1463) alone.
 bool CountsForIncantersAbsorption(uint32 spellId);
 
+namespace Spells
+{
+    /// Where a hit spends a damage shield of `spellId` among the shields its target holds, lowest first: the shields
+    /// the table names take their places in it, Divine Aegis (47753) at 0, and every other shield the place after
+    /// them, where those keep the order they were applied in.
+    uint32 AbsorbSpendOrder(uint32 spellId);
+}
+
 /// The lockout a haste spell puts on each unit it hastes: Temporal Displacement 80354 for Time Warp 80353, Sated 57724
 /// for Bloodlust 2825, Exhaustion 57723 for Heroism 32182, Insanity 95809 for Ancient Hysteria 90355; 0 otherwise.
 uint32 LustLockoutOf(uint32 spellId);
