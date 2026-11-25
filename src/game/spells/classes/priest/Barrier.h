@@ -34,10 +34,13 @@
  * of its periodic casts the glyph switches: the leaves of Barrier.cpp.
  *
  * Power Word: Barrier (62618) has one effect in the 4.3.4 client's data: the summon of the barrier, creature 33248,
- * at the point it is cast at. Barrier.cpp registers two rows and the barrier's creature AI:
- *  - a select-targets row on 62618: the summon's effect takes the priest alone, so that one cast summons one barrier
- *    whoever stands at the point (the effect's targets are the friendly units within 7 yards of it, and the summon
- *    runs once for each);
+ * at the point it is cast at. Barrier.cpp registers three rows and the barrier's creature AI:
+ *  - a select-targets row on 62618: the summon's effect takes the priest alone, so that one cast summons at the point
+ *    whoever stands there (the effect's targets are the friendly units within 7 yards of it, and the summon runs once
+ *    for each);
+ *  - an effect-value row on 62618: the summon's value, which the spell's scaling row raises to 21225 at level 85 and
+ *    which the summon takes as its count of creatures, becomes one (BarrierSummonValue), so that the summon makes
+ *    one barrier;
  *  - BarrierAI, chosen by its permit for creature 33248 alone (IsBarrierCreature). On its first update a barrier
  *    that 62618 made takes its summoner, the priest, as its owner and its creator and his faction as its own, and
  *    channels 81781 at itself; the aura's data does the rest: every 100 ms its effect 0 casts 81782 (damage taken
@@ -46,13 +49,16 @@
  *    when its priest is dead or not on its map (BarrierStands);
  *  - a periodic-tick row on 81781: the tick of the effect whose trigger spell is 90785 casts nothing while the
  *    barrier's priest does not hold Glyph of Power Word: Barrier (55689) (BarrierTickCasts).
+ * 81781, 81782 and 90785 share one icon; SpellMgr::IsNoStackSpellDueToSpell lets 81782 and 90785 stand together on
+ * one unit. 81781 stands on the barrier alone, which neither of them reaches: 81782 cannot target its caster, and the
+ * barrier cannot be selected, which keeps it out of every area fill.
  */
 
 namespace Priest
 {
-    /// Registers the barrier's rows on `registry`, its select-targets row on 62618 and its periodic-tick row on
-    /// 81781, and the barrier's creature AI, whose factory is added to the creature AI registry once; answers 2, the
-    /// rows registered.
+    /// Registers the barrier's rows on `registry`, its select-targets and effect-value rows on 62618 and its
+    /// periodic-tick row on 81781, and the barrier's creature AI, whose factory is added to the creature AI registry
+    /// once; answers 3, the rows registered.
     uint32 RegisterBarrier(SpellHandlerRegistry& registry);
 
     /// Whether `creatureEntry` is Power Word: Barrier's creature (33248).
@@ -65,6 +71,10 @@ namespace Priest
     /// Whether a barrier stands on: while it has life left (`lifeMs` above 0) and its priest is alive on its map
     /// (`priest`).
     bool BarrierStands(int32 lifeMs, bool priest);
+
+    /// The value of an effect of 62618 of kind `effect` (SpellEffects) whose calculated value is `value`: one for the
+    /// summon (SPELL_EFFECT_SUMMON), the count of barriers it makes; `value` for any other kind.
+    int32 BarrierSummonValue(uint32 effect, int32 value);
 }
 
 #endif
