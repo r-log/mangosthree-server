@@ -23,23 +23,29 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield and the
-/// mastery, Rapture's removal modes, mana and lockout, the two rows the file registers, in the game's table too, and
-/// the exits of its two scripts that change nothing. The scripts run on a bare Creature (update fields allocated; no
-/// map, template or AI), whose holder map holds the test's empty holders where a script asks whether it holds an aura;
-/// an empty holder has no aura, so its effect 0 amount is 0, and its script words are 0. The tests read no row of the
-/// spell store, so the rows other tests leave there change nothing here. Scenario 1202 records the amount as the
-/// clients are told it, the heal, the mana and the lockout in play.
+/// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield, Twin
+/// Disciplines and the mastery, Rapture's removal modes and mana, the two rows the file registers, in the game's
+/// table too, and the exits of its two scripts that change nothing; and Glyph of Power Word: Shield's heal, which
+/// Spells::HealTakesNoDoneBonus keeps from the healing-done bonus. The scripts run on a bare Creature (update fields
+/// allocated; no map, template or AI), whose holder map holds the test's empty holders where a script asks whether it
+/// holds an aura; an empty holder has no aura, so its effect 0 amount is 0. No case reaches a cast, and only the glyph
+/// heal's test reads the spell store: it puts its own rows there and takes its spell rows out again, so the rows other
+/// tests leave there change nothing here. Scenario 1202 records the amount as the clients are told it, the heal, the
+/// mana and the lockout, the energize's recovery time in his cooldown store, in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/Shield.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellTables.h"
+#include "data/ServerSpellStore.h"
 #include "Creature.h"
+#include "DBCStores.h"
 #include "DBCStructure.h"
 
 #include <cstddef>
+#include <vector>
 
 namespace
 {
@@ -55,10 +61,15 @@ namespace
             }
 
             // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist. The holders
-            // HoldAura put in the map are the test's own storage and leave the map first.
+            // HoldAura put in the map are the test's own storage and leave the map first, and the lists ListAura
+            // filled are emptied.
             ~BareCreature()
             {
                 m_auras.Holders().clear();
+                for (AuraType type : m_listedTypes)
+                {
+                    m_auras.ByType(type).clear();
+                }
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
             }
@@ -68,6 +79,16 @@ namespace
             {
                 m_auras.AddHolder(spellId, &holder);
             }
+
+            // Puts `aura` in the list of `type`, so the unit's reads of that aura type read its amount.
+            void ListAura(AuraType type, Aura* aura)
+            {
+                m_auras.ByType(type).push_back(aura);
+                m_listedTypes.push_back(type);
+            }
+
+        private:
+            std::vector<AuraType> m_listedTypes;
     };
 
     struct SpellRowStorage
@@ -103,27 +124,121 @@ namespace
     }
 }
 
-TEST(PriestShield_TheAmountIsRaisedByImprovedPowerWordShieldAndByTheMasteryEachAFactor)
+TEST(PriestShield_TheAmountIsRaisedByImprovedPowerWordShieldTwinDisciplinesAndTheMasteryEachAFactor)
 {
-    // Improved Power Word: Shield's two ranks (14748, 14768: 10 and 20) and the mastery's 8 points at 2.5 a point (20).
-    CHECK_EQ(Priest::ShieldAmount(10000, 0, 0), int32(10000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 10, 0), int32(11000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 20, 0), int32(12000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 0, 20), int32(12000));
-    CHECK_EQ(Priest::ShieldAmount(10000, 20, 20), int32(14400));
-    CHECK_EQ(Priest::ShieldAmount(10000, 10, 20), int32(13200));
+    // Improved Power Word: Shield's two ranks (14748, 14768: 10 and 20), Twin Disciplines' three (47586, 47587, 47588:
+    // 2, 4 and 6) and the mastery's 8 points at 2.5 a point (20).
+    CHECK_EQ(Priest::ShieldAmount(10000, 0, 0, 0), int32(10000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 10, 0, 0), int32(11000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 0, 0), int32(12000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 0, 6, 0), int32(10600));
+    CHECK_EQ(Priest::ShieldAmount(10000, 0, 0, 20), int32(12000));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 0, 20), int32(14400));
+    CHECK_EQ(Priest::ShieldAmount(10000, 10, 0, 20), int32(13200));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 6, 20), int32(15264));
+    CHECK_EQ(Priest::ShieldAmount(10000, 20, 2, 20), int32(14688));
 
-    // Truncated once, after both factors: 1707 x 1.2 x 1.2 is 2458.08; truncated after each it would be 2457.
-    CHECK_EQ(Priest::ShieldAmount(1707, 20, 20), int32(2458));
-    CHECK_EQ(Priest::ShieldAmount(1, 20, 20), int32(1));
+    // Truncated once, after every factor: 1707 x 1.2 x 1.2 is 2458.08, truncated after each it would be 2457; with
+    // Twin Disciplines 3, 1707 x 1.2 x 1.06 x 1.2 is 2605.56.
+    CHECK_EQ(Priest::ShieldAmount(1707, 20, 0, 20), int32(2458));
+    CHECK_EQ(Priest::ShieldAmount(1707, 20, 6, 20), int32(2605));
+    CHECK_EQ(Priest::ShieldAmount(1, 20, 6, 20), int32(1));
 
     // A percent of 0 or less raises nothing; an amount of 0 or less stays as it is.
-    CHECK_EQ(Priest::ShieldAmount(10000, -20, -20), int32(10000));
-    CHECK_EQ(Priest::ShieldAmount(0, 20, 20), int32(0));
-    CHECK_EQ(Priest::ShieldAmount(-5, 20, 20), int32(-5));
+    CHECK_EQ(Priest::ShieldAmount(10000, -20, -6, -20), int32(10000));
+    CHECK_EQ(Priest::ShieldAmount(0, 20, 6, 20), int32(0));
+    CHECK_EQ(Priest::ShieldAmount(-5, 20, 6, 20), int32(-5));
 
     // A large shield does not overflow on the way.
-    CHECK_EQ(Priest::ShieldAmount(1000000, 20, 50), int32(1800000));
+    CHECK_EQ(Priest::ShieldAmount(1000000, 20, 6, 50), int32(1908000));
+}
+
+namespace
+{
+    uint32 const GLYPH_HEAL = 56160;
+    uint32 const kOtherHeal = 94470;            // a heal no table names
+    uint32 const kHealingDoneAura = 94471;      // stands for Twin Disciplines 3/3's healing done
+    uint32 const kMagicCategories = 94472;
+
+    ServerSpell s_glyphHeal;
+    ServerSpell s_otherHeal;
+    ServerSpell s_healingDone;
+    SpellCategoriesEntry s_magicCategories;
+
+    // Puts the two heals, each of the magic damage class (as 56160's row is in the client's data, so it can crit), and
+    // the healing-done aura's spell, one effect whose apply and removal change nothing on a unit, into the stores; the
+    // categories and the effect once.
+    void StoreHealRows()
+    {
+        static bool stored = false;
+        if (!stored)
+        {
+            s_magicCategories = SpellCategoriesEntry();
+            s_magicCategories.DefenseType = SPELL_DAMAGE_CLASS_MAGIC;
+            sSpellCategoriesStore.SetEntry(kMagicCategories, &s_magicCategories);
+            s_healingDone.effect = SpellEffectEntry();
+            s_healingDone.effect.SpellID = kHealingDoneAura;
+            s_healingDone.effect.EffectIndex = EFFECT_INDEX_0;
+            s_healingDone.effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            s_healingDone.effect.EffectAura = SPELL_AURA_MOD_DAMAGE_FROM_CASTER;
+            s_healingDone.effect.ImplicitTarget_0 = TARGET_SELF;
+            AddSpellEffectEntry(&s_healingDone.effect);
+            stored = true;
+        }
+        s_glyphHeal.Entry().ID = GLYPH_HEAL;
+        s_glyphHeal.Entry().CategoriesID = kMagicCategories;
+        s_otherHeal.Entry().ID = kOtherHeal;
+        s_otherHeal.Entry().CategoriesID = kMagicCategories;
+        s_healingDone.Entry().ID = kHealingDoneAura;
+        sSpellStore.SetEntry(GLYPH_HEAL, &s_glyphHeal.Entry());
+        sSpellStore.SetEntry(kOtherHeal, &s_otherHeal.Entry());
+        sSpellStore.SetEntry(kHealingDoneAura, &s_healingDone.Entry());
+    }
+
+    // Takes the three spell rows out of the spell store again.
+    void ForgetHealRows()
+    {
+        for (uint32 spellId : { GLYPH_HEAL, kOtherHeal, kHealingDoneAura })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(PriestShield_TheGlyphHealIsAFifthOfTheShieldWithNoHealingDoneBonusAndTwiceThatOnACrit)
+{
+    // The table names Glyph of Power Word: Shield's heal alone.
+    CHECK(Spells::HealTakesNoDoneBonus(GLYPH_HEAL));
+    for (uint32 spellId : { 0u, 17u, 2061u, 2060u, 47750u, 33110u, 139u, 47753u })
+    {
+        CHECK(!Spells::HealTakesNoDoneBonus(spellId));
+    }
+
+    // A shield of 10600, Twin Disciplines 3/3's 6% counted in it: the holder's boosts cast the glyph's 20% of it.
+    int32 const shield = 10600;
+    int32 const glyphPercent = 20;
+    uint32 const cast = uint32(shield * glyphPercent / 100);
+    CHECK_EQ(cast, uint32(2120));
+
+    // The priest holds Twin Disciplines 3/3's 6% healing done. The glyph's heal takes none of it and heals 2120, a crit
+    // twice that; a magic heal no table names takes it, 2120 x 1.06.
+    StoreHealRows();
+    {
+        BareCreature priest;
+        SpellAuraHolder* twin = new SpellAuraHolder(&s_healingDone.Entry(), &priest, NULL, NULL, NULL);
+        int32 basePoints = 6;
+        twin->AddAura(CreateAura(&s_healingDone.Entry(), EFFECT_INDEX_0, &basePoints, twin, &priest), EFFECT_INDEX_0);
+        priest.ListAura(SPELL_AURA_MOD_HEALING_DONE_PERCENT, twin->GetAuraByEffectIndex(EFFECT_INDEX_0));
+        CHECK_EQ(s_glyphHeal.Entry().GetDmgClass(), uint32(SPELL_DAMAGE_CLASS_MAGIC));
+
+        uint32 const healed = priest.SpellHealingBonusDone(&priest, &s_glyphHeal.Entry(), int32(cast), HEAL);
+        CHECK_EQ(healed, uint32(2120));
+        CHECK_EQ(priest.SpellCriticalHealingBonus(&s_glyphHeal.Entry(), healed, &priest), uint32(4240));
+        CHECK_EQ(priest.SpellHealingBonusDone(&priest, &s_otherHeal.Entry(), int32(cast), HEAL), uint32(2247));
+        delete twin;
+    }
+    ForgetHealRows();
+    CHECK(sSpellStore.LookupEntry(GLYPH_HEAL) == NULL);
 }
 
 TEST(PriestShield_RaptureComesFromAShieldUsedUpOrDispelledAlone)
@@ -157,36 +272,6 @@ TEST(PriestShield_RaptureGivesTheRanksPercentOfMaximumMana)
     CHECK_EQ(Priest::RaptureMana(4294967295u, 7), int32(300647710));
 }
 
-TEST(PriestShield_RaptureWaitsOutItsEnergizesRecoveryTime)
-{
-    // A lockout of 12000 ms from 1000 ends at 13000: locked from its start until the clock reaches the end.
-    uint32 const end = Priest::RaptureLockoutEnd(1000, 12000);
-    CHECK_EQ(end, uint32(13000));
-    CHECK(Priest::RaptureLockedOut(end, 1000, 12000));
-    CHECK(Priest::RaptureLockedOut(end, 6000, 12000));
-    CHECK(Priest::RaptureLockedOut(end, 12999, 12000));
-    CHECK(!Priest::RaptureLockedOut(end, 13000, 12000));
-    CHECK(!Priest::RaptureLockedOut(end, 14000, 12000));
-
-    // No stamp is no lockout, and a lockout of 0 ms leaves none.
-    CHECK(!Priest::RaptureLockedOut(0, 1000, 12000));
-    CHECK_EQ(Priest::RaptureLockoutEnd(1000, 0), uint32(0));
-
-    // The clock's wrap: a lockout started just before it ends just after, and holds across it.
-    uint32 const wrapped = Priest::RaptureLockoutEnd(0xFFFFF000u, 12000);
-    CHECK_EQ(wrapped, uint32(12000 - 0x1000));
-    CHECK(Priest::RaptureLockedOut(wrapped, 0xFFFFF800u, 12000));
-    CHECK(Priest::RaptureLockedOut(wrapped, 100, 12000));
-    CHECK(!Priest::RaptureLockedOut(wrapped, 12000 - 0x1000, 12000));
-
-    // An end that would fall on 0 is kept as 1, never read as no lockout.
-    CHECK_EQ(Priest::RaptureLockoutEnd(0xFFFFFFFFu - 11999u, 12000), uint32(1));
-
-    // A stamp the clock has long passed, even one that reads as ahead after the clock wrapped, holds nothing.
-    CHECK(!Priest::RaptureLockedOut(13000, 13000 + 0x80000000u, 12000));
-    CHECK(!Priest::RaptureLockedOut(13000, 13000 - 0x40000000u, 12000));
-}
-
 TEST(PriestShield_PowerWordShieldHoldsTheAuraAmountAndRemoveScriptsInTheGame)
 {
     // Two rows on 17, one at each hook, no default.
@@ -203,8 +288,10 @@ TEST(PriestShield_PowerWordShieldHoldsTheAuraAmountAndRemoveScriptsInTheGame)
     CHECK(game.Find<AuraRemoveHook>(POWER_WORD_SHIELD) == registry.Find<AuraRemoveHook>(POWER_WORD_SHIELD));
 
     // The talents and spells the scripts read hold no row of their own at either hook: Improved Power Word: Shield's
-    // ranks, Shield Discipline, Rapture's ranks and its energize, Borrowed Time's ranks and its haste.
-    for (uint32 spellId : { 14748u, 14768u, 77484u, 47535u, 47536u, 47537u, 47755u, 52795u, 52797u, 59888u })
+    // ranks, Twin Disciplines', Shield Discipline, Rapture's ranks and its energize, Borrowed Time's ranks and its
+    // haste.
+    for (uint32 spellId : { 14748u, 14768u, 47586u, 47587u, 47588u, 77484u, 47535u, 47536u, 47537u, 47755u, 52795u,
+                            52797u, 59888u })
     {
         CHECK(game.Find<AuraAmountHook>(spellId) == NULL);
         CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);
@@ -258,17 +345,14 @@ TEST(PriestShield_TheScriptsChangeNothingAndLetTheBoostsRunOutsideTheirCase)
     AuraRemoveContext noTalent(priest, &priest, shield, AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
     CHECK(registry.Dispatch<AuraRemoveHook>(POWER_WORD_SHIELD, noTalent).IsContinue());
 
-    // A caster whose Rapture rank holds no percent gives nothing, broken or dispelled, and starts no lockout: his
-    // rank's script word stays 0.
+    // A caster whose Rapture rank's holder holds no aura gives nothing, broken or dispelled.
     HolderStorage rankStorage;
-    SpellAuraHolder& rank = EmptyHolder(rankStorage);
-    priest.HoldAura(47537, rank);
+    priest.HoldAura(47537, EmptyHolder(rankStorage));
     for (AuraRemoveMode mode : { AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_DISPEL })
     {
         AuraRemoveContext emptyRank(priest, &priest, shield, AuraHandle(holder), mode);
         CHECK(registry.Dispatch<AuraRemoveHook>(POWER_WORD_SHIELD, emptyRank).IsContinue());
     }
-    CHECK_EQ(AuraHandle(rank).ScriptWord(EFFECT_INDEX_0), int32(0));
 
     // Nothing was cast on him: his holder map holds the test's holder alone, and no aura reached him.
     CHECK_EQ(priest.GetSpellAuraHolderMap().size(), std::size_t(1));

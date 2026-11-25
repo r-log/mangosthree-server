@@ -165,6 +165,11 @@ namespace Spells
     /// the table names take their places in it, Divine Aegis (47753) at 0, and every other shield the place after
     /// them, where those keep the order they were applied in.
     uint32 AbsorbSpendOrder(uint32 spellId);
+
+    /// Whether a heal of `spellId` takes none of its caster's healing-done bonus (Unit::SpellHealingBonusDone): the
+    /// amount it was cast with heals, before the target's taken side and a crit. Glyph of Power Word: Shield's heal
+    /// (56160) alone, whose retail heals are a fifth of the shield and twice that on a crit.
+    bool HealTakesNoDoneBonus(uint32 spellId);
 }
 
 /// The lockout a haste spell puts on each unit it hastes: Temporal Displacement 80354 for Time Warp 80353, Sated 57724
