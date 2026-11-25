@@ -16014,9 +16014,9 @@ namespace Harness
      * uses Arcane Missiles! up, and neither the cast nor its missiles (7268) roll Offensive State (79684). Staged with
      * Improved Counterspell (11255, rank 1 of 2, an Arcane talent that touches neither spell), so the stage learns the
      * Arcane tree's spells; Arcane Missiles learned. Once staged, his Offensive State is taken off and cast again at
-     * kOffensiveStatePoints, so every hit its proc accepts would cast Arcane Missiles!. Before each cast at the Camel he
-     * takes Precision (13843, +6% spell hit), so no missile misses a level-85 Camel, and the crit aura at -100, so none
-     * crits. Steps, kShortMs apart unless named:
+     * kOffensiveStatePoints, so the end of each harmful cast of his that its proc accepts would cast Arcane Missiles!.
+     * Before each cast at the Camel he takes Precision (13843, +6% spell hit), so no missile misses a level-85 Camel,
+     * and the crit aura at -100, so none crits. Steps, kShortMs apart unless named:
      *  1. Arcane Missiles at the Camel without Arcane Missiles!: refused; then he selects the Camel, as a client does
      *     before it casts at it;
      *  2. Arcane Missiles! cast by him at himself, triggered;
@@ -22059,13 +22059,14 @@ namespace Harness
      * learns the Arcane tree's spells; Slow (31589: 35 yards, one target of his at a time), Focus Magic (54646: +3%
      * spell crit on a friendly unit other than him; its proc on the unit's spell crit casts 54648, +3% spell crit for
      * 10 s, on him) and Flame Orb (82731) learned. Once staged his Offensive State is taken off and cast again at
-     * kOffensiveStatePoints, so every hit its proc accepts casts Arcane Missiles! (79683), and Mana Adept is taken off;
-     * a second mage, B, is spawned kSecondOffset yards to his side and staged to level 85 with Fireball (133). Camels A
-     * and B stand ten yards ahead, kTargetSpacing apart, and C kFarAhead yards beyond A, past Slow's 35 yards and
-     * inside 40 as Spell::CheckRange counts them (the centres' distance less both combat reaches and the melee offset,
-     * 4.33 yards here, against the range plus 1.25: C's 43.2 yards count 38.8); each casts Hit Me (100446, +20% spell
-     * hit for whoever casts at it) on itself at its spawn, so the orb's hits never miss. Before each cast at a Camel he
-     * takes Precision and the crit aura at -100. Steps, kEveryMs apart unless named:
+     * kOffensiveStatePoints, so the end of each harmful cast of his that its proc accepts casts Arcane Missiles!
+     * (79683), and Mana Adept is taken off; a second mage, B, is spawned kSecondOffset yards to his side and staged to
+     * level 85 with Fireball (133). Camels A and B stand ten yards ahead, kTargetSpacing apart, and C kFarAhead yards
+     * beyond A, past Slow's 35 yards and inside 40 as Spell::CheckRange counts them (the centres' distance less both
+     * combat reaches and the melee offset, 4.33 yards here, against the range plus 1.25: C's 43.2 yards count 38.8);
+     * each casts Hit Me (100446, +20% spell hit for whoever casts at it) on itself at its spawn, so the orb's hits
+     * never miss. Before each cast at a Camel he takes Precision and the crit aura at -100. Steps, kEveryMs apart
+     * unless named:
      *  1. Slow at A; he selects A, as a client does before it casts at it; 2. Slow at B; 3. Slow at C, refused;
      *  4. Glyph of Slow (63091: Slow's range +5 yards) cast by him at himself, triggered, as a glyph slot applies its
      *     spell; 5. Slow at C;
