@@ -652,6 +652,45 @@ TEST(SpellTables_IncantersAbsorptionCountsManaShieldAndMageWardAlone)
     }
 }
 
+TEST(SpellTables_EachHasteSpellAnswersItsOwnLockoutAndNoOtherSpellAnswersOne)
+{
+    // The four pairs, as the haste spells' texts name them: Bloodlust's Sated, Heroism's Exhaustion, Time Warp's
+    // Temporal Displacement, Ancient Hysteria's Insanity.
+    CHECK_EQ(LustLockoutOf(2825), uint32(57724));
+    CHECK_EQ(LustLockoutOf(32182), uint32(57723));
+    CHECK_EQ(LustLockoutOf(80353), uint32(80354));
+    CHECK_EQ(LustLockoutOf(90355), uint32(95809));
+
+    // Frostbolt (116), the lockouts themselves and any other id answer none.
+    for (uint32 spellId : { 116u, 57724u, 57723u, 80354u, 95809u, 0u, 12345u })
+    {
+        CHECK_EQ(LustLockoutOf(spellId), uint32(0));
+    }
+
+    // The table's haste spells by ascending id, then 0 past its end.
+    CHECK_EQ(LustSpellAt(0), uint32(2825));
+    CHECK_EQ(LustSpellAt(1), uint32(32182));
+    CHECK_EQ(LustSpellAt(2), uint32(80353));
+    CHECK_EQ(LustSpellAt(3), uint32(90355));
+    CHECK_EQ(LustSpellAt(4), uint32(0));
+    CHECK_EQ(LustSpellAt(1000), uint32(0));
+}
+
+TEST(SpellTables_TheLockoutsAreTheLustTablesAnswersAndNoOtherSpell)
+{
+    // Sated, Exhaustion, Temporal Displacement and Insanity are lockouts.
+    for (uint32 spellId : { 57724u, 57723u, 80354u, 95809u })
+    {
+        CHECK(IsLustLockout(spellId));
+    }
+
+    // The haste spells themselves, Frostbolt (116) and any other id are none.
+    for (uint32 spellId : { 2825u, 32182u, 80353u, 90355u, 116u, 0u, 12345u })
+    {
+        CHECK(!IsLustLockout(spellId));
+    }
+}
+
 TEST(SpellTables_TheDeathPreventionRowsAreCheatDeathGuardianSpiritAndCauterize)
 {
     // Cauterize: effect 0 holds the chance (50/100), effect 1 the health percent (40); 87023 heals through its effect 1;

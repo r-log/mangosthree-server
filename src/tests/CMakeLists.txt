@@ -174,6 +174,7 @@ set(SRC_GRP_TESTS
     PetAssistTest.cpp
     MageRingTest.cpp
     MageImagesTest.cpp
+    LustLockoutTest.cpp
     CreatureHoverTest.cpp
     SpellProcEventRowsTest.cpp
     RaidBuffTest.cpp

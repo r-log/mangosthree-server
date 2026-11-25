@@ -43,6 +43,7 @@
 #include "spells/handlers/UnitSpellBonusHandlers.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/classes/mage/Mage.h"
+#include "spells/LustLockout.h"
 #include "Utilities/Errors.h"
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
@@ -72,6 +73,7 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
         rows += RegisterUnitSpellBonusHandlers(built);
         rows += RegisterUnitAuraProcHandlerHandlers(built);
         rows += RegisterMageScripts(built);
+        rows += RegisterLustScripts(built);
         MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();
