@@ -34,9 +34,9 @@
 /**
  * @file ScenariosPriestDivineAegis.cpp
  * @brief The priest's Divine Aegis and Focused Will scenarios, orders 1203 and 1214: the shields his critical heals and
- * every heal of his Prayer of Healing make, each added onto what is left of his own and held to 40% of his maximum
- * health, beside another priest's shield that stays as it is; and Focused Will from a hit greater than its percent of
- * his health or from a critical hit.
+ * every heal of his Prayer of Healing make, each added onto what is left of his own, the sum held to 40% of his maximum
+ * health but never below either shield, beside another priest's shield that stays as it is; and Focused Will from a
+ * hit greater than its percent of his health or from a critical hit, once for a hit that is both.
  */
 
 namespace Harness
@@ -206,7 +206,8 @@ namespace Harness
          * S1203 `priest-divine-aegis`: his critical heals and every heal of his Prayer of Healing make a Divine Aegis
          * (47753) on the unit healed, his rank's percent of the whole heal, overheal included, raised by his Shield
          * Discipline mastery and added onto what is left of his own shield there, the sum held to kCapPercent of his
-         * maximum health; a normal heal of another spell makes none, and another priest's shield on him stays its own.
+         * maximum health but never below what was left nor below the new shield; a normal heal of another spell makes
+         * none, and another priest's shield on him stays its own.
          * Staged as PriestDisciplineProcScenario stages him, with Divine Aegis 3 (47515) learned as a talent rank, the
          * Mastery passive (86475), so his mastery is its 8 points, and kSpellPower spell power. Once he is staged, a
          * second harness player, a human priest, is spawned kOtherOffset yards to his side; his Divine Aegis is put on
@@ -218,17 +219,20 @@ namespace Harness
          *  2. his health at his maximum, so the heal is all overheal; a critical Flash Heal;
          *  3. his health at half; a normal Prayer of Healing (596);
          *  4. his health at half; a normal Flash Heal;
-         *  5. his health at half; a critical Flash Heal, whose shield takes the sum past the cap.
+         *  5. his health at half; a critical Flash Heal, whose shield takes the sum past the cap;
+         *  6. his own shield set by call to the cap + kAboveCap; his health at half; a normal Prayer of Healing, whose
+         *     addition leaves it as it is.
          *
          * `divineAegis`: `heal=<the heal of each step's heal log he sent himself, `c` added for a crit; none>,
          * aegis=<his own 47753's effect 0 amount at each step's read; none>,other=<the other priest's 47753 amount on
-         * him at step 5's read; none>`. With R = 47515's effect 0 percent and M = his Shield Discipline holder's
-         * amount, both read at step 1, F(h) = h x R x (100 + M) / 10000 and Add(left, fresh) = the smaller of left +
-         * fresh and the larger of the cap and fresh, the cap kCapPercent of his maximum health at the step: OK when
-         * every heal log came with its crit as wanted, step 2's heal was all overheal, his own shields are F(h1),
-         * Add(F(h1), F(h2)), Add(that, F(h3)), the same again, then Add(that, F(h5)), each the one holder of his own
-         * there, each step that made one told him that amount in its last 47753 update of his own, step 4 sent no
-         * 47753 of his, and the other priest's shield holds kOtherAegis at step 5's read.
+         * him at step 6's read; none>`. With R = 47515's effect 0 percent and M = his Shield Discipline holder's
+         * amount, both read at step 1, F(h) = h x R x (100 + M) / 10000 and Add(left, fresh) = the largest of left,
+         * fresh and the smaller of left + fresh and the cap, the cap kCapPercent of his maximum health at the step: OK
+         * when R and M are positive, every heal log came with its crit as wanted, step 2's heal was all overheal, his
+         * own shields are F(h1), Add(F(h1), F(h2)), Add(that, F(h3)), the same again, Add(that, F(h5)), which is the
+         * cap, then Add(the shield set at step 6, F(h6)), which is that shield, each the one holder of his own there,
+         * each step that made one told him that amount in its last 47753 update of his own, step 4 sent no 47753 of
+         * his, and the other priest's shield holds kOtherAegis at step 6's read.
          */
         class PriestDivineAegis : public PriestDisciplineProcScenario
         {
@@ -252,7 +256,7 @@ namespace Harness
 
             std::vector<Step> Steps() const override
             {
-                return { Wait(kStepMs), Wait(kStepMs), Wait(kStepMs), Wait(kStepMs), Wait(kStepMs) };
+                return { Wait(kStepMs), Wait(kStepMs), Wait(kStepMs), Wait(kStepMs), Wait(kStepMs), Wait(kStepMs) };
             }
 
             std::vector<SpellPrint> Prints() const override
@@ -316,6 +320,17 @@ namespace Harness
                                std::to_string(seen.reads["otherPut"]) + " (-1 for none)");
                 }
                 Heal const& heal = kHeals[k];
+                if (heal.aboveCap)
+                {
+                    const int64 cap = int64(p->GetMaxHealth()) * kCapPercent / 100;
+                    if (Aura* own = AegisAura(p, p->GetObjectGuid()))
+                    {
+                        own->GetModifier()->m_amount = int32(cap + kAboveCap);
+                    }
+                    seen.reads["setAbove"] = AegisOf(p, p->GetObjectGuid());
+                    m_rec.Note("his own " + U(kAegis) + " set by call to " + std::to_string(seen.reads["setAbove"]) +
+                               " (-1 for none), the cap " + std::to_string(cap) + " + " + std::to_string(kAboveCap));
+                }
                 p->SetHealth(heal.full ? p->GetMaxHealth() : p->GetMaxHealth() / 2);
                 HoldCrit(p, heal.crit);
                 seen.reads["healthBefore"] = p->GetHealth();
@@ -337,21 +352,27 @@ namespace Harness
                 const int64 rank = Kept(st, 0, "rank");
                 const int64 mastery = Kept(st, 0, "mastery");
                 std::string heals, aegis, wanted, shown, overheals;
-                bool ok = rank > 0 && Kept(st, 0, "otherPut") == kOtherAegis;
+                bool ok = rank > 0 && mastery > 0 && Kept(st, 0, "otherPut") == kOtherAegis;
                 int64 sum = 0;
                 for (uint32 k = 0; k < kSteps; ++k)
                 {
                     HealRead const read = HealOf(k, self);
                     const int64 own = Kept(st, k, "aegis");
                     const int64 cap = Kept(st, k, "maxHealth") * kCapPercent / 100;
+                    if (kHeals[k].aboveCap)
+                    {
+                        sum = Kept(st, k, "setAbove");
+                        ok = ok && sum == cap + kAboveCap;
+                    }
                     if (kHeals[k].shield && read.seen)
                     {
-                        const int64 fresh = int64(read.heal) * rank * (100 + (mastery > 0 ? mastery : 0)) / 10000;
-                        sum = sum > 0 ? std::min(sum + fresh, std::max(cap, fresh)) : fresh;
+                        const int64 fresh = int64(read.heal) * rank * (100 + mastery) / 10000;
+                        sum = std::max(std::max(sum, fresh), std::min(sum + fresh, cap));
                     }
                     const int64 told = LastOwnUpdate(k, self);
                     ok = ok && read.seen && read.crit == kHeals[k].crit && own == sum &&
-                         Kept(st, k, "ownHolders") == 1 && (kHeals[k].shield ? told == sum : told == -1);
+                         Kept(st, k, "ownHolders") == 1 && (kHeals[k].shield ? told == sum : told == -1) &&
+                         (k != kCapStep || own == cap);
                     const std::string sep = k ? "/" : "";
                     heals += sep + (read.seen ? U(read.heal) + (read.crit ? "c" : "") : std::string("none"));
                     aegis += sep + (own >= 0 ? std::to_string(own) : std::string("none"));
@@ -372,9 +393,10 @@ namespace Harness
                     std::to_string(mastery) + "% (mastery " + std::to_string(Kept(st, 0, "masteryCentipoints")) +
                     " hundredths of a point), his maximum health " + std::to_string(maxHealth) + ", the cap " +
                     std::to_string(kCapPercent) + "% of it, " + std::to_string(maxHealth * kCapPercent / 100) +
-                    "; the overheal of each heal " + overheals + "; wanted his own shields " + wanted +
-                    ", the clients told " + shown + ", the other priest's " + std::to_string(kOtherAegis) +
-                    " kept";
+                    "; the overheal of each heal " + overheals + "; his own shield set at step 6 to " +
+                    std::to_string(Kept(st, kSteps - 1, "setAbove")) + "; wanted his own shields " + wanted +
+                    ", the cap met at step 5, the clients told " + shown + ", the other priest's " +
+                    std::to_string(kOtherAegis) + " kept";
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
@@ -389,26 +411,30 @@ namespace Harness
             static constexpr int32 kAegisMs = 15000;
             static constexpr int32 kOtherAegis = 1000;
             static constexpr int64 kCapPercent = 40;
+            static constexpr int64 kAboveCap = 1000;
             static constexpr float kOtherOffset = 4.0f;
-            static constexpr size_t kSteps = 5;
+            static constexpr size_t kSteps = 6;
             static constexpr uint32 kFullHealthStep = 1;
+            static constexpr uint32 kCapStep = 4;
 
             /// One step's heal: its spell, whether it must crit, whether his health is at its maximum first (else at
-            /// half), and whether it makes a shield.
+            /// half), whether it makes a shield, and whether his own shield is set above his cap by call first.
             struct Heal
             {
                 uint32 spell;
                 bool crit;
                 bool full;
                 bool shield;
+                bool aboveCap;
             };
             static constexpr Heal kHeals[kSteps] =
             {
-                { kFlashHeal, true, false, true },
-                { kFlashHeal, true, true, true },
-                { kPrayerOfHealing, false, false, true },
-                { kFlashHeal, false, false, false },
-                { kFlashHeal, true, false, true },
+                { kFlashHeal, true, false, true, false },
+                { kFlashHeal, true, true, true, false },
+                { kPrayerOfHealing, false, false, true, false },
+                { kFlashHeal, false, false, false, false },
+                { kFlashHeal, true, false, true, false },
+                { kPrayerOfHealing, false, false, true, true },
             };
 
             ObjectGuid m_other;                 ///< the other priest, spawned after the stage
@@ -530,10 +556,11 @@ namespace Harness
          * truncated, read at step 1, steps, each a wait whose hit comes right after it acts:
          *  1. a normal hit of T, which is not greater than P% of his health;
          *  2. a normal hit of T + 1, which is;
-         *  3. a critical hit of kCritPercent of his maximum health.
+         *  3. a critical hit of kCritPercent of his maximum health;
+         *  4. a critical hit of T + 1, both critical and greater: one proc, so one stack of a buff that stacks to 2.
          *
          * `focusedWill`: `took=<the stacks of his 45242 right after each step's hit; none>`. OK when the percent read
-         * is positive and the steps read none, 1 and 1.
+         * is positive and the steps read none, 1, 1 and 1.
          */
         class PriestFocusedWill : public PriestDisciplineProcScenario
         {
@@ -546,7 +573,7 @@ namespace Harness
 
             std::vector<Step> Steps() const override
             {
-                return { Wait(kStepMs), Wait(kStepMs), Wait(kStepMs) };
+                return { Wait(kStepMs), Wait(kStepMs), Wait(kStepMs), Wait(kStepMs) };
             }
 
             std::vector<SpellPrint> Prints() const override
@@ -584,9 +611,10 @@ namespace Harness
                 const int64 threshold = Kept(st, 0, "threshold");
                 p->SetHealth(p->GetMaxHealth());
                 p->RemoveAurasDueToSpell(kFocusedWillBuff);
-                const bool crit = k == kCritStep;
-                const uint32 damage = crit ? uint32(uint64(p->GetMaxHealth()) * kCritPercent / 100)
-                                           : uint32(threshold + (k == kAboveStep ? 1 : 0));
+                Hit const& hit = kHits[k];
+                const bool crit = hit.crit;
+                const uint32 damage = hit.small ? uint32(uint64(p->GetMaxHealth()) * kCritPercent / 100)
+                                                : uint32(threshold + hit.overThreshold);
                 const uint32 procEx = crit ? uint32(PROC_EX_CRITICAL_HIT) : uint32(PROC_EX_NORMAL_HIT);
                 seen.reads["damage"] = damage;
                 target->ProcDamageAndSpell(p, PROC_FLAG_SUCCESSFUL_MELEE_HIT,
@@ -605,7 +633,7 @@ namespace Harness
                 {
                     return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
                 }
-                const int64 wanted[kSteps] = { 0, 1, 1 };
+                const int64 wanted[kSteps] = { 0, 1, 1, 1 };
                 const int64 percent = Kept(st, 0, "percent");
                 bool ok = percent > 0;
                 std::string took, damages;
@@ -621,7 +649,7 @@ namespace Harness
                 const std::string detail =
                     "Focused Will's percent " + std::to_string(percent) + "% of his maximum health " +
                     std::to_string(Kept(st, 0, "maxHealth")) + ", " + std::to_string(Kept(st, 0, "threshold")) +
-                    " not passed; the hits " + damages + ", the last a crit; wanted took=none/1/1";
+                    " not passed; the hits " + damages + ", the last two crits; wanted took=none/1/1/1";
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
@@ -630,9 +658,23 @@ namespace Harness
             static constexpr uint32 kFocusedWillRank2 = 45243;
             static constexpr uint32 kFocusedWillBuff = 45242;
             static constexpr uint64 kCritPercent = 5;
-            static constexpr size_t kSteps = 3;
-            static constexpr uint32 kAboveStep = 1;
-            static constexpr uint32 kCritStep = 2;
+            static constexpr size_t kSteps = 4;
+
+            /// One step's hit: whether it is critical, and its damage: kCritPercent of his maximum health when `small`,
+            /// else T + `overThreshold`.
+            struct Hit
+            {
+                bool crit;
+                bool small;
+                uint32 overThreshold;
+            };
+            static constexpr Hit kHits[kSteps] =
+            {
+                { false, false, 0 },
+                { false, false, 1 },
+                { true, true, 0 },
+                { true, false, 1 },
+            };
 
             /// The stacks of his 45242; 0 when he holds none.
             static int64 StacksOf(Player* p)
