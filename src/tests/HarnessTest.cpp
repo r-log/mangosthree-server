@@ -1,9 +1,11 @@
 // The GM harness's pure parts (movement P0-C): the step timeline every scenario
 // runs on, the verdict line, and the rule the teardown classifies an owned player by;
 // and (decoupling D4f0) the reward recorder's rule table, decoders, line and digest, and the
-// achievement closure's table of modelled criteria types.
+// achievement closure's table of modelled criteria types; and the list of scenario files the
+// runner registers, against the files of src/game/Harness.
 // Nothing here touches a map.
 #include "TestHarness.h"
+#include "Harness.h"
 #include "Timeline.h"
 #include "Ownership.h"
 #include "Trace.h"
@@ -17,7 +19,9 @@
 #include "wire/MovementSequences.h"
 #include "wire/MovementStatus.h"
 
+#include <algorithm>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -1581,4 +1585,41 @@ TEST(HarnessStage_a_glyph_takes_the_first_open_free_slot_of_its_type)
     CHECK_EQ(Harness::FirstGlyphSlot(0, types, at25, held), -1);
     // a type no slot has
     CHECK_EQ(Harness::FirstGlyphSlot(3, types, at85, empty), -1);
+}
+
+TEST(HarnessScenarioFiles_the_list_is_every_scenario_file_of_the_folder_by_file_name)
+{
+    // src/game/CMakeLists.txt lists every Harness/Scenarios<Topic>.cpp by file name, and the runner registers each
+    // file's scenarios from the list. A file the list lacks (CMake not run since the file was added, or a topic that
+    // is no C++ name) would have none of its scenarios registered.
+    std::filesystem::path const folder =
+        std::filesystem::path(MANGOS_TEST_DATA_DIR) / ".." / ".." / "game" / "Harness";
+    REQUIRE(std::filesystem::is_directory(folder));
+    std::string const prefix = "Scenarios";
+    std::string const suffix = ".cpp";
+    std::vector<std::string> onDisk;
+    for (std::filesystem::directory_entry const& entry : std::filesystem::directory_iterator(folder))
+    {
+        std::string const name = entry.path().filename().string();
+        if (entry.is_regular_file() && name.size() > prefix.size() + suffix.size() &&
+            name.compare(0, prefix.size(), prefix) == 0 &&
+            name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
+        {
+            onDisk.push_back(name.substr(prefix.size(), name.size() - prefix.size() - suffix.size()));
+        }
+    }
+    std::sort(onDisk.begin(), onDisk.end());
+
+    std::vector<std::string> listed;
+    for (Harness::ScenarioFile const& file : Harness::ScenarioFiles())
+    {
+        listed.push_back(file.topic);
+        CHECK(file.registerScenarios != NULL);
+    }
+    CHECK_EQ(listed.size(), onDisk.size());
+    for (size_t i = 0; i < std::min(listed.size(), onDisk.size()); ++i)
+    {
+        CHECK_STR(listed[i], onDisk[i]);
+    }
+    CHECK(std::find(listed.begin(), listed.end(), std::string("Spell")) != listed.end());
 }

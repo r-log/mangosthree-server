@@ -45,34 +45,58 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <iterator>
+#include <vector>
 #include "persistence/characters/CharacterRepository.h"
 
 namespace Harness
 {
-    void RegisterJumpScenarios(Runner& r);
-    void RegisterPointScenarios(Runner& r);
-    void RegisterHomeScenarios(Runner& r);
-    void RegisterFollowScenarios(Runner& r);
-    void RegisterPatrolScenarios(Runner& r);
-    void RegisterFleeScenarios(Runner& r);
-    void RegisterWanderScenarios(Runner& r);
-    void RegisterBlockScenarios(Runner& r);
-    void RegisterCoverageScenarios(Runner& r);
-    void RegisterSimpleScenarios(Runner& r);
-    void RegisterDefaultScenarios(Runner& r);
-    void RegisterTrackingScenarios(Runner& r);
-    void RegisterControlScenarios(Runner& r);
-    void RegisterChaseMovingScenarios(Runner& r);
-    void RegisterSmoothScenarios(Runner& r);
-    void RegisterTaxiScenarios(Runner& r);
-    void RegisterQuestScenarios(Runner& r);
-    void RegisterSpellScenarios(Runner& r);
+    // Each scenario file's registration, Register<Topic>Scenarios (HarnessScenarioFiles.inc, src/game/CMakeLists.txt).
+#define HARNESS_SCENARIO_FILE(topic) void Register##topic##Scenarios(Runner& r);
+#include "HarnessScenarioFiles.inc"
+#undef HARNESS_SCENARIO_FILE
+
+    std::vector<ScenarioFile> const& ScenarioFiles()
+    {
+        static std::vector<ScenarioFile> const files =
+        {
+#define HARNESS_SCENARIO_FILE(topic) { #topic, &Register##topic##Scenarios },
+#include "HarnessScenarioFiles.inc"
+#undef HARNESS_SCENARIO_FILE
+        };
+        return files;
+    }
 
     namespace
     {
         const uint32 kCadenceMs = 100;
         const uint32 kSettleMs = 1000;
         const uint32 kMapId = 1;   ///< Kalimdor: the old scenarios' Mulgore plains
+
+        typedef void (*RegisterScenarios)(Runner& r);
+
+        /// The families the runner registers by name, in this order, before every other scenario file.
+        RegisterScenarios const kNamedFamilies[] =
+        {
+            &RegisterJumpScenarios,
+            &RegisterPointScenarios,
+            &RegisterHomeScenarios,
+            &RegisterFollowScenarios,
+            &RegisterFleeScenarios,
+            &RegisterWanderScenarios,
+            &RegisterBlockScenarios,
+            &RegisterCoverageScenarios,
+            &RegisterSimpleScenarios,
+            &RegisterPatrolScenarios,
+            &RegisterDefaultScenarios,
+            &RegisterTrackingScenarios,
+            &RegisterControlScenarios,
+            &RegisterChaseMovingScenarios,
+            &RegisterSmoothScenarios,
+            &RegisterTaxiScenarios,
+            &RegisterQuestScenarios,
+            &RegisterSpellScenarios,
+        };
     }
 
     Runner::Runner() : m_index(0), m_elapsed(0), m_settle(0), m_sinceTick(0), m_verdicts(0), m_seedBase(kSeedBase), m_map(NULL),
@@ -99,35 +123,32 @@ namespace Harness
         // really runs -- a steady run, a dead stop, a mid-leg 180, a 12 yd ring -- which is the
         // net order 48 does not have, since it moves its target by teleport steps and walks it
         // through the window its budget is read on. They are what decided the predictive aim.
-        RegisterJumpScenarios(*this);
-        RegisterPointScenarios(*this);
-        RegisterHomeScenarios(*this);
-        RegisterFollowScenarios(*this);
-        RegisterFleeScenarios(*this);
-        RegisterWanderScenarios(*this);
-        RegisterBlockScenarios(*this);
-        RegisterCoverageScenarios(*this);
-        RegisterSimpleScenarios(*this);
-        RegisterPatrolScenarios(*this);
-        RegisterDefaultScenarios(*this);
-        RegisterTrackingScenarios(*this);
-        RegisterControlScenarios(*this);
-        RegisterChaseMovingScenarios(*this);
         // The smooth-ground-splines family (RegisterSmoothScenarios) is order 72: the routed
         // corner, how far its Catmull-Rom curve strays from the polyline the pathfinder drew,
         // and that the leg still lands on its point and does not swallow the next one.
-        RegisterSmoothScenarios(*this);
         // The taxi-contract family (RegisterTaxiScenarios) is orders 908-911, at the tail of
         // the player block: the death that clears a flight, the resume decided by the landing
         // time, the stops retail sends at the two control changes, and the 4.2.0 pet rule.
-        RegisterTaxiScenarios(*this);
         // The quest family (RegisterQuestScenarios, decoupling D4f0) is orders 920 on, after
         // everything else: what a quest reward does, recorded packet by packet and folded into
         // one digest category per scenario.
-        RegisterQuestScenarios(*this);
-        // The spell family (RegisterSpellScenarios, decoupling D11) is orders 930 on, after the
-        // quest family: what a cast does, recorded on the same machinery (Recorder.h).
-        RegisterSpellScenarios(*this);
+        // The spell family (RegisterSpellScenarios, decoupling D11) is orders 930 on, up to 1199,
+        // after the quest family: what a cast does, recorded on the same machinery (Recorder.h).
+        // Orders 1200-1299 are the priest's: his scenario files, Harness/ScenariosPriest<Topic>.cpp.
+        // The families above register by name, in kNamedFamilies' order; every other scenario
+        // file of ScenarioFiles() registers after them, in file-name order.
+        for (RegisterScenarios registerFamily : kNamedFamilies)
+        {
+            registerFamily(*this);
+        }
+        for (ScenarioFile const& file : ScenarioFiles())
+        {
+            if (std::find(std::begin(kNamedFamilies), std::end(kNamedFamilies), file.registerScenarios) ==
+                std::end(kNamedFamilies))
+            {
+                file.registerScenarios(*this);
+            }
+        }
     }
 
     /// The registry, and DELIBERATELY NOTHING ELSE -- not `End`'s five-step player teardown,
@@ -219,6 +240,19 @@ namespace Harness
             {
                 sLog.outString("MVTEST refused: no scenarios registered");
                 return false;
+            }
+            // The run order is the numbers' order alone: two scenarios of one number, which two scenario files that
+            // never meet in one diff can both take, would run in an order no file decides.
+            for (size_t i = 1; i < m_queue.size(); ++i)
+            {
+                if (m_queue[i - 1]->Order() == m_queue[i]->Order())
+                {
+                    sLog.outString("MVTEST refused: %s and %s are both scenario %d; "
+                                   "every scenario needs a number of its own",
+                                   m_queue[i - 1]->Name(), m_queue[i]->Name(), m_queue[i]->Order());
+                    m_queue.clear();
+                    return false;
+                }
             }
         }
         else

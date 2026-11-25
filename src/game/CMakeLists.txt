@@ -320,6 +320,32 @@ source_group("Spells\\Handlers" FILES ${SRC_GRP_SPELLS_HANDLERS})
 file(GLOB SRC_GRP_SPELLS_PIPELINE spells/pipeline/*.cpp spells/pipeline/*.h)
 source_group("Spells\\Pipeline" FILES ${SRC_GRP_SPELLS_PIPELINE})
 
+# Writes OUTPUT from TEMPLATE with configure_file (@ONLY), which rewrites it only when its text changes:
+# @SOURCE_FILE_LINES@ becomes one "<MACRO>(<stem>)" line for each of the remaining arguments whose file name matches
+# PATTERN, <stem> being the pattern's first capture, in file-name order. The file that includes OUTPUT declares and
+# calls one function per stem, so a source file the folder's glob finds needs no line anywhere else.
+function(write_source_file_list TEMPLATE OUTPUT MACRO PATTERN)
+    set(STEMS "")
+    foreach(SOURCE IN LISTS ARGN)
+        get_filename_component(SOURCE_NAME "${SOURCE}" NAME)
+        if(SOURCE_NAME MATCHES "${PATTERN}")
+            list(APPEND STEMS "${CMAKE_MATCH_1}")
+        endif()
+    endforeach()
+    list(SORT STEMS)
+    set(SOURCE_FILE_LINES "")
+    foreach(STEM IN LISTS STEMS)
+        string(APPEND SOURCE_FILE_LINES "${MACRO}(${STEM})\n")
+    endforeach()
+    configure_file("${TEMPLATE}" "${OUTPUT}" @ONLY)
+endfunction()
+
+# Every Harness/Scenarios<Topic>.cpp registers its scenarios through Harness::Register<Topic>Scenarios, which
+# Harness.cpp calls from this list (the world target's generated directory).
+write_source_file_list(Harness/HarnessScenarioFiles.inc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/HarnessScenarioFiles.inc
+    HARNESS_SCENARIO_FILE "^Scenarios([A-Za-z0-9_]+)\\.cpp$" ${SRC_GRP_HARNESS})
+
 add_library(data STATIC
     ${SRC_GRP_DATA}
     ${SRC_GRP_DATA_DBC}
@@ -478,6 +504,12 @@ target_include_directories(world
         AuctionHouseBot
         Harness
         app
+)
+
+# HarnessScenarioFiles.inc, written above.
+target_include_directories(world
+    PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 
 if(MSVC)
