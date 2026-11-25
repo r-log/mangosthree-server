@@ -25,6 +25,9 @@
 
 #include "StagedCasterScenario.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
 #include <ctime>
 #include <map>
 #include <string>
@@ -35,7 +38,8 @@
  * @file ScenariosPriestInnerFocus.cpp
  * @brief The priest's Inner Focus scenario, order 1207: Inner Focus and Strength of Soul's immunity with it; a Flash
  * Heal that takes Inner Focus's mods, takes Inner Focus off him, which starts its cooldown, and shortens his Weakened
- * Soul; then a Greater Heal whose Train of Thought shortens Inner Focus's cooldown.
+ * Soul; a Greater Heal whose Train of Thought cuts Inner Focus's cooldown and tells his client; then a Greater Heal
+ * that Inner Focus empowers, which takes it off before its cut.
  */
 
 namespace Harness
@@ -43,9 +47,10 @@ namespace Harness
     namespace
     {
         /**
-         * S1207 `priest-inner-focus`: Inner Focus (89485) ends with the Flash Heal it empowers, Strength of Soul 2
-         * (89489) gives its immunity (96267) at Inner Focus and shortens Weakened Soul (6788) at a Flash Heal, and
-         * Train of Thought 2 (92297) shortens Inner Focus's cooldown at a Greater Heal.
+         * S1207 `priest-inner-focus`: Inner Focus (89485) ends with the heal it empowers, Strength of Soul 2 (89489)
+         * gives its immunity (96267) at Inner Focus and shortens Weakened Soul (6788) at a Flash Heal, and Train of
+         * Thought 2 (92297) cuts Inner Focus's cooldown at a Greater Heal, in his store and on his client, the new
+         * cooldown of a Greater Heal that Inner Focus empowers too.
          * Staged: a level 85 human priest (StagedCasterScenario with CLASS_PRIEST) with Improved Power Word: Shield 2
          * (talent 10736, rank index 1, spell 14768) as his first talent, which makes Discipline his primary tree, and
          * Inner Focus, Strength of Soul 2 and Train of Thought 2 learned as talent ranks, with Flash Heal (2061) and
@@ -58,17 +63,26 @@ namespace Harness
          *  3. kFlashMs later, once the Flash Heal landed: Inner Focus, the two Weakened Souls and Inner Focus's
          *     cooldown read; his health at half and his mana at its maximum, then his Greater Heal, its cost read
          *     first;
-         *  4. kGreaterMs later, once the Greater Heal landed: Inner Focus's cooldown read.
+         *  4. kGreaterMs later, once the Greater Heal landed: Inner Focus's cooldown read; then its cooldown taken off
+         *     him by call (Player::RemoveSpellCooldown), since the stepped clock never runs out a cooldown that ends on
+         *     time(NULL), and his Inner Focus again;
+         *  5. his health at half and his mana at its maximum, then his Greater Heal, its cost read first;
+         *  6. kGreaterMs later, once that Greater Heal landed: Inner Focus and its cooldown read.
          *
          * `innerFocus`: `focus=<Inner Focus on him at step 1's read: up, gone>/<at step 3>,cost=<the Flash Heal's
-         * cost>/<the Greater Heal's>,immune=<the duration of his 96267 at step 1's read; none>,soul=<the time the
+         * cost>/<the first Greater Heal's>,immune=<the duration of his 96267 at step 1's read; none>,soul=<the time the
          * Camel's Weakened Soul has left less his, at step 3>,cooldown=<Inner Focus's cooldown in his store at step 1's
          * read: held while its aura stands, running, none>/<at step 3>/<at step 4>,cut=<the seconds its stored end
-         * moved from step 3 to step 4; none unless it ran at both>,heals=<the spell of the SMSG_SPELL_GO of step 2's
-         * cast>/<of step 3's>`. A running cooldown is one whose time left is above 0 and within Inner Focus's recovery
-         * in the client's data; the times the store holds are on the wall clock and are never written. OK at
-         * focus=up/gone, cost=0/<above 0>, immune=96267's duration in the client's data, soul=1000 x 89489's effect 0
-         * value, cooldown=held/running/running, cut=92295's effect 0 value and heals=2061/2060.
+         * moved from step 3 to step 4; none unless it ran at both>,told=<the delta of his client's cut of Inner Focus's
+         * cooldown in step 3's windows; none>/<in step 5's>,again=<Inner Focus at step 6>/<the second Greater Heal's
+         * cost>/<its cooldown at step 6: held, cut (its time left within its recovery less 92295's effect 0 seconds),
+         * whole (left within its recovery but above that), none>,order=<in step 5's windows, the order of Inner Focus's
+         * cooldown event and its cut: event+cut, cut+event, event, cut, none>,heals=<the spell of the SMSG_SPELL_GO of
+         * step 2's cast>/<of step 3's>/<of step 5's>`. A running cooldown is one whose time left is above 0 and within
+         * Inner Focus's recovery in the client's data; the times the store holds are on the wall clock and are never
+         * written. OK at focus=up/gone, cost=0/<above 0>, immune=96267's duration in the client's data, soul=1000 x
+         * 89489's effect 0 value, cooldown=held/running/running, cut=92295's effect 0 value, told=<-1000 x that>/<the
+         * same>, again=gone/0/cut, order=event+cut and heals=2061/2060/2060.
          */
         class PriestInnerFocus : public StagedCasterScenario
         {
@@ -88,7 +102,8 @@ namespace Harness
 
             std::vector<Step> Steps() const override
             {
-                return { Wait(kStepMs), Wait(kFlashMs), Wait(kGreaterMs), Wait(kStepMs) };
+                return { Wait(kStepMs), Wait(kFlashMs), Wait(kGreaterMs), Wait(kStepMs), Wait(kGreaterMs),
+                         Wait(kStepMs) };
             }
 
             std::vector<SpellPrint> Prints() const override
@@ -179,7 +194,23 @@ namespace Harness
                                                                 " s earlier than after the Flash Heal"
                                                           : std::string();
                         m_rec.Note("after the Greater Heal: " + U(kInnerFocus) + "'s cooldown " +
-                                   StateName(reads["cooldown"]) + moved);
+                                   StateName(reads["cooldown"]) + moved + "; its cooldown taken off him by call, " +
+                                   "and he casts " + U(kInnerFocus) + " at himself again");
+                        p->RemoveSpellCooldown(kInnerFocus, true);
+                        CastAsHandler(p, kInnerFocus, p, uint8(k + 1));
+                        break;
+                    }
+                    case 4:
+                    {
+                        reads["againCost"] = CastHeal(p, kGreaterHeal, k);
+                        break;
+                    }
+                    case 5:
+                    {
+                        reads["focus"] = p->HasAura(kInnerFocus) ? 1 : 0;
+                        reads["cooldown"] = CutState(p);
+                        m_rec.Note("after the Greater Heal Inner Focus empowered: his " + U(kInnerFocus) + ": " +
+                                   HolderOf(p, kInnerFocus) + "; its cooldown " + StateName(reads["cooldown"]));
                         break;
                     }
                     default:
@@ -201,8 +232,14 @@ namespace Harness
                 const int64 soul = Kept(st, 2, "soul");
                 const int64 cut = Kept(st, 3, "cut");
                 const int64 states[3] = { Kept(st, 0, "cooldown"), Kept(st, 2, "cooldown"), Kept(st, 3, "cooldown") };
+                const int64 focusAgain = Kept(st, 5, "focus");
+                const int64 againCost = Kept(st, 4, "againCost");
+                const int64 againState = Kept(st, 5, "cooldown");
                 const uint32 flashGo = CastPathOf(1).go;
                 const uint32 greaterGo = CastPathOf(2).go;
+                const uint32 againGo = CastPathOf(4).go;
+                const std::pair<std::string, int64> first = CutOf(2);
+                const std::pair<std::string, int64> again = CutOf(4);
 
                 SpellEntry const* immunity = sSpellStore.LookupEntry(kImmunity);
                 const int64 wantImmune = immunity ? GetSpellDuration(immunity) : -2;
@@ -211,19 +248,26 @@ namespace Harness
                 const bool ok = focusBefore == 1 && focusAfter == 0 && flashCost == 0 && greaterCost > 0 &&
                                 immune == wantImmune && wantSoul > 0 && soul == wantSoul && states[0] == kHeld &&
                                 states[1] == kRunning && states[2] == kRunning && wantCut > 0 && cut == wantCut &&
-                                flashGo == kFlashHeal && greaterGo == kGreaterHeal;
+                                first.second == -1000 * wantCut && again.second == -1000 * wantCut &&
+                                focusAgain == 0 && againCost == 0 && againState == kCut && again.first == "event+cut" &&
+                                flashGo == kFlashHeal && greaterGo == kGreaterHeal && againGo == kGreaterHeal;
 
                 const std::string value = "focus=" + FocusName(focusBefore) + "/" + FocusName(focusAfter) + ",cost=" +
                                           Number(flashCost) + "/" + Number(greaterCost) + ",immune=" + Number(immune) +
                                           ",soul=" + Number(soul) + ",cooldown=" + StateName(states[0]) + "/" +
                                           StateName(states[1]) + "/" + StateName(states[2]) + ",cut=" + Number(cut) +
-                                          ",heals=" + U(flashGo) + "/" + U(greaterGo);
+                                          ",told=" + Delta(first.second) + "/" + Delta(again.second) + ",again=" +
+                                          FocusName(focusAgain) + "/" + Number(againCost) + "/" +
+                                          StateName(againState) + ",order=" + again.first + ",heals=" + U(flashGo) +
+                                          "/" + U(greaterGo) + "/" + U(againGo);
                 const std::string detail =
                     "wanted Inner Focus up then gone after the Flash Heal, the Flash Heal free and the Greater Heal "
                     "not, " + U(kImmunity) + " for " + std::to_string(wantImmune) + " ms, Weakened Soul " +
                     std::to_string(wantSoul) + " ms shorter than the Camel's, the cooldown held, then running and " +
-                    "cut by " + std::to_string(wantCut) + " s at the Greater Heal, the heals " + U(kFlashHeal) + "/" +
-                    U(kGreaterHeal);
+                    "cut by " + std::to_string(wantCut) + " s at the Greater Heal, his client told " +
+                    std::to_string(-1000 * wantCut) + " ms; then a free Greater Heal that takes Inner Focus off, its " +
+                    "cooldown event, then its cut, told the same, the heals " + U(kFlashHeal) + "/" + U(kGreaterHeal) +
+                    "/" + U(kGreaterHeal);
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
@@ -242,14 +286,17 @@ namespace Harness
             static constexpr uint32 kStepMs = 1000;
             static constexpr uint32 kFlashMs = 2500;
             static constexpr uint32 kGreaterMs = 4000;
-            static constexpr size_t kSteps = 4;
+            static constexpr size_t kSteps = 6;
 
             /// Inner Focus's cooldown in his store: none, held while its aura stands (the store's infinity mark),
-            /// running (its time left above 0 and within its recovery in the client's data), or another.
+            /// running (its time left above 0 and within its recovery in the client's data), or another; at step 6,
+            /// a running one is cut (its time left within its recovery less 92295's effect 0 seconds) or whole.
             static constexpr int64 kNone = 0;
             static constexpr int64 kHeld = 1;
             static constexpr int64 kRunning = 2;
             static constexpr int64 kOther = 3;
+            static constexpr int64 kCut = 4;
+            static constexpr int64 kWhole = 5;
 
             time_t m_end = 0;                   ///< Inner Focus's stored end at step 3, on the wall clock; never
                                                 ///< written
@@ -277,6 +324,12 @@ namespace Harness
                 return value == -1 ? std::string("none") : value == -2 ? std::string("unread") : std::to_string(value);
             }
 
+            /// A cut's delta as written: its signed milliseconds, `none` for no cut seen (INT64_MIN stands for it).
+            static std::string Delta(int64 delta)
+            {
+                return delta == INT64_MIN ? std::string("none") : std::to_string(delta);
+            }
+
             static std::string FocusName(int64 focus)
             {
                 return focus == 1 ? "up" : focus == 0 ? "gone" : "unread";
@@ -290,26 +343,56 @@ namespace Harness
                     case kHeld:     return "held";
                     case kRunning:  return "running";
                     case kOther:    return "other";
+                    case kCut:      return "cut";
+                    case kWhole:    return "whole";
                     default:        return "unread";
                 }
             }
 
-            /// Inner Focus's cooldown in his store, and its stored end (0 for none).
-            static std::pair<int64, time_t> CooldownState(Player* p)
+            /// The seconds Inner Focus's cooldown has left in his store and its stored end, on the wall clock; the
+            /// left time -1 when it holds none.
+            static std::pair<time_t, time_t> Left(Player* p)
             {
                 SpellCooldowns const& cooldowns = p->GetSpellCooldownMgr().GetSpellCooldownMap();
                 SpellCooldowns::const_iterator itr = cooldowns.find(kInnerFocus);
                 if (itr == cooldowns.end())
                 {
+                    return std::make_pair(time_t(-1), time_t(0));
+                }
+                return std::make_pair(itr->second.end - time(NULL), itr->second.end);
+            }
+
+            /// Inner Focus's recovery in the client's data, in seconds; 0 when the store lacks it.
+            static time_t Recovery()
+            {
+                SpellEntry const* focus = sSpellStore.LookupEntry(kInnerFocus);
+                return focus ? time_t(GetSpellRecoveryTime(focus) / 1000) : 0;
+            }
+
+            /// Inner Focus's cooldown in his store (none, held, running, other), and its stored end (0 for none).
+            static std::pair<int64, time_t> CooldownState(Player* p)
+            {
+                const std::pair<time_t, time_t> left = Left(p);
+                if (left.first < 0)
+                {
                     return std::make_pair(kNone, time_t(0));
                 }
-                const time_t left = itr->second.end - time(NULL);
-                SpellEntry const* focus = sSpellStore.LookupEntry(kInnerFocus);
-                const time_t recovery = focus ? time_t(GetSpellRecoveryTime(focus) / 1000) : 0;
-                const int64 state = left > time_t(SpellCooldownMgr::infinityCooldownDelayCheck) ? kHeld
-                                    : left > 0 && left <= recovery                               ? kRunning
-                                                                                                   : kOther;
-                return std::make_pair(state, itr->second.end);
+                const int64 state = left.first > time_t(SpellCooldownMgr::infinityCooldownDelayCheck) ? kHeld
+                                    : left.first > 0 && left.first <= Recovery()                        ? kRunning
+                                                                                                          : kOther;
+                return std::make_pair(state, left.second);
+            }
+
+            /// Inner Focus's cooldown in his store at step 6: none, held, cut, whole or other.
+            static int64 CutState(Player* p)
+            {
+                const std::pair<int64, time_t> state = CooldownState(p);
+                if (state.first != kRunning)
+                {
+                    return state.first;
+                }
+                const time_t cut = time_t(DataValue(kTrainOfThoughtFirstRank, EFFECT_INDEX_0));
+                return Left(p).first <= Recovery() - cut ? kCut : kWhole;
             }
 
             /// The time `unit`'s Weakened Soul has left; -1 when it holds none.
@@ -332,6 +415,70 @@ namespace Harness
                            std::to_string(cost));
                 CastAsHandler(p, spell, p, uint8(k + 1));
                 return cost;
+            }
+
+            /// A cut cooldown's payload read from its bytes as BuildModifyCooldownPacket writes them: the spell
+            /// (uint32), the owner's raw guid (uint64) and the signed milliseconds (int32). Answers the owner's role,
+            /// "" when the payload is not 16 bytes.
+            std::string ReadCut(std::vector<uint8> const& payload, uint32& spell, int32& moved) const
+            {
+                if (payload.size() != 16)
+                {
+                    return std::string();
+                }
+                uint64 owner = 0;
+                uint32 delta = 0;
+                spell = 0;
+                for (uint32 i = 0; i < 4; ++i)
+                {
+                    spell |= uint32(payload[i]) << (8 * i);
+                    delta |= uint32(payload[12 + i]) << (8 * i);
+                }
+                for (uint32 i = 0; i < 8; ++i)
+                {
+                    owner |= uint64(payload[4 + i]) << (8 * i);
+                }
+                moved = int32(delta);
+                return Trace::RoleOf(m_rec.Roles(), owner);
+            }
+
+            /// In step k's windows, in the order they were sent: Inner Focus's cooldown event about him and his
+            /// client's cut of Inner Focus's cooldown. Answers their order (event+cut, cut+event, event, cut, none)
+            /// and the first cut's delta, INT64_MIN when none came.
+            std::pair<std::string, int64> CutOf(uint32 k) const
+            {
+                const std::vector<std::string> windows = StepWindows(k);
+                std::vector<Recorder::Seen> const& packets = m_rec.Packets();
+                std::string order;
+                int64 delta = INT64_MIN;
+                bool event = false;
+                for (size_t i = 0; i < packets.size(); ++i)
+                {
+                    Recorder::Seen const& seen = packets[i];
+                    if (std::find(windows.begin(), windows.end(), seen.window) == windows.end() || seen.payload.empty())
+                    {
+                        continue;
+                    }
+                    std::string text;
+                    uint32 spell = 0;
+                    int32 moved = 0;
+                    char owner[16] = { 0 };
+                    if (!event && seen.opcode == SMSG_COOLDOWN_EVENT &&
+                        Trace::DecodeCooldownEvent(&seen.payload[0], seen.payload.size(), m_rec.Roles(), text) &&
+                        sscanf(text.c_str(), "spell=%u owner=%15s", &spell, owner) == 2 && spell == kInnerFocus &&
+                        std::string(owner) == "self")
+                    {
+                        event = true;
+                        order += order.empty() ? "event" : "+event";
+                    }
+                    else if (delta == INT64_MIN && seen.opcode == SMSG_MODIFY_COOLDOWN &&
+                             ReadCut(seen.payload, spell, moved) == "self" && spell == kInnerFocus)
+                    {
+                        delta = moved;
+                        order += order.empty() ? "cut" : "+cut";
+                    }
+                }
+                return std::make_pair(order.empty() ? std::string("none") : order, delta);
             }
         };
     }

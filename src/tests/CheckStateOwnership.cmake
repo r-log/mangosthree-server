@@ -304,6 +304,9 @@ state_allow(cooldown src/game/Harness/Trace.cpp
 state_allow(cooldown src/game/Harness/ScenariosSpell.cpp
     WHY "harness spell scenarios (decoupling D11 PR 2): read the recorded packets by opcode for their categories, build nothing"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+state_allow(cooldown src/game/Harness/ScenariosPriestInnerFocus.cpp
+    WHY "harness priest scenario 1207: reads Inner Focus's cooldown event and its cut from the recorded packets by opcode for its category, builds nothing"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_MODIFY_COOLDOWN)
 state_allow(cooldown src/tests/HarnessTest.cpp
     WHY "unit test of the harness decoders: hand-builds the packets' bytes as their writers lay them out and checks the decoded record, sends nothing"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS SMSG_MODIFY_COOLDOWN)
