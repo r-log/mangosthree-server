@@ -44,7 +44,7 @@
 /// the dummy-effect hook, Improved Flamestrike's chance, Blast Wave's refusals at the after-cast hook, Glyph of
 /// Frostfire's hit without Molten Fury and its tick, Frostfire Bolt's effect taken off at its holder's apply and its
 /// after-hit exits, the Early Frost lockout a Frostbolt cast starts, Piercing Chill's count, its pick of the nearest
-/// others and its chill's target list, the exits of Frostbolt's, Cone of Cold's and Blizzard's after-hit scripts,
+/// units and its chill's target list, the exits of Frostbolt's, Cone of Cold's and Blizzard's after-hit scripts,
 /// Permafrost's heal and its refusals, Improved Cone of Cold's freeze and Ice Shards' chill by rank, Improved Freeze's
 /// chance by rank, its one roll for a Freeze that hit an enemy and its exit at the after-cast hook, and Frost Nova's
 /// cooldown ended at Ice Block's launch with Glyph of Ice Block; the orb's rows are counted here and tested in
@@ -112,8 +112,7 @@ namespace
     // Permafrost's ranks, whose dummy effect's proc heals the caster's pet.
     uint32 const PERMAFROST_IDS[] = { 11175, 12569, 12571 };
 
-    // The id Piercing Chill's script holds at the target hook: its chill, cast at each other enemy a Frostbolt crit
-    // chills.
+    // The id Piercing Chill's script holds at the target hook: its chill, cast at the target of a Frostbolt crit.
     uint32 const PIERCING_CHILL_CHILL_IDS[] = { 83154 };
 
     // The ids the Frost launch script holds at the launch hook: Ice Lance, Deep Freeze and Frostfire Bolt, which use
@@ -296,6 +295,12 @@ namespace
             void HoldAura(uint32 spellId, SpellAuraHolder& holder)
             {
                 m_auras.AddHolder(spellId, &holder);
+            }
+
+            // The state a death leaves: a corpse, so Unit::IsAlive answers false.
+            void LieDead()
+            {
+                m_deathState = CORPSE;
             }
 
             // Puts an entry with no aura in the list of `type`, so Unit::HasAuraType(type) answers true; the list is
@@ -4576,8 +4581,8 @@ TEST(MageScripts_PolymorphsApplyRunsGlyphOfPolymorph)
 namespace
 {
     // Piercing Chill's two ranks (83156, 83157) as the client's data holds them: effect 0 a dummy aura on the caster of
-    // 1 and 2, the other enemies a Frostbolt crit chills. Put into the spell and effect stores once for the rest of the
-    // run; no other test reads them.
+    // 1 and 2, the units a Frostbolt crit chills, its target among them. Put into the spell and effect stores once for
+    // the rest of the run; no other test reads them.
     void AddPiercingChillRanks()
     {
         static ServerSpell ranks[2];
@@ -4588,7 +4593,7 @@ namespace
         }
         added = true;
         uint32 const ids[2] = { 83156, 83157 };
-        int32 const others[2] = { 1, 2 };
+        int32 const counts[2] = { 1, 2 };
         for (std::size_t i = 0; i < 2; ++i)
         {
             ranks[i].Entry().ID = ids[i];
@@ -4596,7 +4601,7 @@ namespace
             ranks[i].effect.EffectIndex = EFFECT_INDEX_0;
             ranks[i].effect.Effect = SPELL_EFFECT_APPLY_AURA;
             ranks[i].effect.EffectAura = SPELL_AURA_DUMMY;
-            ranks[i].effect.EffectBasePoints = others[i];
+            ranks[i].effect.EffectBasePoints = counts[i];
             ranks[i].effect.ImplicitTarget_0 = TARGET_SELF;
             sSpellStore.SetEntry(ids[i], &ranks[i].Entry());
             AddSpellEffectEntry(&ranks[i].effect);
@@ -4625,112 +4630,173 @@ TEST(MageScripts_PiercingChillsCountIsTheRanksEffectValue)
     CHECK_EQ(Mage::PiercingChillCount(0), int32(0));
 }
 
-TEST(MageScripts_NearestOthersKeepsTheNearestEnemiesButNeverTheTarget)
+TEST(MageScripts_NearestKeepsTheCountNearestItsPointNearestFirstEachOnce)
 {
-    // A target at the origin and four enemies at 3, 5, 8 and 12 yards from it, listed out of order with the target
-    // among them, as the engine's area fill lists them.
+    // The Frostbolt's target at the origin, which is the point measured from, and three more units at 3, 9 and 9.5
+    // yards from it, listed out of order with the target among them, as the engine's area fill lists them.
     BareCreature target;
     BareCreature at3;
-    BareCreature at5;
-    BareCreature at8;
-    BareCreature at12;
+    BareCreature at9;
+    BareCreature at9Half;
     PlaceAt(target, 0.0f, 0.0f);
     PlaceAt(at3, 0.0f, 3.0f);
-    PlaceAt(at5, -5.0f, 0.0f);
-    PlaceAt(at8, 8.0f, 0.0f);
-    PlaceAt(at12, 0.0f, -12.0f);
+    PlaceAt(at9, 0.0f, -9.0f);
+    PlaceAt(at9Half, 0.0f, 9.5f);
     auto filled = [&]()
     {
         std::list<Unit*> list;
-        list.push_back(&at8);
+        list.push_back(&at9);
+        list.push_back(&at9Half);
         list.push_back(&target);
-        list.push_back(&at12);
-        list.push_back(&at5);
         list.push_back(&at3);
         return list;
     };
 
-    // Rank 1: the one at 3 yards. Rank 2: the ones at 3 and 5 yards, nearest first.
-    std::list<Unit*> one = filled();
-    Mage::NearestOthers(one, &target, target, 1);
-    CHECK_EQ(one.size(), std::size_t(1));
-    CHECK(one.front() == &at3);
+    // Count 2: the target, at no distance from itself, then the unit at 3 yards. Count 1: the target alone.
     std::list<Unit*> two = filled();
-    Mage::NearestOthers(two, &target, target, 2);
+    Mage::Nearest(two, target, 2);
     CHECK_EQ(two.size(), std::size_t(2));
-    CHECK(two.front() == &at3);
-    CHECK(two.back() == &at5);
+    CHECK(two.front() == &target);
+    CHECK(two.back() == &at3);
+    std::list<Unit*> one = filled();
+    Mage::Nearest(one, target, 1);
+    CHECK_EQ(one.size(), std::size_t(1));
+    CHECK(one.front() == &target);
 
-    // A count above the others leaves every other, the target never among them; a count of 0 empties the list.
+    // A count above the units leaves every one of them, nearest first; a count of 0 or less empties the list.
     std::list<Unit*> all = filled();
-    Mage::NearestOthers(all, &target, target, 9);
+    Mage::Nearest(all, target, 9);
     CHECK_EQ(all.size(), std::size_t(4));
-    CHECK(std::find(all.begin(), all.end(), &target) == all.end());
-    CHECK(all.back() == &at12);
+    CHECK(all.front() == &target);
+    CHECK(all.back() == &at9Half);
     std::list<Unit*> none = filled();
-    Mage::NearestOthers(none, &target, target, 0);
+    Mage::Nearest(none, target, 0);
     CHECK(none.empty());
+    std::list<Unit*> below = filled();
+    Mage::Nearest(below, target, -1);
+    CHECK(below.empty());
 
-    // The target alone, and a unit listed twice: nothing is left of the first, and the second counts once.
-    std::list<Unit*> alone(1, &target);
-    Mage::NearestOthers(alone, &target, target, 2);
-    CHECK(alone.empty());
+    // A unit listed twice counts once, and an empty entry is no unit.
     std::list<Unit*> twice;
-    twice.push_back(&at5);
-    twice.push_back(&at5);
-    twice.push_back(&at8);
-    Mage::NearestOthers(twice, &target, target, 2);
+    twice.push_back(&at9);
+    twice.push_back(NULL);
+    twice.push_back(&at9);
+    twice.push_back(&target);
+    twice.push_back(&target);
+    Mage::Nearest(twice, target, 2);
     CHECK_EQ(twice.size(), std::size_t(2));
-    CHECK(twice.front() == &at5);
-    CHECK(twice.back() == &at8);
+    CHECK(twice.front() == &target);
+    CHECK(twice.back() == &at9);
 }
 
-TEST(MageScripts_PiercingChillsChillKeepsTheCastsTargetAloneAndMakesTheListFinal)
+TEST(MageScripts_PiercingChillsChillKeepsTheCountNearestItsTargetTheTargetFirst)
 {
+    AddPiercingChillRanks();
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     CheckRowsInTheGame<SelectTargetsHook>(registry, PIERCING_CHILL_CHILL_IDS);
-    BareCreature mage;
-    BareCreature chilled;
-    BareCreature beside;
-    BareCreature frostboltTarget;
+    BareCreature untalented;
+    BareCreature rankOne;
+    BareCreature rankTwo;
+    HolderStorage rankOneStorage;
+    HolderStorage rankTwoStorage;
+    rankOne.HoldAura(83156, EmptyHolder(rankOneStorage));
+    rankTwo.HoldAura(83157, EmptyHolder(rankTwoStorage));
+    BareCreature target;
+    BareCreature at3;
+    BareCreature at9;
+    BareCreature at9Half;
+    PlaceAt(target, 0.0f, 0.0f);
+    PlaceAt(at3, 0.0f, 3.0f);
+    PlaceAt(at9, 0.0f, -9.0f);
+    PlaceAt(at9Half, 0.0f, 9.5f);
     SpellRowStorage row;
 
-    // Both of the chill's effects: the cast's target is kept once, every other unit the engine found leaves, the cut
-    // count is untouched and the list is final.
+    // The engine's list for an effect: the explicit target, then the area around it, the target among it again.
+    auto filled = [&]()
+    {
+        std::list<Unit*> list;
+        list.push_back(&target);
+        list.push_back(&at9);
+        list.push_back(&at9Half);
+        list.push_back(&target);
+        list.push_back(&at3);
+        return list;
+    };
+
+    // Rank 2, both of the chill's effects: the target first, then the unit at 3 yards; the cut count is untouched and
+    // the list is final.
     for (SpellEffectIndex eff : { EFFECT_INDEX_0, EFFECT_INDEX_2 })
     {
-        std::list<Unit*> targets;
-        targets.push_back(&beside);
-        targets.push_back(&chilled);
-        targets.push_back(&frostboltTarget);
-        targets.push_back(&chilled);
+        std::list<Unit*> targets = filled();
         uint32 maxTargets = 0;
-        SelectTargetsContext ctx(mage, SpellRow(row, 83154), eff, TARGET_ALL_ENEMY_IN_AREA_INSTANT, targets, maxTargets,
-                                 &chilled);
+        SelectTargetsContext ctx(rankTwo, SpellRow(row, 83154), eff, TARGET_ALL_ENEMY_IN_AREA_INSTANT, targets,
+                                 maxTargets, &target);
         CHECK(registry.Dispatch<SelectTargetsHook>(83154, ctx).IsReturn());
-        CHECK_EQ(targets.size(), std::size_t(1));
-        CHECK(targets.front() == &chilled);
+        CHECK_EQ(targets.size(), std::size_t(2));
+        CHECK(targets.front() == &target);
+        CHECK(targets.back() == &at3);
         CHECK_EQ(maxTargets, uint32(0));
     }
 
-    // A cast with no unit target, and one whose target the engine did not find: nothing is left.
-    std::list<Unit*> noTarget;
-    noTarget.push_back(&beside);
+    // Rank 1: the target alone. No rank: nothing is left.
+    std::list<Unit*> rankOneTargets = filled();
     uint32 maxTargets = 0;
-    SelectTargetsContext untargeted(mage, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
+    SelectTargetsContext rankOneCtx(rankOne, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
+                                    rankOneTargets, maxTargets, &target);
+    CHECK(registry.Dispatch<SelectTargetsHook>(83154, rankOneCtx).IsReturn());
+    CHECK_EQ(rankOneTargets.size(), std::size_t(1));
+    CHECK(rankOneTargets.front() == &target);
+    std::list<Unit*> untalentedTargets = filled();
+    SelectTargetsContext untalentedCtx(untalented, SpellRow(row, 83154), EFFECT_INDEX_0,
+                                       TARGET_ALL_ENEMY_IN_AREA_INSTANT, untalentedTargets, maxTargets, &target);
+    CHECK(registry.Dispatch<SelectTargetsHook>(83154, untalentedCtx).IsReturn());
+    CHECK(untalentedTargets.empty());
+
+    // No other unit within the chill's radius, the engine's list the target twice: rank 2 and rank 1 alike chill the
+    // target alone, once.
+    for (BareCreature* ranked : { &rankTwo, &rankOne })
+    {
+        std::list<Unit*> alone(2, &target);
+        SelectTargetsContext aloneCtx(*ranked, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
+                                      alone, maxTargets, &target);
+        CHECK(registry.Dispatch<SelectTargetsHook>(83154, aloneCtx).IsReturn());
+        CHECK_EQ(alone.size(), std::size_t(1));
+        CHECK(alone.front() == &target);
+    }
+
+    // A cast with no explicit unit target: the engine's list stays, its cut after the hook is set to the count, and
+    // the list is not final.
+    std::list<Unit*> noTarget;
+    noTarget.push_back(&at9);
+    noTarget.push_back(&at3);
+    noTarget.push_back(&at9Half);
+    SelectTargetsContext untargeted(rankTwo, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
                                     noTarget, maxTargets);
-    CHECK(registry.Dispatch<SelectTargetsHook>(83154, untargeted).IsReturn());
-    CHECK(noTarget.empty());
-    std::list<Unit*> notFound;
-    notFound.push_back(&beside);
-    SelectTargetsContext missing(mage, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
-                                 notFound, maxTargets, &chilled);
-    CHECK(registry.Dispatch<SelectTargetsHook>(83154, missing).IsReturn());
-    CHECK(notFound.empty());
+    CHECK(registry.Dispatch<SelectTargetsHook>(83154, untargeted).IsContinue());
+    CHECK_EQ(noTarget.size(), std::size_t(3));
+    CHECK_EQ(maxTargets, uint32(2));
+
+    // A dead target, which the engine lists as the explicit target and its area fill leaves out: it is no candidate,
+    // and the two units nearest where it lies are kept, nearest first.
+    target.LieDead();
+    CHECK(!target.IsAlive());
+    std::list<Unit*> deadTarget;
+    deadTarget.push_back(&target);
+    deadTarget.push_back(&at9);
+    deadTarget.push_back(&at9Half);
+    deadTarget.push_back(&at3);
+    maxTargets = 0;
+    SelectTargetsContext killed(rankTwo, SpellRow(row, 83154), EFFECT_INDEX_0, TARGET_ALL_ENEMY_IN_AREA_INSTANT,
+                                deadTarget, maxTargets, &target);
+    CHECK(registry.Dispatch<SelectTargetsHook>(83154, killed).IsReturn());
+    CHECK_EQ(deadTarget.size(), std::size_t(2));
+    CHECK(deadTarget.front() == &at3);
+    CHECK(deadTarget.back() == &at9);
+    CHECK_EQ(maxTargets, uint32(0));
 }
 
-TEST(MageScripts_FrostboltChillsNothingWithoutACritTheTalentOrAnEnemyInReach)
+TEST(MageScripts_FrostboltChillsNothingWithoutACritOrTheTalentsAura)
 {
     // Frostbolt and Cone of Cold hold one body each at the after-hit hook, on this table and the game's.
     AddPiercingChillRanks();
@@ -4750,11 +4816,12 @@ TEST(MageScripts_FrostboltChillsNothingWithoutACritTheTalentOrAnEnemyInReach)
     AfterHitContext untalented(mage, target, SpellRow(row, 116), 1000, true, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(116, untalented).IsContinue());
 
-    // A crit of a mage with rank 2 at a target in no world: no enemy is found around it, so nothing is cast and the
-    // target holds nothing.
+    // A crit of a mage holding rank 2 without its aura of effect 0: the chill is cast through that aura, which he
+    // does not hold, so nothing is cast and the target holds nothing.
     HolderStorage talentStorage;
     mage.HoldAura(83157, EmptyHolder(talentStorage));
     CHECK(mage.HasAura(83157));
+    CHECK(mage.GetAura(83157, EFFECT_INDEX_0) == NULL);
     AfterHitContext crit(mage, target, SpellRow(row, 116), 1000, true, 0, 0, false);
     CHECK(registry.Dispatch<AfterHitHook>(116, crit).IsContinue());
     CHECK(target.GetSpellAuraHolderMap().empty());
