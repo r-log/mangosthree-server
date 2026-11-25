@@ -420,7 +420,6 @@ void Spell::cast(bool skipCheck)
                 AddTriggeredSpell(65116);                   // Stoneskin - armor 10% for 8 sec
             else if (m_spellInfo->ID == 68992)              // Darkflight
             {
-                AddPrecastSpell(96223);                     // Run Speed Marker
                 if (m_caster->HasWorgenForm())
                 {
                     AddPrecastSpell(97709);                 // Altered Form

@@ -3487,13 +3487,49 @@ void SpellAuraHolder::SendAuraUpdate(bool remove) const
     sAuraNotices.AuraUpdate(*this, remove);
 }
 
+namespace
+{
+    /// Whether `unit` holds a buff that carries the speed-buff marker (CarriesSpeedBuffMarker) and is not on its way
+    /// out.
+    bool HoldsSpeedBuffMarkerCarrier(Unit const& unit)
+    {
+        Unit::SpellAuraHolderMap const& holders = unit.GetSpellAuraHolderMap();
+        for (Unit::SpellAuraHolderMap::const_iterator itr = holders.begin(); itr != holders.end(); ++itr)
+        {
+            if (!itr->second->IsDeleted() && CarriesSpeedBuffMarker(*itr->second->GetSpellProto()))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 /**
  * @brief Applies or removes spell-specific linked boost behavior.
+ *
+ * A buff that carries the speed-buff marker (its aura restrictions exclude the caster on it) casts the marker on its
+ * holder when it is added and takes it away when it is removed, however it ends, unless the holder still holds another
+ * such buff; then the function goes on.
  *
  * @param apply True to apply boosts; false to remove them.
  */
 void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
 {
+    if (CarriesSpeedBuffMarker(*m_spellProto))
+    {
+        if (apply)
+        {
+            SetInUse(true);
+            m_target->CastSpell(m_target, SpeedBuffMarker(), true);
+            SetInUse(false);
+        }
+        else if (!HoldsSpeedBuffMarkerCarrier(*m_target))
+        {
+            m_target->RemoveAurasDueToSpell(SpeedBuffMarker());
+        }
+    }
+
     bool cast_at_remove = false;                            // if spell must be casted at last aura from stack remove
     uint32 spellId1 = 0;
     uint32 spellId2 = 0;
