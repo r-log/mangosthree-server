@@ -46,7 +46,7 @@
 namespace
 {
     /// The proc flag every row below answers: a harmful spell of the aura's owner landed (Spell.dbc's 0x10000 for
-    /// 44445, 11095, 29074, 64343, 79683, 44543, 44546, 44561 and 11175).
+    /// 44445, 11095, 29074, 64343, 79683, 79684, 11103, 44543, 44546, 44561 and 11175).
     uint32 const kHarmfulSpellLanded = PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT;
 
     /// One proc spell: its id, its school mask and its class family and mask, as the 4.3.4 client data holds them.
@@ -111,6 +111,11 @@ namespace
     ProcSpell const kOrbHitRankOne = { 95969, SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0,
                                        0x00004080 };
     ProcSpell const kFlameOrbHit = { 82739, SPELL_SCHOOL_MASK_FIRE, SPELLFAMILY_MAGE, 0, 0x00000080 };
+    /// Shattered Barrier's freeze, cast around the mage when damage uses up his Ice Barrier.
+    ProcSpell const kShatteredBarrierFreeze = { 83073, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE,
+                                                UI64LIT(0x0000000000080000), 0 };
+    /// Ring of Frost's freeze, which the ring casts for the mage.
+    ProcSpell const kRingFreeze = { 82691, SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_MAGE, 0, 0x00000040 };
 
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
                                   kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
@@ -118,7 +123,7 @@ namespace
                                   kFrostNova, kWaterbolt, kBlizzardTick, kCounterspell, kArcaneExplosion,
                                   kArcaneBrilliance, kMageArmor, kManaShield, kBlink, kClearcasting, kPresenceOfMind,
                                   kArcanePower, kLightningBolt, kBlizzardChillRankTwo, kPiercingChill, kOrbHitRankOne,
-                                  kFlameOrbHit };
+                                  kFlameOrbHit, kShatteredBarrierFreeze, kRingFreeze };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -192,9 +197,11 @@ namespace
     /// Improved Counterspell 11255: family 3, Counterspell's class mask, no extra requirement.
     SpellProcEventEntry const kImprovedCounterspell = ProcRow(0, SPELLFAMILY_MAGE, UI64LIT(0x0000000000004000), 0,
                                                               PROC_EX_NONE);
-    /// Offensive State 79684 and Impact 11103: family 3, no mask, a hit or a crit with or without damage.
-    SpellProcEventEntry const kOffensiveState = ProcRow(0, SPELLFAMILY_MAGE, 0, 0,
-                                                        PROC_EX_HIT_WITHOUT_DAMAGE | PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    /// Offensive State 79684: family 3, no mask, the end of a cast.
+    SpellProcEventEntry const kOffensiveState = ProcRow(0, SPELLFAMILY_MAGE, 0, 0, PROC_EX_CAST_END);
+    /// Impact 11103: family 3, no mask, a hit or a crit with or without damage.
+    SpellProcEventEntry const kImpactTalent =
+        ProcRow(0, SPELLFAMILY_MAGE, 0, 0, PROC_EX_HIT_WITHOUT_DAMAGE | PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
     /// Fingers of Frost 44543: family 3, A 0x100220 (Frostbolt, Cone of Cold, Chilled), B 0x1000 (Frostfire Bolt), C
     /// 0x4000 (the Frostfire Orb's two hits), a normal or a critical hit. Brain Freeze 44546: the same A and C words,
     /// no B word, the end of a cast.
@@ -384,17 +391,59 @@ TEST(SpellProcEventRows_HitKindAcceptedTakesAHitWithoutDamageWhenTheRowHasTheBit
     CHECK(!SpellMgr::HitKindAccepted(row, PROC_EX_REFLECT, false));
 }
 
-TEST(SpellProcEventRows_OffensiveStatesRowPassesEveryMageHitAndNoMissThroughTheGate)
+TEST(SpellProcEventRows_ImpactsTalentRowPassesEveryMageHitAndNoMissThroughTheGate)
 {
-    CHECK(PassesGate(kOffensiveState, kPolymorph, PROC_EX_NORMAL_HIT));
-    CHECK(PassesGate(kOffensiveState, kFireball, PROC_EX_NORMAL_HIT));
-    CHECK(PassesGate(kOffensiveState, kFireball, PROC_EX_CRITICAL_HIT));
-    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_MISS));
-    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_RESIST));
-    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_IMMUNE));
-    CHECK(!PassesGate(kOffensiveState, kPolymorph, PROC_EX_REFLECT));
-    CHECK(!PassesGate(kOffensiveState, kFireball, PROC_EX_CAST_END));
-    CHECK(!PassesGate(kOffensiveState, kStarfire, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kImpactTalent, kPolymorph, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kImpactTalent, kFireball, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kImpactTalent, kFireball, PROC_EX_CRITICAL_HIT));
+    CHECK(!PassesGate(kImpactTalent, kPolymorph, PROC_EX_MISS));
+    CHECK(!PassesGate(kImpactTalent, kPolymorph, PROC_EX_RESIST));
+    CHECK(!PassesGate(kImpactTalent, kPolymorph, PROC_EX_IMMUNE));
+    CHECK(!PassesGate(kImpactTalent, kPolymorph, PROC_EX_REFLECT));
+    CHECK(!PassesGate(kImpactTalent, kFireball, PROC_EX_CAST_END));
+    CHECK(!PassesGate(kImpactTalent, kStarfire, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_OffensiveStatesRowTakesTheEndOfAHarmfulMageCastAndNoHit)
+{
+    // The end of a harmful mage cast, whatever the cast then hits: Polymorph, Fireball, Frostbolt, Cone of Cold,
+    // Counterspell and Shattered Barrier's freeze. Never a hit, a crit, a hit that interrupted a cast, a miss, a
+    // resist, an immunity or a reflect.
+    for (ProcSpell const& spell : { kPolymorph, kFireball, kFrostbolt, kConeOfCold, kCounterspell,
+                                    kShatteredBarrierFreeze })
+    {
+        CHECK(PassesGate(kOffensiveState, spell, PROC_EX_CAST_END));
+        for (uint32 procEx : { uint32(PROC_EX_NORMAL_HIT), uint32(PROC_EX_CRITICAL_HIT),
+                               uint32(PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT), uint32(PROC_EX_MISS),
+                               uint32(PROC_EX_RESIST), uint32(PROC_EX_IMMUNE), uint32(PROC_EX_REFLECT) })
+        {
+            CHECK(!PassesGate(kOffensiveState, spell, procEx));
+        }
+    }
+
+    // With no class mask on the row, each effect then takes the hit kind through SpellMgr::HitKindAccepted, which
+    // takes the end of a cast that dealt nothing.
+    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        CHECK(!kOffensiveState.spellFamilyMask[i]);
+    }
+    CHECK(SpellMgr::HitKindAccepted(kOffensiveState.procEx, PROC_EX_CAST_END, false));
+
+    // The end of a helpful cast carries the helpful-spell flag, which the aura's own flag does not name; another
+    // class's spell is not the row's family.
+    CHECK(!Gate(kOffensiveState, kHarmfulSpellLanded, kBlink, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_CAST_END));
+    CHECK(!Gate(kOffensiveState, kHarmfulSpellLanded, kManaShield, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                PROC_EX_CAST_END));
+    CHECK(!PassesGate(kOffensiveState, kStarfire, PROC_EX_CAST_END));
+    CHECK(!PassesGate(kOffensiveState, kLightningBolt, PROC_EX_CAST_END));
+
+    // The chills and freezes cast for the mage are mage spells whose cast ends the row takes as well; Offensive
+    // State's script refuses them by id (MageScriptsTest).
+    for (ProcSpell const& spell : { kFrostArmorChill, kBlizzardChill, kBlizzardChillRankTwo, kPiercingChill,
+                                    kRingFreeze })
+    {
+        CHECK(PassesGate(kOffensiveState, spell, PROC_EX_CAST_END));
+    }
 }
 
 TEST(SpellProcEventRows_FingersOfFrostRollsAtTheHitsOfItsChillsAndNeverAtTheEndOfACast)

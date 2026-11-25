@@ -25,7 +25,8 @@
 
 /// Tests of the mage's spell scripts: the rows RegisterMageScripts registers, each file's share, the bodies that labels
 /// share, the dummy-effect labels that end the effect with no unit target, the proc hook's ids per proc script, the
-/// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles, the pairing of Arcane Missiles Aurastate
+/// refusals of the proc scripts, Offensive State's refusal of Arcane Missiles and of the chills and freezes cast for
+/// the mage, the pairing of Arcane Missiles Aurastate
 /// with Arcane Missiles! and the channel's use of the buff, Arcane Blast's buff spent only at the cast of another
 /// Arcane damage spell, Arcane Potency's buffs spent only by a spell that deals or triggers damage, one of their
 /// charges taken at the launch of Arcane Missiles and Blizzard and the hidden aura of each buff, Ignite's munching
@@ -1091,39 +1092,64 @@ TEST(MageScripts_OffensiveStateNeverRollsForArcaneMissiles)
         CHECK(!Mage::OffensiveStateRefuses(spellId));
     }
 
-    // Ice Shards' Chilled at both ranks and Piercing Chill's chill, whose hits start the procs of the auras that can
-    // proc from procs, Offensive State among them, are refused by id; Frostbolt and Cone of Cold, whose hits chill too,
-    // are not.
-    CHECK(Mage::OffensiveStateRefuses(12484));
-    CHECK(Mage::OffensiveStateRefuses(12485));
-    CHECK(Mage::OffensiveStateRefuses(83154));
-    for (uint32 spellId : { 116u, 120u })
+    // The chills and freezes the mage's auras and his ring cast for him, whose cast ends are his and harmful, are
+    // refused by id: Frost Armor's Chilled, Ice Shards' Chilled at both ranks, Piercing Chill's chill and Ring of
+    // Frost's freeze. Frostbolt and Cone of Cold, whose hits chill too, Counterspell, Shattered Barrier's freeze, the
+    // Frostfire Orb's second-rank hit and Living Bomb's explosion are not.
+    for (uint32 spellId : { 7321u, 12484u, 12485u, 83154u, 82691u })
+    {
+        CHECK(Mage::OffensiveStateRefuses(spellId));
+    }
+    for (uint32 spellId : { 116u, 120u, 2139u, 83073u, 84721u, 44461u })
     {
         CHECK(!Mage::OffensiveStateRefuses(spellId));
     }
 
-    // The proc script: at an amount of 100 the channel's cast and its missiles, and the hits of the three chills,
-    // cannot trigger it, so no charge or cooldown follows; Arcane Blast at the same amount passes the roll and goes on
-    // to the cast of the trigger spell, which the test's effect row does not name, so the proc fails there.
+    // The debuffs the mage's spells put on himself, whose cast ends are his and harmful, are refused by id: the aura
+    // each Arcane Blast stacks on him (36032) and Ice Block's Hypothermia (41425). Arcane Blast and Ice Block are not.
+    CHECK(Mage::OffensiveStateRefuses(36032));
+    CHECK(Mage::OffensiveStateRefuses(41425));
+    CHECK(!Mage::OffensiveStateRefuses(45438));
+
+    // The proc script: at an amount of 100 the channel's cast and its missiles, the three chills, the ring's freeze
+    // and the two debuffs cannot trigger it, at the end of their cast as at a hit, so no charge or cooldown follows;
+    // Arcane Blast at the same amount passes the roll and goes on to the cast of the trigger spell, which the test's
+    // effect row does not name, so the proc fails there.
     AddProcEffectRows();
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     BareCreature owner;
     HolderStorage storage;
     SpellAuraHolder& holder = EmptyHolder(storage);
-    for (uint32 spellId : { 5143u, 7268u, 12484u, 12485u, 83154u })
+    for (uint32 spellId : { 5143u, 7268u, 7321u, 12484u, 12485u, 83154u, 82691u, 36032u, 41425u })
     {
-        SpellRowStorage eventRow;
-        SpellHandlerOutcome<SpellAuraProcResult> refused =
-            Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, &SpellRow(eventRow, spellId), PROC_EX_NORMAL_HIT, 100);
-        CHECK(refused.IsReturn());
-        CHECK_EQ(int(refused.GetValue()), int(SPELL_AURA_PROC_CANT_TRIGGER));
+        for (uint32 procEx : { uint32(PROC_EX_CAST_END), uint32(PROC_EX_NORMAL_HIT) })
+        {
+            SpellRowStorage eventRow;
+            SpellHandlerOutcome<SpellAuraProcResult> refused =
+                Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, &SpellRow(eventRow, spellId), procEx, 100);
+            CHECK(refused.IsReturn());
+            CHECK_EQ(int(refused.GetValue()), int(SPELL_AURA_PROC_CANT_TRIGGER));
+        }
     }
     SpellRowStorage arcaneBlastRow;
     SpellHandlerOutcome<SpellAuraProcResult> rolled =
         Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, &SpellRow(arcaneBlastRow, 30451), PROC_EX_NORMAL_HIT, 100);
     CHECK(rolled.IsReturn());
     CHECK_EQ(int(rolled.GetValue()), int(SPELL_AURA_PROC_FAILED));
+
+    // The end of a cast reaches the proc with no damage and with the cast's unit target or none, and the script reads
+    // neither the event's hit kind nor its victim: the cast end of Arcane Blast, of Counterspell and of Shattered
+    // Barrier's freeze with no victim gets as far as the cast of the trigger spell, as Arcane Blast's hit does.
+    for (uint32 spellId : { 30451u, 2139u, 83073u })
+    {
+        SpellRowStorage eventRow;
+        SpellHandlerOutcome<SpellAuraProcResult> castEnd =
+            Proc(registry, owner, 79684, EFFECT_INDEX_0, holder, &SpellRow(eventRow, spellId), PROC_EX_CAST_END, 100,
+                 NULL, 0);
+        CHECK(castEnd.IsReturn());
+        CHECK_EQ(int(castEnd.GetValue()), int(SPELL_AURA_PROC_FAILED));
+    }
 }
 
 TEST(MageScripts_ArcaneMissilesAurastateFollowsArcaneMissilesBuff)
