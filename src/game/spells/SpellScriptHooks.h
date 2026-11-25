@@ -59,8 +59,9 @@ struct SpellEntry;
  * - EffectValue: `Spell::HandleEffects`, after the effect's value for this target is calculated. A body changes only
  *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
- *   effect; otherwise the family switches and the script library run. A body may cast and remove auras, and keep a
- *   count across the cast's effects and targets in the cast's script word.
+ *   effect; otherwise the family switches and the script library run. A body may cast, remove auras and shorten the
+ *   time a unit's aura has left (`Unit::DelaySpellAuraHolder`), and keep a count across the cast's effects and
+ *   targets in the cast's script word.
  * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
  *   cast and remove auras, and set the stacks and amounts of a holder through AuraHandle.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
@@ -87,8 +88,8 @@ struct SpellEntry;
  *   changes nothing: the owner's holders are being walked, so it must not cast, nor add or remove an aura. Its units
  *   are const.
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
- *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges
- *   and set the script words.
+ *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges,
+ *   set the script words and shorten the cooldowns in the owner's store.
  * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch: for the spell, then once for each
  *   SPELL_AURA_DUMMY aura of the caster, keyed by that aura's spell, so a talent's row changes the damage of the
  *   spells it covers. A body changes only the done multiplier. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from
@@ -112,7 +113,8 @@ struct SpellEntry;
  *   cast finishes (a delayed spell's target that turned immune or evaded in flight keeps it), other than the caster,
  *   that the caster is not friendly to (the units a player's area spell takes, neutral ones among them; never a pet
  *   or a friend); its point is the cast's destination when it carries one, else its explicit unit target's position,
- *   else the caster's. Return() is the same as Continue(): nothing after the hook depends on it. A body may cast.
+ *   else the caster's. Return() is the same as Continue(): nothing after the hook depends on it. A body may cast and
+ *   remove the caster's auras.
  * - Launch: `Spell::cast`, once per cast that goes off, only for a spell with a row: after its costs are taken and
  *   its go is sent, and, for a delayed spell, after the damage and crit of each target its hit roll let through are
  *   reckoned; before the caster's cast-end proc, and for an immediate spell before its effects. It runs whatever the
@@ -483,6 +485,13 @@ struct OnProcContext
     /// Whether the cooldown store of the unit that holds the aura holds `spellId` on cooldown now: a player's spell
     /// and category cooldowns; a unit that is not a player keeps none there.
     bool OnCooldown(uint32 spellId) const;
+    /// Takes `ms` milliseconds off the cooldown of `spellId` that runs in the store of the unit that holds the aura:
+    /// the time it has left, less `ms`, divided down to whole seconds, as the store holds every end
+    /// (SpellCooldownMgr), so a cut is taken in whole seconds, a part of a second as a whole one; a cooldown left with
+    /// less than a second ends. Nothing when the store holds no running cooldown of the spell, nor for one held while
+    /// the spell's own aura stands (the store's infinity mark, SpellCooldownMgr::infinityCooldownDelayCheck), which
+    /// starts whole when the aura goes. Only the store changes; nothing is sent to a client.
+    void ShortenCooldown(uint32 spellId, uint32 ms);
 
     Unit& caster;                                   ///< the unit that holds the aura
     Unit* victim;                                   ///< the other unit of the event; NULL when there is none

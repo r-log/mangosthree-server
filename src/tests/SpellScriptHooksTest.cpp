@@ -25,11 +25,12 @@
 
 /// Tests of the spell script hooks: their keys, a body per hook on a fresh registry, the dummy-effect context's cast
 /// target and script word, the target context's cast target, the after-hit context's search around a unit in no world,
-/// its cast through an aura the caster lacks and its Immune notice, the after-cast context's count and point, the aura
-/// handle's reads, its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to,
-/// RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and the period, tick
-/// time, duration and amount a copy keeps, the low-health multiplier a script query answers from the caster's
-/// class-script auras, and the game table, whose only hook rows are the class scripts'.
+/// its cast through an aura the caster lacks and its Immune notice, the after-cast context's count and point, the proc
+/// context's cut of a cooldown in its owner's store, the aura handle's reads, its removal of one effect, its stack
+/// count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the holder's script words, the holder
+/// copy's answer for a unit holding none and the period, tick time, duration and amount a copy keeps, the low-health
+/// multiplier a script query answers from the caster's class-script auras, and the game table, whose only hook rows
+/// are the class scripts'.
 ///
 /// The contexts are built on bare Creatures (update fields allocated; no map, template or AI) and a hand-made
 /// Spell.dbc row that is not in the spell store. A bare creature is in no world, so each context's owner check
@@ -953,6 +954,54 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK_EQ(int(s_seen.mode), int(AURA_REMOVE_BY_EXPIRE));
     CHECK_EQ(dummyAmount, 88);
     CHECK(registry.Dispatch<DummyAuraHook>(kOtherSpell, dummyRemove).IsMiss());
+}
+
+TEST(SpellScriptHooks_AProcContextShortensARunningCooldownInWholeSecondsAndLeavesAHeldOne)
+{
+    BareCreature owner;
+    HolderStorage storage;
+    SpellAuraHolder& holder = HolderFilledWith(storage, 0);
+    SpellCooldownMgr cooldowns;
+    OnProcContext ctx(owner, NULL, HookSpell(), EFFECT_INDEX_0, AuraHandle(holder), NULL, 0, 0, 0, 0, ObjectGuid(), 0,
+                      NULL, cooldowns);
+    SpellCooldowns const& stored = cooldowns.GetSpellCooldownMap();
+
+    // 45 s left, 5000 ms off: the end moves 5 s, the item kept. 12 s left, 500 ms off: a whole second.
+    time_t const longEnd = time(NULL) + 45;
+    time_t const shortEnd = time(NULL) + 12;
+    cooldowns.AddSpellCooldown(kHookSpell, 7, longEnd);
+    cooldowns.AddSpellCooldown(kOtherSpell, 0, shortEnd);
+    ctx.ShortenCooldown(kHookSpell, 5000);
+    ctx.ShortenCooldown(kOtherSpell, 500);
+    CHECK_EQ(int64(stored.at(kHookSpell).end), int64(longEnd - 5));
+    CHECK_EQ(uint32(stored.at(kHookSpell).itemid), uint32(7));
+    CHECK_EQ(int64(stored.at(kOtherSpell).end), int64(shortEnd - 1));
+
+    // Nothing off moves nothing.
+    ctx.ShortenCooldown(kHookSpell, 0);
+    CHECK_EQ(int64(stored.at(kHookSpell).end), int64(longEnd - 5));
+
+    // Less than a second left after the cut: the cooldown ends.
+    cooldowns.AddSpellCooldown(kDotSpell, 0, time(NULL) + 2);
+    ctx.ShortenCooldown(kDotSpell, 1500);
+    CHECK(stored.find(kDotSpell) == stored.end());
+    cooldowns.AddSpellCooldown(kDotSpell, 0, time(NULL) + 3);
+    ctx.ShortenCooldown(kDotSpell, 5000);
+    CHECK(stored.find(kDotSpell) == stored.end());
+
+    // A cooldown held while its spell's aura stands (the infinity mark), one that ended, and a spell with none: as
+    // they were.
+    time_t const held = time(NULL) + time_t(SpellCooldownMgr::infinityCooldownDelay);
+    time_t const ended = time(NULL) - 1;
+    cooldowns.AddSpellCooldown(kOtherDotSpell, 0, held);
+    cooldowns.AddSpellCooldown(kNotHeldSpell, 0, ended);
+    ctx.ShortenCooldown(kOtherDotSpell, 5000);
+    ctx.ShortenCooldown(kNotHeldSpell, 5000);
+    ctx.ShortenCooldown(kCopiedDotSpell, 5000);
+    CHECK_EQ(int64(stored.at(kOtherDotSpell).end), int64(held));
+    CHECK_EQ(int64(stored.at(kNotHeldSpell).end), int64(ended));
+    CHECK(stored.find(kCopiedDotSpell) == stored.end());
+    CHECK_EQ(stored.size(), std::size_t(4));
 }
 
 TEST(SpellScriptHooks_TheAuraHandleReadsTheHoldersFields)

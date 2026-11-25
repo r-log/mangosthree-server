@@ -234,3 +234,23 @@ bool OnProcContext::OnCooldown(uint32 spellId) const
 {
     return m_cooldowns.HasSpellCooldown(spellId, time(NULL));
 }
+
+void OnProcContext::ShortenCooldown(uint32 spellId, uint32 ms)
+{
+    time_t const now = time(NULL);
+    SpellCooldowns const& cooldowns = m_cooldowns.GetSpellCooldownMap();
+    SpellCooldowns::const_iterator itr = cooldowns.find(spellId);
+    if (itr == cooldowns.end() || itr->second.end <= now ||
+        itr->second.end - now > time_t(SpellCooldownMgr::infinityCooldownDelayCheck))
+    {
+        return;
+    }
+    uint32 const itemId = itr->second.itemid;
+    int64 const leftMs = int64(itr->second.end - now) * IN_MILLISECONDS - int64(ms);
+    if (leftMs < int64(IN_MILLISECONDS))
+    {
+        m_cooldowns.RemoveSpellCooldown(spellId, false, SpellCooldownMgr::ClearSink());
+        return;
+    }
+    m_cooldowns.AddSpellCooldown(spellId, itemId, now + time_t(leftMs / IN_MILLISECONDS));
+}
