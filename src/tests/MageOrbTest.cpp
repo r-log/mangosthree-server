@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the mage's orbs (spells/classes/mage/Orb.cpp): their table rows, the creatures they name, the hit each
+/// Tests of the mage's orbs (spells/classes/mage/fire/Orb.cpp): their table rows, the creatures they name, the hit each
 /// casts for its owner, the cadence of their hits in scans, when an orb's end is due, when its owner may have it act,
 /// the chance of its explosion, the cost share its hits refund through Master of Elements, the units an orb owned by
 /// its mage takes, the enemy its scan keeps, their rows at the dummy-effect and target hooks with their creature AI's

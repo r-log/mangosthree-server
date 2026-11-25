@@ -39,32 +39,20 @@
  * @file Mage.h
  * @brief The mage's spell scripts, registered by spell id in the spell handler registry.
  *
- * Mage.cpp holds the class-wide bodies, the mage sites' defaults, ProcEffectIs, CastProcSpell, EffectTriggerSpell and
- * CastProcTriggerSpell, which the proc scripts of all four files share, and SuppressesArcaneMissiles; Fire.cpp,
- * Frost.cpp and Arcane.cpp hold the bodies of the three specializations, and Fire.cpp also Hot Streak's leaves
- * (CountCritInARow, HotStreakChance, HotStreakStep and PushingTheLimitOnRemove), Pyromaniac's (PyromaniacCounts,
- * PyromaniacBurns, PyromaniacActive, PyromaniacTargets and PyromaniacHaste), Combustion's (CombustionTick), Living
- * Bomb's (LivingBombExplodes), Impact's (ImpactSpreads), Mage Ward's (MageWardTriggersBlazingSpeed), Improved
- * Flamestrike's (ImprovedFlamestrikeChance), the shares' (ShareBase), Ignite's (IgniteMunches and IgniteMunchedTick)
- * and Glyph of Frostfire's (FrostfireGlyphTick); Frost.cpp also the frozen query's (CountsAsFrozen, UsesFingers,
- * ShatterFactor, ShatterCritChance, ShatterCovers and FrostburnCovers), Fingers of Frost's (RefusesChillSource,
- * UseFingersCharge, GiveFingers and IceLanceMultiplier), Improved Freeze's (ImprovedFreezeChance and
- * ImprovedFreezeCharges), Brain Freeze's (UsesBrainFreeze), Early Frost's (EarlyFrostLockout), Piercing Chill's
- * (PiercingChillCount and Nearest), Permafrost's (PermafrostHeal), Improved Cone of Cold's
- * (ImprovedConeOfColdFreeze), Ice Shards' (IceShardsChill), Shattered Barrier's (ShatteredBarrierFreeze), Glyph of Ice
- * Barrier's (GlyphedBarrierAmount), Reactive Barrier's (ReactiveBarrierTriggers) and Cold Snap's (ColdSnapResets).
- * Orb.cpp holds the orbs a mage's Flame Orb and Frostfire Orb summon: their creature AI, their scripts and their leaves
- * (OrbSpellsFor, IsOrbCreature, OrbHitSpellFor, ClosestOrbTarget, KeepClosestOrbTarget, OrbCadenceFor, OrbHitDue,
- * OrbLookAhead, OrbClimbTo, OrbEndDue, OrbOwnerActs, OrbExplosionChance and OrbCostShare). Ring.cpp holds the ring a
- * mage's Ring of Frost summons: its creature AI, its scripts and its leaves (RingSpellsFor, IsRingCreature, RingInBand,
- * RingFormingMs, RingFormed, RingOuterRadius, RingTakeFor and RingMarkerOnRemove). Images.cpp holds the images a mage's
- * Mirror Image summons: their creature AI, Mirror Image's, Clone Me!'s and Initialize Images' scripts and their leaves
- * (ImageRowFor, IsOwnImage, ImageSummonSpell, HoldsGlyph, ImageBonusDamage, ImageSpellToCast, ImageMayStrike,
- * ImageStopsCast and ImageTarget). Each file registers its rows through one function of namespace Mage: a table per
- * legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook. Every .cpp under the folder but Mage.cpp is
- * a mechanic file, <Mechanic>.cpp, whose function is Mage::Register<Mechanic>: src/game/CMakeLists.txt lists them at
- * configure time, in file-name order (ScriptFiles), and RegisterMageScripts calls each of them after the class-wide
- * rows, so a new mechanic file needs no line in any other file.
+ * Mage.cpp holds the class-wide bodies: the rows of the spells that no mage skill line teaches (Polymorph Cast Visual
+ * 32826, Blink 38194, the Scarab Brooch's Persistent Shield 26467 and Blessing of Ancient Kings 64411), the mage sites'
+ * defaults, and ProcEffectIs, CastProcSpell, EffectTriggerSpell and CastProcTriggerSpell, which the proc scripts of
+ * every file share. Every other .cpp under the folder is a mechanic file in a spec folder, arcane/, fire/ or frost/:
+ * the talent tree a talent sits in, the skill line a baseline spell is taught by (Talent.dbc and TalentTab.dbc,
+ * SkillLineAbility.dbc and SkillLine.dbc). <Mechanic>.cpp, its name unique within the class, holds one mechanic's
+ * bodies and the leaves declared here that say they are defined in it, and registers its rows through
+ * Mage::Register<Mechanic>: a table per legacy site of SpellHandlerRegistry.h, and RegisterRanks per script hook.
+ * src/game/CMakeLists.txt lists the mechanic files at configure time, in file-name order (ScriptFiles), and
+ * RegisterMageScripts calls each of them after the class-wide rows, so a new mechanic file needs no line in any other
+ * file. What two files of a spec folder share is declared in its folder header (arcane/ArcaneShared.h,
+ * fire/FireShared.h, frost/FrostShared.h). Three mechanic files hold a summoned creature's AI besides its scripts:
+ * fire/Orb.cpp the orbs a mage's Flame Orb and Frostfire Orb summon, frost/Ring.cpp the ring his Ring of Frost summons,
+ * and arcane/Images.cpp the images his Mirror Image summons.
  */
 
 /// Registers every mage row: the class-wide bodies (Mage::RegisterClassWide), then those of each mechanic file, in
@@ -97,12 +85,6 @@ namespace Mage
     /// Registers the class-wide rows and the defaults of the mage trigger-spell, periodic dummy tick and boost sites.
     /// Returns the rows and defaults registered.
     uint32 RegisterClassWide(SpellHandlerRegistry& registry);
-    /// Registers the Fire specialization's rows. Returns the rows registered.
-    uint32 RegisterFire(SpellHandlerRegistry& registry);
-    /// Registers the Frost specialization's rows. Returns the rows registered.
-    uint32 RegisterFrost(SpellHandlerRegistry& registry);
-    /// Registers the Arcane specialization's rows. Returns the rows registered.
-    uint32 RegisterArcane(SpellHandlerRegistry& registry);
     /// Registers the orb's scripts and its creature AI, whose factory is added to the creature AI registry once.
     /// Returns the rows registered.
     uint32 RegisterOrb(SpellHandlerRegistry& registry);
@@ -341,21 +323,22 @@ namespace Mage
     bool ProcEffectIs(OnProcContext const& ctx, uint32 auraType);
 
     /// Counts a hit into `crits`, the crits in a row so far: a crit adds one, any other hit sets it to 0. True, with
-    /// `crits` set back to 0, when the hit is the second crit in a row. Hot Streak's count; defined in Fire.cpp.
+    /// `crits` set back to 0, when the hit is the second crit in a row. Hot Streak's count; defined in HotStreak.cpp.
     bool CountCritInARow(int32& crits, bool crit);
 
     /// Hot Streak's chance, in percent, that one eligible crit makes the next Pyroblast instant, from the caster's sheet
     /// spell crit chance in percent: 95 less 2.73 times that chance, never below 0; a sheet chance below 0 counts as 0.
-    /// Defined in Fire.cpp.
+    /// Defined in HotStreak.cpp.
     float HotStreakChance(float sheetCritPercent);
 
     /// One eligible hit against the streak count `crits`: a non-crit clears it and answers false; a crit whose base roll
     /// passed clears it and answers true; otherwise the crit counts, and the second in a row clears the count and
-    /// answers whether Improved Hot Streak's roll passed. Defined in Fire.cpp.
+    /// answers whether Improved Hot Streak's roll passed. Defined in HotStreak.cpp.
     bool HotStreakStep(int32& crits, bool crit, bool baseRollPassed, bool improvedRollPassed);
 
-    /// Whether Hot Streak's buff, removed in `mode`, gives Pushing the Limit: only when the buff is used up (the default
-    /// mode, in which casting Pyroblast! removes it) and its caster holds Item - Mage T10 2P Bonus. Defined in Fire.cpp.
+    /// Whether Hot Streak's buff, removed in `mode`, gives Pushing the Limit: only when the buff is used up (the
+    /// default mode, in which casting Pyroblast! removes it) and its caster holds Item - Mage T10 2P Bonus. Defined in
+    /// HotStreak.cpp.
     bool PushingTheLimitOnRemove(AuraRemoveMode mode, bool casterHasT10TwoPiece);
 
     /// One DoT's part of Combustion: its tick, its period, the bonus the caster takes on it at the target's low
@@ -373,37 +356,39 @@ namespace Mage
     /// `lowHealthMultiplier` and divided by its `heldMastery`), plus Ignite's share when `ignite` is given, which holds
     /// no mastery and takes no low-health multiplier.
     /// Truncated to an integer once, after the sum. A share with a period of 0 adds nothing, and a sum below 0 is 0.
-    /// Defined in Fire.cpp.
+    /// Defined in Combustion.cpp.
     int32 CombustionTick(DotShare const* shares, size_t count, DotShare const* ignite);
 
     /// Whether a holder of `spellId` is periodic Fire damage that counts its target for Pyromaniac: Pyroblast (11366,
     /// 92315), Living Bomb (44457), Ignite (12654), Combustion (83853), Flamestrike (2120) and Frostfire Bolt (44614).
-    /// Defined in Fire.cpp.
+    /// Defined in Pyromaniac.cpp.
     bool PyromaniacCounts(uint32 spellId);
 
     /// Whether a holder of `spellId` on an enemy makes it burn for Pyromaniac, given whether the holder holds a
     /// periodic damage effect: a DoT PyromaniacCounts names, but Frostfire Bolt (44614) only with its periodic damage,
-    /// which Glyph of Frostfire keeps and which the bolt loses without the glyph. Defined in Fire.cpp.
+    /// which Glyph of Frostfire keeps and which the bolt loses without the glyph. Defined in Pyromaniac.cpp.
     bool PyromaniacBurns(uint32 spellId, bool holdsPeriodicDamage);
 
-    /// Whether Pyromaniac's haste is up for `targets` burning enemies: three or more. Defined in Fire.cpp.
+    /// Whether Pyromaniac's haste is up for `targets` burning enemies: three or more. Defined in Pyromaniac.cpp.
     bool PyromaniacActive(uint32 targets);
 
     /// The enemies that hold one or more of `mage`'s holders that make them burn (PyromaniacBurns) and still have time
-    /// left: the units whose threat list holds the mage, alive and on his map, each counted once. Defined in Fire.cpp.
+    /// left: the units whose threat list holds the mage, alive and on his map, each counted once. Defined in
+    /// Pyromaniac.cpp.
     uint32 PyromaniacTargets(Unit& mage);
 
     /// The haste Pyromaniac gives a mage who knows `talentSpell` (34293 or 34295): that spell's effect 0 value; 0 for
-    /// any other spell, or when the spell store lacks it. Defined in Fire.cpp.
+    /// any other spell, or when the spell store lacks it. Defined in Pyromaniac.cpp.
     int32 PyromaniacHaste(uint32 talentSpell);
 
     /// The percent of the mage's threat one tick of Invisibility's fade (66) takes from every enemy's list, as
-    /// HostileRefManager::addThreatPercent takes it: -10 for 66; 0 for any other spell. Defined in Mage.cpp.
+    /// HostileRefManager::addThreatPercent takes it: -10 for 66; 0 for any other spell. Defined in Invisibility.cpp.
     int32 InvisibilityThreatPercent(uint32 spellId);
 
     /// The speed Invisibility (32612) gives the mage it holds, read from `invisibility`, its holder: Invisibility Speed
     /// (87833) when the holder's third effect (SEE_WHILE_INVISIBLE, 0 in the client's data, which Glyph of
-    /// Invisibility's SPELLMOD_EFFECT3 raises to 40) holds an amount above 0; 0, none, otherwise. Defined in Mage.cpp.
+    /// Invisibility's SPELLMOD_EFFECT3 raises to 40) holds an amount above 0; 0, none, otherwise. Defined in
+    /// Invisibility.cpp.
     uint32 InvisibilitySpeedFor(AuraHandle const& invisibility);
 
     /// Whether Offensive State (79684) refuses to roll for an event of `procSpellId`: Arcane Missiles (5143) and its
@@ -411,17 +396,17 @@ namespace Mage
     /// mage's auras and his ring cast for him, whose cast ends are his and harmful: Frost Armor's Chilled (7321), Ice
     /// Shards' Chilled (12484, 12485), Piercing Chill's chill (83154) and Ring of Frost's freeze (82691); and the
     /// debuffs his spells put on himself, whose cast ends are his and harmful too: Arcane Blast's buff (36032) and Ice
-    /// Block's Hypothermia (41425). Defined in Mage.cpp.
+    /// Block's Hypothermia (41425). Defined in OffensiveState.cpp.
     bool OffensiveStateRefuses(uint32 procSpellId);
 
     /// Whether a mage's talents stop Arcane Missiles! (79683) from coming: he holds Hot Streak (44445) or a rank of
     /// Brain Freeze (44546, 44548, 44549), whose texts say "Your spells no longer trigger Arcane Missiles". Defined in
-    /// Mage.cpp.
+    /// OffensiveState.cpp.
     bool SuppressesArcaneMissiles(Unit const& mage);
 
     /// The Ritual of Refreshment rank a caster of `level` casts: 92827 (the Conjured Mana Cake table) from 85, 92824
     /// (the Strudel table) from 80, 74650 (the Biscuit table) below, the levels the tables' food asks for. Defined in
-    /// Mage.cpp.
+    /// RitualOfRefreshment.cpp.
     uint32 RitualOfRefreshmentRank(uint32 level);
 
     /// What keeps Arcane Missiles Aurastate (79808), the aura Arcane Missiles (5143) asks for on its caster, on a mage
@@ -435,16 +420,17 @@ namespace Mage
 
     /// The step that pairs the aurastate with the buff, from whether the mage holds Arcane Missiles! and the
     /// aurastate: AURASTATE_APPLY with the buff and without the aurastate, AURASTATE_REMOVE with the aurastate and
-    /// without the buff, AURASTATE_KEEP otherwise. Defined in Arcane.cpp.
+    /// without the buff, AURASTATE_KEEP otherwise. Defined in ArcaneMissiles.cpp.
     AurastateStep ArcaneMissilesAurastateStep(bool holdsBuff, bool holdsAurastate);
 
     /// Whether an event ends Arcane Blast's buff (36032) on the mage: the end of a cast (`castEnd`) of his own, not a
     /// triggered one (`ownCast`), of a spell whose school mask `schoolMask` holds Arcane and that deals damage
-    /// (`dealsDamage`), other than Arcane Blast (30451) and Arcane Explosion (1449). Defined in Arcane.cpp.
+    /// (`dealsDamage`), other than Arcane Blast (30451) and Arcane Explosion (1449). Defined in ArcaneBlast.cpp.
     bool ArcaneBlastBuffEnds(uint32 spellId, uint32 schoolMask, bool dealsDamage, bool castEnd, bool ownCast);
 
     /// Whether `spell` deals damage (Spells::DealsDamage), or a spell one of its effects names as its trigger spell
-    /// does, as Arcane Missiles' missile (7268) does for the channel (5143); one level down. Defined in Arcane.cpp.
+    /// does, as Arcane Missiles' missile (7268) does for the channel (5143); one level down. Defined in
+    /// ArcaneBlast.cpp.
     bool DealsOrTriggersDamage(SpellEntry const& spell);
 
     /// Takes one charge of Arcane Potency's buff off `mage`, of the second rank's buff (57531) when he holds it with a
@@ -459,95 +445,95 @@ namespace Mage
     /// SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_RANGED, SPELL_AURA_MOD_MELEE_ATTACK_SPEED and
     /// SPELL_AURA_MOD_RANGED_ATTACK_SPEED), of a cast-speed aura (SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK and
     /// SPELL_AURA_HASTE_SPELLS) or of an aura of all speeds (SPELL_AURA_HASTE_ALL and SPELL_AURA_SLOW_ALL). Defined in
-    /// Arcane.cpp.
+    /// TormentTheWeak.cpp.
     bool CountsAsSlow(uint32 auraType, int32 amount);
 
     /// Whether `unit` holds an aura that CountsAsSlow: the most negative amount of each of those aura types on it.
-    /// Defined in Arcane.cpp.
+    /// Defined in TormentTheWeak.cpp.
     bool IsSnaredOrSlowed(Unit const& unit);
 
     /// Torment the Weak's multiplier on the damage of a spell of family `spellFamily` and school mask `schoolMask`:
     /// 1 + `percent` / 100 for a mage spell whose school mask holds Arcane at a target that is snared or slowed
-    /// (`targetSlowed`), 1 otherwise or for a percent of 0 or less. Defined in Arcane.cpp.
+    /// (`targetSlowed`), 1 otherwise or for a percent of 0 or less. Defined in TormentTheWeak.cpp.
     float TormentTheWeakMultiplier(int32 percent, uint32 spellFamily, uint32 schoolMask, bool targetSlowed);
 
     /// Whether `mage` has his Slow (31589) on a unit: the single-target aura he tracks (Slow affects one target at a
-    /// time). Defined in Arcane.cpp.
+    /// time). Defined in NetherVortex.cpp.
     bool HasSlowOut(Unit const& mage);
 
     /// Whether Nether Vortex casts Slow (31589) for an event: a hit, normal or critical (`procEx`), of Arcane Blast
     /// (30451, `procSpellId`) that dealt damage (`damage` above 0), while none of the mage's Slow is on any unit
-    /// (`slowOut` false). Defined in Arcane.cpp.
+    /// (`slowOut` false). Defined in NetherVortex.cpp.
     bool NetherVortexSlows(uint32 procSpellId, uint32 procEx, uint32 damage, bool slowOut);
 
     /// Whether Invocation gives its buff for an event: a hit of the mage's Counterspell (2139, `procSpellId`) that
     /// interrupted a spell its target was casting or channelling (SpellMgr::InterruptedACast of `procEx`). Defined in
-    /// Arcane.cpp.
+    /// Invocation.cpp.
     bool InvocationGrants(uint32 procSpellId, uint32 procEx);
 
     /// The stun Improved Polymorph puts on the target of a mage's Polymorph removed in `mode`: the second rank's
     /// (83047, 3 s) for a caster who knows that rank (`knowsRankTwo`), else the first rank's (83046, 1.5 s) for one who
     /// knows that (`knowsRankOne`); 0 unless damage broke the Polymorph (AURA_REMOVE_BY_DAMAGE), 0 for a caster who
     /// knows neither, and 0 while the target holds Improved Polymorph Marker (87515, `targetMarked`). Defined in
-    /// Arcane.cpp.
+    /// Polymorph.cpp.
     uint32 ImprovedPolymorphStun(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo, bool targetMarked);
 
     /// Whether Glyph of Polymorph takes an aura of `auraType` off the target a mage's Polymorph lands on: only when the
     /// Polymorph's caster holds the glyph (`casterHoldsGlyph`), and only a damage over time aura, whoever cast it:
     /// SPELL_AURA_PERIODIC_DAMAGE, SPELL_AURA_PERIODIC_LEECH or SPELL_AURA_PERIODIC_DAMAGE_PERCENT. Defined in
-    /// Arcane.cpp.
+    /// Polymorph.cpp.
     bool GlyphOfPolymorphRemoves(uint32 auraType, bool casterHoldsGlyph);
 
     /// Whether a mage whose Mana Shield is removed in `mode` knocks back the enemies around him for Incanter's
     /// Absorption: only when damage used up the shield's last point (AURA_REMOVE_BY_SHIELD_BREAK) and he knows a rank
     /// of the talent (`knowsTalent`); never for a shield that is cancelled, runs out or is dispelled. Defined in
-    /// Arcane.cpp.
+    /// ManaShield.cpp.
     bool IncantersAbsorptionKnocksBack(AuraRemoveMode mode, bool knowsTalent);
 
     /// The amount of each of Improved Mana Gem's two effects for one use of the Mana Gem: `percent` percent of
-    /// `maxMana`, truncated; 0 for a percent of 0 or less. Defined in Arcane.cpp.
+    /// `maxMana`, truncated; 0 for a percent of 0 or less. Defined in ImprovedManaGem.cpp.
     int32 ImprovedManaGemAmount(uint32 maxMana, int32 percent);
 
     /// Whether `itemEntry` is a mage's Mana Gem, the only item whose Replenish Mana (5405) gives Improved Mana Gem's
     /// buff: the Mana Gem (36799) and the older conjured gems that share its cooldown category (Mana Agate 5514, Mana
     /// Jade 5513, Mana Citrine 8007, Mana Ruby 8008, Mana Emerald 22044, Mana Sapphire 33312); never Energy Cloak
-    /// (9397), the other item that casts 5405, and never 0, a cast from no item. Defined in Arcane.cpp.
+    /// (9397), the other item that casts 5405, and never 0, a cast from no item. Defined in ImprovedManaGem.cpp.
     bool IsManaGem(uint32 itemEntry);
 
     /// Whether Impact spreads a holder of `spellId`, counting Living Bombs in `bombsSpread`: Pyroblast (11366, 92315),
     /// Ignite (12654) and Combustion (83853) always; Living Bomb (44457) while fewer than two have been spread, adding
-    /// one to `bombsSpread` when it answers true for it. Defined in Fire.cpp.
+    /// one to `bombsSpread` when it answers true for it. Defined in Impact.cpp.
     bool ImpactSpreads(uint32 spellId, int32& bombsSpread);
 
     /// Whether a Living Bomb whose dummy aura is un-applied for `mode` explodes: only when the aura ran out
-    /// (AURA_REMOVE_BY_EXPIRE). Defined in Fire.cpp.
+    /// (AURA_REMOVE_BY_EXPIRE). Defined in LivingBomb.cpp.
     bool LivingBombExplodes(AuraRemoveMode mode);
 
     /// Whether a Mage Ward removed in `mode` brings Blazing Speed: only when damage used up its last point
-    /// (AURA_REMOVE_BY_SHIELD_BREAK) and its caster knows Molten Shields. Defined in Fire.cpp.
+    /// (AURA_REMOVE_BY_SHIELD_BREAK) and its caster knows Molten Shields. Defined in MageWard.cpp.
     bool MageWardTriggersBlazingSpeed(AuraRemoveMode mode, bool casterKnowsMoltenShields);
 
     /// The chance, in percent, that a Blast Wave of a mage who knows `talentSpell` (Improved Flamestrike, 84673 or
     /// 84674) calls the free Flamestrike: that spell's effect 0 value; 0 for any other spell, or when the spell store
-    /// lacks it. Defined in Fire.cpp.
+    /// lacks it. Defined in BlastWave.cpp.
     int32 ImprovedFlamestrikeChance(uint32 talentSpell);
 
     /// The hit a share of Ignite or Glyph of Frostfire is taken from: `dealt` over `multiplier`, the factors the hit took
     /// that each tick of the share takes again (the victim's damage-taken effects, Spells::DamageTakenMultiplier, and the
     /// caster's bonus at the target's low health, Spells::LowHealthDamageMultiplier), rounded to the nearest; `dealt`
-    /// as it is for a multiplier of 0 or below. Defined in Fire.cpp.
+    /// as it is for a multiplier of 0 or below. Defined in Ignite.cpp.
     uint32 ShareBase(uint32 dealt, float multiplier);
 
     /// Whether an Ignite crit in the server update `now` replaces the share of an earlier crit instead of adding to it:
     /// the victim's Ignite took its last share in that same update (`bankUpdate`, the update GameTime::GetGameTimeMS
     /// read then) and has not ticked since (`ticksLeft` is still the `bankTicks` it had then). Never for an Ignite no
-    /// crit banked in (`bankTicks` 0). Defined in Fire.cpp.
+    /// crit banked in (`bankTicks` 0). Defined in Ignite.cpp.
     bool IgniteMunches(uint32 bankUpdate, uint32 bankTicks, uint32 now, uint32 ticksLeft);
 
     /// The tick, before its caster's bonus, an Ignite whose share is replaced takes before the later crit's Ignite
     /// rolls it over: `leftover`, the damage the Ignite before that share had left, over the `ticksLeft` it has,
     /// truncated; 0 when it has no tick left. The later Ignite then carries that leftover and not the replaced share.
-    /// Defined in Fire.cpp.
+    /// Defined in Ignite.cpp.
     int32 IgniteMunchedTick(int32 leftover, uint32 ticksLeft);
 
     /// The tick of the Frostfire Bolt DoT under Glyph of Frostfire: `stacks` times the share of one bolt's hit
@@ -567,7 +553,7 @@ namespace Mage
     /// for damage of `damageType`: REALLY_FROZEN when the target holds the frozen aura state; else, for a hit, FINGERS
     /// for a spell that uses a Fingers of Frost charge (UsesFingers); else NOT_FROZEN, and always NOT_FROZEN for a
     /// periodic effect (DOT) at a target that is not frozen. Deep Freeze's damage (71757) counts the target by its
-    /// own state alone. Defined in Frost.cpp.
+    /// own state alone. Defined in Shatter.cpp.
     FrozenKind CountsAsFrozen(Unit const& caster, Unit const& target, SpellEntry const& spell,
                               DamageEffectType damageType, uint32 castTime);
 
@@ -575,54 +561,55 @@ namespace Mage
     /// charge: the caster holds Fingers of Frost (44544) and the spell is Ice Lance (30455), Deep Freeze (44572), or a
     /// Frostfire Bolt (44614) that uses Brain Freeze's buff (UsesBrainFreeze: it went off as it started while he held
     /// the buff). A bolt cast in full uses no charge, under a buff that came during the cast too. The target's state
-    /// plays no part. Defined in Frost.cpp.
+    /// plays no part. Defined in FingersOfFrost.cpp.
     bool UsesFingers(Unit const& caster, SpellEntry const& spell, uint32 castTime);
 
     /// Whether `spell`, cast by `caster` with the cast time `castTime` its timer started at, uses Brain Freeze's buff
     /// (57761): a Fireball (133) or a Frostfire Bolt (44614) that went off as it started (`castTime` 0) while the
     /// caster holds the buff, so the buff made it instant. A cast that took its time keeps the buff, one that came
-    /// during the cast too. Defined in Frost.cpp.
+    /// during the cast too. Defined in BrainFreeze.cpp.
     bool UsesBrainFreeze(Unit const& caster, SpellEntry const& spell, uint32 castTime);
 
     /// Whether Fingers of Frost and Brain Freeze refuse a proc of `procSpellId` although its class bit passes the
     /// talents' rows, Fingers of Frost's at the spell's hit and Brain Freeze's at the end of its cast: Frost Armor's
-    /// Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in Frost.cpp.
+    /// Chilled (7321) and the Frostfire Orb's first-rank hit (95969). Defined in FingersOfFrost.cpp.
     bool RefusesChillSource(uint32 procSpellId);
 
     /// Takes one charge of Fingers of Frost off `mage`: one stack fewer, the buff removed at none. Answers whether he
-    /// held the buff. Defined in Frost.cpp.
+    /// held the buff. Defined in FingersOfFrost.cpp.
     bool UseFingersCharge(Unit& mage);
 
     /// Gives `mage` `charges` charges of Fingers of Frost: one triggered cast of the buff (44544) at himself per
-    /// charge, each a stack, up to the buff's two. Defined in Frost.cpp.
+    /// charge, each a stack, up to the buff's two. Defined in FingersOfFrost.cpp.
     void GiveFingers(Unit& mage, uint32 charges);
 
     /// The chance, in percent, that a Water Elemental's Freeze grants its mage Fingers of Frost for a mage who knows
     /// `talentSpell` (Improved Freeze, 86259, 86260 or 86314): that spell's effect 0 value (33, 66, 100); 0 for any
-    /// other spell, or when the spell store lacks it. Defined in Frost.cpp.
+    /// other spell, or when the spell store lacks it. Defined in ImprovedFreeze.cpp.
     int32 ImprovedFreezeChance(uint32 talentSpell);
 
     /// The Fingers of Frost charges one cast of a Water Elemental's Freeze grants its mage at Improved Freeze's
     /// `chance`: two when the cast hit one or more enemies (`enemiesHit`) and `roll`, asked once for the whole cast
     /// with `chance`, passes; none otherwise. `roll` is not asked for a cast that hit no enemy or a chance of 0 or
-    /// less. Defined in Frost.cpp.
+    /// less. Defined in ImprovedFreeze.cpp.
     uint32 ImprovedFreezeCharges(uint32 enemiesHit, int32 chance, std::function<bool(int32)> const& roll);
 
     /// Ice Lance's done multiplier: its effect-1 percent `doubledPercent` (100: double damage) at a target it counts as
-    /// frozen, times `fingersPercent` more when it uses a Fingers of Frost charge; 1 for neither. Defined in Frost.cpp.
+    /// frozen, times `fingersPercent` more when it uses a Fingers of Frost charge; 1 for neither. Defined in
+    /// FingersOfFrost.cpp.
     float IceLanceMultiplier(bool countsAsFrozen, bool fingersUp, int32 doubledPercent, int32 fingersPercent);
 
     /// Shatter's factor on the crit chance of a spell that counts its target as frozen: 3 for a caster who knows the
-    /// second rank, 2 for the first, 1 for neither. Defined in Frost.cpp.
+    /// second rank, 2 for the first, 1 for neither. Defined in Shatter.cpp.
     float ShatterFactor(bool knowsRankOne, bool knowsRankTwo);
 
     /// The crit chance a hook leaves so that the engine, which then adds the spell's flat crit-chance modifiers
     /// `flatMods`, ends at `factor` times the chance with them: (chance + flatMods) * factor - flatMods. Defined in
-    /// Frost.cpp.
+    /// Shatter.cpp.
     float ShatterCritChance(float chance, float factor, float flatMods);
 
     /// Whether `spellId` is a mage spell Shatter's class mask covers: the ones that take its crit factor. Defined in
-    /// Frost.cpp.
+    /// Shatter.cpp.
     bool ShatterCovers(uint32 spellId);
 
     /// Whether `spellId` is a mage spell Frostburn's class mask covers: the ones that take its mastery bonus. Defined
@@ -631,49 +618,49 @@ namespace Mage
 
     /// The Early Frost lockout a Frostbolt cast starts for its caster: 83239 for a mage who knows the second rank
     /// (83050, `knowsRankTwo`), else 83162 for one who knows the first (83049, `knowsRankOne`); 0 for a mage who knows
-    /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frost.cpp.
+    /// neither, and 0 while he holds a lockout (`lockoutUp`). Defined in Frostbolt.cpp.
     uint32 EarlyFrostLockout(bool knowsRankOne, bool knowsRankTwo, bool lockoutUp);
     /// How many units the chill of a Frostbolt crit chills, for a mage who knows `talentSpell` (Piercing Chill, 83156
     /// or 83157): the Frostbolt's target among them, or, when the crit killed it, that many others nearest where it
     /// lies. That spell's effect 0 value in the spell store (1 or 2); 0 for any other spell, or when the store lacks
-    /// it. Defined in Frost.cpp.
+    /// it. Defined in PiercingChill.cpp.
     int32 PiercingChillCount(uint32 talentSpell);
 
     /// Keeps in `targets` the `count` units nearest `from`, nearest first, each once; empties it for a count of 0 or
-    /// less. Defined in Frost.cpp.
+    /// less. Defined in PiercingChill.cpp.
     void Nearest(std::list<Unit*>& targets, WorldObject const& from, int32 count);
 
     /// The heal Permafrost gives the pet from a hit of `damage` at `percent`: damage * percent / 100, truncated; 0 for
-    /// a percent of 0 or below. Defined in Frost.cpp.
+    /// a percent of 0 or below. Defined in Permafrost.cpp.
     int32 PermafrostHeal(uint32 damage, int32 percent);
 
     /// The freeze a Cone of Cold hit puts on its target for a mage who knows `talentSpell` (Improved Cone of Cold):
-    /// 83301 (2 s) for 11190, 83302 (4 s) for 12489, 0 for any other spell. Defined in Frost.cpp.
+    /// 83301 (2 s) for 11190, 83302 (4 s) for 12489, 0 for any other spell. Defined in ConeOfCold.cpp.
     uint32 ImprovedConeOfColdFreeze(uint32 talentSpell);
 
     /// The chill a Blizzard hit puts on its target for a mage who knows `talentSpell` (Ice Shards): 12484 (-25%,
-    /// 2 s) for 11185, 12485 (-40%, 2 s) for 12487, 0 for any other spell. Defined in Frost.cpp.
+    /// 2 s) for 11185, 12485 (-40%, 2 s) for 12487, 0 for any other spell. Defined in Blizzard.cpp.
     uint32 IceShardsChill(uint32 talentSpell);
 
     /// The freeze an Ice Barrier removed in `mode` casts for a mage who knows Shattered Barrier: 83073 (4 s) for the
     /// second rank (54787, `knowsRankTwo`), else 55080 (2 s) for the first (44745, `knowsRankOne`); 0 unless damage
     /// used up the barrier's last point (AURA_REMOVE_BY_SHIELD_BREAK), and 0 for a mage who knows neither. Defined in
-    /// Frost.cpp.
+    /// IceBarrier.cpp.
     uint32 ShatteredBarrierFreeze(AuraRemoveMode mode, bool knowsRankOne, bool knowsRankTwo);
 
     /// Ice Barrier's absorb with Glyph of Ice Barrier: `amount`, the whole absorb with its spell power part, plus
-    /// `percent` of it, truncated; `amount` as it is for a percent of 0 or less. Defined in Frost.cpp.
+    /// `percent` of it, truncated; `amount` as it is for a percent of 0 or less. Defined in IceBarrier.cpp.
     int32 GlyphedBarrierAmount(int32 amount, int32 percent);
 
     /// Whether a hit of `damage` on a unit at `health` of `maxHealth` is one Reactive Barrier answers: it leaves the
     /// unit alive and below half its maximum health, whatever its health before the hit. A hit of 0 (one an absorb took
     /// whole) answers while the unit is below half; a hit of `health` or more (a killing blow) never does. Defined in
-    /// Frost.cpp.
+    /// ReactiveBarrier.cpp.
     bool ReactiveBarrierTriggers(uint32 health, uint32 maxHealth, uint32 damage);
 
     /// Whether Cold Snap (11958) makes ready a spell on its caster's cooldown, from the spell's id, family, school
     /// mask and recovery time in ms: a mage spell with a recovery time, other than Cold Snap, whose school mask holds
-    /// Frost, or the Frostfire Orb (92283), whose own school is Fire. Defined in Frost.cpp.
+    /// Frost, or the Frostfire Orb (92283), whose own school is Fire. Defined in ColdSnap.cpp.
     bool ColdSnapResets(uint32 spellId, uint32 family, uint32 schoolMask, uint32 recoveryMs);
 
     /// The end of a proc that casts `spellId` at `to`, as Unit::HandleDummyAuraProc ends: FAILED, and an error line,
