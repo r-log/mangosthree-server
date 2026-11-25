@@ -19924,9 +19924,11 @@ namespace Harness
      * Counterspell (11255, rank 1 of 2, an Arcane talent that touches none of these spells), so the stage learns the
      * Arcane tree's spells; Ritual of Refreshment learned through Player::learnSpell, as the stage learns its spells.
      * One step: Ritual of Refreshment cast by him at himself, triggered, read kReadMs after it and kEndMs before the
-     * end; a triggered cast takes no reagent (two Arcane Powder), mana or cooldown, which neither the dummy nor a rank
-     * reads. At the read the scenario keeps how many of each portal stand within kPortalRange yards of him, the spell
-     * in his channel slot (0 for none) and his channel spell field.
+     * end. A triggered cast takes no reagent (two Arcane Powder) and no mana and waits for no global cooldown, none of
+     * which the dummy or a rank reads; it still starts the 300 s cooldown of the category the ritual shares with its
+     * three ranks (1177) before the dummy runs, as the client's cast does, and the dummy takes that cooldown off the
+     * rank it casts. At the read the scenario keeps how many of each portal stand within kPortalRange yards of him, the
+     * spell in his channel slot (0 for none) and his channel spell field.
      *
      * `ritual`: `portal=<the entries of the portals at the read, in kPortals' order, each once for each portal of it,
      * joined by +; none for none>`, then the channel slot and field, which the verdict does not judge. OK at
