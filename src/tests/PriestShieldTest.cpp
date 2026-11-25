@@ -24,11 +24,12 @@
  */
 
 /// Tests of spells/classes/priest/Shield.cpp: Power Word: Shield's amount with Improved Power Word: Shield and the
-/// mastery, Rapture's removal modes and mana, the two rows the file registers, in the game's table too, and the exits
-/// of its two scripts that cast nothing. The scripts run on a bare Creature (update fields allocated; no map, template
-/// or AI), whose holder map holds the test's empty holders where a script asks whether it holds an aura; an empty
-/// holder has no aura, so its effect 0 amount is 0. The tests read no row of the spell store, so the rows other tests
-/// leave there change nothing here. Scenario 1202 records the amount, the heal, the mana and the lockout in play.
+/// mastery, Rapture's removal modes, mana and lockout, the two rows the file registers, in the game's table too, and
+/// the exits of its two scripts that cast nothing. The scripts run on a bare Creature (update fields allocated; no
+/// map, template or AI), whose holder map holds the test's empty holders where a script asks whether it holds an aura;
+/// an empty holder has no aura, so its effect 0 amount is 0, and its script words are 0. The tests read no row of the
+/// spell store, so the rows other tests leave there change nothing here. Scenario 1202 records the amount, the heal,
+/// the mana and the lockout in play.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/Shield.h"
@@ -156,6 +157,36 @@ TEST(PriestShield_RaptureGivesTheRanksPercentOfMaximumMana)
     CHECK_EQ(Priest::RaptureMana(4294967295u, 7), int32(300647710));
 }
 
+TEST(PriestShield_RaptureWaitsOutItsEnergizesRecoveryTime)
+{
+    // A lockout of 12000 ms from 1000 ends at 13000: locked from its start until the clock reaches the end.
+    uint32 const end = Priest::RaptureLockoutEnd(1000, 12000);
+    CHECK_EQ(end, uint32(13000));
+    CHECK(Priest::RaptureLockedOut(end, 1000, 12000));
+    CHECK(Priest::RaptureLockedOut(end, 6000, 12000));
+    CHECK(Priest::RaptureLockedOut(end, 12999, 12000));
+    CHECK(!Priest::RaptureLockedOut(end, 13000, 12000));
+    CHECK(!Priest::RaptureLockedOut(end, 14000, 12000));
+
+    // No stamp is no lockout, and a lockout of 0 ms leaves none.
+    CHECK(!Priest::RaptureLockedOut(0, 1000, 12000));
+    CHECK_EQ(Priest::RaptureLockoutEnd(1000, 0), uint32(0));
+
+    // The clock's wrap: a lockout started just before it ends just after, and holds across it.
+    uint32 const wrapped = Priest::RaptureLockoutEnd(0xFFFFF000u, 12000);
+    CHECK_EQ(wrapped, uint32(12000 - 0x1000));
+    CHECK(Priest::RaptureLockedOut(wrapped, 0xFFFFF800u, 12000));
+    CHECK(Priest::RaptureLockedOut(wrapped, 100, 12000));
+    CHECK(!Priest::RaptureLockedOut(wrapped, 12000 - 0x1000, 12000));
+
+    // An end that would fall on 0 is kept as 1, never read as no lockout.
+    CHECK_EQ(Priest::RaptureLockoutEnd(0xFFFFFFFFu - 11999u, 12000), uint32(1));
+
+    // A stamp the clock has long passed, even one that reads as ahead after the clock wrapped, holds nothing.
+    CHECK(!Priest::RaptureLockedOut(13000, 13000 + 0x80000000u, 12000));
+    CHECK(!Priest::RaptureLockedOut(13000, 13000 - 0x40000000u, 12000));
+}
+
 TEST(PriestShield_PowerWordShieldHoldsTheAuraApplyAndRemoveScriptsInTheGame)
 {
     // Two rows on 17, one at each hook, no default.
@@ -171,9 +202,9 @@ TEST(PriestShield_PowerWordShieldHoldsTheAuraApplyAndRemoveScriptsInTheGame)
     CHECK(game.Find<AuraApplyHook>(POWER_WORD_SHIELD) == registry.Find<AuraApplyHook>(POWER_WORD_SHIELD));
     CHECK(game.Find<AuraRemoveHook>(POWER_WORD_SHIELD) == registry.Find<AuraRemoveHook>(POWER_WORD_SHIELD));
 
-    // The talents the scripts read hold no row of their own at either hook: Improved Power Word: Shield's ranks,
-    // Shield Discipline, Rapture's ranks, its energize and lockout, Borrowed Time's ranks and its haste.
-    for (uint32 spellId : { 14748u, 14768u, 77484u, 47535u, 47536u, 47537u, 47755u, 63853u, 52795u, 52797u, 59888u })
+    // The talents and spells the scripts read hold no row of their own at either hook: Improved Power Word: Shield's
+    // ranks, Shield Discipline, Rapture's ranks and its energize, Borrowed Time's ranks and its haste.
+    for (uint32 spellId : { 14748u, 14768u, 77484u, 47535u, 47536u, 47537u, 47755u, 52795u, 52797u, 59888u })
     {
         CHECK(game.Find<AuraApplyHook>(spellId) == NULL);
         CHECK(game.Find<AuraRemoveHook>(spellId) == NULL);
@@ -224,21 +255,20 @@ TEST(PriestShield_TheScriptsCastNothingAndLetTheBoostsRunOutsideTheirCase)
     AuraRemoveContext noTalent(priest, &priest, shield, AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
     CHECK(registry.Dispatch<AuraRemoveHook>(POWER_WORD_SHIELD, noTalent).IsContinue());
 
-    // A caster whose Rapture rank holds no percent gives nothing, broken or dispelled; one under the lockout (63853)
-    // gives nothing before his rank is read.
+    // A caster whose Rapture rank holds no percent gives nothing, broken or dispelled, and starts no lockout: his
+    // rank's script word stays 0.
     HolderStorage rankStorage;
-    priest.HoldAura(47537, EmptyHolder(rankStorage));
+    SpellAuraHolder& rank = EmptyHolder(rankStorage);
+    priest.HoldAura(47537, rank);
     for (AuraRemoveMode mode : { AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_DISPEL })
     {
         AuraRemoveContext emptyRank(priest, &priest, shield, AuraHandle(holder), mode);
         CHECK(registry.Dispatch<AuraRemoveHook>(POWER_WORD_SHIELD, emptyRank).IsContinue());
     }
-    HolderStorage lockoutStorage;
-    priest.HoldAura(63853, EmptyHolder(lockoutStorage));
-    AuraRemoveContext lockedOut(priest, &priest, shield, AuraHandle(holder), AURA_REMOVE_BY_SHIELD_BREAK);
-    CHECK(registry.Dispatch<AuraRemoveHook>(POWER_WORD_SHIELD, lockedOut).IsContinue());
+    CHECK_EQ(AuraHandle(rank).ScriptWord(EFFECT_INDEX_0), int32(0));
 
-    // Nothing was cast on him: his holder map holds the test's two holders alone.
-    CHECK_EQ(priest.GetSpellAuraHolderMap().size(), std::size_t(2));
+    // Nothing was cast on him: his holder map holds the test's holder alone, and no aura reached him.
+    CHECK_EQ(priest.GetSpellAuraHolderMap().size(), std::size_t(1));
     CHECK(!priest.HasAura(47755));
+    CHECK(!priest.HasAura(63853));
 }
