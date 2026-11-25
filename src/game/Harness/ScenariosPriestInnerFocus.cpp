@@ -58,31 +58,33 @@ namespace Harness
          * reads make; each cast is his, at himself, through the cast handler's calls (CastAsHandler), its cast count
          * the step's number:
          *  1. Weakened Soul put on him and on the Camel by call, kSoulMs each, then his Inner Focus;
-         *  2. his health at half and his mana at its maximum, then his Flash Heal, its cost read first
-         *     (Spell::CalculatePowerCost);
+         *  2. his health at half and his mana at its maximum, then his Flash Heal, the mana the cast takes read from
+         *     it once it starts (CastHeal);
          *  3. kFlashMs later, once the Flash Heal landed: Inner Focus, the two Weakened Souls and Inner Focus's
-         *     cooldown read; his health at half and his mana at its maximum, then his Greater Heal, its cost read
-         *     first;
+         *     cooldown read; his health at half and his mana at its maximum, then his Greater Heal, the mana it takes
+         *     read the same way;
          *  4. kGreaterMs later, once the Greater Heal landed: Inner Focus's cooldown read; then its cooldown taken off
          *     him by call (Player::RemoveSpellCooldown), since the stepped clock never runs out a cooldown that ends on
          *     time(NULL), and his Inner Focus again;
-         *  5. his health at half and his mana at its maximum, then his Greater Heal, its cost read first;
+         *  5. his health at half and his mana at its maximum, then his Greater Heal, the mana it takes read the same
+         *     way;
          *  6. kGreaterMs later, once that Greater Heal landed: Inner Focus and its cooldown read.
          *
-         * `innerFocus`: `focus=<Inner Focus on him at step 1's read: up, gone>/<at step 3>,cost=<the Flash Heal's
-         * cost>/<the first Greater Heal's>,immune=<the duration of his 96267 at step 1's read; none>,soul=<the time the
-         * Camel's Weakened Soul has left less his, at step 3>,cooldown=<Inner Focus's cooldown in his store at step 1's
-         * read: held while its aura stands, running, none>/<at step 3>/<at step 4>,cut=<the seconds its stored end
-         * moved from step 3 to step 4; none unless it ran at both>,told=<the delta of his client's cut of Inner Focus's
-         * cooldown in step 3's windows; none>/<in step 5's>,again=<Inner Focus at step 6>/<the second Greater Heal's
-         * cost>/<its cooldown at step 6: held, cut (its time left within its recovery less 92295's effect 0 seconds),
-         * whole (left within its recovery but above that), none>,order=<in step 5's windows, the order of Inner Focus's
-         * cooldown event and its cut: event+cut, cut+event, event, cut, none>,heals=<the spell of the SMSG_SPELL_GO of
-         * step 2's cast>/<of step 3's>/<of step 5's>`. A running cooldown is one whose time left is above 0 and within
-         * Inner Focus's recovery in the client's data; the times the store holds are on the wall clock and are never
-         * written. OK at focus=up/gone, cost=0/<above 0>, immune=96267's duration in the client's data, soul=1000 x
-         * 89489's effect 0 value, cooldown=held/running/running, cut=92295's effect 0 value, told=<-1000 x that>/<the
-         * same>, again=gone/0/cut, order=event+cut and heals=2061/2060/2060.
+         * `innerFocus`: `focus=<Inner Focus on him at step 1's read: up, gone>/<at step 3>,cost=<the mana his Flash
+         * Heal takes; none for no cast>/<his first Greater Heal's>,immune=<the duration of his 96267 at step 1's read;
+         * none>,soul=<the time the Camel's Weakened Soul has left less his, at step 3>,cooldown=<Inner Focus's cooldown
+         * in his store at step 1's read: held while its aura stands, running, none>/<at step 3>/<at step 4>,cut=<the
+         * seconds its stored end moved from step 3 to step 4; none unless it ran at both>,told=<the delta of his
+         * client's cut of Inner Focus's cooldown in step 3's windows; none>/<in step 5's>,again=<Inner Focus at step
+         * 6>/<the mana his second Greater Heal takes>/<its cooldown at step 6: held, cut (its time left within its
+         * recovery less 92295's effect 0 seconds), whole (left within its recovery but above that), none>,order=<in
+         * step 5's windows, the order of Inner Focus's cooldown event and its cut: event+cut, cut+event, event, cut,
+         * none>,heals=<the spell of the SMSG_SPELL_GO of step 2's cast>/<of step 3's>/<of step 5's>`. A running
+         * cooldown is one whose time left is above 0 and within Inner Focus's recovery in the client's data; the times
+         * the store holds are on the wall clock and are never written. OK at focus=up/gone, cost=0/<above 0>,
+         * immune=96267's duration in the client's data, soul=1000 x 89489's effect 0 value,
+         * cooldown=held/running/running, cut=92295's effect 0 value, told=<-1000 x that>/<the same>, again=gone/0/cut,
+         * order=event+cut and heals=2061/2060/2060.
          */
         class PriestInnerFocus : public StagedCasterScenario
         {
@@ -403,17 +405,19 @@ namespace Harness
             }
 
             /// His health set to half his maximum and his mana to its maximum, then his cast of `spell` at himself with
-            /// step k's cast count; answers the spell's cost, read before the cast.
+            /// step k's cast count. Answers the mana the cast takes: the cost Spell::SpellStart reckons with his spell
+            /// modifiers, Inner Focus's among them, and Spell::TakePower takes (Spell::GetPowerCost), read from his
+            /// current cast once it starts; -1 when no cast of `spell` started.
             int64 CastHeal(Player* p, uint32 spell, uint32 k)
             {
                 p->SetHealth(p->GetMaxHealth() / 2);
                 p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA));
-                SpellEntry const* info = sSpellStore.LookupEntry(spell);
-                const int64 cost = info ? int64(Spell::CalculatePowerCost(info, p)) : -1;
                 m_rec.Note("his health " + U(p->GetHealth()) + " of " + U(p->GetMaxHealth()) + ", mana " +
-                           U(p->GetPower(POWER_MANA)) + "; he casts " + U(spell) + " at himself, its cost " +
-                           std::to_string(cost));
+                           U(p->GetPower(POWER_MANA)) + "; he casts " + U(spell) + " at himself");
                 CastAsHandler(p, spell, p, uint8(k + 1));
+                Spell const* cast = p->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+                const int64 cost = cast && cast->m_spellInfo->ID == spell ? int64(cast->GetPowerCost()) : -1;
+                m_rec.Note("his cast of " + U(spell) + " takes " + std::to_string(cost) + " mana (-1 for no cast)");
                 return cost;
             }
 
