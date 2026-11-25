@@ -60,8 +60,8 @@ struct SpellEntry;
  *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
  *   effect; otherwise the family switches and the script library run. A body may cast, remove auras and shorten the
- *   time a unit's aura has left (`Unit::DelaySpellAuraHolder`), and keep a count across the cast's effects and
- *   targets in the cast's script word.
+ *   time a unit's aura has left (AuraHandle::Shorten), and keep a count across the cast's effects and targets in the
+ *   cast's script word.
  * - AfterHit: `Spell::DoAllEffectOnTarget`, after the heal or the damage is dealt; the target may be dead. A body may
  *   cast and remove auras, and set the stacks and amounts of a holder through AuraHandle.
  * - AuraAmount: the `Aura` constructor, after the effect's amount is calculated, before the stack multiplies it. A
@@ -89,7 +89,8 @@ struct SpellEntry;
  *   are const.
  * - OnProc: `Unit::ProcDamageAndSpellFor`, for each effect that passed the class-mask checks, before the aura type's
  *   proc handler. Return(result) is the effect's result and the handler does not run. A body may cast, drop charges,
- *   set the script words and shorten the owner's cooldowns (OnProcContext::ShortenCooldown, which tells his client).
+ *   set the script words, remove the owner's auras that hold no proc of the event, and shorten the owner's cooldowns
+ *   (OnProcContext::ShortenCooldown, which tells his client).
  * - DamageDone: `Unit::SpellDamageBonusDone`, before its family switch: for the spell, then once for each
  *   SPELL_AURA_DUMMY aura of the caster, keyed by that aura's spell, so a talent's row changes the damage of the
  *   spells it covers. A body changes only the done multiplier. Its damage type tells a hit (SPELL_DIRECT_DAMAGE) from
@@ -198,6 +199,11 @@ class AuraHandle
         /// due in that update; a permanent or passive holder is never removed this way. Nothing is removed here, so
         /// it is safe wherever the holder is kept alive.
         void Expire();
+        /// Takes `ms` off the time the holder has left and makes what is left its whole duration as well, as the 4.3.4
+        /// client is shown a debuff cut short, then tells the clients; a holder left with no time runs out at its
+        /// unit's next update, as Expire leaves it. Nothing for `ms` of 0 or less, nor for a holder that does not run
+        /// out. Its body sits in SpellScriptHooks.cpp.
+        void Shorten(int32 ms);
         /// The script's word for `eff`: zero when the holder is made, never saved or sent.
         int32& ScriptWord(SpellEffectIndex eff);
         /// Why the holder is removed; AURA_REMOVE_BY_DEFAULT until a removal sets it.

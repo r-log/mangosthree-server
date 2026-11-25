@@ -26,8 +26,9 @@
 /// Tests of spells/classes/priest/InnerFocus.cpp: the rows the file registers, in the game's table too; which spells
 /// Inner Focus's class masks take; its after-cast row, which takes Inner Focus off a caster whose finished cast it took
 /// and leaves it for any other cast; Strength of Soul's immunities, rank and heals, its check-proc row and the Weakened
-/// Soul its effect shortens; Train of Thought's cooldowns, cuts and chances, and its proc row, which shortens the
-/// cooldown in the owner's store and reports the exact cut for his client. The scripts run on bare Creatures (update fields
+/// Soul its effect shortens, its whole duration with it; Train of Thought's cooldowns, cuts and chances, and its proc
+/// row, which shortens the cooldown in the owner's store and reports the exact cut for his client, and takes Inner
+/// Focus off before it cuts at a Greater Heal Inner Focus empowers. The scripts run on bare Creatures (update fields
 /// allocated; no world, map, template or AI). The spells are put into the stores with only the fields the scripts read,
 /// their records as the client's data holds them, and the spell rows are taken out of the spell store again; a cast
 /// spell the scripts only name is a Spell.dbc row that is not in the spell store, with its class options. The holders
@@ -531,15 +532,18 @@ TEST(PriestInnerFocus_StrengthOfSoulShortensWeakenedSoulByTheRanksSeconds)
         CHECK(SoulEffect(registry, priest, &healed, EFFECT_INDEX_0).IsContinue());
         CHECK_EQ(soul->GetAuraDuration(), int32(12000));
 
-        // The first rank takes its 2 seconds off; the second, once he holds it too, its 4.
+        // The first rank takes its 2 seconds off; the second, once he holds it too, its 4. What is left becomes the
+        // whole duration too.
         OwnHolder(STRENGTH_OF_SOUL_RANKS[0], priest);
         CHECK_EQ(Priest::StrengthOfSoulRank(priest), STRENGTH_OF_SOUL_RANKS[0]);
         CHECK(SoulEffect(registry, priest, &healed, EFFECT_INDEX_0).IsContinue());
         CHECK_EQ(soul->GetAuraDuration(), int32(10000));
+        CHECK_EQ(soul->GetAuraMaxDuration(), int32(10000));
         OwnHolder(STRENGTH_OF_SOUL_RANKS[1], priest);
         CHECK_EQ(Priest::StrengthOfSoulRank(priest), STRENGTH_OF_SOUL_RANKS[1]);
         CHECK(SoulEffect(registry, priest, &healed, EFFECT_INDEX_0).IsContinue());
         CHECK_EQ(soul->GetAuraDuration(), int32(6000));
+        CHECK_EQ(soul->GetAuraMaxDuration(), int32(6000));
 
         // Another effect index, and an effect with no unit, take nothing.
         CHECK(SoulEffect(registry, priest, &healed, EFFECT_INDEX_1).IsContinue());
@@ -549,8 +553,10 @@ TEST(PriestInnerFocus_StrengthOfSoulShortensWeakenedSoulByTheRanksSeconds)
         // Then 2 s are left, and next less than the cut: the time runs out.
         CHECK(SoulEffect(registry, priest, &healed, EFFECT_INDEX_0).IsContinue());
         CHECK_EQ(soul->GetAuraDuration(), int32(2000));
+        CHECK_EQ(soul->GetAuraMaxDuration(), int32(2000));
         CHECK(SoulEffect(registry, priest, &healed, EFFECT_INDEX_0).IsContinue());
         CHECK_EQ(soul->GetAuraDuration(), int32(0));
+        CHECK_EQ(soul->GetAuraMaxDuration(), int32(0));
 
         // A unit with no Weakened Soul: nothing to shorten.
         BareCreature unmarked;
@@ -718,5 +724,50 @@ TEST(PriestInnerFocus_TrainOfThoughtShortensTheCooldownInTheOwnersStore)
              int(SPELL_AURA_PROC_OK));
     CHECK_EQ(int64(StoredEnd(cooldowns, PENANCE)), int64(penanceEnd - 1));
     CHECK_EQ(s_cuts.size(), std::size_t(2));
+    ForgetThoughtRows();
+}
+
+TEST(PriestInnerFocus_AGreaterHealInnerFocusEmpowersTakesItOffBeforeTheCut)
+{
+    // A priest holding Inner Focus, its cooldown running in his store, as the removal starts it for a player. His
+    // Greater Heal's hit takes Inner Focus off him, then cuts the cooldown and tells his client.
+    SpellHandlerRegistry registry;
+    Priest::RegisterInnerFocus(registry);
+    StoreThoughtRows();
+    StoreInnerFocus();
+    uint32 const secondRank = TRAIN_OF_THOUGHT_RANKS[1];
+    s_cuts.clear();
+    {
+        BareCreature priest;
+        SpellCooldownMgr cooldowns;
+        time_t const focusEnd = time(NULL) + 45;
+        cooldowns.AddSpellCooldown(INNER_FOCUS, 0, focusEnd);
+        OwnHolder(INNER_FOCUS, priest);
+        CHECK_EQ(int(ThoughtProcOn(registry, priest, cooldowns, secondRank, EFFECT_INDEX_0, PriestRow(GREATER_HEAL),
+                                   HELPFUL_HIT)),
+                 int(SPELL_AURA_PROC_OK));
+        CHECK(!priest.HasAura(INNER_FOCUS));
+        CHECK_EQ(int64(StoredEnd(cooldowns, INNER_FOCUS)), int64(focusEnd - 5));
+        REQUIRE(s_cuts.size() == 1u);
+        CHECK_EQ(s_cuts[0].deltaMs, int32(-5000));
+
+        // A Smite's hit leaves Inner Focus on him: it is no spell Inner Focus takes.
+        OwnHolder(INNER_FOCUS, priest);
+        CHECK_EQ(int(ThoughtProcOn(registry, priest, cooldowns, secondRank, EFFECT_INDEX_0, PriestRow(SMITE),
+                                   HARMFUL_HIT)),
+                 int(SPELL_AURA_PROC_OK));
+        CHECK(priest.HasAura(INNER_FOCUS));
+
+        // So does a Greater Heal's hit while the store lacks Inner Focus, whose class masks then take nothing; the cut
+        // still comes.
+        ForgetInnerFocus();
+        CHECK_EQ(int(ThoughtProcOn(registry, priest, cooldowns, secondRank, EFFECT_INDEX_0, PriestRow(GREATER_HEAL),
+                                   HELPFUL_HIT)),
+                 int(SPELL_AURA_PROC_OK));
+        CHECK(priest.HasAura(INNER_FOCUS));
+        CHECK_EQ(int64(StoredEnd(cooldowns, INNER_FOCUS)), int64(focusEnd - 10));
+        CHECK_EQ(s_cuts.size(), std::size_t(2));
+    }
+    ForgetInnerFocus();
     ForgetThoughtRows();
 }

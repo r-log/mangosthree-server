@@ -24,6 +24,7 @@
  */
 
 #include "spells/SpellScriptHooks.h"
+#include "spells/auras/SpellAuras.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
@@ -82,6 +83,24 @@ namespace
             from.CastSpell(&to, spellId, true, castItem, triggeredByAura, originalCaster, triggeredBy);
         }
     }
+}
+
+void AuraHandle::Shorten(int32 ms)
+{
+    int32 const left = m_holder.GetAuraDuration();
+    if (ms <= 0 || left < 0 || m_holder.IsPermanent())
+    {
+        return;
+    }
+    int32 const rest = left > ms ? left - ms : 0;
+    bool const timed = (m_holder.GetAuraFlags() & AFLAG_DURATION) != 0;
+    m_holder.SetAuraMaxDuration(rest);
+    m_holder.SetAuraDuration(rest);
+    if (timed)
+    {
+        m_holder.SetAuraFlags(m_holder.GetAuraFlags() | AFLAG_DURATION);
+    }
+    m_holder.SendAuraUpdate(false);
 }
 
 void DummyEffectContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)

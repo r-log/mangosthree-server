@@ -88,7 +88,8 @@ namespace
     /// Focus loses it when the cast's spell is one its mods take (Priest::InnerFocusTakes). Inner Focus is disabled
     /// while active in the client's data, so the engine holds its cooldown while the aura stands and starts it, with
     /// its cooldown event, when the aura goes. A cast that fails or is interrupted does not finish, and leaves Inner
-    /// Focus on him.
+    /// Focus on him. A Greater Heal whose Train of Thought shortens Inner Focus's cooldown has already taken Inner
+    /// Focus off at its hit (TrainOfThoughtProc), and finds none here.
     SpellHandlerOutcome<void> InnerFocusTaken(AfterCastContext& ctx)
     {
         if (ctx.caster.HasAura(INNER_FOCUS) && Priest::InnerFocusTakes(ctx.spell))
@@ -130,9 +131,10 @@ namespace
 
     /// 89490: Strength of Soul's script effect, which the talent's ranks trigger at the unit the priest's heal heals:
     /// that unit's Weakened Soul (6788) loses the seconds of the rank the priest holds (Priest::StrengthOfSoulRank),
-    /// its effect 0 value in the client's data (Priest::WeakenedSoulCut), and its clients are told the time it has
-    /// left; a Weakened Soul left with no time runs out at the unit's next update. 89490's own value is not read.
-    /// Nothing for a unit with no Weakened Soul, nor for a priest with no rank. The switches after it run.
+    /// its effect 0 value in the client's data (Priest::WeakenedSoulCut). What is left becomes its whole duration too
+    /// (AuraHandle::Shorten), and its clients are told both; a Weakened Soul left with no time runs out at the unit's
+    /// next update. 89490's own value is not read. Nothing for a unit with no Weakened Soul, nor for a priest with no
+    /// rank. The switches after it run.
     SpellHandlerOutcome<void> StrengthOfSoulEffect(DummyEffectContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.target)
@@ -143,19 +145,21 @@ namespace
         SpellAuraHolder* soul = ctx.target->GetSpellAuraHolder(WEAKENED_SOUL);
         if (cut > 0 && soul)
         {
-            ctx.target->DelaySpellAuraHolder(WEAKENED_SOUL, cut, AuraHandle(*soul).CasterGuid());
+            AuraHandle(*soul).Shorten(cut);
         }
         return SpellHandlerOutcome<void>::Continue();
     }
 
     /// 92295, 92297: Train of Thought: its dummy effect's proc flags take the priest's helpful spells and his harmful
     /// spells' hits. A hit of Greater Heal or of Smite shortens the cooldown Priest::TrainOfThoughtCooldown names,
-    /// Inner Focus's or Penance's, in the priest's store (OnProcContext::ShortenCooldown) by Priest::TrainOfThoughtCut,
-    /// read from 92295's effects as both ranks' tooltips read them, at the rank's chance
-    /// (Priest::TrainOfThoughtChance); a chance of 100 draws no roll. The proc runs at the hit, before its cast
-    /// finishes: a Greater Heal that Inner Focus empowers finds Inner Focus's cooldown held while the aura stands, and
-    /// shortens nothing. CANT_TRIGGER for any other spell; FAILED for an effect other than the dummy, or a roll that
-    /// failed.
+    /// Inner Focus's or Penance's, by Priest::TrainOfThoughtCut, read from 92295's effects as both ranks' tooltips read
+    /// them, at the rank's chance (Priest::TrainOfThoughtChance); a chance of 100 draws no roll. The cut goes to the
+    /// priest's store and to his client (OnProcContext::ShortenCooldown): exactly, -5000 or -500 ms, to the client,
+    /// rounded up to whole seconds in the store. A Greater Heal that Inner Focus empowers has paid its cost and rolled
+    /// its crit before its hit procs, so Inner Focus leaves the priest here, before the cut, which starts its cooldown,
+    /// held while the aura stood, and the cut then shortens that cooldown: Inner Focus gone, its cooldown event, the
+    /// cut, then the heal's log. CANT_TRIGGER for any other spell; FAILED for an effect other than the dummy, or a roll
+    /// that failed.
     ProcOutcome TrainOfThoughtProc(OnProcContext& ctx)
     {
         uint32 const cooldown = ctx.procSpell ? Priest::TrainOfThoughtCooldown(ctx.procSpell->ID) : 0;
@@ -177,6 +181,10 @@ namespace
                                                     EffectValue(TRAIN_OF_THOUGHT_RANKS[0], EFFECT_INDEX_1));
         if (cut > 0)
         {
+            if (cooldown == INNER_FOCUS && ctx.caster.HasAura(INNER_FOCUS) && Priest::InnerFocusTakes(*ctx.procSpell))
+            {
+                ctx.caster.RemoveAurasDueToSpell(INNER_FOCUS);
+            }
             ctx.ShortenCooldown(cooldown, uint32(cut));
         }
         return ProcOutcome::Return(SPELL_AURA_PROC_OK);

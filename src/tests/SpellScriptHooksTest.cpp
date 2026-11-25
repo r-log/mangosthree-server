@@ -27,7 +27,8 @@
 /// target and script word, the target context's cast target, the after-hit context's search around a unit in no world,
 /// its cast through an aura the caster lacks and its Immune notice, the after-cast context's count and point, the
 /// cooldown store's cut of a running cooldown and the proc context's through its owner's cut sink, the aura handle's
-/// reads, its removal of one effect, its stack count and the stack cap ModStackAmount holds a holder to, RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and the
+/// reads, its cut of a holder's time, its removal of one effect, its stack count and the stack cap ModStackAmount holds
+/// a holder to, RegisterRanks, the holder's script words, the holder copy's answer for a unit holding none and the
 /// period, tick time, duration and amount a copy keeps, the low-health multiplier a script query answers from the
 /// caster's class-script auras, and the game table, whose only hook rows are the class scripts'.
 ///
@@ -1085,6 +1086,45 @@ TEST(SpellScriptHooks_TheAuraHandleReadsTheHoldersFields)
         CHECK_EQ(holder.ScriptWord(EFFECT_INDEX_2), 77);
         CHECK_EQ(holder.ScriptWord(EFFECT_INDEX_1), 2);
     }
+}
+
+TEST(SpellScriptHooks_TheAuraHandleCutsAHoldersTimeAndItsWholeDurationTogether)
+{
+    // A holder of no unit (its target pointer 0), so the update sent with the cut reaches no client: 15 s whole, 12 s
+    // left, its durations sent.
+    HolderStorage storage;
+    SpellAuraHolder& holder = HolderFilledWith(storage, 0);
+    holder.SetAuraMaxDuration(15000);
+    holder.SetAuraDuration(12000);
+    CHECK((holder.GetAuraFlags() & AFLAG_DURATION) != 0);
+    AuraHandle handle(holder);
+
+    // 4 s off: 8 s left, and 8 s its whole duration.
+    handle.Shorten(4000);
+    CHECK_EQ(holder.GetAuraDuration(), int32(8000));
+    CHECK_EQ(holder.GetAuraMaxDuration(), int32(8000));
+
+    // Nothing off, or a negative cut: as it was.
+    handle.Shorten(0);
+    handle.Shorten(-4000);
+    CHECK_EQ(holder.GetAuraDuration(), int32(8000));
+    CHECK_EQ(holder.GetAuraMaxDuration(), int32(8000));
+
+    // More than is left: no time left and none whole, its durations still sent, so its unit expires it.
+    handle.Shorten(10000);
+    CHECK_EQ(holder.GetAuraDuration(), int32(0));
+    CHECK_EQ(holder.GetAuraMaxDuration(), int32(0));
+    CHECK((holder.GetAuraFlags() & AFLAG_DURATION) != 0);
+    CHECK(!holder.IsPermanent());
+
+    // A holder that does not run out keeps its time.
+    HolderStorage lasting;
+    SpellAuraHolder& permanent = HolderFilledWith(lasting, 0);
+    permanent.SetAuraMaxDuration(-1);
+    permanent.SetAuraDuration(-1);
+    AuraHandle(permanent).Shorten(4000);
+    CHECK_EQ(permanent.GetAuraDuration(), int32(-1));
+    CHECK_EQ(permanent.GetAuraMaxDuration(), int32(-1));
 }
 
 TEST(SpellScriptHooks_TheAuraHandleTakesOneEffectOffItsHolderButNeverTheLast)

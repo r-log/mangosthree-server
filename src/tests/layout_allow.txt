@@ -206,6 +206,8 @@ src/game/social/Mail.cpp -> src/game/entities/player/Player.h
 src/game/social/Mail.cpp -> src/game/entities/player/PlayerRegistry.h
 # moved from the ObjectMgr::GetPlayer wrapper in #653
 src/game/social/MassMailMgr.cpp -> src/game/entities/player/PlayerRegistry.h
+# AuraHandle::Shorten sets a holder's time left and its whole duration together
+src/game/spells/SpellScriptHooks.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraControl.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraDummy.cpp -> src/game/entities/player/Player.h
