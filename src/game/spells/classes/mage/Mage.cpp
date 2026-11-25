@@ -237,11 +237,16 @@ namespace
     }
 
     /// 43987: Ritual of Refreshment: the caster casts at himself, triggered, the rank his level allows
-    /// (Mage::RitualOfRefreshmentRank), whose summon puts that rank's Refreshment Portal at his feet. The script ends
-    /// the effect.
+    /// (Mage::RitualOfRefreshmentRank), whose summon puts that rank's Refreshment Portal at his feet. The ritual and
+    /// its three ranks share one cooldown category (1177, 300 s), which the ritual's cast starts before its effect
+    /// runs, and a cast of a spell on cooldown is refused, triggered or not; so the rank's cooldown is taken off him
+    /// first, his client not told, and the rank's cast starts the category's cooldown again. The script ends the
+    /// effect.
     SpellHandlerOutcome<void> RitualOfRefreshmentEffect(DummyEffectContext& ctx)
     {
-        ctx.CastTriggered(ctx.caster, Mage::RitualOfRefreshmentRank(ctx.caster.getLevel()));
+        uint32 const rank = Mage::RitualOfRefreshmentRank(ctx.caster.getLevel());
+        ctx.caster.RemoveSpellCooldown(rank);
+        ctx.CastTriggered(ctx.caster, rank);
         return SpellHandlerOutcome<void>::Return();
     }
 }
@@ -327,7 +332,8 @@ bool Mage::SuppressesArcaneMissiles(Unit const& mage)
 
 uint32 Mage::RitualOfRefreshmentRank(uint32 level)
 {
-    // Each rank summons a portal whose table gives one conjured food; the rank is the one whose food the level can eat.
+    // Each rank summons a portal whose table gives one conjured food. From 80 the rank is the highest whose food's
+    // RequiredLevel the level reaches; below 80 it is the Biscuit table's at any level, though the Biscuit asks for 65.
     constexpr uint32 BISCUIT_TABLE_RANK = 74650;    // portal 186811: Conjured Mana Biscuit (34062), RequiredLevel 65
     constexpr uint32 STRUDEL_TABLE_RANK = 92824;    // portal 207385: Conjured Mana Strudel (43523), RequiredLevel 80
     constexpr uint32 CAKE_TABLE_RANK = 92827;       // portal 207388: Conjured Mana Cake (65499), RequiredLevel 85
