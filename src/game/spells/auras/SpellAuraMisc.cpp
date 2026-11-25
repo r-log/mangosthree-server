@@ -661,18 +661,6 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
             {
                 int32 const spellPower = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(spellProto));
                 DoneActualBenefit = float(caster->SpellBonusWithCoeffs(spellProto, 0, spellPower, 0, SPELL_DIRECT_DAMAGE, true, SPELL_BONUS_KIND_ABSORB));
-
-                // Borrowed Time
-                Unit::AuraList const& borrowedTime = caster->GetAurasByType(SPELL_AURA_DUMMY);
-                for (Unit::AuraList::const_iterator itr = borrowedTime.begin(); itr != borrowedTime.end(); ++itr)
-                {
-                    SpellEntry const* i_spell = (*itr)->GetSpellProto();
-                    if (i_spell->GetSpellFamilyName()==SPELLFAMILY_PRIEST && i_spell->SpellIconID == 2899 && i_spell->GetEffectMiscValue((*itr)->GetEffIndex()) == 24)
-                    {
-                        DoneActualBenefit += DoneActualBenefit * (*itr)->GetModifier()->m_amount / 100;
-                        break;
-                    }
-                }
             }
 
             m_modifier.m_amount += (int32)DoneActualBenefit;
