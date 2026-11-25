@@ -34,8 +34,8 @@
 /**
  * @file ScenariosPriestShield.cpp
  * @brief The priest's shield scenario, order 1202: his Power Word: Shield's amount with Improved Power Word: Shield and
- * the Shield Discipline mastery, the heal Glyph of Power Word: Shield takes from that amount, and Rapture's mana when
- * the shield is used up, given at most once in its 12 s lockout.
+ * the Shield Discipline mastery, as the clients are told it, the heal Glyph of Power Word: Shield takes from that
+ * amount, and Rapture's mana when the shield is used up, given at most once in its energize's 12 s recovery time.
  */
 
 namespace Harness
@@ -144,9 +144,9 @@ namespace Harness
 
         /**
          * S1202 `priest-shield-amount`: his Power Word: Shield (17) is raised by Improved Power Word: Shield and by the
-         * Shield Discipline mastery, the clients are told the raised amount, Glyph of Power Word: Shield's heal takes
-         * its percent of that amount, Borrowed Time adds nothing to it, and a shield used up gives him Rapture's
-         * percent of his maximum mana once in Rapture's lockout.
+         * Shield Discipline mastery, the clients are told the raised amount when the shield is put on, Glyph of Power
+         * Word: Shield's heal takes its percent of that amount, Borrowed Time adds nothing to it, and a shield used up
+         * gives him Rapture's percent of his maximum mana, then nothing until the energize's recovery time has run.
          * Staged: Improved Power Word: Shield 2 (14768) as his first talent, which makes Discipline his primary tree
          * and so teaches Shield Discipline (77484); Rapture 3 (47537) and Borrowed Time 2 (52797) learned as talent
          * ranks; the Mastery passive (86475), so his mastery is its 8 points; Glyph of Power Word: Shield (glyph 263,
@@ -158,20 +158,22 @@ namespace Harness
          *  1. a wait: his health set to half his maximum, then the shield put on him;
          *  2. a wait: his mana set to half his maximum, then the shield used up;
          *  3. a wait, kBreakToRePutMs later: his health set to half again, then a second shield put on him;
-         *  4. a wait: his mana set to half again, then the second shield used up, kRePutToBreakMs after it was put and
-         *     kBreakToRePutMs + kRePutToBreakMs (5 s) after the first was used up, inside Rapture's 12 s lockout.
+         *  4. a wait: his mana set to half again, then the second shield used up, 5 s after the first break, inside
+         *     the 12 s recovery time of Rapture's energize (47755);
+         *  5. a wait, kLockoutWaitMs later: a third shield put on him as in step 3;
+         *  6. a wait: the third shield used up as in step 4, 13 s after the first break, past the recovery time.
          *
          * `shieldAmount`: `amount=<the shield's effect 0 amount right after step 1's put>,shown=<the effect 0 amount
          * of the last SMSG_AURA_UPDATE of 17 for him in step 1's windows; none>,heal=<the first 56160 heal log he
          * sent himself in step 1's windows, `c` added for a crit; none>,energize=<the 47755 energize amounts in step
-         * 2's windows; none>/<in step 4's; none>,lockout=<up when he held 63853 at step 2's read, else none>/<at step
-         * 4's read>`. With plain = the shield's base (Unit::CalculateSpellDamage) plus its spell power part (what the
-         * absorb aura adds, Unit::SpellBonusWithCoeffs with the absorb kind), I = 14768's effect 0 percent, M = 77484's
-         * effect 0 bonus coefficient times his mastery points, truncated, G = 55672's effect 0 percent and R = 47537's
-         * effect 0 percent, all read from the client's data at step 1: OK when the amount is plain x (100 + I) x (100 +
-         * M) / 10000, truncated, one point either side allowed, the second shield's amount is the first's, shown is the
-         * amount, the heal is amount x G / 100 and no crit, each shield was used up whole and gone after, the first
-         * energize is his maximum mana at step 2 x R / 100, the second is none, and 63853 is up at both reads.
+         * 2's windows; none>/<in step 4's; none>/<in step 6's; none>`. With plain = the shield's base
+         * (Unit::CalculateSpellDamage) plus its spell power part (Unit::SpellBonusWithCoeffs with the absorb kind),
+         * I = 14768's effect 0 percent, M = 77484's effect 0 bonus coefficient times his mastery points, truncated,
+         * G = 55672's effect 0 percent and R = 47537's effect 0 percent, all read from the client's data at step 1: OK
+         * when the amount is plain x (100 + I) x (100 + M) / 10000, truncated, one point either side allowed, the later
+         * shields' amounts are the first's, shown is the amount, the heal is amount x G / 100 and no crit, each shield
+         * was used up whole and gone after, and the energizes are his maximum mana at the step x R / 100, none, and
+         * his maximum mana at step 6 x R / 100.
          */
         class PriestShieldAmount : public StagedCasterScenario
         {
@@ -200,7 +202,8 @@ namespace Harness
 
             std::vector<Step> Steps() const override
             {
-                return { Wait(kPutToBreakMs), Wait(kBreakToRePutMs), Wait(kRePutToBreakMs), Wait(kSwingEveryMs) };
+                return { Wait(kPutToBreakMs), Wait(kBreakToRePutMs), Wait(kRePutToBreakMs), Wait(kLockoutWaitMs),
+                         Wait(kRePutToBreakMs), Wait(kSwingEveryMs) };
             }
 
             std::vector<SpellPrint> Prints() const override
@@ -218,8 +221,6 @@ namespace Harness
                     { 47537, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectBasePoints", 7 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 64 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 100 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 72057594037927937 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                     // 47755: 26 fields, fnv 9e81b5a9
                     { 47755, { { "eff0.present", 1 }, { "eff0.Effect", 30 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
-                    // 63853: 26 fields, fnv 6533e3c7
-                    { 63853, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 4 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 64 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                     // 52797: 49 fields, fnv 5c01a46d
                     { 52797, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 14 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 21 }, { "eff0.EffectSpellClassMask.Flags", 1 }, { "eff0.EffectTriggerSpell", 59888 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 4 }, { "eff1.EffectBasePoints", 8 }, { "eff1.EffectBonusCoefficient", 1065353216 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 24 }, { "eff1.EffectSpellClassMask.Flags", 1 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                     // 59888: 26 fields, fnv e0522bce
@@ -236,15 +237,13 @@ namespace Harness
             void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* target) override
             {
                 Seen& seen = st.seen[k];
-                const bool put = k == kPutStep || k == kRePutStep;
-                const bool use = k == kBreakStep || k == kSecondBreakStep;
+                const bool put = k == kPutStep || k == kRePutStep || k == kLastPutStep;
+                const bool use = k == kBreakStep || k == kSecondBreakStep || k == kLastBreakStep;
                 if (atRead)
                 {
                     if (use)
                     {
-                        seen.reads["lockout"] = p->HasAura(kLockout) ? 1 : 0;
-                        m_rec.Note("his " + U(kLockout) + ": " + HolderOf(p, kLockout) + "; mana " +
-                                   U(p->GetPower(POWER_MANA)) + " of " + U(p->GetMaxPower(POWER_MANA)));
+                        m_rec.Note("his mana " + U(p->GetPower(POWER_MANA)) + " of " + U(p->GetMaxPower(POWER_MANA)));
                     }
                     return;
                 }
@@ -294,6 +293,7 @@ namespace Harness
                 const uint64 self = st.player.GetRawValue();
                 const int64 amount = Kept(st, kPutStep, "amount");
                 const int64 secondAmount = Kept(st, kRePutStep, "amount");
+                const int64 lastAmount = Kept(st, kLastPutStep, "amount");
                 const int64 base = Kept(st, kPutStep, "base");
                 const int64 part = Kept(st, kPutStep, "part");
                 const int64 improved = Kept(st, kPutStep, "improved");
@@ -332,29 +332,33 @@ namespace Harness
 
                 const std::string energized = EnergizeAmounts(kBreakStep, kRaptureEnergize);
                 const std::string energizedAgain = EnergizeAmounts(kSecondBreakStep, kRaptureEnergize);
+                const std::string energizedLast = EnergizeAmounts(kLastBreakStep, kRaptureEnergize);
                 const int64 maxMana = Kept(st, kBreakStep, "maxMana");
                 const int64 manaWanted = maxMana * rapture / 100;
-                const bool lockout1 = Kept(st, kBreakStep, "lockout") == 1;
-                const bool lockout2 = Kept(st, kSecondBreakStep, "lockout") == 1;
-                const bool usedUp = Kept(st, kBreakStep, "before") == amount &&
-                                    Kept(st, kBreakStep, "absorbed") == amount && Kept(st, kBreakStep, "after") == -1 &&
-                                    Kept(st, kSecondBreakStep, "before") == secondAmount &&
-                                    Kept(st, kSecondBreakStep, "absorbed") == secondAmount &&
-                                    Kept(st, kSecondBreakStep, "after") == -1;
+                const int64 lastMaxMana = Kept(st, kLastBreakStep, "maxMana");
+                const int64 lastManaWanted = lastMaxMana * rapture / 100;
+                bool usedUp = true;
+                const uint32 breaks[] = { kBreakStep, kSecondBreakStep, kLastBreakStep };
+                const int64 puts[] = { amount, secondAmount, lastAmount };
+                for (size_t i = 0; i < 3; ++i)
+                {
+                    usedUp = usedUp && Kept(st, breaks[i], "before") == puts[i] &&
+                             Kept(st, breaks[i], "absorbed") == puts[i] && Kept(st, breaks[i], "after") == -1;
+                }
 
                 const bool read = base > 0 && amount > 0 && wanted > 0;
                 const bool ok = read && InBand(uint32(amount), uint32(wanted), uint32(wanted)) &&
-                                secondAmount == amount && shown == amount && healed && !healCrit &&
-                                int64(heal) == amount * glyph / 100 && usedUp &&
-                                energized == std::to_string(manaWanted) && energizedAgain.empty() && lockout1 &&
-                                lockout2;
+                                secondAmount == amount && lastAmount == amount && shown == amount && healed &&
+                                !healCrit && int64(heal) == amount * glyph / 100 && usedUp &&
+                                energized == std::to_string(manaWanted) && energizedAgain.empty() &&
+                                energizedLast == std::to_string(lastManaWanted);
 
                 const std::string none = "none";
                 const std::string value =
                     "amount=" + std::to_string(amount) + ",shown=" + (shown < 0 ? none : std::to_string(shown)) +
                     ",heal=" + (healed ? U(heal) + (healCrit ? "c" : "") : none) + ",energize=" +
                     (energized.empty() ? none : energized) + "/" + (energizedAgain.empty() ? none : energizedAgain) +
-                    ",lockout=" + (lockout1 ? "up" : "none") + "/" + (lockout2 ? "up" : "none");
+                    "/" + (energizedLast.empty() ? none : energizedLast);
                 const int64 centipoints = Kept(st, kPutStep, "masteryCentipoints");
                 char points[32];
                 snprintf(points, sizeof(points), "%lld.%02lld", (long long)(centipoints / 100),
@@ -368,16 +372,20 @@ namespace Harness
                     std::to_string(plain) + " x (100 + " + std::to_string(improved) + ") x (100 + " +
                     std::to_string(mastery) + ") / 10000 = " + std::to_string(wanted) +
                     "; with its spell power part raised by Borrowed Time's second effect (" + std::to_string(borrowed) +
-                    "%) it would be " + std::to_string(withBorrowedTime) + "; the second shield " +
-                    std::to_string(secondAmount) + "; wanted the clients told the amount, and a heal of " +
-                    std::to_string(glyph) + "% of it, " + std::to_string(amount * glyph / 100) +
-                    ", no crit; the shields used up: " +
+                    "%) it would be " + std::to_string(withBorrowedTime) + "; the later shields " +
+                    std::to_string(secondAmount) + " and " + std::to_string(lastAmount) +
+                    "; wanted the clients told the amount, and a heal of " + std::to_string(glyph) + "% of it, " +
+                    std::to_string(amount * glyph / 100) + ", no crit; the shields used up: " +
                     std::to_string(Kept(st, kBreakStep, "absorbed")) + " of " +
                     std::to_string(Kept(st, kBreakStep, "before")) + ", then " +
                     std::to_string(Kept(st, kSecondBreakStep, "absorbed")) + " of " +
-                    std::to_string(Kept(st, kSecondBreakStep, "before")) + "; wanted an energize of " +
+                    std::to_string(Kept(st, kSecondBreakStep, "before")) + ", then " +
+                    std::to_string(Kept(st, kLastBreakStep, "absorbed")) + " of " +
+                    std::to_string(Kept(st, kLastBreakStep, "before")) + "; wanted an energize of " +
                     std::to_string(rapture) + "% of his maximum mana " + std::to_string(maxMana) + ", " +
-                    std::to_string(manaWanted) + ", then none, and " + U(kLockout) + " up at both reads";
+                    std::to_string(manaWanted) + ", then none inside the recovery time, then " +
+                    std::to_string(rapture) + "% of " + std::to_string(lastMaxMana) + ", " +
+                    std::to_string(lastManaWanted) + ", past it";
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
@@ -390,7 +398,6 @@ namespace Harness
             static constexpr uint32 kMasteryPassive = 86475;
             static constexpr uint32 kRaptureRank3 = 47537;
             static constexpr uint32 kRaptureEnergize = 47755;
-            static constexpr uint32 kLockout = 63853;
             static constexpr uint32 kBorrowedTimeRank2 = 52797;
             static constexpr uint32 kGlyphOfShield = 263;
             static constexpr uint32 kGlyphAura = 55672;
@@ -401,11 +408,14 @@ namespace Harness
             static constexpr uint32 kPutToBreakMs = 1000;
             static constexpr uint32 kBreakToRePutMs = 4400;
             static constexpr uint32 kRePutToBreakMs = 600;
-            static constexpr size_t kSteps = 4;
+            static constexpr uint32 kLockoutWaitMs = 7400;
+            static constexpr size_t kSteps = 6;
             static constexpr uint32 kPutStep = 0;
             static constexpr uint32 kBreakStep = 1;
             static constexpr uint32 kRePutStep = 2;
             static constexpr uint32 kSecondBreakStep = 3;
+            static constexpr uint32 kLastPutStep = 4;
+            static constexpr uint32 kLastBreakStep = 5;
 
             /// The effect 0 amount of `unit`'s holder of `spell`; -1 when it holds none.
             static int64 AmountOf(Unit* unit, uint32 spell)
