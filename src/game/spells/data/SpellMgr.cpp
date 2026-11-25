@@ -2701,6 +2701,12 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // Arcane Potency's buffs and the hidden aura of each (GetArcanePotencyHiddenAura) stand together
+    if (GetArcanePotencyHiddenAura(spellId_1) == spellId_2 || GetArcanePotencyHiddenAura(spellId_2) == spellId_1)
+    {
+        return false;
+    }
+
     // A haste spell's lockout (IsLustLockout) stacks with every aura that is no such lockout, the haste spell that
     // shares its icon among them; two lockouts are left to the rules below
     if (IsLustLockout(spellId_1) != IsLustLockout(spellId_2))

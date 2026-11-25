@@ -580,6 +580,8 @@ TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
 {
     CHECK_EQ(GetArcanePotencyProcSpell(31571), uint32(57529));
     CHECK_EQ(GetArcanePotencyProcSpell(31572), uint32(57531));
+    CHECK_EQ(GetArcanePotencyHiddenAura(57529), uint32(33421));
+    CHECK_EQ(GetArcanePotencyHiddenAura(57531), uint32(33713));
     CHECK_EQ(GetSecondWindProcSpell(29838), uint32(29842));
     CHECK_EQ(GetSecondWindProcSpell(29834), uint32(29841));
     CHECK_EQ(GetSecondWindProcSpell(42770), uint32(42771));
@@ -613,9 +615,17 @@ TEST(SpellTables_TheProcRankTablesAnswerTheirSwitchesLiveRowsAndNoOthers)
     CHECK_EQ(GetLightningShieldDamageSpell(49281), uint32(0));
     CHECK_EQ(GetThreatOfThassarianOffHandSpell(51423), uint32(0));
     CHECK_EQ(GetHolyShockOfHeal(25913), uint32(0));
+
+    // The hidden Arcane Potency auras answer for the buffs alone: not for the talent's ranks, the channels, or the
+    // hidden auras themselves.
+    for (uint32 spellId : { 31571u, 31572u, 5143u, 10u, 33421u, 33713u })
+    {
+        CHECK_EQ(GetArcanePotencyHiddenAura(spellId), uint32(0));
+    }
     for (uint32 spellId : { 0u, 12345u })
     {
         CHECK_EQ(GetArcanePotencyProcSpell(spellId), uint32(0));
+        CHECK_EQ(GetArcanePotencyHiddenAura(spellId), uint32(0));
         CHECK_EQ(GetSecondWindProcSpell(spellId), uint32(0));
         CHECK_EQ(GetRapidRecuperationProcSpell(spellId), uint32(0));
         CHECK_EQ(GetBlessedRecoveryProcSpell(spellId), uint32(0));

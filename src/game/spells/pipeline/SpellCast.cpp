@@ -65,6 +65,7 @@
 #include "spells/pipeline/SpellRules.h"
 #include "spells/ActionBarOverride.h"
 #include "spells/SpellScriptHooks.h"
+#include "spells/SpellScriptQueries.h"
 #include "UnitDisableSubject.h"
 #include "Map.h"
 
@@ -675,6 +676,8 @@ void Spell::cast(bool skipCheck)
     {
         procTarget = m_caster;
     }
+    // the cast-end procs are the caster's, or his owner's when he casts for that owner
+    Unit& procOwner = Spells::CastEndProcOwner(*m_caster, GetAffectiveCaster());
 
     // Okay, everything is prepared. Now we need to distinguish between immediate and evented delayed spells
     float speed = m_spellInfo->Speed == 0.0f && m_triggeredBySpellInfo ? m_triggeredBySpellInfo->Speed : m_spellInfo->Speed;
@@ -701,17 +704,17 @@ void Spell::cast(bool skipCheck)
         // critical hit related part is currently done on hit so proc there,
         // 0 damage since any damage based procs should be on hit
         // 0 victim proc since there is no victim proc dependent on successfull cast for caster
-        // the modifiers it takes off the caster stay with this spell for its hits
-        SpellModMgr::KeepScope keep(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
-        m_caster->ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
+        // the modifiers it takes off the proc owner stay with this spell for its hits
+        SpellModMgr::KeepScope keep(procOwner.GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
+        procOwner.ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
     }
     else
     {
         DispatchLaunch(*m_caster, *m_spellInfo, m_casttime);
 
         {
-            SpellModMgr::KeepScope keep(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
-            m_caster->ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
+            SpellModMgr::KeepScope keep(procOwner.GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
+            procOwner.ProcDamageAndSpell(procTarget, m_procAttacker, 0, PROC_EX_CAST_END, 0, m_attackType, m_spellInfo);
         }
 
         // Immediate spell, no big deal
@@ -760,7 +763,9 @@ void Spell::TakeAmmo()
 void Spell::handle_immediate()
 {
     {
-        SpellModMgr::KeptScope kept(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
+        // the modifiers its cast end took off the proc owner's list apply to its hits
+        SpellModMgr::KeptScope kept(Spells::CastEndProcOwner(*m_caster, GetAffectiveCaster()).GetSpellMods(),
+                                    m_spellInfo->ID, m_keptSpellMods);
 
         // process immediate effects (items, ground, etc.) also initialize some variables
         _handle_immediate_phase();
@@ -806,7 +811,9 @@ uint64 Spell::handle_delayed(uint64 t_offset)
     uint64 next_time = 0;
 
     {
-        SpellModMgr::KeptScope kept(m_caster->GetSpellMods(), m_spellInfo->ID, m_keptSpellMods);
+        // the modifiers its cast end took off the proc owner's list apply to its hits
+        SpellModMgr::KeptScope kept(Spells::CastEndProcOwner(*m_caster, GetAffectiveCaster()).GetSpellMods(),
+                                    m_spellInfo->ID, m_keptSpellMods);
 
         if (!m_immediateHandled)
         {
