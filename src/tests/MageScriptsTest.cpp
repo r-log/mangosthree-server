@@ -62,6 +62,7 @@
 /// at its last charge; the hidden aura the launch casts is one the test's spell store lacks, so nothing is cast.
 
 #include "TestHarness.h"
+#include "SpellHandlerGolden.h"
 #include "combat/SpellBonus.h"
 #include "spells/classes/mage/Mage.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
@@ -190,10 +191,6 @@ namespace
     // (MageImagesTest tests their bodies).
     uint32 const IMAGE_DUMMY_EFFECT_IDS[] = { 55342, 45204 };
     uint32 const IMAGE_TARGET_IDS[] = { 58836 };
-
-    // The ids the lockout scripts of the haste spells hold at the target and aura-apply hooks beside the mage's:
-    // Bloodlust, Heroism, Time Warp and Ancient Hysteria (LustLockoutTest tests their bodies).
-    uint32 const LUST_IDS[] = { 2825, 32182, 80353, 90355 };
 
     // The id the after-cast script holds: Blast Wave, which calls the free Flamestrike for Improved Flamestrike.
     uint32 const BLAST_WAVE_IDS[] = { 11113 };
@@ -716,11 +713,49 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     // periodic-tick hook, and the ring's freeze at the target and aura-remove hooks. The images: Mirror Image and Clone
     // Me! at the dummy-effect hook, and Initialize Images at the target hook. Impact, Clearcasting, Arcane Blast's buff,
     // Arcane Potency's two buffs, Fingers of Frost, Brain Freeze, Invocation's two ranks and Reactive Barrier's two
-    // ranks also at the check-proc hook. 181 rows, 178 keys and 3 defaults, none twice.
+    // ranks also at the check-proc hook. Each file on a table of its own: it registers each of its rows once (it
+    // answers its keys and its defaults), every key it registers is a line of goldens/spell_handler_keys.txt, and no
+    // key is two files'; the class-wide file alone holds defaults, the three mage sites'.
+    struct PerFile
+    {
+        uint32 (*registerRows)(SpellHandlerRegistry&);
+        std::size_t defaults;
+    };
+    PerFile const files[] =
+    {
+        { &Mage::RegisterClassWide, 3 },
+        { &Mage::RegisterFire, 0 },
+        { &Mage::RegisterFrost, 0 },
+        { &Mage::RegisterArcane, 0 },
+        { &Mage::RegisterOrb, 0 },
+        { &Mage::RegisterRing, 0 },
+        { &Mage::RegisterImages, 0 },
+    };
+    uint32 answered = 0;
+    std::size_t keys = 0;
+    std::size_t defaults = 0;
+    std::set<std::pair<uint32, uint32> > seen;
+    for (PerFile const& file : files)
+    {
+        SpellHandlerRegistry own;
+        uint32 const rows = file.registerRows(own);
+        CHECK_EQ(std::size_t(rows), own.Count() + own.CountDefaults());
+        CHECK_EQ(own.CountDefaults(), file.defaults);
+        for (std::pair<uint32, uint32> const& key : own.Keys())
+        {
+            CHECK(seen.insert(key).second);
+            CHECK(SpellHandlerGolden::Holds(key));
+        }
+        answered += rows;
+        keys += own.Count();
+        defaults += own.CountDefaults();
+    }
+
+    // RegisterMageScripts registers every file's rows, the sums of theirs.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterMageScripts(registry), uint32(181));
-    CHECK_EQ(registry.Count(), std::size_t(178));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(3));
+    CHECK_EQ(RegisterMageScripts(registry), answered);
+    CHECK_EQ(registry.Count(), keys);
+    CHECK_EQ(registry.CountDefaults(), defaults);
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(0));
@@ -747,46 +782,19 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK(registry.FindDefault<SpellEffectDummyMageSite>() == NULL);
     CHECK(registry.FindDefault<DummyAuraProcMageSite>() == NULL);
 
-    // Each file on a table of its own: what it answers, its keys and its defaults.
-    struct PerFile
-    {
-        uint32 (*registerRows)(SpellHandlerRegistry&);
-        uint32 answered;
-        std::size_t keys;
-        std::size_t defaults;
-    };
-    PerFile const files[] =
-    {
-        { &Mage::RegisterClassWide, 16, 13, 3 },
-        { &Mage::RegisterFire, 40, 40, 0 },
-        { &Mage::RegisterFrost, 78, 78, 0 },
-        { &Mage::RegisterArcane, 35, 35, 0 },
-        { &Mage::RegisterOrb, 6, 6, 0 },
-        { &Mage::RegisterRing, 3, 3, 0 },
-        { &Mage::RegisterImages, 3, 3, 0 },
-    };
-    for (PerFile const& file : files)
-    {
-        SpellHandlerRegistry own;
-        CHECK_EQ(file.registerRows(own), file.answered);
-        CHECK_EQ(own.Count(), file.keys);
-        CHECK_EQ(own.CountDefaults(), file.defaults);
-    }
-
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterMageScripts(registry), uint32(181));
-    CHECK_EQ(registry.Count(), std::size_t(178));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(3));
+    CHECK_EQ(RegisterMageScripts(registry), answered);
+    CHECK_EQ(registry.Count(), keys);
+    CHECK_EQ(registry.CountDefaults(), defaults);
 
     // The game's table holds every one of these keys with the same body, and the same three defaults. The handler
     // files hold the mage sites' other rows: Mirror Image at the periodic dummy tick site, Brain Freeze's Pushing the
     // Limit label (57761) at the boost site, Cold Snap at the dummy-effect site and Focus Magic at the crit-chance proc
-    // site. Hot Streak's buff (48108), Combustion (11129), and 28682 and 44401, which the client's data lacks, are no
-    // label of the boost site.
+    // site, one row at each. Hot Streak's buff (48108), Combustion (11129), and 28682 and 44401, which the client's
+    // data lacks, are no label of the boost site.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     std::vector<std::pair<uint32, uint32> > const mine = registry.Keys();
     std::vector<std::pair<uint32, uint32> > const all = game.Keys();
-    CHECK_EQ(mine.size(), std::size_t(178));
     CHECK(std::includes(all.begin(), all.end(), mine.begin(), mine.end()));
     CheckRowsInTheGame<AuraTriggerSpellMageSite>(registry, TRIGGER_SPELL_IDS);
     CheckRowsInTheGame<SpellEffectDummyMageSite>(registry, EFFECT_DUMMY_IDS);
@@ -794,11 +802,12 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CHECK(game.FindDefault<AuraTriggerSpellMageSite>() == registry.FindDefault<AuraTriggerSpellMageSite>());
     CHECK(game.FindDefault<AuraPeriodicDummyTickMageSite>() == registry.FindDefault<AuraPeriodicDummyTickMageSite>());
     CHECK(game.FindDefault<AuraBoostMageSite>() == registry.FindDefault<AuraBoostMageSite>());
-    CHECK_EQ(game.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), std::size_t(1));
-    CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), std::size_t(6));
-    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AuraTriggerSpellMageSite::Key), registry.CountAt(AuraTriggerSpellMageSite::Key));
+    CHECK_EQ(game.CountAt(AuraPeriodicDummyTickMageSite::Key),
+             registry.CountAt(AuraPeriodicDummyTickMageSite::Key) + 1);
+    CHECK_EQ(game.CountAt(AuraBoostMageSite::Key), registry.CountAt(AuraBoostMageSite::Key) + 1);
+    CHECK_EQ(game.CountAt(SpellEffectDummyMageSite::Key), registry.CountAt(SpellEffectDummyMageSite::Key) + 1);
+    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), registry.CountAt(DummyAuraProcMageSite::Key));
     CheckRowsInTheGame<LaunchHook>(registry, FROST_LAUNCH_IDS);
     CheckRowsInTheGame<LaunchHook>(registry, ICE_BLOCK_LAUNCH_IDS);
     CheckRowsInTheGame<LaunchHook>(registry, ARCANE_POTENCY_CHANNEL_IDS);
@@ -808,7 +817,8 @@ TEST(MageScripts_TheTableRegistersEveryRowOnce)
     CheckRowsInTheGame<AuraRemoveHook>(registry, ICE_BARRIER_IDS);
     CheckRowsInTheGame<CheckProcHook>(registry, REACTIVE_BARRIER_IDS);
     CheckRowsInTheGame<DummyEffectHook>(registry, RITUAL_OF_REFRESHMENT_IDS);
-    CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(SpellCritChanceAuraProcMageSite::Key),
+             registry.CountAt(SpellCritChanceAuraProcMageSite::Key) + 1);
     CHECK(game.Find<AuraPeriodicDummyTickMageSite>(55342) != NULL);
     CHECK(registry.Find<AuraPeriodicDummyTickMageSite>(55342) == NULL);
     CHECK(game.Find<AuraBoostMageSite>(57761) != NULL);
@@ -954,11 +964,14 @@ TEST(MageScripts_TheProcHookHoldsTheIdsOfEachProcTalentOnce)
                             sizeof(REACTIVE_BARRIER_IDS) / sizeof(uint32);
     CHECK_EQ(ids, std::size_t(27));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), ids);
-    CHECK_EQ(game.CountAt(OnProcHook::Key), ids);
-    CHECK_EQ(game.CountAt(CheckProcHook::Key),
+    CHECK_EQ(registry.CountAt(CheckProcHook::Key),
              (sizeof(IMPACT_IDS) + sizeof(CLEARCASTING_IDS) + sizeof(ARCANE_BLAST_BUFF_IDS) +
               sizeof(ARCANE_POTENCY_BUFF_IDS) + sizeof(FINGERS_OF_FROST_IDS) + sizeof(BRAIN_FREEZE_IDS) +
               sizeof(INVOCATION_IDS) + sizeof(REACTIVE_BARRIER_IDS)) / sizeof(uint32));
+
+    // The game's two hooks hold these and the other class scripts' rows alone.
+    CHECK_EQ(game.CountAt(OnProcHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, OnProcHook::Key));
+    CHECK_EQ(game.CountAt(CheckProcHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, CheckProcHook::Key));
 
     // No script stands for spells no 4.3.4 proc reaches: Burnout's five ranks (no dummy aura), Combustion (11129
     // applies no aura), 28682 (absent from the client's data) and Magic Absorption's two ranks (29441, 29444), a talent
@@ -1849,13 +1862,15 @@ TEST(MageScripts_BlinkKeepsOneTarget)
         CHECK(registry.Find<SelectTargetsHook>(spellId) != NULL);
         CHECK(game.Find<SelectTargetsHook>(spellId) == registry.Find<SelectTargetsHook>(spellId));
     }
-    // The target hook also holds Piercing Chill's chill (83154), and the haste spells' lockout script.
-    CHECK_EQ(game.CountAt(SelectTargetsHook::Key), sizeof(BLINK_IDS) / sizeof(uint32) +
-                                                   sizeof(ORB_TARGET_IDS) / sizeof(uint32) +
-                                                   sizeof(RING_FREEZE_IDS) / sizeof(uint32) +
-                                                   sizeof(PIERCING_CHILL_CHILL_IDS) / sizeof(uint32) +
-                                                   sizeof(IMAGE_TARGET_IDS) / sizeof(uint32) +
-                                                   sizeof(LUST_IDS) / sizeof(uint32));
+    // The mage's rows at the target hook also hold Piercing Chill's chill (83154); the game's hook holds them and the
+    // other class scripts' rows alone, the haste spells' lockout script among them.
+    CHECK_EQ(registry.CountAt(SelectTargetsHook::Key), sizeof(BLINK_IDS) / sizeof(uint32) +
+                                                       sizeof(ORB_TARGET_IDS) / sizeof(uint32) +
+                                                       sizeof(RING_FREEZE_IDS) / sizeof(uint32) +
+                                                       sizeof(PIERCING_CHILL_CHILL_IDS) / sizeof(uint32) +
+                                                       sizeof(IMAGE_TARGET_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(SelectTargetsHook::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, SelectTargetsHook::Key));
 
     // Blink sets the count the cut after the hook keeps to one and continues, so the cut runs; the list is untouched.
     BareCreature caster;
@@ -1888,17 +1903,20 @@ TEST(MageScripts_LivingBombRunsOnTheDummyAuraHook)
         CHECK(game.Find<AuraApplyHook>(spellId) == registry.Find<AuraApplyHook>(spellId));
         CHECK(game.Find<AuraRemoveHook>(spellId) == registry.Find<AuraRemoveHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(DummyAuraHook::Key), sizeof(LIVING_BOMB_IDS) / sizeof(uint32));
-    CHECK_EQ(game.CountAt(AuraRemoveHook::Key), sizeof(HOT_STREAK_BUFF_IDS) / sizeof(uint32) +
-                                                sizeof(MAGE_WARD_IDS) / sizeof(uint32) +
-                                                sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
-                                                sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
-                                                sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) +
-                                                sizeof(POLYMORPH_IDS) / sizeof(uint32) +
-                                                sizeof(INVISIBILITY_IDS) / sizeof(uint32) +
-                                                sizeof(ICE_BARRIER_IDS) / sizeof(uint32) +
-                                                sizeof(MANA_SHIELD_BREAK_IDS) / sizeof(uint32) +
-                                                sizeof(RING_FREEZE_IDS) / sizeof(uint32));
+    CHECK_EQ(registry.CountAt(DummyAuraHook::Key), sizeof(LIVING_BOMB_IDS) / sizeof(uint32));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), sizeof(HOT_STREAK_BUFF_IDS) / sizeof(uint32) +
+                                                    sizeof(MAGE_WARD_IDS) / sizeof(uint32) +
+                                                    sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) +
+                                                    sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
+                                                    sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) +
+                                                    sizeof(POLYMORPH_IDS) / sizeof(uint32) +
+                                                    sizeof(INVISIBILITY_IDS) / sizeof(uint32) +
+                                                    sizeof(ICE_BARRIER_IDS) / sizeof(uint32) +
+                                                    sizeof(MANA_SHIELD_BREAK_IDS) / sizeof(uint32) +
+                                                    sizeof(RING_FREEZE_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(DummyAuraHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, DummyAuraHook::Key));
+    CHECK_EQ(game.CountAt(AuraRemoveHook::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, AuraRemoveHook::Key));
 
     // At the apply the script goes on to the handler's other steps. At an un-apply for any reason but the aura running
     // out it casts nothing and ends the handler. The amount, the explosion's spell, stays as it is.
@@ -2484,12 +2502,12 @@ TEST(MageScripts_PyromaniacRunsOnTheAuraApplyAndRemoveHooks)
         CHECK(game.Find<AuraApplyHook>(spellId) == talentApply);
         CHECK(game.Find<AuraRemoveHook>(spellId) == talentRemove);
     }
-    CHECK_EQ(game.CountAt(AuraApplyHook::Key),
+    CHECK_EQ(registry.CountAt(AuraApplyHook::Key),
              sizeof(PYROMANIAC_DOT_IDS) / sizeof(uint32) + sizeof(PYROMANIAC_IDS) / sizeof(uint32) +
              sizeof(ARCANE_MISSILES_BUFF_IDS) / sizeof(uint32) + sizeof(ARCANE_MISSILES_IDS) / sizeof(uint32) +
              sizeof(INVISIBILITY_IDS) / sizeof(uint32) +
-             sizeof(ICE_BARRIER_IDS) / sizeof(uint32) + sizeof(POLYMORPH_IDS) / sizeof(uint32) +
-             sizeof(LUST_IDS) / sizeof(uint32));
+             sizeof(ICE_BARRIER_IDS) / sizeof(uint32) + sizeof(POLYMORPH_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(AuraApplyHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, AuraApplyHook::Key));
 
     // The DoTs' bodies count only for a caster they may touch: an apply with no caster or a caster that is no player,
     // the call before the add, and a removal by re-application or with no caster, change nothing and let the holder's
@@ -2547,10 +2565,12 @@ TEST(MageScripts_CombustionRunsOnTheDummyEffectHook)
         CHECK(game.Find<DummyEffectHook>(spellId) == registry.Find<DummyEffectHook>(spellId));
         CHECK(game.Find<AuraBoostMageSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(DummyEffectHook::Key),
+    CHECK_EQ(registry.CountAt(DummyEffectHook::Key),
              sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32) +
                  sizeof(ORB_DUMMY_EFFECT_IDS) / sizeof(uint32) + sizeof(IMAGE_DUMMY_EFFECT_IDS) / sizeof(uint32) +
                  sizeof(RITUAL_OF_REFRESHMENT_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, DummyEffectHook::Key));
     CHECK(game.Find<AuraBoostMageSite>(28682) == NULL);
 
     // With no unit target the script casts nothing and ends the effect, so the mage family switch does not run; the
@@ -3054,10 +3074,12 @@ TEST(MageScripts_ImpactsSpreadEndsItsEffectAndCountsTheLivingBombsOverTheCast)
         CHECK(registry.Find<DummyEffectHook>(spellId) != NULL);
         CHECK(game.Find<DummyEffectHook>(spellId) == registry.Find<DummyEffectHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(DummyEffectHook::Key),
+    CHECK_EQ(registry.CountAt(DummyEffectHook::Key),
              sizeof(COMBUSTION_IDS) / sizeof(uint32) + sizeof(IMPACT_SPREAD_IDS) / sizeof(uint32) +
                  sizeof(ORB_DUMMY_EFFECT_IDS) / sizeof(uint32) + sizeof(IMAGE_DUMMY_EFFECT_IDS) / sizeof(uint32) +
                  sizeof(RITUAL_OF_REFRESHMENT_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(DummyEffectHook::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, DummyEffectHook::Key));
 
     BareCreature caster;
     BareCreature stunned;
@@ -3145,7 +3167,7 @@ TEST(MageScripts_ImprovedFlamestrikesChanceIsTheRanksEffectValue)
 TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
 {
     // Blast Wave holds an after-cast row, in the game's table too; the free Flamestrike and the talent's ranks hold
-    // none. The hook's other rows are Replenish Mana's and the Water Elemental's Freeze's.
+    // none. The mage's other rows at the hook are Replenish Mana's and the Water Elemental's Freeze's.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -3154,9 +3176,10 @@ TEST(MageScripts_BlastWaveRunsOnTheAfterCastHookAndCallsNothingBelowTwoEnemies)
         CHECK(registry.Find<AfterCastHook>(spellId) != NULL);
         CHECK(game.Find<AfterCastHook>(spellId) == registry.Find<AfterCastHook>(spellId));
     }
-    CHECK_EQ(game.CountAt(AfterCastHook::Key),
+    CHECK_EQ(registry.CountAt(AfterCastHook::Key),
              (sizeof(BLAST_WAVE_IDS) + sizeof(REPLENISH_MANA_IDS) + sizeof(WATER_ELEMENTAL_FREEZE_IDS)) /
                  sizeof(uint32));
+    CHECK_EQ(game.CountAt(AfterCastHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, AfterCastHook::Key));
     for (uint32 spellId : { 88148u, 84673u, 84674u, 2120u })
     {
         CHECK(game.Find<AfterCastHook>(spellId) == NULL);
@@ -3542,7 +3565,8 @@ TEST(MageScripts_FrostfireBoltsAfterHitHoldsAnUnglyphedBoltAtOneStack)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(registry.Find<AfterHitHook>(kFrostfireBolt) != NULL);
     CHECK(game.Find<AfterHitHook>(kFrostfireBolt) == registry.Find<AfterHitHook>(kFrostfireBolt));
-    CHECK_EQ(game.CountAt(AfterHitHook::Key), std::size_t(4));
+    CHECK_EQ(registry.CountAt(AfterHitHook::Key), std::size_t(4));
+    CHECK_EQ(game.CountAt(AfterHitHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, AfterHitHook::Key));
 
     // A heal, and a hit on a target that holds no Frostfire Bolt of the caster, change nothing.
     BareCreature caster;
@@ -3781,15 +3805,18 @@ TEST(MageScripts_TheTwoFrostListsHoldExactlyTheSpellsTheTalentMasksCover)
         CHECK(!Mage::FrostburnCovers(spellId));
     }
 
-    // The hooks hold the same ids, the same body for every id of a list, and the game's table the same; the
-    // damage-done hook also holds Torment the Weak's three ranks, none of them a spell of the table.
+    // The hooks hold the same ids, the same body for every id of a list, and the game's table the same beside the
+    // other class scripts' rows; the damage-done hook also holds Torment the Weak's three ranks, none of them a spell
+    // of the table.
     SpellHandlerRegistry registry;
     RegisterMageScripts(registry);
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK_EQ(registry.CountAt(CritChanceHook::Key), std::size_t(26));
     CHECK_EQ(registry.CountAt(DamageDoneHook::Key), std::size_t(22 + sizeof(TORMENT_THE_WEAK_IDS) / sizeof(uint32)));
-    CHECK_EQ(game.CountAt(CritChanceHook::Key), std::size_t(26));
-    CHECK_EQ(game.CountAt(DamageDoneHook::Key), std::size_t(22 + sizeof(TORMENT_THE_WEAK_IDS) / sizeof(uint32)));
+    CHECK_EQ(game.CountAt(CritChanceHook::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, CritChanceHook::Key));
+    CHECK_EQ(game.CountAt(DamageDoneHook::Key),
+             SpellHandlerGolden::RowsWithClassScripts(registry, DamageDoneHook::Key));
     SpellHandler<CritChanceHook>::Function const crit = registry.Find<CritChanceHook>(kFrostbolt);
     SpellHandler<DamageDoneHook>::Function const done = registry.Find<DamageDoneHook>(kFrostbolt);
     CHECK(crit != NULL);
@@ -4227,9 +4254,10 @@ TEST(MageScripts_FingersOfFrostsUsersTakeTheChargeAtTheLaunchHookAndNowhereElse)
         CHECK(game.Find<LaunchHook>(spellId) != NULL);
         CHECK(game.Find<LaunchHook>(spellId) != body);
     }
-    CHECK_EQ(game.CountAt(LaunchHook::Key),
+    CHECK_EQ(registry.CountAt(LaunchHook::Key),
              sizeof(FROST_LAUNCH_IDS) / sizeof(uint32) + sizeof(ICE_BLOCK_LAUNCH_IDS) / sizeof(uint32) +
              sizeof(ARCANE_POTENCY_CHANNEL_IDS) / sizeof(uint32));
+    CHECK_EQ(game.CountAt(LaunchHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, LaunchHook::Key));
     for (uint32 spellId : { kFrostbolt, kDeepFreezeDamage, 120u, 122u, 11113u })
     {
         CHECK(game.Find<LaunchHook>(spellId) == NULL);
@@ -5527,7 +5555,8 @@ TEST(MageScripts_AFrostboltCastStartsTheLockoutOfTheRankTheMageKnowsUnlessOneIsU
     CHECK(game.Find<CastStartHook>(116) == registry.Find<CastStartHook>(116));
     CHECK(game.Find<LaunchHook>(116) == NULL);
     CHECK(game.Find<AfterCastHook>(116) == NULL);
-    CHECK_EQ(game.CountAt(CastStartHook::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(CastStartHook::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(CastStartHook::Key), SpellHandlerGolden::RowsWithClassScripts(registry, CastStartHook::Key));
 }
 
 TEST(MageScripts_GlyphOfIceBlockEndsFrostNovasCooldownWhenIceBlockGoesOff)

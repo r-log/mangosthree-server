@@ -168,6 +168,7 @@ set(SRC_GRP_TESTS
     TargetLimitTest.cpp
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
+    SpellHandlerGolden.h
     SpellScriptHooksTest.cpp
     MageScriptsTest.cpp
     MageOrbTest.cpp

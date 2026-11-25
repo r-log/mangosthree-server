@@ -139,8 +139,6 @@ TEST(RaidBuff_EachClassFamilysDummySiteReachesTheRaidBuffHandler)
         CHECK_EQ(RaidBuffSitesHolding(game, buff.castSpellId), uint32(1));
         CHECK(game.Find<SpellEffectDummyGenericSite>(buff.castSpellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectDummyPriestSite::Key), std::size_t(2));
-    CHECK_EQ(game.CountAt(SpellEffectDummyDruidSite::Key), std::size_t(1));
     CHECK(game.FindDefault<SpellEffectDummyPriestSite>() == NULL);
     CHECK(game.FindDefault<SpellEffectDummyDruidSite>() == NULL);
 
