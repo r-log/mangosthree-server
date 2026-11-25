@@ -226,4 +226,15 @@ bool HasPositiveMeleeHasteAura(uint32 spellId);
 bool HasNegativeForceReactionAura(uint32 spellId);
 bool HasNegativePhaseAura(uint32 spellId);
 
+struct SpellEntry;
+
+/// The marker a speed buff puts on its holder for as long as it lasts, which the client names as the aura that
+/// excludes the caster from such a buff: Run Speed Marker 96223.
+uint32 SpeedBuffMarker();
+
+/// Whether `spell`'s aura restrictions exclude the caster on the speed-buff marker (its SpellAuraRestrictions row's
+/// ExcludeCasterAuraSpell is SpeedBuffMarker()), so the buff carries it. A spell with no restrictions row answers
+/// false.
+bool CarriesSpeedBuffMarker(SpellEntry const& spell);
+
 #endif

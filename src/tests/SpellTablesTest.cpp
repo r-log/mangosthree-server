@@ -25,8 +25,13 @@
 
 #include "TestHarness.h"
 
+#include "Creature.h"
+#include "DBCStores.h"
+#include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
+
+#include <cstddef>
 
 TEST(SpellTables_TheGooberSpellsAnswerTheirReplacementsAndAnyOtherIdItself)
 {
@@ -839,4 +844,234 @@ TEST(SpellTables_IsPositiveEffectsSetsHoldTheirSwitchesLabelsAndNoOthers)
         CHECK(!HasNegativeForceReactionAura(spellId));
         CHECK(!HasNegativePhaseAura(spellId));
     }
+}
+
+// The speed-buff marker. The queries read Spell.dbc rows built as the loader builds them, each with only its id and
+// its SpellAuraRestrictions row id, beside SpellAuraRestrictions rows put into their store: the client's rows of the
+// fourteen spells whose ExcludeCasterAuraSpell is 96223, of Invisibility (81) and of Divine Shield (6), and a row of
+// the test's own that names 96223 in every spell column but ExcludeCasterAuraSpell. The holder arm runs on a bare
+// Creature (update fields allocated; no map, template or AI): its holders are made through their constructor with no
+// aura, on rows put into the spell store, and put in its holder map as Unit::AddSpellAuraHolder files them, so no add
+// runs the arm; each leaves through Unit::RemoveSpellAuraHolder, which runs SpellAuraHolder::HandleSpellSpecificBoosts.
+namespace
+{
+    const uint32 kRunSpeedMarker = 96223;
+
+    struct MarkerRowStorage
+    {
+        alignas(SpellEntry) unsigned char bytes[sizeof(SpellEntry)];
+    };
+
+    /// The Spell.dbc row in `storage`, with only its id and its SpellAuraRestrictions row id.
+    SpellEntry& RestrictedSpell(MarkerRowStorage& storage, uint32 spellId, uint32 restrictionsId)
+    {
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(storage.bytes);
+        row->ID = spellId;
+        row->AuraRestrictionsID = restrictionsId;
+        return *row;
+    }
+
+    /// A spell of the client's data whose SpellAuraRestrictions row excludes its caster on the marker.
+    struct MarkerCarrier
+    {
+        uint32 spellId;
+        uint32 restrictionsId;
+        uint32 casterAuraSpell;     ///< the aura its row asks of the caster (a druid form); 0 for none
+    };
+
+    MarkerCarrier const MARKER_CARRIERS[] =
+    {
+        { 1850, 1094, 768 },        // Dash, in Cat Form
+        { 2983, 1180, 0 },          // Sprint
+        { 8892, 1373, 0 },          // Goblin Rocket Boots
+        { 13141, 1371, 0 },         // Gnomish Rocket Boots
+        { 23451, 1376, 0 },         // Speed
+        { 46989, 1368, 0 },         // Improved Blink, the second rank's buff
+        { 47000, 1369, 0 },         // Improved Blink, the first rank's buff
+        { 51582, 1374, 0 },         // Rocket Boots Engaged
+        { 55004, 1372, 0 },         // Nitro Boosts
+        { 64128, 1375, 0 },         // Body and Soul
+        { 68992, 1179, 0 },         // Darkflight
+        { 77761, 1367, 5487 },      // Stampeding Roar, in Bear Form
+        { 77764, 1366, 768 },       // Stampeding Roar, in Cat Form
+        { 87833, 1370, 0 },         // Invisibility Speed
+    };
+    constexpr std::size_t kMarkerCarriers = sizeof(MARKER_CARRIERS) / sizeof(MARKER_CARRIERS[0]);
+
+    // SpellAuraRestrictions.dbc rows: { CasterAuraState, TargetAuraState, ExcludeCasterAuraState,
+    // ExcludeTargetAuraState, CasterAuraSpell, TargetAuraSpell, ExcludeCasterAuraSpell, ExcludeTargetAuraSpell }.
+    SpellAuraRestrictionsEntry s_carrierRestrictions[kMarkerCarriers] = {};
+    SpellAuraRestrictionsEntry s_invisibilityRestrictions = { 0, 0, 12, 0, 0, 0, 0, 0 };
+    SpellAuraRestrictionsEntry s_divineShieldRestrictions = { 0, 0, 0, 0, 0, 0, 61988, 0 };
+    SpellAuraRestrictionsEntry s_otherColumnsRestrictions = { 0, 0, 0, 0, 96223, 96223, 0, 96223 };
+    const uint32 kInvisibilityRestrictions = 81;
+    const uint32 kDivineShieldRestrictions = 6;
+    const uint32 kOtherColumnsRestrictions = 94330;
+    const uint32 kMissingRestrictions = 94331;      // a row id the store never holds
+
+    /// Puts the restriction rows into their store once: each carrier's as the client has it, and the three others.
+    void StoreMarkerRestrictions()
+    {
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        for (std::size_t i = 0; i < kMarkerCarriers; ++i)
+        {
+            s_carrierRestrictions[i].CasterAuraSpell = MARKER_CARRIERS[i].casterAuraSpell;
+            s_carrierRestrictions[i].ExcludeCasterAuraSpell = kRunSpeedMarker;
+            sSpellAuraRestrictionsStore.SetEntry(MARKER_CARRIERS[i].restrictionsId, &s_carrierRestrictions[i]);
+        }
+        sSpellAuraRestrictionsStore.SetEntry(kInvisibilityRestrictions, &s_invisibilityRestrictions);
+        sSpellAuraRestrictionsStore.SetEntry(kDivineShieldRestrictions, &s_divineShieldRestrictions);
+        sSpellAuraRestrictionsStore.SetEntry(kOtherColumnsRestrictions, &s_otherColumnsRestrictions);
+    }
+
+    const uint32 kCarrierSpell = 94332;             // a speed buff on Sprint's row (1180)
+    const uint32 kOtherCarrierSpell = 94333;        // another, on Stampeding Roar's row (1366)
+    const uint32 kNonCarrierSpell = 94334;          // a buff on Divine Shield's row (6)
+
+    MarkerRowStorage s_markerRow = {};
+    MarkerRowStorage s_carrierRow = {};
+    MarkerRowStorage s_otherCarrierRow = {};
+    MarkerRowStorage s_nonCarrierRow = {};
+
+    /// Puts the marker, the two carriers and the buff that carries none into the spell store once.
+    void StoreHolderSpells()
+    {
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        StoreMarkerRestrictions();
+        sSpellStore.SetEntry(kRunSpeedMarker, &RestrictedSpell(s_markerRow, kRunSpeedMarker, 0));
+        sSpellStore.SetEntry(kCarrierSpell, &RestrictedSpell(s_carrierRow, kCarrierSpell, 1180));
+        sSpellStore.SetEntry(kOtherCarrierSpell, &RestrictedSpell(s_otherCarrierRow, kOtherCarrierSpell, 1366));
+        sSpellStore.SetEntry(kNonCarrierSpell,
+                             &RestrictedSpell(s_nonCarrierRow, kNonCarrierSpell, kDivineShieldRestrictions));
+    }
+
+    /// A creature with its update fields allocated and no world, map, template or AI.
+    class MarkerBearer : public Creature
+    {
+        public:
+            MarkerBearer()
+            {
+                _InitValues();
+            }
+
+            // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist; a holder still
+            // in the map is the test's own and leaves the map first.
+            ~MarkerBearer()
+            {
+                m_auras.Holders().clear();
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+
+            /// A holder of the stored spell `spellId` on this creature, made through its constructor with no aura and
+            /// put in the holder map as Unit::AddSpellAuraHolder files it. Its caster is this creature, whose guid is
+            /// empty, so its removal looks up no other unit.
+            SpellAuraHolder* Hold(uint32 spellId)
+            {
+                SpellAuraHolder* holder = new SpellAuraHolder(sSpellStore.LookupEntry(spellId), this, NULL, NULL, NULL);
+                m_auras.AddHolder(spellId, holder);
+                return holder;
+            }
+    };
+}
+
+TEST(SpellTables_TheSpeedBuffMarkerIsTheRunSpeedMarker)
+{
+    CHECK_EQ(SpeedBuffMarker(), kRunSpeedMarker);
+}
+
+TEST(SpellTables_EverySpellWhoseRestrictionsExcludeItsCasterOnTheMarkerCarriesIt)
+{
+    StoreMarkerRestrictions();
+    MarkerRowStorage rows[kMarkerCarriers] = {};
+    for (std::size_t i = 0; i < kMarkerCarriers; ++i)
+    {
+        MarkerCarrier const& carrier = MARKER_CARRIERS[i];
+        CHECK(CarriesSpeedBuffMarker(RestrictedSpell(rows[i], carrier.spellId, carrier.restrictionsId)));
+    }
+    CHECK_EQ(kMarkerCarriers, std::size_t(14));
+
+    // The row decides, not the id: Sprint's id on no restrictions row carries nothing.
+    MarkerRowStorage bare = {};
+    CHECK(!CarriesSpeedBuffMarker(RestrictedSpell(bare, 2983, 0)));
+}
+
+TEST(SpellTables_ASpellCarriesNoMarkerWhenItsRestrictionsDoNotExcludeItsCasterOnIt)
+{
+    StoreMarkerRestrictions();
+    MarkerRowStorage blink = {};
+    MarkerRowStorage invisibility = {};
+    MarkerRowStorage divineShield = {};
+    MarkerRowStorage otherColumns = {};
+    MarkerRowStorage missing = {};
+
+    // Blink has no restrictions row; Invisibility's excludes a caster aura state; Divine Shield's excludes its caster
+    // on another aura (61988).
+    CHECK(!CarriesSpeedBuffMarker(RestrictedSpell(blink, 1953, 0)));
+    CHECK(!CarriesSpeedBuffMarker(RestrictedSpell(invisibility, 32612, kInvisibilityRestrictions)));
+    CHECK(!CarriesSpeedBuffMarker(RestrictedSpell(divineShield, 642, kDivineShieldRestrictions)));
+
+    // The marker in every other spell column of the row, and a row the store does not hold.
+    CHECK(!CarriesSpeedBuffMarker(RestrictedSpell(otherColumns, 94335, kOtherColumnsRestrictions)));
+    CHECK(!CarriesSpeedBuffMarker(RestrictedSpell(missing, 94336, kMissingRestrictions)));
+}
+
+TEST(SpellTables_ABuffThatCarriesTheMarkerTakesItAwayHoweverItEnds)
+{
+    StoreHolderSpells();
+    // AURA_REMOVE_BY_STACK is a same-caster re-application's removal of the holder it replaces.
+    for (AuraRemoveMode mode : { AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL,
+                                 AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_DEFAULT })
+    {
+        MarkerBearer unit;
+        SpellAuraHolder* marker = unit.Hold(kRunSpeedMarker);
+        SpellAuraHolder* buff = unit.Hold(kCarrierSpell);
+        CHECK(unit.GetSpellAuraHolder(kRunSpeedMarker) == marker);
+        unit.RemoveSpellAuraHolder(buff, mode);
+        CHECK(unit.GetSpellAuraHolder(kCarrierSpell) == NULL);
+        CHECK(unit.GetSpellAuraHolder(kRunSpeedMarker) == NULL);
+        CHECK(unit.GetSpellAuraHolderMap().empty());
+    }
+}
+
+TEST(SpellTables_TheMarkerStaysWhileAnotherBuffThatCarriesItStands)
+{
+    StoreHolderSpells();
+    MarkerBearer unit;
+    SpellAuraHolder* marker = unit.Hold(kRunSpeedMarker);
+    SpellAuraHolder* first = unit.Hold(kCarrierSpell);
+    SpellAuraHolder* second = unit.Hold(kOtherCarrierSpell);
+
+    unit.RemoveSpellAuraHolder(first, AURA_REMOVE_BY_EXPIRE);
+    CHECK(unit.GetSpellAuraHolder(kRunSpeedMarker) == marker);
+    CHECK(unit.GetSpellAuraHolder(kOtherCarrierSpell) == second);
+
+    unit.RemoveSpellAuraHolder(second, AURA_REMOVE_BY_EXPIRE);
+    CHECK(unit.GetSpellAuraHolder(kRunSpeedMarker) == NULL);
+    CHECK(unit.GetSpellAuraHolderMap().empty());
+}
+
+TEST(SpellTables_ABuffThatCarriesNoMarkerLeavesIt)
+{
+    StoreHolderSpells();
+    MarkerBearer unit;
+    SpellAuraHolder* marker = unit.Hold(kRunSpeedMarker);
+    SpellAuraHolder* other = unit.Hold(kNonCarrierSpell);
+
+    unit.RemoveSpellAuraHolder(other, AURA_REMOVE_BY_EXPIRE);
+    CHECK(unit.GetSpellAuraHolder(kRunSpeedMarker) == marker);
+
+    // The marker's own end takes nothing else with it.
+    unit.RemoveSpellAuraHolder(marker, AURA_REMOVE_BY_EXPIRE);
+    CHECK(unit.GetSpellAuraHolderMap().empty());
 }

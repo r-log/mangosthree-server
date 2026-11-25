@@ -1102,3 +1102,20 @@ bool HasNegativePhaseAura(uint32 spellId)
 {
     return Holds(NEGATIVE_PHASE_AURAS, spellId);
 }
+
+namespace
+{
+    /// Run Speed Marker: the hidden aura a speed buff's aura restrictions row excludes its caster on.
+    constexpr uint32 SPEED_BUFF_MARKER = 96223;
+}
+
+uint32 SpeedBuffMarker()
+{
+    return SPEED_BUFF_MARKER;
+}
+
+bool CarriesSpeedBuffMarker(SpellEntry const& spell)
+{
+    SpellAuraRestrictionsEntry const* restrictions = spell.GetSpellAuraRestrictions();
+    return restrictions && restrictions->ExcludeCasterAuraSpell == SPEED_BUFF_MARKER;
+}
