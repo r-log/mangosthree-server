@@ -1145,9 +1145,10 @@ uint32 Unit::SpellHealingBonusTaken(Unit* pCaster, SpellEntry const* spellProto,
     // apply benefit affected by the spell power coefficient
     TakenTotal = pCaster->SpellBonusWithCoeffs(spellProto, TakenTotal, TakenAdvertisedBenefit, 0, damagetype, false, SPELL_BONUS_KIND_HEAL);
 
+    // A healing-received aura raises only the heals of the unit that put it on: its caster's.
     AuraList const& mHealingGet = GetAurasByType(SPELL_AURA_MOD_HEALING_RECEIVED);
     for (AuraList::const_iterator i = mHealingGet.begin(); i != mHealingGet.end(); ++i)
-        if ((*i)->isAffectedOnSpell(spellProto))
+        if ((*i)->GetCasterGuid() == pCaster->GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
         {
             TakenTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
         }
