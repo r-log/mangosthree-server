@@ -38,8 +38,8 @@ namespace
     /// The talent's three ranks, whose effect 0 holds the percent of the heal the shield takes (10, 20, 30).
     uint32 const DIVINE_AEGIS_RANKS[] = { 47509, 47511, 47515 };
 
-    /// The percent of the priest's maximum health his own shield on one unit is held to once a shield of his adds onto
-    /// it; the client's data holds no such number.
+    /// The percent of the priest's maximum health the sum of an addition onto his own shield on one unit is held to;
+    /// the client's data holds no such number.
     uint32 const AEGIS_CAP_PERCENT = 40;
 
     typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
@@ -59,9 +59,10 @@ namespace
     /// 47509, 47511, 47515: Divine Aegis: the priest casts the shield (47753) at the unit he healed, triggered by the
     /// talent, for the shield the heal makes (Priest::AegisShield: his rank's percent, the aura's effect 0 amount, of
     /// the heal the event carries, raised by his Shield Discipline mastery) added onto what is left of his own shield
-    /// on that unit and held to his cap (Priest::AegisAmount, Priest::AegisCap: 40 percent of his maximum health). The
-    /// new holder takes the place of his old one; another caster's shield on the unit stays as it is. FAILED, and
-    /// nothing cast, for an event with no unit healed or a heal that makes no shield.
+    /// on that unit, the sum held to his cap but never below what was left nor below the new shield
+    /// (Priest::AegisAmount, Priest::AegisCap: 40 percent of his maximum health). The new holder takes the place of his
+    /// old one; another caster's shield on the unit stays as it is. FAILED, and nothing cast, for an event with no unit
+    /// healed or a heal that makes no shield.
     ProcOutcome DivineAegisProc(OnProcContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.victim)
@@ -118,11 +119,12 @@ int32 Priest::AegisCap(uint32 maxHealth)
 
 int32 Priest::AegisAmount(int32 fresh, int32 left, int32 cap)
 {
-    if (fresh <= 0 || left <= 0)
+    if (fresh <= 0)
     {
         return fresh;
     }
-    int64 const sum = int64(fresh) + left;
-    int64 const held = cap > fresh ? cap : fresh;
-    return int32(sum < held ? sum : held);
+    int64 const kept = left > 0 ? left : 0;
+    int64 const sum = kept + fresh < cap ? kept + fresh : cap;
+    int64 const larger = kept > fresh ? kept : fresh;
+    return int32(sum > larger ? sum : larger);
 }

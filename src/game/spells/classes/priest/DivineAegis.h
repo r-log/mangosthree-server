@@ -35,8 +35,9 @@
  * DivineAegis.cpp registers two rows on each of the talent's three ranks (47509, 47511, 47515): at the check-proc hook
  * a heal that makes a shield is let through and every other event is refused (AegisFromHeal), and at the proc hook
  * the priest casts the shield (47753) at the unit he healed, its amount his rank's percent of the heal raised by his
- * Shield Discipline mastery (AegisShield), added onto what is left of his own shield on that unit and held to his cap
- * (AegisAmount, AegisCap). Another caster's shield on the unit is its own holder and is not touched.
+ * Shield Discipline mastery (AegisShield), added onto what is left of his own shield on that unit, the sum held to his
+ * cap but never below either shield (AegisAmount, AegisCap). Another caster's shield on the unit is its own holder and
+ * is not touched.
  */
 
 namespace Priest
@@ -56,13 +57,14 @@ namespace Priest
     /// or a rank percent of 0 or less, and a mastery percent of 0 or less raises nothing.
     int32 AegisShield(uint32 heal, int32 rankPercent, int32 masteryPercent);
 
-    /// The most the priest's own Divine Aegis on one unit holds once a shield of his adds onto it: 40 percent of his
+    /// The cap the sum of an addition onto the priest's own Divine Aegis on one unit is held to: 40 percent of his
     /// maximum health `maxHealth`, truncated.
     int32 AegisCap(uint32 maxHealth);
 
     /// The amount of the shield a new one of `fresh` makes on a unit where `left` is what is left of the priest's own
-    /// shield: their sum, held to `cap` when it is larger, but never below `fresh`, so a new shield alone is never cut;
-    /// `fresh` when he holds none there (`left` 0 or less). A `fresh` of 0 or less is returned as it is.
+    /// shield (0 or less when he holds none there): the largest of `left`, `fresh` and their sum held to `cap`. So an
+    /// addition never lowers his shield, a lone shield above the cap stands whole, and a new shield larger than the sum
+    /// held to the cap keeps its size. A `fresh` of 0 or less is returned as it is.
     int32 AegisAmount(int32 fresh, int32 left, int32 cap);
 }
 

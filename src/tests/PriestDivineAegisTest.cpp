@@ -195,12 +195,16 @@ TEST(PriestDivineAegis_ThePriestsOwnShieldAddsOntoItselfUpToFortyPercentOfHisHea
     CHECK_EQ(Priest::AegisAmount(6000, 15000, 17607), int32(17607));
     CHECK_EQ(Priest::AegisAmount(2607, 15000, 17607), int32(17607));
     CHECK_EQ(Priest::AegisAmount(2606, 15000, 17607), int32(17606));
+    CHECK_EQ(Priest::AegisAmount(100, 17000, 17607), int32(17100));
 
     // A new shield larger than the cap with one of his already there: the new shield, never less.
     CHECK_EQ(Priest::AegisAmount(20000, 5000, 17607), int32(20000));
 
-    // What is left above the cap, from a lone shield that passed it: a small new shield brings the sum to the cap.
-    CHECK_EQ(Priest::AegisAmount(1000, 20000, 17607), int32(17607));
+    // What is left above the cap, from a lone shield that passed it: an addition never lowers it, whether the new
+    // shield is under the cap or above it but smaller.
+    CHECK_EQ(Priest::AegisAmount(1000, 20000, 17607), int32(20000));
+    CHECK_EQ(Priest::AegisAmount(20000, 30000, 17607), int32(30000));
+    CHECK_EQ(Priest::AegisAmount(1000, 17607, 17607), int32(17607));
 
     // A new shield of 0 or less is returned as it is.
     CHECK_EQ(Priest::AegisAmount(0, 5000, 17607), int32(0));
