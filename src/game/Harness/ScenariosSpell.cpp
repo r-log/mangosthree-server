@@ -131,8 +131,8 @@
 // DoTs' unhasted period, with Flashburn once in each share and the Camel's damage-taken effects once in the tick.
 // 949 Combustion takes its Ignite and Glyph of Frostfire parts at the mastery the mage has when it casts, after mastery
 // rating was added between their hits and the cast.
-// 942 a staged Fire mage's Slow and Polymorph hits roll Arcane Missiles! and never Impact, a Slow that misses rolls
-// neither, and Living Bomb's cast rolls Impact.
+// 942 a staged Fire mage's Slow and Polymorph casts roll Arcane Missiles! as they end and their hits never roll Impact,
+// a Slow that misses rolls Arcane Missiles! and not Impact, and Living Bomb's cast rolls Impact.
 // 948 Molten Armor's hit rolls Impact and Arcane Missiles!, never ignites, never starts another Molten Armor, and does
 // not break the Polymorph, Blind or Frost Nova on the Camel it hits.
 // 943 a hit-capped Frost mage's Water Elemental casts twenty Waterbolts at a Camel three levels above it and none
@@ -8238,24 +8238,25 @@ namespace Harness
 
     /**
      * S942 `mage-offensive-state-damageless`: Offensive State (79684) and Impact (12357) on a staged Fire mage, at the
-     * hits of spells that deal no damage. Staged as 968 stages it (Burning Soul 3, Improved Fire Blast 2, Ignite 3 and
-     * Impact 2: no Hot Streak, so nothing refuses Arcane Missiles!); Slow (31589), Polymorph (118) and Living Bomb
-     * (44457) learned. Once staged, his Offensive State is taken off and put back at kOffensiveStatePoints, so each hit
-     * the proc accepts casts Arcane Missiles! (79683) on him; Impact keeps its own 10%. Before each cast he takes
-     * Precision (13843, +6% spell hit), so no cast misses a level-85 Camel but the one meant to. Steps: Slow twice and
-     * Polymorph twice at the Camel, each a hit; a wait, at whose start the Camel casts Wily Wits (75533) on itself, an aura
-     * that makes the next spell cast at it miss; a Slow, which misses; then kBombCasts Living Bombs, kEveryMs apart, so
-     * each lands on the bomb before it and no bomb runs out. A cast is read kReadMs after it. The Camel takes him as
-     * its victim at the first step, so when the first bomb's tick breaks its Polymorph it turns on him and does not run
-     * home and evade the next bomb.
+     * casts and hits of spells that deal no damage. Staged as 968 stages it (Burning Soul 3, Improved Fire Blast 2,
+     * Ignite 3 and Impact 2: no Hot Streak, so nothing refuses Arcane Missiles!); Slow (31589), Polymorph (118) and
+     * Living Bomb (44457) learned. Once staged, his Offensive State is taken off and put back at kOffensiveStatePoints,
+     * so the end of each harmful cast of his, which the proc accepts, casts Arcane Missiles! (79683) on him; Impact
+     * keeps its own 10% at a hit. Before each cast he takes Precision (13843, +6% spell hit), so no cast misses a
+     * level-85 Camel but the one meant to. Steps: Slow twice and Polymorph twice at the Camel, each a hit; a wait, at
+     * whose start the Camel casts Wily Wits (75533) on itself, an aura that makes the next spell cast at it miss; a
+     * Slow, which misses; then kBombCasts Living Bombs, kEveryMs apart, so each lands on the bomb before it and no bomb
+     * runs out. A cast is read kReadMs after it. The Camel takes him as its victim at the first step, so when the first
+     * bomb's tick breaks its Polymorph it turns on him and does not run home and evade the next bomb.
      *
      * `damageless`: `am=<the steps among the four hits at whose read Arcane Missiles! (79683) stood on him>,miss=<the
      * same for the Slow that missed>,veto=<the steps among the five Slow and Polymorph steps at whose read the Impact
      * buff (64343) stood on him>,bomb=<the same over the Living Bomb steps>`; both buffs are taken off him at each
-     * read, so each step's count is its own. OK at four, none, none and one or more, and the last Slow listed as
-     * missed. A hit of a spell with no damage effect rolls Arcane Missiles! and never Impact; a miss rolls neither;
-     * Living Bomb's cast rolls both. The rolls of a step are seeded, so the counts are the same each run. The count of
-     * Impact buffs can read 0 even when Impact does not refuse these spells (each roll is 10% a hit), so the unit test
+     * read, so each step's count is its own. OK at four, one, none and one or more, and the last Slow listed as
+     * missed. The end of each cast of a spell with no damage effect rolls Arcane Missiles!, the Slow that misses
+     * included, and its hit never rolls Impact, nor does the miss; Living Bomb's cast rolls both. The rolls of a step
+     * are seeded, so the counts are the same each run. The count of Impact buffs can read 0 even when Impact does not
+     * refuse these spells (each roll is 10% a hit), so the unit test
      * MageScripts_ImpactRollsOnlyFromSpellsThatDealDamage proves the refusal.
      */
     class MageOffensiveStateDamageless : public MageProcScenario
@@ -8392,7 +8393,7 @@ namespace Harness
             const Seen& missedSlow = st.seen[kMissStep];
             const uint32 miss = Read(missedSlow, "am");
             const std::string value = "am=" + U(am) + ",miss=" + U(miss) + ",veto=" + U(veto) + ",bomb=" + U(bomb);
-            const bool ok = am == kHitSteps && miss == 0 && veto == 0 && bomb >= 1 && missedSlow.missed;
+            const bool ok = am == kHitSteps && miss == 1 && veto == 0 && bomb >= 1 && missedSlow.missed;
             const std::string detail = std::string("the last Slow ") + (missedSlow.missed ? "missed" : "hit") +
                                        "; each count is the steps at whose read the buff stood on him, taken off at each read";
             return (ok ? "OK(" : "BUG(") + value + "; " + detail + ")";
