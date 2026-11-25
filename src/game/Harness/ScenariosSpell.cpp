@@ -107,7 +107,7 @@
 // one mage, and a refresh; 966 Ignite banking two Fireball crits that overlap; 967 a staged Fire mage's Pyroblast
 // applies Critical Mass and his Arcane Blast crit gives back mana through Master of Elements; 968 an Impact Fire Blast
 // stuns one Camel and copies the mage's DoTs to the two beside it, not the far one; 969 a killing blow on a Fire mage
-// with Cauterize, and the burn that follows; 970 Living Bomb's explosion starts the mage's procs, and a bomb whose
+// with Cauterize, and the burn that follows; 970 Living Bomb's explosion rolls no Arcane Missiles!, and a bomb whose
 // target dies does not explode; 971 a staged Fire mage's Flame Orb burns a Camel once a second while it is snared and
 // explodes when the snare runs out; 972 a staged Fire mage's three Living Bombs give him Pyromaniac's haste, and the
 // first one's end takes it off; 973 the orb of a Fire mage without Fire Power skips a critter and a polymorphed
@@ -8091,19 +8091,20 @@ namespace Harness
     /**
      * S970 `mage-fire-living-bomb-rules`: Living Bomb (44457) cast by a staged mage with no talents who learned the
      * spell, without haste rating, so a bomb lasts its 12 s. Once staged, his Offensive State (79684) is taken off and
-     * put back at kOffensiveStatePoints, so each damaging spell of his the proc accepts casts Arcane Missiles! (79683,
-     * 20 s) on him; he knows no Hot Streak, so nothing refuses it. Before the first cast he takes Precision (13843, +6%
-     * spell hit), so no cast can miss a level-85 Camel. The explosion (44461), which the Camel casts for him when the
-     * aura runs out, is one of his hits and starts his procs: it casts 79683 on him again. A bomb whose Camel dies
-     * leaves with AURA_REMOVE_BY_DEATH and does not explode. Steps: Living Bomb, left to run out its 12 s; 13 s after
-     * it, the Camel's swing at him, which is no spell of his; Living Bomb again; 2 s later he deals the Camel its
-     * health as plain damage. A cast is read kReadMs after it; at the swing's read the scenario notes the time 79683
-     * has left on him.
+     * put back at kOffensiveStatePoints, so the end of each harmful cast of his casts Arcane Missiles! (79683, 20 s) on
+     * him; he knows no Hot Streak, so nothing refuses it. Before the first cast he takes Precision (13843, +6% spell
+     * hit), so no cast can miss a level-85 Camel. The explosion (44461), which the Camel casts for him when the aura
+     * runs out, is one of his hits and starts his procs at its hit, but the end of its cast is the Camel's, so it does
+     * not cast 79683 on him again. A bomb whose Camel dies leaves with AURA_REMOVE_BY_DEATH and does not explode.
+     * Steps: Living Bomb, left to run out its 12 s; 13 s after it, the Camel's swing at him, which is no spell of his;
+     * Living Bomb again; 2 s later he deals the Camel its health as plain damage. A cast is read kReadMs after it; at
+     * the swing's read the scenario notes the time 79683 has left on him.
      *
      * `rules`: `expiry=<the 44461 damage logs in the first step's windows> refreshed=<yes when 79683 has more than
      * kRefreshedAboveMs left on him at the swing's read> death=<the 44461 damage logs in the kill's windows, none for
-     * none>`; OK at one, yes and none, with the Camel dead at the kill's read. Cast again at the explosion, 1.3 s
-     * before that read, 79683 has about 18.7 s left; not cast again: none on him.
+     * none>`; OK at one, no and none, with 79683 on him at the swing's read and the Camel dead at the kill's read.
+     * Cast at the first bomb's cast alone, 79683 has about 6.7 s left at that read; cast again at the explosion, 1.3 s
+     * before it, it would have about 18.7 s.
      */
     class MageFireLivingBombRules : public MageProcScenario
     {
@@ -8211,7 +8212,8 @@ namespace Harness
             const bool dead = kill.read && kill.healthAfter == 0;
             const std::string value = "expiry=" + U(hits[kExpiryStep]) + " refreshed=" + (refreshed ? "yes" : "no") + " death=" +
                                       (hits[kKillStep] ? U(hits[kKillStep]) : std::string("none"));
-            const bool ok = hits[kExpiryStep] == 1 && refreshed && hits[kKillStep] == 0 && dead;
+            const bool ok = hits[kExpiryStep] == 1 && swing.read && leftMs > 0 && !refreshed && hits[kKillStep] == 0 &&
+                            dead;
             const std::string detail = U(kArcaneMissilesBuff) + " on him at the swing's read: " + swing.holder + ", " +
                                        std::to_string(leftMs) + " ms left; the Camel's health at the kill's read " +
                                        U(kill.healthAfter) + "; the " + U(kExplosion) + " damage logs by step: " +
