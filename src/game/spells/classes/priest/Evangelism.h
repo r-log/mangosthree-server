@@ -34,12 +34,12 @@
  * what Archangel makes of them: the leaves of Evangelism.cpp.
  *
  * Evangelism.cpp registers seven rows. At the check-proc and proc hooks of the talent's two ranks (81659, 81662), a hit
- * of the priest's Smite, Holy Fire or Penance's bolt that dealt damage (EvangelismFromHit) gives him a stack of his
- * rank's buff (EvangelismStack: 81660, 81661), whose effects raise the damage of those spells and lower their cost for
- * each stack, and with it the marker (87154) Archangel asks of its caster. At the aura-remove hook of the two buffs,
- * the marker leaves him with the last stack of either kind of Evangelism (HoldsEvangelism). At the dummy-effect hook of
- * Archangel (87151), which its script effect dispatches, his stacks (EvangelismStacks) are consumed for the healing
- * bonus (81700) and the mana (87152), each its effect 0 value for each stack (ArchangelPoints).
+ * of the priest's Smite, Holy Fire or Penance's bolt, wholly absorbed or not (EvangelismFromHit), gives him a stack of
+ * his rank's buff (EvangelismStack: 81660, 81661), whose effects raise the damage of those spells and lower their cost
+ * for each stack, and with it the marker (87154) Archangel asks of its caster. At the aura-remove hook of the two
+ * buffs, the marker leaves him with the last stack of either kind of Evangelism (HoldsEvangelism). At the dummy-effect
+ * hook of Archangel (87151), which its script effect dispatches, his stacks (EvangelismStacks) are consumed for the
+ * healing bonus (81700) and the mana (87152), each its effect 0 value for each stack (ArchangelPoints).
  */
 
 namespace Priest
@@ -53,11 +53,11 @@ namespace Priest
     /// bolt at an enemy (47666); no other spell, Mind Flay's Dark Evangelism among them.
     bool EvangelismFromSpell(uint32 spellId);
 
-    /// Whether the event of `procFlag` and `procEx` of the spell `spellId`, which dealt `damage`, gives a stack: a
-    /// harmful spell's hit (PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT), normal or critical, of a spell
-    /// EvangelismFromSpell names, that dealt damage. A periodic tick, a miss, a hit that dealt nothing and a cast's end
-    /// do not.
-    bool EvangelismFromHit(uint32 spellId, uint32 procFlag, uint32 procEx, uint32 damage);
+    /// Whether the event of `procFlag` and `procEx` of the spell `spellId` gives a stack: a harmful spell's hit
+    /// (PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT), normal or critical, of a spell EvangelismFromSpell names, a hit a
+    /// shield wholly absorbs included (the tooltip's "when you cast"). A periodic tick, a miss, a resist, an immunity
+    /// and a cast's end do not.
+    bool EvangelismFromHit(uint32 spellId, uint32 procFlag, uint32 procEx);
 
     /// The buff a stack of the talent's rank `rankSpellId` is: 81660 for the first rank (81659), 81661 for the second
     /// (81662); 0 for any other spell.

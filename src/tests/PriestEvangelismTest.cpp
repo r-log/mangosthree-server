@@ -139,29 +139,29 @@ TEST(PriestEvangelism_SmiteHolyFireAndPenancesBoltGiveAStackByTheirHitsThatDealt
         CHECK(!Priest::EvangelismFromSpell(spellId));
     }
 
-    // A harmful hit, normal or critical, that dealt damage: alone or among other flags.
+    // A harmful hit, normal or critical, a wholly absorbed one included: alone or among other flags.
     for (uint32 spellId : { SMITE, HOLY_FIRE, PENANCE_BOLT })
     {
-        CHECK(Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_NORMAL_HIT, 900));
-        CHECK(Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_CRITICAL_HIT, 1350));
-        CHECK(Priest::EvangelismFromHit(spellId, HARMFUL_HIT | MELEE, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT, 1));
+        CHECK(Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_NORMAL_HIT));
+        CHECK(Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_CRITICAL_HIT));
+        CHECK(Priest::EvangelismFromHit(spellId, HARMFUL_HIT | MELEE, PROC_EX_NORMAL_HIT | PROC_EX_INTERRUPT));
+        CHECK(Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_NORMAL_HIT | PROC_EX_ABSORB));
 
-        // A tick, a miss, a resist, an immunity, a hit that dealt nothing, a cast's end and no event kind give none.
-        CHECK(!Priest::EvangelismFromHit(spellId, TICK, PROC_EX_NORMAL_HIT, 52));
-        CHECK(!Priest::EvangelismFromHit(spellId, TICK, PROC_EX_CRITICAL_HIT, 78));
-        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_MISS, 0));
-        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_RESIST, 0));
-        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_IMMUNE, 0));
-        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_NORMAL_HIT | PROC_EX_ABSORB, 0));
-        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_CAST_END, 0));
-        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_NONE, 900));
-        CHECK(!Priest::EvangelismFromHit(spellId, 0, PROC_EX_NORMAL_HIT, 900));
+        // A tick, a miss, a resist, an immunity, a cast's end and no event kind give none.
+        CHECK(!Priest::EvangelismFromHit(spellId, TICK, PROC_EX_NORMAL_HIT));
+        CHECK(!Priest::EvangelismFromHit(spellId, TICK, PROC_EX_CRITICAL_HIT));
+        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_MISS));
+        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_RESIST));
+        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_IMMUNE));
+        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_CAST_END));
+        CHECK(!Priest::EvangelismFromHit(spellId, HARMFUL_HIT, PROC_EX_NONE));
+        CHECK(!Priest::EvangelismFromHit(spellId, 0, PROC_EX_NORMAL_HIT));
     }
 
     // Mind Flay's tick and hit, and a swing's, give none.
-    CHECK(!Priest::EvangelismFromHit(MIND_FLAY, TICK, PROC_EX_NORMAL_HIT, 700));
-    CHECK(!Priest::EvangelismFromHit(MIND_FLAY, HARMFUL_HIT, PROC_EX_NORMAL_HIT, 700));
-    CHECK(!Priest::EvangelismFromHit(0, MELEE, PROC_EX_NORMAL_HIT, 700));
+    CHECK(!Priest::EvangelismFromHit(MIND_FLAY, TICK, PROC_EX_NORMAL_HIT));
+    CHECK(!Priest::EvangelismFromHit(MIND_FLAY, HARMFUL_HIT, PROC_EX_NORMAL_HIT));
+    CHECK(!Priest::EvangelismFromHit(0, MELEE, PROC_EX_NORMAL_HIT));
 }
 
 TEST(PriestEvangelism_EachRankGivesItsOwnBuff)
