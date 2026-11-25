@@ -2159,8 +2159,9 @@ void Aura::PeriodicTick()
                 // This method can modify pdamage
                 bool isCrit = IsCritFromAbilityAura(pCaster, pdamage);
 
+                // the healed unit's heal absorbs take their part of the tick
                 uint32 absorbHeal = 0;
-                pCaster->CalculateHealAbsorb(pdamage, &absorbHeal);
+                target->CalculateHealAbsorb(pdamage, &absorbHeal);
                 pdamage -= absorbHeal;
 
                 DETAIL_FILTER_LOG(LOG_FILTER_PERIODIC_AFFECTS, "PeriodicTick: %s heal of %s for %u health  (absorbed %u) inflicted by %u",
