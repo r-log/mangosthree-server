@@ -74,7 +74,7 @@
 #include <vector>
 
 // The spell family (decoupling D11, the Unit reopening note 2026-09-28-unit-reopening.md, section
-// 3(a)), orders 930 on, after the quest family: what a cast does, recorded on the quest family's
+// 3(a)), orders 930 on, up to 1199, after the quest family: what a cast does, recorded on the quest family's
 // machinery (Recorder.h) -- every packet the harness player is sent, the watched units' spell state
 // at the end of every window and a snap line after every packet -- folded into one
 // `digest=<fnv32>` category per scenario, so D11's moves (the handler registry, the switches) can
@@ -291,8 +291,10 @@
 // same.
 // 1125 a staged Arcane mage gets the Run Speed Marker with Improved Blink's buff, Sprint and Darkflight; it refuses a
 // second Sprint while it stands, and goes when each buff ends, long before its own 30 s.
-// The guard of 931-938, 941-978, 980-996, 998-1000, 1010-1029 and 1100-1125 (Qualify) fingerprints every spell a
-// scenario reaches and refuses the random-pick labels, the random chain targets and any script binding.
+// The guard (Qualify) runs in the Prepare of every scenario of the family but 930 (SpellDirectDamage), the scenario's
+// own Prepare or its base class's (MageProcScenario, AttackPowerScenario), before any server call and before the
+// spawn: it fingerprints every spell the scenario reaches and refuses the random-pick labels, the random chain targets
+// and any script binding. A scenario is guarded because its Prepare calls the guard; no list names them.
 namespace Harness
 {
     namespace
@@ -912,7 +914,7 @@ namespace Harness
         }
 
         /**
-         * The guard of scenarios 931-938, before any server call and before the spawn: every spell
+         * The guard a scenario's Prepare calls before any server call and before the spawn: every spell
          * the scenario reaches -- cast, triggered by an effect, or cast by a handler's case body it
          * reaches -- passes CheckReachedSpell against its fingerprint, and every creature it spawns
          * passes CheckActor; then the achievement closure (CheckQuestPlan) for what the scenario
@@ -4195,9 +4197,9 @@ namespace Harness
     };
 
     /**
-     * What the mage scenarios share (941, 942, 943, 944, 946, 947, 948, 951, 952, 954-957, 962-978, 980-996,
-     * 998-1000, 1010-1029, 1100-1125): a human mage staged to level 85 with the scenario's talents, glyphs, spell
-     * power, ratings and spells (Scenario::StagePlayer), then whatever the scenario does to him once staged
+     * What every mage scenario derived from this class shares, directly or through a base of its own: a human mage
+     * staged to level 85 with the scenario's talents, glyphs, spell power, ratings and spells
+     * (Scenario::StagePlayer), then whatever the scenario does to him once staged
      * (AfterStage), then the pet the scenario names (PetEntry), with its own AI when the scenario keeps it
      * (PetRunsAI) and the spells a summoned pet learns for its level when the scenario asks (PetLearnsSpells), and a
      * Camel (50249, or the creature TargetEntry names) staged to level TargetLevel() (85 unless the scenario sets its
