@@ -12334,8 +12334,10 @@ namespace Harness
      * Darkflight, refuses a second Sprint while it stands, and goes when each buff ends, well inside its own full
      * duration (its SpellDuration row's). Staged as 1107 stages him: Improved Counterspell (11255, rank 1 of 2) for the
      * Arcane tree, Blink (1953) and Improved Blink 2 (31570, whose proc casts 46989, 70% more speed for 3 s) learned
-     * through Player::learnSpell, his Offensive State (79684) and Mana Adept (76547) taken off once staged. Steps (B, S
-     * and D the times of steps 1, 3 and 6), a cast read kReadMs after it, a wait kSwingReadMs after it:
+     * through Player::learnSpell, his Offensive State (79684) and Mana Adept (76547) taken off once staged, and Enable
+     * Worgen Altered Form (94293, the worgen-form allowance, aura 352, which Darkflight's worgen transform asks of its
+     * caster) put on him as the GM aura command puts it. Steps (B, S and D the times of steps 1, 3 and 6), a cast read
+     * kReadMs after it, a wait kSwingReadMs after it:
      *  1. Blink at B: Improved Blink gives him 46989;
      *  2. a wait, read at B+3.2 s, after 46989's 3 s;
      *  3. Sprint (2983) cast by him at himself, triggered, at S = B+3.6 s, its cooldown taken off first (Blink's
@@ -12343,16 +12345,17 @@ namespace Harness
      *  4. Sprint again at S+1 s, its cooldown taken off first, so that only the marker can refuse it
      *     (SPELL_FAILED_CASTER_AURASTATE);
      *  5. a wait, read at S+8.5 s, after Sprint's 8 s;
-     *  6. Darkflight (68992) cast by him at himself, triggered, at D = S+8.7 s;
+     *  6. Darkflight (68992) cast by him at himself, triggered, at D = S+8.7 s; for a caster with the allowance it
+     *     casts Altered Form (97709) on him before its own aura;
      *  7. a wait, read at D+10.5 s, after Darkflight's 10 s.
      * At each read the scenario keeps whether the step's buff (46989 for steps 1-2, 2983 for 3-5, 68992 for 6-7) and
-     * 96223 stand on him, and the marker's full duration.
+     * 96223 stand on him, and the marker's full duration; at step 6's read, whether 97709 stands on him.
      *
      * `marker`: `blink=<46989>,<96223>/<46989>,<96223>,sprint=<96223>/<the second Sprint>/<2983>,<96223>,
-     * darkflight=<96223>/<68992>,<96223>`, at the reads of steps 1/2, 3/4/5 and 6/7: a buff `up` or `none`, the marker
-     * `up@<its full duration>` or `none`, the second Sprint `refused` when its SMSG_CAST_FAILED carries
-     * SPELL_FAILED_CASTER_AURASTATE, `landed` when its SPELL_GO came, else the result's name. OK at
-     * `blink=up,up@<M>/none,none,sprint=up@<M>/refused/none,none,darkflight=up@<M>/none,none`, M the marker's
+     * darkflight=<96223>,<97709>/<68992>,<96223>`, at the reads of steps 1/2, 3/4/5 and 6/7: a buff or 97709 `up` or
+     * `none`, the marker `up@<its full duration>` or `none`, the second Sprint `refused` when its SMSG_CAST_FAILED
+     * carries SPELL_FAILED_CASTER_AURASTATE, `landed` when its SPELL_GO came, else the result's name. OK at
+     * `blink=up,up@<M>/none,none,sprint=up@<M>/refused/none,none,darkflight=up@<M>,up/none,none`, M the marker's
      * SpellDuration row (30000).
      */
     class MageRunSpeedMarker : public MageProcScenario
@@ -12377,6 +12380,9 @@ namespace Harness
             }
             m_rec.Note("his " + U(kImprovedBlink) + (p.HasAura(kImprovedBlink) ? " on him" : " not on him") + "; " +
                        U(kBlink) + (p.HasSpell(kBlink) ? " known" : " unknown"));
+            PutAura(&p, kWorgenFormAllowance);
+            m_rec.Note("his " + U(kWorgenFormAllowance) + " put on him: " + HolderOf(&p, kWorgenFormAllowance) +
+                       (p.HasWorgenForm() ? "; he has a worgen form" : "; he has no worgen form"));
         }
 
         std::vector<Step> Steps() const override
@@ -12405,6 +12411,10 @@ namespace Harness
                 { 2983, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 31 }, { "eff0.EffectBasePoints", 70 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 68992: 49 fields, fnv 5960b7d2
                 { 68992, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 129 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectMiscValue_0", 3 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 358 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                // 94293: 26 fields, fnv 43e1506f
+                { 94293, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 352 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                // 97709: 26 fields, fnv 5cef4d11
+                { 97709, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 358 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 79684: 26 fields, fnv 8068d7f8
                 { 79684, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 42 }, { "eff0.EffectBasePoints", 40 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectTriggerSpell", 79683 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 // 79683: 26 fields, fnv 0d0f7f9c
@@ -12427,7 +12437,7 @@ namespace Harness
         }
 
         /// At each read: whether the step's buff and the marker stand on him, and the marker's full duration (-1 for
-        /// none); at the act, a note of the marker alone.
+        /// none); at Darkflight's read, whether Altered Form stands on him too; at the act, a note of the marker alone.
         void ReadOwn(St& st, uint32 k, bool atRead, Player* p, Creature* /*target*/) override
         {
             if (!atRead)
@@ -12443,6 +12453,11 @@ namespace Harness
             reads["markerLength"] = HolderDuration(p, kMarker);
             m_rec.Note("at the read: " + U(buff) + " " + HolderOf(p, buff) + "; " + U(kMarker) + " " +
                        HolderOf(p, kMarker) + ", its full duration " + std::to_string(reads["markerLength"]));
+            if (k == kDarkflightStep)
+            {
+                reads["alteredForm"] = p->GetSpellAuraHolder(kAlteredForm) ? 1 : 0;
+                m_rec.Note("at the read: " + U(kAlteredForm) + " " + HolderOf(p, kAlteredForm));
+            }
         }
 
         std::string Own(St const& st) const override
@@ -12455,18 +12470,19 @@ namespace Harness
                                       Buff(st, kBlinkEndStep) + "," + Marker(st, kBlinkEndStep);
             const std::string sprint = Marker(st, kSprintStep) + "/" + SecondSprint(st) + "/" +
                                        Buff(st, kSprintEndStep) + "," + Marker(st, kSprintEndStep);
-            const std::string darkflight = Marker(st, kDarkflightStep) + "/" + Buff(st, kDarkflightEndStep) + "," +
-                                           Marker(st, kDarkflightEndStep);
+            const std::string darkflight = Marker(st, kDarkflightStep) + "," +
+                                           Held(st, kDarkflightStep, "alteredForm") + "/" +
+                                           Buff(st, kDarkflightEndStep) + "," + Marker(st, kDarkflightEndStep);
             const std::string value = "blink=" + blink + ",sprint=" + sprint + ",darkflight=" + darkflight;
 
             SpellEntry const* marker = sSpellStore.LookupEntry(kMarker);
             const int32 rowLength = marker ? GetSpellMaxDuration(marker) : -1;
             const std::string carried = "up@" + std::to_string(rowLength);
             const bool ok = rowLength > 0 && blink == "up," + carried + "/none,none" &&
-                            sprint == carried + "/refused/none,none" && darkflight == carried + "/none,none";
+                            sprint == carried + "/refused/none,none" && darkflight == carried + ",up/none,none";
             return (ok ? "OK(" : "BUG(") + value + "; the marker's SpellDuration row " + std::to_string(rowLength) +
-                   " ms; each buff up or none and the marker up@<its full duration> or none at the step's read, " +
-                   "the second Sprint refused, landed or its cast result)";
+                   " ms; each buff and Altered Form up or none and the marker up@<its full duration> or none at the " +
+                   "step's read, the second Sprint refused, landed or its cast result)";
         }
 
     private:
@@ -12476,6 +12492,8 @@ namespace Harness
         static constexpr uint32 kSprint = 2983;
         static constexpr uint32 kDarkflight = 68992;
         static constexpr uint32 kMarker = 96223;
+        static constexpr uint32 kWorgenFormAllowance = 94293;
+        static constexpr uint32 kAlteredForm = 97709;
         static constexpr uint32 kOffensiveState = 79684;
         static constexpr uint32 kManaAdept = 76547;
         static constexpr uint32 kReadMs = 500;              ///< a cast to its read
@@ -12513,11 +12531,17 @@ namespace Harness
             return i == st.seen[k].reads.end() ? -2 : i->second;
         }
 
+        /// The aura ReadOwn kept under `key` for step k: `up`, `none` or `unread`.
+        static std::string Held(St const& st, uint32 k, char const* key)
+        {
+            const int64 held = ReadOf(st, k, key);
+            return held == 1 ? "up" : held == 0 ? "none" : "unread";
+        }
+
         /// The step's buff at its read: `up`, `none` or `unread`.
         static std::string Buff(St const& st, uint32 k)
         {
-            const int64 held = ReadOf(st, k, "buff");
-            return held == 1 ? "up" : held == 0 ? "none" : "unread";
+            return Held(st, k, "buff");
         }
 
         /// The marker at step k's read: `up@<its full duration>`, `none` or `unread`.
