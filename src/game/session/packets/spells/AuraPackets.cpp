@@ -32,66 +32,85 @@
 
 namespace
 {
-    /// Writes `holder`'s record: its slot, its spell, its flags, its caster's level and its stack
-    /// (the charges times the stack when it has charges, at most 255), its caster's packed guid unless
-    /// the flags say the target cast it, its durations and the amount of each effect the flags name.
-    void WriteAuraRecord(WorldPacket& packet, SpellAuraHolder const& holder)
+    /// Writes `record` as the aura update packets carry it: its slot, its spell, its flags, its caster's level and its
+    /// stack, its caster's packed guid unless the flags say the target cast it, its durations and the amount of each
+    /// effect the flags name.
+    void WriteAuraRecord(WorldPacket& packet, AuraUpdateRecord const& record)
     {
-        packet << uint8(holder.GetAuraSlot());
-        packet << uint32(holder.GetId());
+        packet << uint8(record.slot);
+        packet << uint32(record.spellId);
+        packet << uint16(record.flags);
+        packet << uint8(record.level);
+        packet << uint8(record.stack);
 
-        uint8 auraFlags = holder.GetAuraFlags();
-        packet << uint16(auraFlags);
-        packet << uint8(holder.GetAuraLevel());
-
-        uint32 stackCount = holder.GetAuraCharges() ? holder.GetAuraCharges() * holder.GetStackAmount() : holder.GetStackAmount();
-        packet << uint8(stackCount <= 255 ? stackCount : 255);
-
-        if (!(auraFlags & AFLAG_NOT_CASTER))
+        if (!(record.flags & AFLAG_NOT_CASTER))
         {
-            packet << holder.GetCasterGuid().WriteAsPacked();
+            packet << record.caster.WriteAsPacked();
         }
 
-        if (auraFlags & AFLAG_DURATION)
+        if (record.flags & AFLAG_DURATION)
         {
-            packet << uint32(holder.GetAuraMaxDuration());
-            packet << uint32(holder.GetAuraDuration());
+            packet << uint32(record.maxDuration);
+            packet << uint32(record.duration);
         }
 
-        if (auraFlags & AFLAG_EFFECT_AMOUNT_SEND)
+        if (record.flags & AFLAG_EFFECT_AMOUNT_SEND)
         {
             for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
             {
-                if (auraFlags & (1 << i))
+                if (record.flags & (1 << i))
                 {
-                    if (Aura const* aura = holder.GetAuraByEffectIndex(SpellEffectIndex(i)))
-                    {
-                        packet << int32(aura->GetModifier()->m_amount);
-                    }
-                    else
-                    {
-                        packet << int32(0);
-                    }
+                    packet << int32(record.amounts[i]);
                 }
             }
         }
     }
 }
 
-void BuildAuraUpdatePacket(WorldPacket& packet, SpellAuraHolder const& holder, bool removed)
+AuraUpdateRecord AuraUpdateRecordOf(SpellAuraHolder const& holder)
+{
+    AuraUpdateRecord record;
+    record.slot = holder.GetAuraSlot();
+    record.spellId = holder.GetId();
+    record.flags = holder.GetAuraFlags();
+    record.level = holder.GetAuraLevel();
+
+    const uint32 stackCount = holder.GetAuraCharges() ? holder.GetAuraCharges() * holder.GetStackAmount()
+                                                      : holder.GetStackAmount();
+    record.stack = uint8(stackCount <= 255 ? stackCount : 255);
+
+    record.caster = holder.GetCasterGuid();
+    record.maxDuration = holder.GetAuraMaxDuration();
+    record.duration = holder.GetAuraDuration();
+    for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        if (Aura const* aura = holder.GetAuraByEffectIndex(SpellEffectIndex(i)))
+        {
+            record.amounts[i] = aura->GetModifier()->m_amount;
+        }
+    }
+    return record;
+}
+
+void BuildAuraUpdatePacket(WorldPacket& packet, ObjectGuid target, AuraUpdateRecord const& record)
 {
     packet.Initialize(SMSG_AURA_UPDATE);
-    packet << holder.GetTarget()->GetObjectGuid().WriteAsPacked();
+    packet << target.WriteAsPacked();
+    WriteAuraRecord(packet, record);
+}
 
-    if (removed)
+void BuildAuraUpdatePacket(WorldPacket& packet, SpellAuraHolder const& holder, bool removed)
+{
+    if (!removed)
     {
-        packet << uint8(holder.GetAuraSlot());
-        packet << uint32(0);
+        BuildAuraUpdatePacket(packet, holder.GetTarget()->GetObjectGuid(), AuraUpdateRecordOf(holder));
+        return;
     }
-    else
-    {
-        WriteAuraRecord(packet, holder);
-    }
+
+    packet.Initialize(SMSG_AURA_UPDATE);
+    packet << holder.GetTarget()->GetObjectGuid().WriteAsPacked();
+    packet << uint8(holder.GetAuraSlot());
+    packet << uint32(0);
 }
 
 void BuildAuraUpdateAllPacket(WorldPacket& packet, Unit const& target)
@@ -102,14 +121,32 @@ void BuildAuraUpdateAllPacket(WorldPacket& packet, Unit const& target)
     Unit::VisibleAuraMap const& visibleAuras = target.GetVisibleAuras();
     for (Unit::VisibleAuraMap::const_iterator itr = visibleAuras.begin(); itr != visibleAuras.end(); ++itr)
     {
-        WriteAuraRecord(packet, *itr->second);
+        WriteAuraRecord(packet, AuraUpdateRecordOf(*itr->second));
     }
+}
+
+void BuildAuraPointsDepletedPacket(WorldPacket& packet, ObjectGuid target, uint8 slot, uint8 effectIndex)
+{
+    packet.Initialize(SMSG_AURA_POINTS_DEPLETED, 1 + 8 + 2);
+    packet.WriteGuidMask<2, 4, 1, 7, 5, 0, 3, 6>(target);
+    packet.WriteGuidBytes<5, 0>(target);
+    packet << uint8(effectIndex);
+    packet.WriteGuidBytes<3, 7, 4, 2>(target);
+    packet << uint8(slot);
+    packet.WriteGuidBytes<6, 1>(target);
 }
 
 void SessionAuraNotices::AuraUpdate(SpellAuraHolder const& holder, bool removed)
 {
     WorldPacket data;
     BuildAuraUpdatePacket(data, holder, removed);
+    holder.GetTarget()->SendMessageToSet(&data, true);
+}
+
+void SessionAuraNotices::AuraPointsDepleted(SpellAuraHolder const& holder, uint8 effectIndex)
+{
+    WorldPacket data;
+    BuildAuraPointsDepletedPacket(data, holder.GetTarget()->GetObjectGuid(), holder.GetAuraSlot(), effectIndex);
     holder.GetTarget()->SendMessageToSet(&data, true);
 }
 

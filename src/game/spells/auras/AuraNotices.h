@@ -26,14 +26,17 @@
 #ifndef MANGOS_H_AURANOTICES
 #define MANGOS_H_AURANOTICES
 
+#include "Platform/Define.h"
+
 class Player;
 class SpellAuraHolder;
 class Unit;
 
 /**
  * What a unit's auras tell the clients, one call per notice: the units around an aura's target hear
- * the aura change, and a player the visible auras of a unit it comes to see. The session installs
- * the notices that send them at start-up; this base sends nothing.
+ * the aura change and a damage shield's points running out, and a player the visible auras of a unit
+ * it comes to see. The session installs the notices that send them at start-up; this base sends
+ * nothing.
  */
 class AuraNotices
 {
@@ -43,6 +46,9 @@ class AuraNotices
         /// The units around `holder`'s target, the target among them, are told the aura changed, or
         /// left its slot when `removed` is true.
         virtual void AuraUpdate(SpellAuraHolder const& holder, bool removed);
+        /// The units around `holder`'s target, the target among them, are told the points of its effect
+        /// `effectIndex`, a damage absorb, ran out.
+        virtual void AuraPointsDepleted(SpellAuraHolder const& holder, uint8 effectIndex);
         /// `viewer` is told every visible aura of `target`.
         virtual void VisibleAuras(Player& viewer, Unit const& target);
 

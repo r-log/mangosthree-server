@@ -775,6 +775,24 @@ SpellAuraHolder* CreateSpellAuraHolder(SpellEntry const* spellproto, Unit* targe
     return new SpellAuraHolder(spellproto, target, caster, castItem, triggeredBy);
 }
 
+void RemoveDepletedShield(SpellAuraHolder* holder)
+{
+    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        Aura const* aura = holder->GetAuraByEffectIndex(SpellEffectIndex(i));
+        if (!aura || aura->GetModifier()->m_amount > 0)
+        {
+            continue;
+        }
+        const AuraType type = aura->GetModifier()->m_auraname;
+        if (type == SPELL_AURA_SCHOOL_ABSORB || type == SPELL_AURA_MANA_SHIELD)
+        {
+            holder->SendAuraPointsDepleted(SpellEffectIndex(i));
+        }
+    }
+    holder->GetTarget()->RemoveSpellAuraHolder(holder, AURA_REMOVE_BY_SHIELD_BREAK);
+}
+
 /**
  * @brief Sets the aura modifier data used by the handler logic.
  *
@@ -2154,8 +2172,9 @@ void Aura::PeriodicTick()
                 // This method can modify pdamage
                 bool isCrit = IsCritFromAbilityAura(pCaster, pdamage);
 
+                // the healed unit's heal absorbs take their part of the tick
                 uint32 absorbHeal = 0;
-                pCaster->CalculateHealAbsorb(pdamage, &absorbHeal);
+                target->CalculateHealAbsorb(pdamage, &absorbHeal);
                 pdamage -= absorbHeal;
 
                 DETAIL_FILTER_LOG(LOG_FILTER_PERIODIC_AFFECTS, "PeriodicTick: %s heal of %s for %u health  (absorbed %u) inflicted by %u",
@@ -3485,6 +3504,16 @@ void SpellAuraHolder::SendAuraUpdate(bool remove) const
     }
 
     sAuraNotices.AuraUpdate(*this, remove);
+}
+
+void SpellAuraHolder::SendAuraPointsDepleted(SpellEffectIndex index) const
+{
+    if (!m_target || !m_target->IsInWorld() || m_auraSlot >= MAX_AURAS)
+    {
+        return;
+    }
+
+    sAuraNotices.AuraPointsDepleted(*this, uint8(index));
 }
 
 namespace

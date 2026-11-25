@@ -1293,6 +1293,7 @@ enum OpcodesList
     SMSG_PRE_RESURRECT                                    = 0x6C36, // 4.3.4 15595
     SMSG_AURA_UPDATE_ALL                                  = 0x6916, // 4.3.4 15595
     SMSG_AURA_UPDATE                                      = 0x4707, // 4.3.4 15595
+    SMSG_AURA_POINTS_DEPLETED                             = 0x7CB7, // 4.3.4 15595
     CMSG_FLOOD_GRACE_CHEAT                                = 0x1498,
     SMSG_SERVER_FIRST_ACHIEVEMENT                         = 0x6424, // 4.3.4 15595
     SMSG_PET_LEARNED_SPELL                                = 0x0507, // 4.3.4 15595

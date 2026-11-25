@@ -977,6 +977,29 @@ bool CountsForIncantersAbsorption(uint32 spellId)
 
 namespace
 {
+    /// The damage shields a hit spends before every other, in the order it spends them: Divine Aegis goes before Power
+    /// Word: Shield however old each is. The shields the table does not name keep the order they were applied in.
+    constexpr uint32 ABSORB_SPENT_FIRST[] =
+    {
+        47753,  // Divine Aegis
+    };
+}
+
+uint32 Spells::AbsorbSpendOrder(uint32 spellId)
+{
+    const uint32 count = uint32(sizeof(ABSORB_SPENT_FIRST) / sizeof(ABSORB_SPENT_FIRST[0]));
+    for (uint32 place = 0; place < count; ++place)
+    {
+        if (ABSORB_SPENT_FIRST[place] == spellId)
+        {
+            return place;
+        }
+    }
+    return count;
+}
+
+namespace
+{
     /// The haste spells that put a lockout on each unit they haste, and that lockout, whose holder none of the four
     /// hastes ("Cannot benefit from Time Warp or other similar effects.").
     constexpr SpellAnswer LUST_LOCKOUTS[] =

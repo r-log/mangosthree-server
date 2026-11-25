@@ -27,11 +27,14 @@
 
 #include "Creature.h"
 #include "DBCStores.h"
+#include "data/ServerSpellStore.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/data/SpellTables.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <vector>
 
 TEST(SpellTables_TheGooberSpellsAnswerTheirReplacementsAndAnyOtherIdItself)
 {
@@ -652,6 +655,28 @@ TEST(SpellTables_IncantersAbsorptionCountsManaShieldAndMageWardAlone)
     }
 }
 
+TEST(SpellTables_DivineAegisIsTheShieldAHitSpendsFirst)
+{
+    CHECK_EQ(Spells::AbsorbSpendOrder(47753), uint32(0));
+
+    // Power Word: Shield (17), Ice Barrier (11426), Mage Ward (543), Mana Shield (1463) and any other id share the
+    // place after it.
+    for (uint32 spellId : { 17u, 11426u, 543u, 1463u, 0u, 12345u })
+    {
+        CHECK_EQ(Spells::AbsorbSpendOrder(spellId), uint32(1));
+    }
+
+    // Sorted stably by it, the shields a unit holds in the order they were applied put Divine Aegis first, however
+    // late it came, and keep the rest in their order.
+    std::vector<uint32> held = { 17, 11426, 47753, 543 };
+    std::stable_sort(held.begin(), held.end(), [](uint32 first, uint32 second)
+    {
+        return Spells::AbsorbSpendOrder(first) < Spells::AbsorbSpendOrder(second);
+    });
+    const std::vector<uint32> spent = { 47753, 17, 11426, 543 };
+    CHECK(held == spent);
+}
+
 TEST(SpellTables_EachHasteSpellAnswersItsOwnLockoutAndNoOtherSpellAnswersOne)
 {
     // The four pairs, as the haste spells' texts name them: Bloodlust's Sated, Heroism's Exhaustion, Time Warp's
@@ -1113,4 +1138,149 @@ TEST(SpellTables_ABuffThatCarriesNoMarkerLeavesIt)
     // The marker's own end takes nothing else with it.
     unit.RemoveSpellAuraHolder(marker, AURA_REMOVE_BY_EXPIRE);
     CHECK(unit.GetSpellAuraHolderMap().empty());
+}
+
+// A shield whose points ran out leaves through RemoveDepletedShield, which takes that holder alone: another caster's
+// holder of the same spell stays, where the removal by spell id takes both. The holders are made as the marker tests
+// make theirs, on a spell row of the test's own put into the spell store; the second caster is a creature guid that
+// the bare creature, never in a world, looks up as no unit.
+namespace
+{
+    const uint32 kShieldSpell = 94337;
+
+    MarkerRowStorage s_shieldRow = {};
+
+    void StoreShieldSpell()
+    {
+        static bool stored = false;
+        if (stored)
+        {
+            return;
+        }
+        stored = true;
+        sSpellStore.SetEntry(kShieldSpell, &RestrictedSpell(s_shieldRow, kShieldSpell, 0));
+    }
+}
+
+TEST(SpellTables_ADepletedShieldLeavesAndTheOtherCastersHolderStays)
+{
+    StoreShieldSpell();
+    const ObjectGuid otherCaster(HIGHGUID_UNIT, uint32(50249), uint32(7));
+
+    MarkerBearer unit;
+    SpellAuraHolder* own = unit.Hold(kShieldSpell);
+    SpellAuraHolder* other = unit.Hold(kShieldSpell);
+    other->SetCasterGuid(otherCaster);
+    CHECK_EQ(unit.GetSpellAuraHolderMap().size(), size_t(2));
+
+    RemoveDepletedShield(own);
+    CHECK_EQ(unit.GetSpellAuraHolderMap().size(), size_t(1));
+    CHECK(unit.GetSpellAuraHolder(kShieldSpell) == other);
+    CHECK(unit.GetSpellAuraHolder(kShieldSpell, otherCaster) == other);
+
+    unit.RemoveSpellAuraHolder(other, AURA_REMOVE_BY_EXPIRE);
+    CHECK(unit.GetSpellAuraHolderMap().empty());
+}
+
+TEST(SpellTables_TheRemovalBySpellIdTakesEveryCastersShield)
+{
+    StoreShieldSpell();
+    MarkerBearer unit;
+    unit.Hold(kShieldSpell);
+    SpellAuraHolder* other = unit.Hold(kShieldSpell);
+    other->SetCasterGuid(ObjectGuid(HIGHGUID_UNIT, uint32(50249), uint32(7)));
+
+    unit.RemoveAurasDueToSpell(kShieldSpell, NULL, AURA_REMOVE_BY_SHIELD_BREAK);
+    CHECK(unit.GetSpellAuraHolderMap().empty());
+}
+
+// Divine Aegis and Power Word: Shield stand together. The rows are the client's shapes, built in the stores: each a
+// priest spell (class set 6) whose one effect applies a school absorb of every school (6/69/127), Power Word: Shield
+// on mask 0x1 and icon 566, Divine Aegis on mask 0x1 << 56 and icon 2820, beside a third priest absorb of that shape,
+// which the generic rule (same class set, same effects) keeps from standing beside either. The test takes the spell
+// rows out of the spell store again; the effects stay with the static rows they point at.
+namespace
+{
+    const uint32 kPowerWordShield = 17;
+    const uint32 kDivineAegis = 47753;
+    const uint32 kOtherPriestAbsorb = 94338;
+    const uint32 kOptionsPowerWordShield = 94460;
+    const uint32 kOptionsDivineAegis = 94461;
+    const uint32 kOptionsOtherAbsorb = 94462;
+
+    SpellClassOptionsEntry s_optionsPowerWordShield;
+    SpellClassOptionsEntry s_optionsDivineAegis;
+    SpellClassOptionsEntry s_optionsOtherAbsorb;
+    ServerSpell s_priestAbsorbRows[3];
+
+    /// Puts the three priest absorbs into the spell store, their class options into theirs and their effects beside
+    /// them; the class options and the effects once.
+    void StorePriestAbsorbs()
+    {
+        static bool stored = false;
+        struct Row
+        {
+            uint32 spellId;
+            uint32 icon;
+            uint32 options;
+            SpellClassOptionsEntry* optionsRow;
+            uint64 mask;
+        };
+        Row const rows[3] =
+        {
+            { kPowerWordShield, 566, kOptionsPowerWordShield, &s_optionsPowerWordShield, UI64LIT(0x1) },
+            { kDivineAegis, 2820, kOptionsDivineAegis, &s_optionsDivineAegis, UI64LIT(0x1) << 56 },
+            { kOtherPriestAbsorb, 0, kOptionsOtherAbsorb, &s_optionsOtherAbsorb, UI64LIT(0x2) },
+        };
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            SpellEntry& row = s_priestAbsorbRows[i].Entry();
+            row.ID = rows[i].spellId;
+            row.SpellIconID = rows[i].icon;
+            row.ClassOptionsID = rows[i].options;
+            sSpellStore.SetEntry(rows[i].spellId, &row);
+            if (stored)
+            {
+                continue;
+            }
+            rows[i].optionsRow->SpellClassSet = SPELLFAMILY_PRIEST;
+            rows[i].optionsRow->SpellClassMask = ClassFamilyMask(rows[i].mask);
+            sSpellClassOptionsStore.SetEntry(rows[i].options, rows[i].optionsRow);
+            SpellEffectEntry& effect = s_priestAbsorbRows[i].effect;
+            effect.SpellID = rows[i].spellId;
+            effect.EffectIndex = EFFECT_INDEX_0;
+            effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            effect.EffectAura = SPELL_AURA_SCHOOL_ABSORB;
+            effect.EffectMiscValue_0 = SPELL_SCHOOL_MASK_ALL;
+            AddSpellEffectEntry(&effect);
+        }
+        stored = true;
+    }
+
+    /// Takes the three priest absorbs out of the spell store.
+    void ForgetPriestAbsorbs()
+    {
+        for (uint32 spellId : { kPowerWordShield, kDivineAegis, kOtherPriestAbsorb })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(SpellTables_DivineAegisAndPowerWordShieldStandTogetherInEitherOrder)
+{
+    StorePriestAbsorbs();
+
+    // Either arriving beside the other keeps it.
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kDivineAegis, kPowerWordShield));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kPowerWordShield, kDivineAegis));
+
+    // The generic rule stands for every other priest absorb of their shape, against each of them both ways.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kPowerWordShield));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kPowerWordShield, kOtherPriestAbsorb));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kDivineAegis));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kDivineAegis, kOtherPriestAbsorb));
+
+    ForgetPriestAbsorbs();
+    CHECK(sSpellStore.LookupEntry(kDivineAegis) == NULL);
 }
