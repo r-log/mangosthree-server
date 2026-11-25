@@ -419,6 +419,12 @@ namespace Mage
     /// does, as Arcane Missiles' missile (7268) does for the channel (5143); one level down. Defined in Arcane.cpp.
     bool DealsOrTriggersDamage(SpellEntry const& spell);
 
+    /// Takes one charge of Arcane Potency's buff off `mage`, of the second rank's buff (57531) when he holds it with a
+    /// charge left, else of the first rank's (57529): one charge fewer, the holder removed when that was its last.
+    /// Answers the buff whose charge it took; 0, and nothing taken, when he holds neither with a charge left. Defined
+    /// in Arcane.cpp.
+    uint32 UseArcanePotencyCharge(Unit& mage);
+
     /// Whether an aura of `auraType` whose amount is `amount` snares or slows the unit it is on, for Torment the Weak:
     /// a negative amount of a movement-speed slow (SPELL_AURA_MOD_DECREASE_SPEED), of an attack-speed aura
     /// (SPELL_AURA_MOD_ATTACKSPEED, SPELL_AURA_MOD_ATTACKSPEED_2, SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE,

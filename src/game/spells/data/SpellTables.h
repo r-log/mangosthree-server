@@ -138,6 +138,9 @@ uint32 GetSecondWindProcSpell(uint32 rankSpellId);
 uint32 GetRapidRecuperationProcSpell(uint32 rankSpellId);
 uint32 GetFlametongueWeaponProcSpell(uint32 rankSpellId);
 uint32 GetBlessedRecoveryProcSpell(uint32 rankSpellId);
+/// The hidden Arcane Potency aura that carries a buff's crit to Arcane Missiles' missiles and Blizzard's ticks:
+/// 33421 for 57529, 33713 for 57531; 0 for any other spell.
+uint32 GetArcanePotencyHiddenAura(uint32 buffSpellId);
 /// The overload copy of a Lightning Bolt or Chain Lightning; 0 for any other spell.
 uint32 GetLightningOverloadSpell(uint32 procSpellId);
 /// The damage spell of a Lightning Shield rank; 0 for any other spell.
@@ -155,6 +158,17 @@ bool IsBlazingSpeedRank(uint32 spellId);
 /// Whether what a shield of `spellId` absorbs counts toward Incanter's Absorption: Mage Ward (543) and Mana Shield
 /// (1463) alone.
 bool CountsForIncantersAbsorption(uint32 spellId);
+
+/// The lockout a haste spell puts on each unit it hastes: Temporal Displacement 80354 for Time Warp 80353, Sated 57724
+/// for Bloodlust 2825, Exhaustion 57723 for Heroism 32182, Insanity 95809 for Ancient Hysteria 90355; 0 otherwise.
+uint32 LustLockoutOf(uint32 spellId);
+
+/// The haste spell at `index` of LustLockoutOf's table, by ascending id: 2825, 32182, 80353 and 90355 at 0 to 3; 0 at
+/// any later index.
+uint32 LustSpellAt(uint32 index);
+
+/// Whether `spellId` is the lockout of a haste spell of LustLockoutOf's table: 57724, 57723, 80354 or 95809.
+bool IsLustLockout(uint32 spellId);
 
 /// How a death-prevention aura saves its bearer from a killing blow.
 enum DeathPreventionShape
@@ -222,5 +236,16 @@ bool HasNegativeScaleAura(uint32 spellId);
 bool HasPositiveMeleeHasteAura(uint32 spellId);
 bool HasNegativeForceReactionAura(uint32 spellId);
 bool HasNegativePhaseAura(uint32 spellId);
+
+struct SpellEntry;
+
+/// The marker a speed buff puts on its holder for as long as it lasts, which the client names as the aura that
+/// excludes the caster from such a buff: Run Speed Marker 96223.
+uint32 SpeedBuffMarker();
+
+/// Whether `spell`'s aura restrictions exclude the caster on the speed-buff marker (its SpellAuraRestrictions row's
+/// ExcludeCasterAuraSpell is SpeedBuffMarker()), so the buff carries it. A spell with no restrictions row answers
+/// false.
+bool CarriesSpeedBuffMarker(SpellEntry const& spell);
 
 #endif
