@@ -742,7 +742,23 @@ void Spell::EffectJump(SpellEffectEntry const* effect)
     // Try to normalize Z coord because GetContactPoint do nothing with Z axis
     ClampToAllowedZ(*m_caster, x, y, z);
 
-    float speed = m_spellInfo->Speed ? m_spellInfo->Speed : 27.0f;
+    // The speed: the spell tables' for a jump they name (Spells::JumpSpeed), else Spell.dbc's, else 27 yd/s.
+    const float tableSpeed = Spells::JumpSpeed(m_spellInfo->ID);
+    const float speed = tableSpeed > 0.0f ? tableSpeed : (m_spellInfo->Speed ? m_spellInfo->Speed : 27.0f);
+
+    // A jump the spell tables name flies on the arc of natural gravity, as its retail spline does: a bow of g*T^2/8
+    // about the chord, T the leg's own time (its 3D length from the caster's centre, the spline's, over the speed), so
+    // the spline's vertical acceleration (amplitude * 8 / T^2) is the client's gravity on any slope. The jumper faces
+    // along its path, as retail's spline does (no final facing).
+    if (tableSpeed > 0.0f)
+    {
+        const float dx = x - m_caster->Where().X();
+        const float dy = y - m_caster->Where().Y();
+        const float dz = z - m_caster->Where().Z();
+        const float flight = std::sqrt(dx * dx + dy * dy + dz * dz) / speed;
+        m_caster->GetMotionMaster()->MoveJump(x, y, z, speed, float(Movement::gravity) * flight * flight / 8.0f);
+        return;
+    }
 
     // THE ARC, FROM THE SPELL'S OWN DATA (live test 2026-09-22, B4: "Heroic Leap travels a
     // straight path"). The 2.5 f that stood here was Heroic Leap's SpellEffect.dbc FLOOR
