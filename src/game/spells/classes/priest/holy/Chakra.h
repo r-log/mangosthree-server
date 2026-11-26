@@ -51,6 +51,9 @@ class Unit;
  * 1 then casts 81585 at the unit healed, whose script effect puts the priest's Renew there back to its whole duration
  * (SerenityRefreshesRenew). Sanctuary's aura-remove row takes its Renew half off with it. ChakraState answers the state
  * a priest is in, for the Holy Words.
+ *
+ * Both check-procs decide alone only while 14751 and 81208 have no spell_proc_event row: a row would bring back the
+ * class masks, and Chakra's charge would be spent at the cast end.
  */
 
 namespace Priest
