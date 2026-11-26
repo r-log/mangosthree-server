@@ -24,18 +24,12 @@
  */
 
 #include "spells/classes/priest/holy/PrayerOfMending.h"
-#include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "spells/SpellModMgr.h"
 #include "entities/Unit.h"
-#include "entities/Pet.h"
-#include "entities/player/Player.h"
 #include "DBCStores.h"
-#include "Group.h"
-#include "Utilities/Util.h"
 
 #include <cstdint>
-#include <vector>
 
 namespace
 {
@@ -71,32 +65,6 @@ namespace
         return radius;
     }
 
-    /// The jump: `next` takes a holder of the aura made for `priest` from the one `holder` keeps, its auras of the same
-    /// base points, `jumpCharges` charges on it. The old holder is the new one's single-target predecessor, so the
-    /// engine takes it off its unit when the new one lands; `aura`, its effect the proc is for, is held in use through
-    /// that, as the engine's proc loop reads it after the row returns.
-    void MendingJump(SpellEntry const& spell, SpellAuraHolder& holder, Aura& aura, Unit& priest, Unit& next,
-                     uint32 jumpCharges)
-    {
-        SpellAuraHolder* moved = CreateSpellAuraHolder(&spell, &next, &priest);
-        for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
-        {
-            Aura* effect = holder.GetAuraByEffectIndex(SpellEffectIndex(i));
-            if (!effect)
-            {
-                continue;
-            }
-            int32 basePoints = effect->GetBasePoints();
-            Aura* copy = CreateAura(&spell, effect->GetEffIndex(), &basePoints, moved, &next, &priest);
-            moved->AddAura(copy, copy->GetEffIndex());
-        }
-        moved->SetAuraCharges(jumpCharges, false);
-
-        aura.SetInUse(true);
-        next.AddSpellAuraHolder(moved);
-        aura.SetInUse(false);
-    }
-
     /// The charges Prayer of Mending's aura holds on its first holder: the data's, with the priest's charge modifiers
     /// (the two pieces of Regalia of Faith, 60154, add one), as the holder's constructor counts them.
     uint32 MendingFullCharges(SpellEntry const& aura, Unit* priest)
@@ -125,8 +93,8 @@ namespace
 
     /// 41635: Prayer of Mending's aura, when its holder is hit: the proc handler of aura type 225. While the holder
     /// keeps more than one charge and its caster is a player in the world, the aura jumps to a unit of the holder's
-    /// group within its radius (Priest::MendingNextHolder, with the radius the priest's modifiers give), when there is
-    /// one. Then the holder is healed: it casts Prayer of Mending's heal at itself, triggered, for the aura's amount,
+    /// group within its radius (OnProcContext::RandomGroupUnitNear, with the radius the priest's modifiers give), when
+    /// there is one (OnProcContext::MoveAuraTo, one charge fewer). Then the holder is healed: it casts Prayer of Mending's heal at itself, triggered, for the aura's amount,
     /// raised by the priest's Glyph of Prayer of Mending when this is the cast's first heal, by its percent of the whole
     /// heal, his spell power's part included (Priest::MendingHealAmount),
     /// with the priest as the original caster and the aura's spell as the trigger, and no triggering aura, so that the
@@ -138,18 +106,16 @@ namespace
         ObjectGuid const casterGuid = ctx.aura.CasterGuid();
         int32 const amount = ctx.triggerAmount;
         uint32 const charges = ctx.aura.Charges();
-        SpellAuraHolder* holder = ctx.caster.GetSpellAuraHolder(ctx.spell.ID, casterGuid);
-        Aura* aura = holder ? holder->GetAuraByEffectIndex(ctx.effIndex) : NULL;
-        Unit* priest = holder ? holder->GetCaster() : NULL;
+        Unit* priest = ctx.aura.Caster();
         int32 const glyph = priest ? Priest::MendingGlyph(*priest) : 0;
 
         uint32 const jumpCharges = Priest::MendingJumpCharges(charges);
-        if (jumpCharges && holder && aura && priest && casterGuid.IsPlayer() && priest->GetTypeId() == TYPEID_PLAYER)
+        if (jumpCharges && priest && casterGuid.IsPlayer() && priest->GetTypeId() == TYPEID_PLAYER)
         {
             float const radius = MendingRadius(ctx.spell, ctx.effIndex, *priest);
-            if (Unit* next = Priest::MendingNextHolder(ctx.caster, radius))
+            if (Unit* next = ctx.RandomGroupUnitNear(radius))
             {
-                MendingJump(ctx.spell, *holder, *aura, *priest, *next, jumpCharges);
+                ctx.MoveAuraTo(*next, *priest, jumpCharges);
             }
         }
 
@@ -186,45 +152,4 @@ int32 Priest::MendingGlyph(Unit const& priest)
 {
     SpellAuraHolder* glyph = priest.GetSpellAuraHolder(GLYPH_OF_PRAYER_OF_MENDING);
     return glyph ? AuraHandle(*glyph).Amount(EFFECT_INDEX_0) : 0;
-}
-
-bool Priest::MendingMayTake(bool self, bool alive, bool inReach, bool invisible, bool hostile)
-{
-    return !self && alive && inReach && !invisible && !hostile;
-}
-
-Unit* Priest::MendingNextHolder(Unit& holder, float radius)
-{
-    // a player's own group, as the engine's walk takes it; a pet's is its owner's
-    Player* owner = holder.ToPlayer();
-    if (!owner && holder.IsPet())
-    {
-        owner = holder.GetCharmerOrOwnerPlayerOrPlayerItself();
-    }
-    Group* group = owner ? owner->GetGroup() : NULL;
-    if (!group)
-    {
-        return NULL;
-    }
-
-    std::vector<Unit*> takers;
-    for (GroupReference* itr = group->GetFirstMember(); itr != NULL; itr = itr->next())
-    {
-        Player* member = itr->getSource();
-        if (!member)
-        {
-            continue;
-        }
-        Unit* const candidates[] = { member, member->GetPet() };
-        for (Unit* candidate : candidates)
-        {
-            if (candidate && MendingMayTake(candidate == &holder, candidate->IsAlive(),
-                                            InReach(holder, *candidate, radius), candidate->HasInvisibilityAura(),
-                                            holder.IsHostileTo(candidate)))
-            {
-                takers.push_back(candidate);
-            }
-        }
-    }
-    return takers.empty() ? NULL : takers[urand(0, uint32(takers.size()) - 1)];
 }

@@ -27,6 +27,7 @@
 #include "Utilities/MathDefines.h"
 #include <algorithm>
 #include <ctime>
+#include <vector>
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
@@ -37,6 +38,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "Creature.h"
+#include "Group.h"
 #include "Util.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/data/SpellTables.h"
@@ -3196,4 +3198,81 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
             RemoveAurasDueToSpell(*i);
         }
     }
+}
+
+bool OnProcContext::MoveAuraTo(Unit& to, Unit& auraCaster, uint32 charges)
+{
+    SpellAuraHolder* holder = caster.GetSpellAuraHolder(spell.ID, aura.CasterGuid());
+    Aura* procAura = holder ? holder->GetAuraByEffectIndex(effIndex) : NULL;
+    if (!procAura)
+    {
+        return false;
+    }
+
+    SpellAuraHolder* moved = CreateSpellAuraHolder(&spell, &to, &auraCaster);
+    for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        Aura* effect = holder->GetAuraByEffectIndex(SpellEffectIndex(i));
+        if (!effect)
+        {
+            continue;
+        }
+        int32 basePoints = effect->GetBasePoints();
+        Aura* copy = CreateAura(&spell, effect->GetEffIndex(), &basePoints, moved, &to, &auraCaster);
+        moved->AddAura(copy, copy->GetEffIndex());
+    }
+    moved->SetAuraCharges(charges, false);
+
+    // the old holder goes when the new one lands; the proc loop reads its aura after the row returns
+    procAura->SetInUse(true);
+    bool const added = to.AddSpellAuraHolder(moved);
+    procAura->SetInUse(false);
+
+    // only a spell's hit marks the holders it adds ready, and the proc loop passes over a holder that is not
+    if (added)
+    {
+        moved->SetState(SPELLAURAHOLDER_STATE_READY);
+    }
+    return added;
+}
+
+Unit* OnProcContext::RandomGroupUnitNear(float radius) const
+{
+    // a player's own group, as the engine's walk takes it; a pet's is its owner's
+    Player* owner = caster.ToPlayer();
+    if (!owner && caster.IsPet())
+    {
+        owner = caster.GetCharmerOrOwnerPlayerOrPlayerItself();
+    }
+    Group* group = owner ? owner->GetGroup() : NULL;
+    if (!group)
+    {
+        return NULL;
+    }
+
+    std::vector<Unit*> takers;
+    for (GroupReference* itr = group->GetFirstMember(); itr != NULL; itr = itr->next())
+    {
+        Player* member = itr->getSource();
+        if (!member)
+        {
+            continue;
+        }
+        Unit* const candidates[] = { member, member->GetPet() };
+        for (Unit* candidate : candidates)
+        {
+            if (candidate && GroupUnitMayTake(candidate == &caster, candidate->IsAlive(),
+                                              InReach(caster, *candidate, radius), candidate->HasInvisibilityAura(),
+                                              caster.IsHostileTo(candidate)))
+            {
+                takers.push_back(candidate);
+            }
+        }
+    }
+    return takers.empty() ? NULL : takers[urand(0, uint32(takers.size()) - 1)];
+}
+
+bool OnProcContext::GroupUnitMayTake(bool self, bool alive, bool inReach, bool invisible, bool hostile)
+{
+    return !self && alive && inReach && !invisible && !hostile;
 }
