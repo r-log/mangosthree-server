@@ -39,8 +39,9 @@
 /**
  * @file ScenariosPriestDivineHymn.cpp
  * @brief The priest's heal rule scenarios: order 1220, Divine Hymn's heal picks as many of his group's members as its
- * channel's effect 1 names and takes his healing-done bonus, Spiritual Healing and Heavenly Voice; order 1221, Holy
- * Word: Serenity's crit aura raises the crit chance of his own heals on its holder and of nothing else.
+ * channel's effect 1 names and acts as a spell heal: his healing-done bonus, Spiritual Healing and Heavenly Voice, his
+ * Grace on the healed unit, and a crit roll Holy Word: Serenity's crit aura raises; order 1221, Holy Word: Serenity's
+ * crit aura raises the crit chance of his own heals on its holder and of nothing else.
  */
 
 namespace Harness
@@ -74,11 +75,70 @@ namespace Harness
             return value == -2 ? std::string("unread") : std::to_string(value);
         }
 
+        uint32 const kCritRolls = 2000;
+        int64 const kCritBonusCeiling = 60;
+
+        /// The crit chance Unit::IsSpellCrit computes for `p`'s `spellId` at `target` as a hit of `type`, above his
+        /// crit sheet for the spell's school, in whole percent: the least b of 0 to kCritBonusCeiling at which
+        /// kCritRolls rolls with that sheet set to -b by call never crit. kCritBonusCeiling + 1 when every b crit; -1
+        /// when the store lacks the spell. The sheet is put back as it was.
+        int64 CritBonusOf(Player* p, Unit* target, uint32 spellId, DamageEffectType type)
+        {
+            SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
+            if (!spell)
+            {
+                return -1;
+            }
+            const SpellSchoolMask mask = GetSpellSchoolMask(spell);
+            const uint16 field = uint16(PLAYER_SPELL_CRIT_PERCENTAGE1 + GetFirstSchoolInMask(mask));
+            const float sheet = p->GetFloatValue(field);
+            int64 bonus = kCritBonusCeiling + 1;
+            for (int64 b = 0; b <= kCritBonusCeiling && bonus > kCritBonusCeiling; ++b)
+            {
+                p->SetFloatValue(field, -float(b));
+                bool crit = false;
+                for (uint32 roll = 0; roll < kCritRolls && !crit; ++roll)
+                {
+                    crit = p->IsSpellCrit(target, spell, mask, BASE_ATTACK, type);
+                }
+                if (!crit)
+                {
+                    bonus = b;
+                }
+            }
+            p->SetFloatValue(field, sheet);
+            return bonus;
+        }
+
+        /// 1 when `p`'s `spellId` at `target` as a heal crits within kCritRolls rolls with his crit sheet for its
+        /// school set to 100 by call, else 0; -1 when the store lacks the spell. The sheet is put back as it was.
+        int64 CritsAtFullSheet(Player* p, Unit* target, uint32 spellId)
+        {
+            SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
+            if (!spell)
+            {
+                return -1;
+            }
+            const SpellSchoolMask mask = GetSpellSchoolMask(spell);
+            const uint16 field = uint16(PLAYER_SPELL_CRIT_PERCENTAGE1 + GetFirstSchoolInMask(mask));
+            const float sheet = p->GetFloatValue(field);
+            p->SetFloatValue(field, 100.0f);
+            bool crit = false;
+            for (uint32 roll = 0; roll < kCritRolls && !crit; ++roll)
+            {
+                crit = p->IsSpellCrit(target, spell, mask, BASE_ATTACK, HEAL);
+            }
+            p->SetFloatValue(field, sheet);
+            return crit ? 1 : 0;
+        }
+
         /**
          * S1220 `priest-divine-hymn`: Divine Hymn (64843) channelled by him heals, each tick, through 64844, as many
          * of his group's members within its reach as the channel's effect 1 names, the lowest in health first, him
-         * included, and its heal takes his healing-done bonus: his spell power at 64844's coefficient, then Spiritual
-         * Healing's (87336) and Heavenly Voice's (87431) percents.
+         * included, and its heal acts as a spell heal: it takes his healing-done bonus (his spell power at 64844's
+         * coefficient, then Spiritual Healing's (87336) and Heavenly Voice's (87431) percents), the
+         * healing-received aura he put on the healed unit (Grace, 77613) and rolls its crit, which Holy Word:
+         * Serenity's crit aura (88684's effect 1) raises.
          * Staged: a level 85 human priest (StagedCasterScenario with CLASS_PRIEST) with Improved Power Word: Shield 2
          * (talent 10736, rank index 1, spell 14768) as his first talent, which makes Discipline his primary tree;
          * Divine Hymn, Spiritual Healing and Heavenly Voice's second rank learned; kSpellPower spell power; the Camel
@@ -86,24 +146,32 @@ namespace Harness
          * level 85 with that level's stats, are spawned in a line kFriendsBehind yards behind him, and he and they are
          * put in one group: each linked to an in-memory Group by Player::SetGroup, the reference list the raid and
          * party target fill walks (Spell::FillRaidOrPartyTargets), with no group row and no member row, since the
-         * harness never writes to the character database. Steps:
+         * harness never writes to the character database. Last, Increased Critical Spell (23434) is put on him at
+         * -kCritAuraPoints, so none of the channel's heals crits. Steps:
          *  1. Divine Hymn cast by him at himself, triggered: an 8 second channel whose effect 0 casts 64844 every 2
-         *     seconds. Right after it, every friend's health is set to half its maximum, and the data and his
-         *     bonuses are read;
+         *     seconds. Right after it, before the first tick, every friend's health is set to half its maximum, and
+         *     the data and his bonuses are read; then, at the first friend, by call: the crit chance
+         *     Unit::IsSpellCrit computes for his 64844 as a heal above his crit sheet (the 1221 read), with his 88684
+         *     put on the friend and with none; whether it crits with his sheet at 100; and what
+         *     Unit::SpellHealingBonusTaken makes of kTakenBase of his 64844 with his Grace on the friend and with the
+         *     second friend's; each aura taken off after its read;
          *  2. a wait, after the channel's end: he and his friends leave the group, which is deleted.
          *
          * `divineHymn`: `targets=<the units each SMSG_SPELL_GO of 64844 in step 1's windows hits, per GO>,heals=<the
          * SMSG_SPELLHEALLOG packets of 64844 he sent after each of those GOs>,first=<the distinct heals of the logs
          * that are a unit's first 64844 heal in the step, joined by +>,again=<the distinct heals of the later ones; -
-         * for none>`. With C = 64843's effect 1 value, B = his 64844 effect 0 base (Unit::CalculateSpellDamage), S
-         * = his healing spell power (Unit::SpellBaseHealingBonusDone), P = Unit::SpellBonusWithCoeffs of S for 64844,
+         * for none>,crit=<his 64844's crit chance with his 88684 on the friend>/<with none>,rolls=<1 when it crits at
+         * his sheet at 100, else 0>,grace=<kTakenBase of it taken with his Grace>/<with the other friend's>`. With C =
+         * 64843's effect 1 value, B = his 64844 effect 0 base (Unit::CalculateSpellDamage), S = his healing spell
+         * power (Unit::SpellBaseHealingBonusDone), P = Unit::SpellBonusWithCoeffs of S for 64844,
          * M = what his spell modifiers of SPELLMOD_DAMAGE make of 100 for 64844, D = B + P with his spell modifiers
          * of SPELLMOD_DAMAGE applied (as Unit::SpellHealingBonusDone applies them) and A = D under 64844's effect 1
          * value as the healing-taken percent of a unit that holds 64844 from an earlier tick: OK when kFriends
          * friends were spawned and grouped with him, C, B and S are positive, 64844's coefficient is 0.429, P is
          * within 1 of S x 0.429, M is 100 + 87336's effect 0 value + 87431's effect 0 value, he holds no
          * healing-done percent aura, at least one GO came, every GO hits C units and is followed by C heal logs, and
-         * every first heal is D and every later one A.
+         * every first heal is D and every later one A, and at crit=V/0,rolls=1,grace=G/kTakenBase with V = 88684's
+         * effect 1 value and G = kTakenBase x (100 + 77613's effect 0 value) / 100.
          */
         class PriestDivineHymn : public StagedCasterScenario
         {
@@ -121,6 +189,8 @@ namespace Harness
 
             void AfterStage(Player& p) override
             {
+                int32 noCrit = -kCritAuraPoints;
+                p.CastCustomSpell(&p, kCritAura, &noCrit, NULL, NULL, true);
                 m_friends.clear();
                 m_group.reset(new Group());
                 p.SetGroup(m_group.get(), 0);
@@ -158,6 +228,12 @@ namespace Harness
                     { 87336, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 15 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 576742382312103424 }, { "eff0.EffectSpellClassMask.Flags2", 2129924 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 108 }, { "eff1.EffectBasePoints", 15 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 22 }, { "eff1.EffectSpellClassMask.Flags", 10485824 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
                     // 87431: 49 fields, fnv 03e9f777
                     { 87431, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 108 }, { "eff0.EffectBasePoints", 100 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags2", 4 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 107 }, { "eff1.EffectBasePoints", -300000 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectMiscValue_0", 11 }, { "eff1.EffectSpellClassMask.Flags", 18014398509481984 }, { "eff1.ImplicitTarget_0", 1 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                    // 77613: 26 fields, fnv 48586316
+                    { 77613, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 283 }, { "eff0.EffectBasePoints", 8 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.EffectSpellClassMask.Flags", 281630019427905 }, { "eff0.EffectSpellClassMask.Flags2", 2147533828 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
+                    // 88684: 49 fields, fnv 955f0e19
+                    { 88684, { { "eff0.present", 1 }, { "eff0.Effect", 10 }, { "eff0.EffectBasePoints", 1 }, { "eff0.EffectBonusCoefficient", 1056494846 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 21 }, { "eff1.present", 1 }, { "eff1.Effect", 6 }, { "eff1.EffectAura", 308 }, { "eff1.EffectBasePoints", 25 }, { "eff1.EffectChainAmplitude", 1065353216 }, { "eff1.EffectSpellClassMask.Flags", 17582530048 }, { "eff1.EffectSpellClassMask.Flags2", 4 }, { "eff1.ImplicitTarget_0", 21 }, { "eff1.EffectIndex", 1 }, { "eff2.present", 0 } } },
+                    // 23434: 26 fields, fnv 6bb46cc2
+                    { 23434, { { "eff0.present", 1 }, { "eff0.Effect", 6 }, { "eff0.EffectAura", 57 }, { "eff0.EffectBasePoints", 50 }, { "eff0.EffectChainAmplitude", 1065353216 }, { "eff0.ImplicitTarget_0", 1 }, { "eff1.present", 0 }, { "eff2.present", 0 } } },
                 };
             }
 
@@ -213,11 +289,21 @@ namespace Harness
                 const int64 again = wanted >= 0 ?
                     int64(int32(int32(wanted) * Combat::SpellHealingTakenPercent(0, int32(taken)))) : -1;
                 const int64 partWanted = power * kCoefficientMilli / 1000;
+                const int64 serenity = KeptOf(st, kChannelStep, "serenity");
+                const int64 critOwn = KeptOf(st, kChannelStep, "critOwn");
+                const int64 critNone = KeptOf(st, kChannelStep, "critNone");
+                const int64 rolls = KeptOf(st, kChannelStep, "rolls");
+                const int64 grace = KeptOf(st, kChannelStep, "grace");
+                const int64 graceOwn = KeptOf(st, kChannelStep, "graceOwn");
+                const int64 graceOther = KeptOf(st, kChannelStep, "graceOther");
+                const int64 graceWanted = int64(kTakenBase) * (100 + grace) / 100;
 
                 bool ok = count > 0 && friends == int64(kFriends) && grouped == int64(kFriends) + 1 && base > 0 &&
                           power > 0 && coefficientMilli == kCoefficientMilli && part >= partWanted - 1 &&
                           part <= partWanted + 1 && healing > 0 && voice > 0 && percent == 100 + healing + voice &&
-                          donePercentAuras == 0 && wanted > 0;
+                          donePercentAuras == 0 && wanted > 0 && serenity > 0 && critOwn == serenity &&
+                          critNone == 0 && rolls == 1 && grace > 0 && graceOwn == graceWanted &&
+                          graceOther == int64(kTakenBase);
 
                 std::vector<Tick> ticks = TicksOf(st.player.GetRawValue());
                 ok = ok && !ticks.empty();
@@ -241,7 +327,9 @@ namespace Harness
 
                 const std::string value = "targets=" + (targets.empty() ? std::string("-") : targets) + ",heals=" +
                                           (heals.empty() ? std::string("-") : heals) + ",first=" + Joined(firsts) +
-                                          ",again=" + Joined(agains);
+                                          ",again=" + Joined(agains) + ",crit=" + Shown(critOwn) + "/" +
+                                          Shown(critNone) + ",rolls=" + Shown(rolls) + ",grace=" + Shown(graceOwn) +
+                                          "/" + Shown(graceOther);
                 const std::string detail =
                     "wanted " + Shown(count) + " units a tick (" + U(kDivineHymn) + "'s effect 1 value) of " +
                     U(kFriends) + " friends at half health and him at his maximum, " + Shown(friends) +
@@ -252,7 +340,11 @@ namespace Harness
                     Shown(voice) + " for " + U(kHeavenlyVoice2) + "), " + Shown(wanted) +
                     " at a unit's first heal and " + std::to_string(again) + " under " + U(kHymnHeal) + "'s +" +
                     Shown(taken) + "% healing taken after; his healing-done percent auras " +
-                    Shown(donePercentAuras) + ", wanted 0";
+                    Shown(donePercentAuras) + ", wanted 0; at the first friend, his " + U(kHymnHeal) +
+                    "'s crit chance raised by " + Shown(serenity) + " (" + U(kSerenity) + "'s effect 1 value) with " +
+                    "his " + U(kSerenity) + " on the friend and by nothing with none, a crit with his sheet at 100, " +
+                    "and " + U(kTakenBase) + " of it taken as " + std::to_string(graceWanted) + " with his " +
+                    U(kGrace) + " (+" + Shown(grace) + "%) and as " + U(kTakenBase) + " with the other friend's";
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
@@ -261,6 +353,9 @@ namespace Harness
             static constexpr uint32 kHymnHeal = 64844;
             static constexpr uint32 kSpiritualHealing = 87336;
             static constexpr uint32 kHeavenlyVoice2 = 87431;
+            static constexpr uint32 kSerenity = 88684;
+            static constexpr uint32 kGrace = 77613;
+            static constexpr uint32 kTakenBase = 1000;
             static constexpr int32 kSpellPower = 5000;
             static constexpr int64 kCoefficientMilli = 429;
             static constexpr uint32 kFriends = 6;
@@ -340,6 +435,43 @@ namespace Harness
                            std::to_string(seen.reads["wanted"]) + "; its effect 1 healing taken +" +
                            std::to_string(seen.reads["taken"]) + "%; his healing-done percent auras " +
                            std::to_string(seen.reads["donePercentAuras"]));
+                ReadTheSpellHealRules(seen, p, heal, someFriend);
+            }
+
+            /// After the cast, before the first tick, at the first friend, by call: the crit chance of his 64844 with
+            /// his 88684 on the friend and with none, whether it crits with his sheet at 100, and what the friend
+            /// takes of kTakenBase of it with his Grace on the friend and with the second friend's; each aura taken
+            /// off after its read. Kept in `seen`, and noted.
+            void ReadTheSpellHealRules(Seen& seen, Player* p, SpellEntry const* heal, Player* healed)
+            {
+                Player* otherFriend = m_friends.size() > 1 ? sPlayerRegistry.Find(m_friends[1]) : NULL;
+                seen.reads["serenity"] = DataValueOf(kSerenity, EFFECT_INDEX_1);
+                seen.reads["grace"] = DataValueOf(kGrace, EFFECT_INDEX_0);
+                if (!healed || !otherFriend)
+                {
+                    m_rec.Note("the friends the spell heal reads need were not spawned");
+                    return;
+                }
+                PutAura(healed, kSerenity, p);
+                seen.reads["critOwn"] = CritBonusOf(p, healed, kHymnHeal, HEAL);
+                const std::string serenityHolder = HolderOf(healed, kSerenity);
+                healed->RemoveAurasDueToSpell(kSerenity);
+                seen.reads["critNone"] = CritBonusOf(p, healed, kHymnHeal, HEAL);
+                seen.reads["rolls"] = CritsAtFullSheet(p, healed, kHymnHeal);
+                PutAura(healed, kGrace, p);
+                seen.reads["graceOwn"] = int64(healed->SpellHealingBonusTaken(p, heal, int32(kTakenBase), HEAL, 1));
+                const std::string graceHolder = HolderOf(healed, kGrace);
+                healed->RemoveAurasDueToSpell(kGrace);
+                PutAura(healed, kGrace, otherFriend);
+                seen.reads["graceOther"] = int64(healed->SpellHealingBonusTaken(p, heal, int32(kTakenBase), HEAL, 1));
+                healed->RemoveAurasDueToSpell(kGrace);
+                m_rec.Note("at the first friend: his " + U(kHymnHeal) + "'s crit chance +" +
+                           std::to_string(seen.reads["critOwn"]) + " with his " + U(kSerenity) + " (" +
+                           serenityHolder + "), +" + std::to_string(seen.reads["critNone"]) +
+                           " with none, crits at his sheet at 100: " + std::to_string(seen.reads["rolls"]) + "; " +
+                           U(kTakenBase) + " of it taken as " + std::to_string(seen.reads["graceOwn"]) + " with his " +
+                           U(kGrace) + " (" + graceHolder + "), " + std::to_string(seen.reads["graceOther"]) +
+                           " with the other friend's");
             }
 
             /// He and his friends leave the group, which is deleted.
@@ -455,7 +587,7 @@ namespace Harness
          *  3. the same with the other priest as its caster.
          * Each crit read is the crit chance Unit::IsSpellCrit computes for his spell at the Camel, a heal for Flash
          * Heal (2061) and a direct hit for Smite (585), above his crit sheet for its school, in whole percent: the
-         * least b at which kRolls rolls with the sheet set to -b by call never crit, the sheet put back after.
+         * least b at which kCritRolls rolls with the sheet set to -b by call never crit, the sheet put back after.
          *
          * `critFromCaster`: `crit=<Flash Heal at step 2>/<Smite at step 2>/<Flash Heal at step 3>,base=<Flash Heal at
          * step 1>`. OK at crit=V/0/0,base=0 with V = 88684's effect 1 value, positive.
@@ -518,13 +650,13 @@ namespace Harness
                 switch (k)
                 {
                     case 0:
-                        reads["flash"] = Bonus(p, target, kFlashHeal, HEAL);
+                        reads["flash"] = CritBonusOf(p, target, kFlashHeal, HEAL);
                         note += "; no aura on the Camel: Flash Heal +" + Shown(reads["flash"]);
                         break;
                     case 1:
                         PutAura(target, kSerenity, p);
-                        reads["flash"] = Bonus(p, target, kFlashHeal, HEAL);
-                        reads["smite"] = Bonus(p, target, kSmite, SPELL_DIRECT_DAMAGE);
+                        reads["flash"] = CritBonusOf(p, target, kFlashHeal, HEAL);
+                        reads["smite"] = CritBonusOf(p, target, kSmite, SPELL_DIRECT_DAMAGE);
                         reads["value"] = DataValueOf(kSerenity, EFFECT_INDEX_1);
                         note += "; his " + U(kSerenity) + " on the Camel (" + HolderOf(target, kSerenity) +
                                 "): Flash Heal +" + Shown(reads["flash"]) + ", Smite +" + Shown(reads["smite"]);
@@ -535,7 +667,7 @@ namespace Harness
                         {
                             PutAura(target, kSerenity, other);
                         }
-                        reads["flash"] = Bonus(p, target, kFlashHeal, HEAL);
+                        reads["flash"] = CritBonusOf(p, target, kFlashHeal, HEAL);
                         note += "; the other priest's " + U(kSerenity) + " on the Camel (" +
                                 HolderOf(target, kSerenity) + "): Flash Heal +" + Shown(reads["flash"]);
                         target->RemoveAurasDueToSpell(kSerenity);
@@ -572,43 +704,9 @@ namespace Harness
             static constexpr uint32 kOtherLevel = 85;
             static constexpr float kOtherSide = 4.0f;
             static constexpr uint32 kStepMs = 1000;
-            static constexpr uint32 kRolls = 2000;
-            static constexpr int64 kBonusCeiling = 60;
             static constexpr size_t kSteps = 3;
 
             ObjectGuid m_other;                 ///< the other priest, spawned after the stage
-
-            /// The crit chance Unit::IsSpellCrit computes for his `spellId` at `target` as a hit of `type`, above his
-            /// crit sheet for the spell's school, in whole percent: the least b of 0 to kBonusCeiling at which kRolls
-            /// rolls with that sheet set to -b by call never crit. kBonusCeiling + 1 when every b crit; -1 when the
-            /// store lacks the spell. The sheet is put back as it was.
-            static int64 Bonus(Player* p, Unit* target, uint32 spellId, DamageEffectType type)
-            {
-                SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
-                if (!spell)
-                {
-                    return -1;
-                }
-                const SpellSchoolMask mask = GetSpellSchoolMask(spell);
-                const uint16 field = uint16(PLAYER_SPELL_CRIT_PERCENTAGE1 + GetFirstSchoolInMask(mask));
-                const float sheet = p->GetFloatValue(field);
-                int64 bonus = kBonusCeiling + 1;
-                for (int64 b = 0; b <= kBonusCeiling && bonus > kBonusCeiling; ++b)
-                {
-                    p->SetFloatValue(field, -float(b));
-                    bool crit = false;
-                    for (uint32 roll = 0; roll < kRolls && !crit; ++roll)
-                    {
-                        crit = p->IsSpellCrit(target, spell, mask, BASE_ATTACK, type);
-                    }
-                    if (!crit)
-                    {
-                        bonus = b;
-                    }
-                }
-                p->SetFloatValue(field, sheet);
-                return bonus;
-            }
         };
     }
 
