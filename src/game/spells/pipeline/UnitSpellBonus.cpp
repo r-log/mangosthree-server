@@ -743,7 +743,8 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
     }
 
     float crit_chance = 0.0f;
-    switch(spellProto->GetDmgClass())
+    // a class-none heal the table names rolls as a magic heal
+    switch(Spells::HealRuleDamageClass(spellProto->ID, spellProto->GetDmgClass()))
     {
         case SPELL_DAMAGE_CLASS_NONE:
             return false;
@@ -793,6 +794,20 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
                             break;
                         default:
                             break;
+                    }
+                }
+
+                // a heal takes the crit chance of the healed unit's crit-from-caster auras that its healer put on it
+                // and whose class mask names the heal
+                if (damageType == HEAL)
+                {
+                    AuraList const& critFromCaster = pVictim->GetAurasByType(SPELL_AURA_MOD_CRIT_FROM_CASTER);
+                    for (AuraList::const_iterator i = critFromCaster.begin(); i != critFromCaster.end(); ++i)
+                    {
+                        if ((*i)->GetCasterGuid() == GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
+                        {
+                            crit_chance += (*i)->GetModifier()->m_amount;
+                        }
                     }
                 }
 
@@ -967,8 +982,10 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
             return owner->SpellHealingBonusDone(pVictim, spellProto, healamount, damagetype, stack);
         }
 
-    // No heal amount for this class spells, nor for a heal the table keeps from the done bonus
-    if (spellProto->GetDmgClass() == SPELL_DAMAGE_CLASS_NONE || Spells::HealTakesNoDoneBonus(spellProto->ID))
+    // No heal amount for this class spells, unless the table makes the heal a spell heal, nor for a heal the table
+    // keeps from the done bonus
+    if (Spells::HealRuleDamageClass(spellProto->ID, spellProto->GetDmgClass()) == SPELL_DAMAGE_CLASS_NONE ||
+        Spells::HealTakesNoDoneBonus(spellProto->ID))
     {
         return healamount < 0 ? 0 : healamount;
     }
@@ -1122,14 +1139,17 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
  */
 uint32 Unit::SpellHealingBonusTaken(Unit* pCaster, SpellEntry const* spellProto, int32 healamount, DamageEffectType damagetype, uint32 stack)
 {
-    // Healing taken percent
-    int32 const healingPctNegative = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
-    int32 const healingPctPositive = GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
+    // Healing taken percent, which a heal the table names ignores
+    float TakenTotalMod = 1.0f;
+    if (!Spells::HealIgnoresTakenPercent(spellProto->ID))
+    {
+        int32 const healingPctNegative = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
+        int32 const healingPctPositive = GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
+        TakenTotalMod = Combat::SpellHealingTakenPercent(healingPctNegative, healingPctPositive);
+    }
 
-    float TakenTotalMod = Combat::SpellHealingTakenPercent(healingPctNegative, healingPctPositive);
-
-    // No heal amount for this class spells
-    if (spellProto->GetDmgClass() == SPELL_DAMAGE_CLASS_NONE)
+    // No heal amount for this class spells, unless the table makes the heal a spell heal
+    if (Spells::HealRuleDamageClass(spellProto->ID, spellProto->GetDmgClass()) == SPELL_DAMAGE_CLASS_NONE)
     {
         healamount = int32(healamount * TakenTotalMod);
         return healamount < 0 ? 0 : healamount;
