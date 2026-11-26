@@ -730,7 +730,7 @@ if(Python3_Interpreter_FOUND)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/class_logic.py
             --root ${CMAKE_SOURCE_DIR} --check
             --gate legacy_sites=83 --gate legacy_rows=1221 --gate family_mentions=297
-            --gate icon_compares=196 --gate mask_literals=289 --gate family_switches=32)
+            --gate icon_compares=195 --gate mask_literals=289 --gate family_switches=32)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
