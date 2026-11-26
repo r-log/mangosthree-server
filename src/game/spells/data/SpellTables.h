@@ -287,7 +287,7 @@ uint32 SpeedBuffMarker();
 
 /// Whether `spell`'s aura restrictions exclude the caster on the speed-buff marker (its SpellAuraRestrictions row's
 /// ExcludeCasterAuraSpell is SpeedBuffMarker()), so the buff carries it. A spell with no restrictions row answers
-/// false.
+/// false, but for Body and Soul's second rank (65081), which retail marks though its data names no marker.
 bool CarriesSpeedBuffMarker(SpellEntry const& spell);
 
 #endif

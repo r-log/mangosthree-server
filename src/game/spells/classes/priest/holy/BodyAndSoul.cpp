@@ -44,14 +44,16 @@ namespace
     uint32 const LEAP_OF_FAITH[] = { 73325 };
     uint32 const CURE_DISEASE[] = { 528 };
 
-    /// 17: Power Word: Shield: once its holder is added to a unit and its auras applied, not while the unit loads,
+    /// 17: Power Word: Shield: once its holder is added to a unit in the world and its auras applied (not while a
+    /// player or a pet loads its saved auras, nor for a shield a hostile unit stole, whose holder names the unit it was
+    /// stolen from as its caster),
     /// the priest who cast it, when he holds a rank of Body and Soul (Priest::BodyAndSoulRank), casts the rank's speed
     /// (Priest::BodyAndSoulSpeed: 64128 or 65081, its effect 0 the rank's +30% or +60% run speed, for 4 seconds) at
     /// that unit, triggered, as his own cast. Nothing at the call before the stacking checks, for a shield whose caster
     /// cannot be found, or for a caster without the talent. The holder's boosts run after it.
     SpellHandlerOutcome<void> ShieldApplied(AuraApplyContext& ctx)
     {
-        if (!ctx.real || !ctx.caster || ctx.target.IsLoading())
+        if (!ctx.real || !ctx.caster || !ctx.target.IsInWorld() || ctx.caster->IsHostileTo(&ctx.target))
         {
             return SpellHandlerOutcome<void>::Continue();
         }
