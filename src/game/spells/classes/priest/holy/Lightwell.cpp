@@ -24,7 +24,6 @@
  */
 
 #include "spells/classes/priest/holy/Lightwell.h"
-#include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
 #include "ai/CreatureAI.h"
 #include "entities/Creature.h"
