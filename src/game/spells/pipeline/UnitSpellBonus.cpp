@@ -967,8 +967,10 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
             return owner->SpellHealingBonusDone(pVictim, spellProto, healamount, damagetype, stack);
         }
 
-    // No heal amount for this class spells, nor for a heal the table keeps from the done bonus
-    if (spellProto->GetDmgClass() == SPELL_DAMAGE_CLASS_NONE || Spells::HealTakesNoDoneBonus(spellProto->ID))
+    // No heal amount for this class spells, unless the table gives the heal the done bonus, nor for a heal the table
+    // keeps from the done bonus
+    if ((spellProto->GetDmgClass() == SPELL_DAMAGE_CLASS_NONE && !Spells::HealTakesDoneBonus(spellProto->ID)) ||
+        Spells::HealTakesNoDoneBonus(spellProto->ID))
     {
         return healamount < 0 ? 0 : healamount;
     }
@@ -1122,11 +1124,14 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
  */
 uint32 Unit::SpellHealingBonusTaken(Unit* pCaster, SpellEntry const* spellProto, int32 healamount, DamageEffectType damagetype, uint32 stack)
 {
-    // Healing taken percent
-    int32 const healingPctNegative = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
-    int32 const healingPctPositive = GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
-
-    float TakenTotalMod = Combat::SpellHealingTakenPercent(healingPctNegative, healingPctPositive);
+    // Healing taken percent, which a heal the table names ignores
+    float TakenTotalMod = 1.0f;
+    if (!Spells::HealIgnoresTakenPercent(spellProto->ID))
+    {
+        int32 const healingPctNegative = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
+        int32 const healingPctPositive = GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT);
+        TakenTotalMod = Combat::SpellHealingTakenPercent(healingPctNegative, healingPctPositive);
+    }
 
     // No heal amount for this class spells
     if (spellProto->GetDmgClass() == SPELL_DAMAGE_CLASS_NONE)

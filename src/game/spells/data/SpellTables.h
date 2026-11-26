@@ -88,7 +88,8 @@ uint32 ViewerDisplayId(uint32 creatureEntry, uint32 display, bool friendlyToSumm
 uint32 AuraTargetLimit(uint32 spellId);
 
 /// Whether a cast of `spellId` that an aura triggered still starts procs as a cast of the unit it is cast for does:
-/// the procs of that unit and of the units it hits.
+/// the procs of that unit and of the units it hits. Ice Shards' Chilled (12484, 12485), Molten Armor's hit (34913),
+/// Living Bomb's explosion (44461), Divine Touch's heal (63544) and Piercing Chill's chill (83154).
 bool TriggeredCastStartsProcs(uint32 spellId);
 
 /// Whether a cast of `castSpellId` that an aura triggered starts the procs of an aura whose Ex3 attributes are
@@ -170,6 +171,17 @@ namespace Spells
     /// amount it was cast with heals, before the target's taken side and a crit. Glyph of Power Word: Shield's heal
     /// (56160) alone, whose retail heals are a fifth of the shield and twice that on a crit.
     bool HealTakesNoDoneBonus(uint32 spellId);
+
+    /// Whether a heal of `spellId` whose damage class is none still takes its caster's healing-done bonus
+    /// (Unit::SpellHealingBonusDone): its spell power at its coefficient, his healing-done percent and his spell
+    /// modifiers. Divine Hymn's heal (64844, coefficient 0.429 in the client's data) and Lightwell's Renew (7001)
+    /// alone; every other heal of damage class none takes none of it.
+    bool HealTakesDoneBonus(uint32 spellId);
+
+    /// Whether a heal of `spellId` ignores the healed unit's healing-taken percent (SPELL_AURA_MOD_HEALING_PCT, read
+    /// by Unit::SpellHealingBonusTaken). Echo of Light's heal over time (77489) alone, whose retail ticks keep their
+    /// amount while Guardian Spirit's +60% is on the unit they heal.
+    bool HealIgnoresTakenPercent(uint32 spellId);
 
     /// The speed, in yards a second, at which a jump of `spellId` moves where the client's data gives none (a Spell.dbc
     /// speed of 0) and the retail spline shows one; 0 for a spell the table does not hold. Spell::EffectJump moves a

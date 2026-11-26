@@ -334,6 +334,7 @@ namespace
         12485,  // Chilled, cast by Ice Shards' second rank at each unit the mage's Blizzard hits
         34913,  // Molten Armor's hit, cast by the armor's aura at the unit that struck the mage
         44461,  // Living Bomb's explosion, cast for the mage by the bomb's aura when it runs out
+        63544,  // Divine Touch's heal, cast by the talent's aura at the target of the priest's Renew
         83154,  // Piercing Chill's chill, cast by the talent's aura at the target of a Frostbolt crit
     };
 
@@ -1011,6 +1012,37 @@ bool Spells::HealTakesNoDoneBonus(uint32 spellId)
 {
     return std::find(std::begin(HEALS_WITHOUT_DONE_BONUS), std::end(HEALS_WITHOUT_DONE_BONUS), spellId) !=
            std::end(HEALS_WITHOUT_DONE_BONUS);
+}
+
+namespace
+{
+    /// The heals of damage class none that still take their caster's healing-done bonus.
+    constexpr uint32 CLASS_NONE_HEALS_WITH_DONE_BONUS[] =
+    {
+        7001,   // Lightwell's Renew
+        64844,  // Divine Hymn's heal
+    };
+
+    /// The heals that ignore the healed unit's healing-taken percent.
+    constexpr uint32 HEALS_IGNORING_TAKEN_PERCENT[] =
+    {
+        77489,  // Echo of Light's heal over time
+    };
+
+    static_assert(SortedBySpellId(CLASS_NONE_HEALS_WITH_DONE_BONUS),
+                  "class-none done-bonus heal ids are sorted, each once");
+    static_assert(SortedBySpellId(HEALS_IGNORING_TAKEN_PERCENT),
+                  "taken-percent-ignoring heal ids are sorted, each once");
+}
+
+bool Spells::HealTakesDoneBonus(uint32 spellId)
+{
+    return Holds(CLASS_NONE_HEALS_WITH_DONE_BONUS, spellId);
+}
+
+bool Spells::HealIgnoresTakenPercent(uint32 spellId)
+{
+    return Holds(HEALS_IGNORING_TAKEN_PERCENT, spellId);
 }
 
 namespace
