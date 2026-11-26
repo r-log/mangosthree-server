@@ -405,14 +405,15 @@ static void CarryPeriodicTimers(SpellAuraHolder* holder, SpellAuraHolder* previo
  * @brief Whether the holders of a spell from different casters stand side by side on one unit, each its own.
  *
  * Divine Aegis (47753): each caster's shield on a unit is his own holder; another caster's shield neither replaces it
- * nor is replaced by it. A caster's new holder still takes the place of his own.
+ * nor is replaced by it. Echo of Light's heal over time (77489) the same: each Holy priest's Echo on a unit is his own.
+ * A caster's new holder still takes the place of his own.
  *
  * @param spellId The spell of the holders.
- * @return True for Divine Aegis; otherwise, false.
+ * @return True for Divine Aegis and Echo of Light's heal over time; otherwise, false.
  */
 static bool StandsPerCaster(uint32 spellId)
 {
-    return spellId == 47753;
+    return spellId == 47753 || spellId == 77489;
 }
 
 /**
