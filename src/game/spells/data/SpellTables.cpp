@@ -1016,8 +1016,8 @@ bool Spells::HealTakesNoDoneBonus(uint32 spellId)
 
 namespace
 {
-    /// The heals of damage class none that still take their caster's healing-done bonus.
-    constexpr uint32 CLASS_NONE_HEALS_WITH_DONE_BONUS[] =
+    /// The heals of damage class none that act as spell heals: done bonus, taken bonuses and crit roll.
+    constexpr uint32 CLASS_NONE_SPELL_HEALS[] =
     {
         7001,   // Lightwell's Renew
         64844,  // Divine Hymn's heal
@@ -1029,15 +1029,20 @@ namespace
         77489,  // Echo of Light's heal over time
     };
 
-    static_assert(SortedBySpellId(CLASS_NONE_HEALS_WITH_DONE_BONUS),
-                  "class-none done-bonus heal ids are sorted, each once");
+    static_assert(SortedBySpellId(CLASS_NONE_SPELL_HEALS), "class-none spell heal ids are sorted, each once");
     static_assert(SortedBySpellId(HEALS_IGNORING_TAKEN_PERCENT),
                   "taken-percent-ignoring heal ids are sorted, each once");
 }
 
-bool Spells::HealTakesDoneBonus(uint32 spellId)
+bool Spells::HealActsAsSpellHeal(uint32 spellId)
 {
-    return Holds(CLASS_NONE_HEALS_WITH_DONE_BONUS, spellId);
+    return Holds(CLASS_NONE_SPELL_HEALS, spellId);
+}
+
+uint32 Spells::HealRuleDamageClass(uint32 spellId, uint32 damageClass)
+{
+    return damageClass == SPELL_DAMAGE_CLASS_NONE && HealActsAsSpellHeal(spellId) ? uint32(SPELL_DAMAGE_CLASS_MAGIC)
+                                                                                 : damageClass;
 }
 
 bool Spells::HealIgnoresTakenPercent(uint32 spellId)

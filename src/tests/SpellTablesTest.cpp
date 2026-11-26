@@ -1379,30 +1379,30 @@ TEST(SpellTables_StrengthOfSoulsImmunitiesAndWeakenedSoulStandTogetherInEitherOr
     CHECK(sSpellStore.LookupEntry(kWeakenedSoul) == NULL);
 }
 
-TEST(SpellTables_DivineHymnsHealAndLightwellsRenewAreTheClassNoneHealsThatTakeTheDoneBonus)
+TEST(SpellTables_DivineHymnsHealAndLightwellsRenewAreTheClassNoneHealsThatActAsSpellHeals)
 {
     // Divine Hymn's heal (64844) and Lightwell's Renew (7001), whose damage class is none in the client's data
-    CHECK(Spells::HealTakesDoneBonus(64844));
-    CHECK(Spells::HealTakesDoneBonus(7001));
+    CHECK(Spells::HealActsAsSpellHeal(64844));
+    CHECK(Spells::HealActsAsSpellHeal(7001));
 
     // Divine Hymn's channel (64843), Glyph of Power Word: Shield's heal (56160), Echo of Light's heal over time
     // (77489), Flash Heal (2061), Renew (139) and an id no table holds do not
     for (uint32 spellId : { 64843u, 56160u, 77489u, 2061u, 139u, 12345u, 0u })
     {
-        CHECK(!Spells::HealTakesDoneBonus(spellId));
+        CHECK(!Spells::HealActsAsSpellHeal(spellId));
     }
 
-    // No heal is both given the done bonus and kept from it
+    // No heal is both made a spell heal and kept from the done bonus
     for (uint32 spellId : { 64844u, 7001u, 56160u })
     {
-        CHECK(!(Spells::HealTakesDoneBonus(spellId) && Spells::HealTakesNoDoneBonus(spellId)));
+        CHECK(!(Spells::HealActsAsSpellHeal(spellId) && Spells::HealTakesNoDoneBonus(spellId)));
     }
 
     // The table holds exactly its two rows
     uint32 rows = 0;
     for (uint32 spellId = 0; spellId < 1000000; ++spellId)
     {
-        if (Spells::HealTakesDoneBonus(spellId))
+        if (Spells::HealActsAsSpellHeal(spellId))
         {
             ++rows;
         }

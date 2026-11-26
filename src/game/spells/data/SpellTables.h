@@ -172,11 +172,21 @@ namespace Spells
     /// (56160) alone, whose retail heals are a fifth of the shield and twice that on a crit.
     bool HealTakesNoDoneBonus(uint32 spellId);
 
-    /// Whether a heal of `spellId` whose damage class is none still takes its caster's healing-done bonus
-    /// (Unit::SpellHealingBonusDone): its spell power at its coefficient, his healing-done percent and his spell
-    /// modifiers. Divine Hymn's heal (64844, coefficient 0.429 in the client's data) and Lightwell's Renew (7001)
-    /// alone; every other heal of damage class none takes none of it.
-    bool HealTakesDoneBonus(uint32 spellId);
+    /// Whether a heal of `spellId` whose damage class is none acts as a spell heal, as HealRuleDamageClass takes it:
+    ///  - it takes its caster's healing-done bonus (Unit::SpellHealingBonusDone): its spell power at its coefficient,
+    ///    his healing-done percent and his spell modifiers;
+    ///  - it takes the healed unit's taken bonuses (Unit::SpellHealingBonusTaken): its taken spell power and the
+    ///    healing-received auras its caster put on the unit (Grace);
+    ///  - it rolls its crit as a magic heal (Unit::IsSpellCrit): its caster's crit, the unit's crit-from-caster auras.
+    /// Divine Hymn's heal (64844, coefficient 0.429 in the client's data) and Lightwell's Renew (7001) alone, whose
+    /// DefenseType is 0 while Grace's and Holy Word: Serenity's class masks name them; every other heal of damage
+    /// class none does none of these.
+    bool HealActsAsSpellHeal(uint32 spellId);
+
+    /// The damage class the heal rules take a spell of `spellId` whose client damage class is `damageClass` as:
+    /// SPELL_DAMAGE_CLASS_MAGIC for a class-none heal HealActsAsSpellHeal names, `damageClass` for any other spell.
+    /// Unit::SpellHealingBonusDone, Unit::SpellHealingBonusTaken and Unit::IsSpellCrit switch on it.
+    uint32 HealRuleDamageClass(uint32 spellId, uint32 damageClass);
 
     /// Whether a heal of `spellId` ignores the healed unit's healing-taken percent (SPELL_AURA_MOD_HEALING_PCT, read
     /// by Unit::SpellHealingBonusTaken). Echo of Light's heal over time (77489) alone, whose retail ticks keep their
