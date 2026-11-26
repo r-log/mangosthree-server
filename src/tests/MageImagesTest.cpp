@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the images of the mage's Mirror Image (spells/classes/mage/Images.cpp): their table rows, which images are
+/// Tests of the images of the mage's Mirror Image (mage/arcane/Images.cpp): their table rows, which images are
 /// a mage's own, the summon the glyph and the primary tree choose, the glyph slots' read, the spell power an image
 /// takes, the spell it casts next, the units it may strike, the casts it interrupts and the unit it casts at, Mirror
 /// Image's and Clone Me!'s rows at the dummy-effect hook and Initialize Images' at the target hook with the images'

@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/InnerSanctum.cpp: the rows the file registers, in the game's table too; the rank of
+/// Tests of priest/discipline/InnerSanctum.cpp: the rows the file registers, in the game's table too; the rank of
 /// Inner Sanctum a priest holds and the points Spell Warding takes from its effect 0 value; Inner Fire and Inner Will,
 /// each of which takes the other off the priest at its apply; and Inner Fire's removal, which takes Spell Warding with
 /// it, by its row and through the engine's removal. The scripts run on bare Creatures (update fields allocated; no
@@ -34,7 +34,7 @@
 /// Warding's cast, its points and its removal in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/InnerSanctum.h"
+#include "spells/classes/priest/discipline/InnerSanctum.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"

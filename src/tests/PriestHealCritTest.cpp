@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/HealCrit.cpp: the rows the file registers, in the game's table too; the heals
+/// Tests of priest/discipline/HealCrit.cpp: the rows the file registers, in the game's table too; the heals
 /// Renewed Hope and Glyph of Flash Heal raise, by their effects' class masks and, for Flash Heal and Renewed Hope, by
 /// the talent's text; the rank of Renewed Hope a priest holds and the targets it asks for (Weakened Soul, or his own
 /// Grace and not another's); the glyph's health percent; and the crit chance the row adds. The scripts run on bare
@@ -34,7 +34,7 @@
 /// the engine computes in play, and Grace's caster check on the heal its target takes.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/HealCrit.h"
+#include "spells/classes/priest/discipline/HealCrit.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"

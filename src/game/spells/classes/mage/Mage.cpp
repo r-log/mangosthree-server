@@ -35,14 +35,7 @@
 #include "Log.h"
 #include "Utilities/Util.h"
 
-/// 66: Invisibility
-static SpellHandlerOutcome<void> AuraTriggerSpellMage66(AuraTriggerSpellContext& ctx)
-{
-    // Its trigger spell, 35009, is not in the client's spell data: the tick takes a tenth of the mage's threat from
-    // every enemy's list instead and casts nothing
-    ctx.target->GetHostileRefManager().addThreatPercent(Mage::InvisibilityThreatPercent(ctx.auraId));
-    return SpellHandlerOutcome<void>::Return();
-}
+#include <vector>
 
 /// every other id: nothing
 static SpellHandlerOutcome<void> AuraTriggerSpellMageDefault(AuraTriggerSpellContext& /*ctx*/)
@@ -95,53 +88,6 @@ static SpellHandlerOutcome<void> EffectDummyMageBlink(SpellEffectDummyMageContex
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// 42955: Conjure Refreshment: the damage is set to 20 and the spell creates that many of the conjured food the
-/// target's level calls for; the effect ends
-static SpellHandlerOutcome<void> EffectDummyMageConjureRefreshment(SpellEffectDummyMageContext& ctx)
-{
-    uint32 item = 0;
-
-    uint32 level = ctx.unitTarget->getLevel();
-
-    if (level < 44)
-    {
-        item = 65500;                                 // Conjured Mana Cookie (lvl 34)
-    }
-    else if (level < 54)
-    {
-        item = 65515;                            // Conjured Mana Brownie (lvl 44)
-    }
-    else if (level < 64)
-    {
-        item = 65516;                            // Conjured Mana Cupcake (lvl 54)
-    }
-    else if (level < 65)
-    {
-        item = 65517;                            // Conjured Mana Lollipop (lvl 64)
-    }
-    else if (level < 74)
-    {
-        item = 34062;                            // Conjured Mana Biscuit (lvl 65)
-    }
-    else if (level < 80)
-    {
-        item = 43518;                            // Conjured Mana Pie (lvl 74)
-    }
-    else if (level < 85)
-    {
-        item = 43523;                            // Conjured Mana Strudel (lvl 80)
-    }
-    else
-    {
-        item = 65499;                                            // Conjured Mana Cake (lvl 85)
-    }
-
-    ctx.damage = 20; // Used to set stack size.
-    ctx.spell->DoCreateItem(ctx.effect,item);
-
-    return SpellHandlerOutcome<void>::Return();
-}
-
 /// 64411: Blessing of Ancient Kings: after a positive spell, triggers 64413 for 15 percent of the damage
 static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcMage64411(DummyAuraProcContext& ctx)
 {
@@ -179,102 +125,16 @@ namespace
         return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, 26470, ctx.victim, basePoints));
     }
 
-    /// 79684: Offensive State: a mage whose talents do not stop Arcane Missiles! (Mage::SuppressesArcaneMissiles:
-    /// Hot Streak or Brain Freeze) rolls the aura's percent after each offensive cast of his ends, once for the cast
-    /// whatever it hits, and on success casts Arcane Missiles! (79683) on himself; a mage with one of them never does.
-    /// Arcane Missiles and its missiles, the chills and freezes his auras and his ring cast for him, and the debuffs
-    /// his spells put on himself never roll (Mage::OffensiveStateRefuses).
-    ProcOutcome OffensiveStateProc(OnProcContext& ctx)
-    {
-        if (!Mage::ProcEffectIs(ctx, SPELL_AURA_PROC_TRIGGER_SPELL))
-        {
-            return ProcOutcome::Continue();
-        }
-        if (ctx.procSpell && Mage::OffensiveStateRefuses(ctx.procSpell->ID))
-        {
-            return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
-        }
-        if (Mage::SuppressesArcaneMissiles(ctx.caster))
-        {
-            return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
-        }
-        if (!roll_chance_i(ctx.triggerAmount))
-        {
-            return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
-        }
-        return ProcOutcome::Return(Mage::CastProcTriggerSpell(ctx, Mage::EffectTriggerSpell(ctx), &ctx.caster));
-    }
-
     uint32 const BLINK[] = { 38194 };
     uint32 const PERSISTENT_SHIELD[] = { 26467 };
-    uint32 const OFFENSIVE_STATE[] = { 79684 };
-    /// Invisibility Speed: the mage's run speed raised by its own effect 0 value while Invisibility (32612) holds him.
-    uint32 const INVISIBILITY_SPEED = 87833;
-    uint32 const INVISIBILITY[] = { 32612 };
-    uint32 const PET_INVISIBILITY = 96243;
-    uint32 const RITUAL_OF_REFRESHMENT[] = { 43987 };
-
-    /// 32612: Invisibility: when it lands on the mage, his living pet casts its own Invisibility (96243) on itself, and
-    /// when the holder's third effect holds an amount above 0 (Mage::InvisibilitySpeedFor) he casts Invisibility Speed
-    /// (87833) on himself, triggered. The call before the holder is added does nothing.
-    SpellHandlerOutcome<void> InvisibilityAuraApply(AuraApplyContext& ctx)
-    {
-        if (ctx.real)
-        {
-            Pet* pet = ctx.target.GetPet();
-            if (pet && pet->IsAlive())
-            {
-                ctx.CastTriggeredFrom(*pet, *pet, PET_INVISIBILITY);
-            }
-            if (uint32 const speed = Mage::InvisibilitySpeedFor(ctx.aura))
-            {
-                ctx.CastTriggeredFrom(ctx.target, ctx.target, speed);
-            }
-        }
-        return SpellHandlerOutcome<void>::Continue();
-    }
-
-    /// 32612: Invisibility: when it leaves the mage, for any reason, his pet's Invisibility (96243) and his
-    /// Invisibility Speed (87833) go with it.
-    SpellHandlerOutcome<void> InvisibilityAuraRemove(AuraRemoveContext& ctx)
-    {
-        if (Pet* pet = ctx.target.GetPet())
-        {
-            ctx.RemoveAura(*pet, PET_INVISIBILITY);
-        }
-        ctx.RemoveAura(ctx.target, INVISIBILITY_SPEED);
-        return SpellHandlerOutcome<void>::Continue();
-    }
-
-    /// 43987: Ritual of Refreshment: the caster casts at himself, triggered, the rank his level allows
-    /// (Mage::RitualOfRefreshmentRank), whose summon puts that rank's Refreshment Portal at his feet. The ritual and
-    /// its three ranks share one cooldown category (1177, 300 s), which the ritual's cast starts before its effect
-    /// runs, and a cast of a spell on cooldown is refused, triggered or not; so the rank's cooldown is taken off him
-    /// first, his client not told, and the rank's cast starts the category's cooldown again. The script ends the
-    /// effect.
-    SpellHandlerOutcome<void> RitualOfRefreshmentEffect(DummyEffectContext& ctx)
-    {
-        uint32 const rank = Mage::RitualOfRefreshmentRank(ctx.caster.getLevel());
-        ctx.caster.RemoveSpellCooldown(rank);
-        ctx.CastTriggered(ctx.caster, rank);
-        return SpellHandlerOutcome<void>::Return();
-    }
 }
 
 uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
 {
-    static Row<AuraTriggerSpellMageSite> const triggerSpellMage[] =
-    {
-        { 66, &AuraTriggerSpellMage66 },
-    };
-
     static Row<SpellEffectDummyMageSite> const effectDummyMage[] =
     {
         { 32826, &EffectDummyMagePolymorphCastVisual },
         { 38194, &EffectDummyMageBlink },
-        { 42955, &EffectDummyMageConjureRefreshment },
-        { 1459, &EffectDummyRaidBuff<SpellEffectDummyMageContext> },
-        { 61316, &EffectDummyRaidBuff<SpellEffectDummyMageContext> },
     };
 
     static Row<DummyAuraProcMageSite> const dummyAuraProcMage[] =
@@ -282,15 +142,10 @@ uint32 Mage::RegisterClassWide(SpellHandlerRegistry& registry)
         { 64411, &DummyAuraProcMage64411 },
     };
 
-    uint32 rows = RegisterRows(registry, triggerSpellMage);
-    rows += RegisterRows(registry, effectDummyMage);
+    uint32 rows = RegisterRows(registry, effectDummyMage);
     rows += RegisterRows(registry, dummyAuraProcMage);
     rows += RegisterRanks<SelectTargetsHook>(registry, BLINK, &BlinkSelectTargets);
     rows += RegisterRanks<OnProcHook>(registry, PERSISTENT_SHIELD, &PersistentShieldProc);
-    rows += RegisterRanks<OnProcHook>(registry, OFFENSIVE_STATE, &OffensiveStateProc);
-    rows += RegisterRanks<AuraApplyHook>(registry, INVISIBILITY, &InvisibilityAuraApply);
-    rows += RegisterRanks<AuraRemoveHook>(registry, INVISIBILITY, &InvisibilityAuraRemove);
-    rows += RegisterRanks<DummyEffectHook>(registry, RITUAL_OF_REFRESHMENT, &RitualOfRefreshmentEffect);
     registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
@@ -301,80 +156,6 @@ bool Mage::ProcEffectIs(OnProcContext const& ctx, uint32 auraType)
 {
     SpellEffectEntry const* effect = ctx.spell.GetSpellEffect(ctx.effIndex);
     return effect && effect->EffectAura == auraType;
-}
-
-int32 Mage::InvisibilityThreatPercent(uint32 spellId)
-{
-    constexpr uint32 INVISIBILITY_FADE = 66;
-    constexpr int32 FADE_TICK_PERCENT = -10;
-    return spellId == INVISIBILITY_FADE ? FADE_TICK_PERCENT : 0;
-}
-
-uint32 Mage::InvisibilitySpeedFor(AuraHandle const& invisibility)
-{
-    return invisibility.Amount(EFFECT_INDEX_2) > 0 ? INVISIBILITY_SPEED : 0;
-}
-
-bool Mage::OffensiveStateRefuses(uint32 procSpellId)
-{
-    constexpr uint32 ARCANE_MISSILES = 5143;
-    constexpr uint32 ARCANE_MISSILES_MISSILE = 7268;
-    // the chill Frost Armor casts at a unit that strikes the mage
-    constexpr uint32 FROST_ARMOR_CHILL = 7321;
-    // the chills Ice Shards casts at the units Blizzard hits
-    constexpr uint32 ICE_SHARDS_CHILL_RANK_ONE = 12484;
-    constexpr uint32 ICE_SHARDS_CHILL_RANK_TWO = 12485;
-    // the chill Piercing Chill casts at a Frostbolt crit's target
-    constexpr uint32 PIERCING_CHILL_CHILL = 83154;
-    // the freeze Ring of Frost's ring casts for the mage at the units in its band
-    constexpr uint32 RING_OF_FROST_FREEZE = 82691;
-    // Arcane Blast's buff, the aura each Arcane Blast stacks on the mage himself, a debuff in the client's data: his
-    // own debuff, not an offensive cast
-    constexpr uint32 ARCANE_BLAST_BUFF = 36032;
-    // Hypothermia, which Ice Block puts on the mage himself: his own debuff, not an offensive cast
-    constexpr uint32 HYPOTHERMIA = 41425;
-    return procSpellId == ARCANE_MISSILES || procSpellId == ARCANE_MISSILES_MISSILE ||
-           procSpellId == FROST_ARMOR_CHILL || procSpellId == ICE_SHARDS_CHILL_RANK_ONE ||
-           procSpellId == ICE_SHARDS_CHILL_RANK_TWO || procSpellId == PIERCING_CHILL_CHILL ||
-           procSpellId == RING_OF_FROST_FREEZE || procSpellId == ARCANE_BLAST_BUFF || procSpellId == HYPOTHERMIA;
-}
-
-bool Mage::SuppressesArcaneMissiles(Unit const& mage)
-{
-    constexpr uint32 HOT_STREAK_TALENT = 44445;
-    constexpr uint32 BRAIN_FREEZE_RANKS[] = { 44546, 44548, 44549 };
-    if (mage.HasAura(HOT_STREAK_TALENT))
-    {
-        return true;
-    }
-    for (uint32 rank : BRAIN_FREEZE_RANKS)
-    {
-        if (mage.HasAura(rank))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-uint32 Mage::RitualOfRefreshmentRank(uint32 level)
-{
-    // Each rank summons a portal whose table gives one conjured food. From 80 the rank is the highest whose food's
-    // RequiredLevel the level reaches; below 80 it is the Biscuit table's at any level, though the Biscuit asks for 65.
-    constexpr uint32 BISCUIT_TABLE_RANK = 74650;    // portal 186811: Conjured Mana Biscuit (34062), RequiredLevel 65
-    constexpr uint32 STRUDEL_TABLE_RANK = 92824;    // portal 207385: Conjured Mana Strudel (43523), RequiredLevel 80
-    constexpr uint32 CAKE_TABLE_RANK = 92827;       // portal 207388: Conjured Mana Cake (65499), RequiredLevel 85
-    constexpr uint32 STRUDEL_LEVEL = 80;
-    constexpr uint32 CAKE_LEVEL = 85;
-    if (level >= CAKE_LEVEL)
-    {
-        return CAKE_TABLE_RANK;
-    }
-    if (level >= STRUDEL_LEVEL)
-    {
-        return STRUDEL_TABLE_RANK;
-    }
-    return BISCUIT_TABLE_RANK;
 }
 
 SpellAuraProcResult Mage::CastProcSpell(OnProcContext& ctx, Unit& to, uint32 spellId, int32 const* basePoints)
@@ -408,14 +189,38 @@ SpellAuraProcResult Mage::CastProcTriggerSpell(OnProcContext& ctx, uint32 spellI
     return ctx.CastTriggered(*target, spellId, basePoints) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
 }
 
+namespace Mage
+{
+    // Each mechanic file's registration, Mage::Register<Mechanic> (MageScriptFiles.inc, src/game/CMakeLists.txt).
+#define MAGE_SCRIPT_FILE(mechanic) uint32 Register##mechanic(SpellHandlerRegistry& registry);
+#include "MageScriptFiles.inc"
+#undef MAGE_SCRIPT_FILE
+}
+
+std::vector<Mage::ScriptFile> const& Mage::ScriptFiles()
+{
+    static std::vector<ScriptFile> const files =
+    {
+#define MAGE_SCRIPT_FILE(mechanic) { #mechanic, &Mage::Register##mechanic },
+#include "MageScriptFiles.inc"
+#undef MAGE_SCRIPT_FILE
+    };
+    return files;
+}
+
+uint32 Mage::RegisterFiles(SpellHandlerRegistry& registry, std::vector<ScriptFile> const& files)
+{
+    uint32 registered = 0;
+    for (ScriptFile const& file : files)
+    {
+        registered += file.registerRows(registry);
+    }
+    return registered;
+}
+
 uint32 RegisterMageScripts(SpellHandlerRegistry& registry)
 {
     uint32 registered = Mage::RegisterClassWide(registry);
-    registered += Mage::RegisterFire(registry);
-    registered += Mage::RegisterFrost(registry);
-    registered += Mage::RegisterArcane(registry);
-    registered += Mage::RegisterOrb(registry);
-    registered += Mage::RegisterRing(registry);
-    registered += Mage::RegisterImages(registry);
+    registered += Mage::RegisterFiles(registry, Mage::ScriptFiles());
     return registered;
 }

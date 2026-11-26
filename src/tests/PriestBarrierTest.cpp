@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/Barrier.cpp: the three rows the file registers, in the game's table too, with the
+/// Tests of priest/discipline/Barrier.cpp: the three rows the file registers, in the game's table too, with the
 /// barrier's creature AI and its permit; the creature the AI takes; the trigger spells a tick of the barrier's aura
 /// casts with the glyph and without it; how long a barrier stands; the summon's targets, which the select-targets row
 /// cuts to the priest alone; the summon's value, which the effect-value row makes one barrier; the tick row, which
@@ -35,7 +35,7 @@
 /// the barrier in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/Barrier.h"
+#include "spells/classes/priest/discipline/Barrier.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"

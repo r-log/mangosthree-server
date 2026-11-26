@@ -24,7 +24,7 @@
  */
 
 // GENERATED from PriestScriptFiles.inc.in by src/game/CMakeLists.txt (write_source_file_list) at configure time: one
-// PRIEST_SCRIPT_FILE(<Mechanic>) line for each spells/classes/priest/<Mechanic>.cpp but Priest.cpp, in file-name
-// order. Priest.cpp includes it with PRIEST_SCRIPT_FILE defined, once to declare each Priest::Register<Mechanic> and
-// once to list them.
+// PRIEST_SCRIPT_FILE(<Mechanic>) line for each .cpp under spells/classes/priest but Priest.cpp, <Mechanic>.cpp in
+// the class folder or in a spec folder below it, in file-name order. Priest.cpp includes it with PRIEST_SCRIPT_FILE
+// defined, once to declare each Priest::Register<Mechanic> and once to list them.
 @SOURCE_FILE_LINES@

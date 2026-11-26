@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of the mage's ring (spells/classes/mage/Ring.cpp): its table row, the creature it names, its band, the time
+/// Tests of the mage's ring (mage/frost/Ring.cpp): its table row, the creature it names, its band, the time
 /// it takes to form, the units it takes, the removals that leave the marker, its rows at the periodic-tick, target and
 /// aura-remove hooks with its creature AI's factory, the exits of its scripts, the summon a second cast makes while the
 /// first cast's aura holds and the display each viewer is sent (SpellTables) with the friend test that picks it

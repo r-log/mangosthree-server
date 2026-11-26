@@ -36,16 +36,17 @@
  * @file Priest.h
  * @brief The priest's spell scripts, registered by spell id in the spell handler registry.
  *
- * Priest.cpp holds RegisterPriestScripts and the list of the folder's mechanic files. Every other .cpp of this folder
- * is a mechanic file: <Mechanic>.cpp defines Priest::Register<Mechanic>, which registers the file's rows (a Row table
- * per legacy site of SpellHandlerRegistry.h through RegisterRows, and RegisterScript or RegisterRanks per script hook
- * of SpellScriptHooks.h) and answers the rows and defaults it registered. src/game/CMakeLists.txt lists the folder's
- * mechanic files at configure time, in file-name order, and RegisterPriestScripts calls each of them, so a new
- * mechanic file needs no line in any other file. A mechanic file declares its leaves in a header of its own,
- * <Mechanic>.h, and includes this one for the helpers below.
+ * Priest.cpp holds RegisterPriestScripts and the list of the folder's mechanic files. Every other .cpp under this
+ * folder, in a spec folder below it (discipline/, holy/, shadow/: the talent tree a talent sits in, the skill line a
+ * baseline spell is taught by), is a mechanic file: <Mechanic>.cpp, its name unique within the class, defines
+ * Priest::Register<Mechanic>, which registers the file's rows (a Row table per legacy site of SpellHandlerRegistry.h
+ * through RegisterRows, and RegisterScript or RegisterRanks per script hook of SpellScriptHooks.h) and answers the rows
+ * and defaults it registered. src/game/CMakeLists.txt lists the folder's mechanic files at configure time, in file-name
+ * order, and RegisterPriestScripts calls each of them, so a new mechanic file needs no line in any other file. A
+ * mechanic file declares its leaves in a header of its own, <Mechanic>.h, and includes this one for the helpers below.
  */
 
-/// Registers every priest row: those of each mechanic file of the folder, in file-name order (Priest::ScriptFiles).
+/// Registers every priest row: those of each mechanic file under the folder, in file-name order (Priest::ScriptFiles).
 /// Returns the rows and defaults registered; a row whose key was taken does not change the table, so a caller that
 /// finds fewer keys than rows has a duplicate.
 uint32 RegisterPriestScripts(SpellHandlerRegistry& registry);
@@ -78,7 +79,7 @@ namespace Priest
         uint32 (*registerRows)(SpellHandlerRegistry& registry); ///< Priest::Register<name>: its rows and defaults
     };
 
-    /// Every mechanic file of the folder, by file name: each .cpp of spells/classes/priest but Priest.cpp, as
+    /// Every mechanic file under the folder, by file name: each .cpp under spells/classes/priest but Priest.cpp, as
     /// src/game/CMakeLists.txt found them at configure time.
     std::vector<ScriptFile> const& ScriptFiles();
 

@@ -116,13 +116,13 @@ TEST(PriestScripts_RegisterFilesRunsEachFileInTheListsOrder)
 
 TEST(PriestScripts_TheListIsEveryMechanicFileOfTheFolderByFileName)
 {
-    // Every .cpp of spells/classes/priest but Priest.cpp, by file name. A file the list lacks (CMake not run since
+    // Every .cpp under spells/classes/priest but Priest.cpp, by file name. A file the list lacks (CMake not run since
     // the file was added, or a name that is no C++ name) would never be registered.
     std::filesystem::path const folder = std::filesystem::path(MANGOS_TEST_DATA_DIR) / ".." / ".." / "game" /
                                          "spells" / "classes" / "priest";
     REQUIRE(std::filesystem::is_directory(folder));
     std::vector<std::string> onDisk;
-    for (std::filesystem::directory_entry const& entry : std::filesystem::directory_iterator(folder))
+    for (std::filesystem::directory_entry const& entry : std::filesystem::recursive_directory_iterator(folder))
     {
         std::filesystem::path const& file = entry.path();
         if (entry.is_regular_file() && file.extension().string() == ".cpp" && file.filename().string() != "Priest.cpp")

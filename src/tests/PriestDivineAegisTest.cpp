@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of spells/classes/priest/DivineAegis.cpp and FocusedWill.cpp: which heals make a Divine Aegis shield, the
+/// Tests of priest/discipline/DivineAegis.cpp and FocusedWill.cpp: which heals make a Divine Aegis shield, the
 /// shield's amount, the priest's own shield added onto itself and held to his cap, which hits give Focused Will, the
 /// rows the two files register, in the game's table too, and the exits of their scripts that cast nothing. The scripts
 /// run on a bare Creature (update fields allocated; no map, template or AI), whose maximum health is 0 unless a test
@@ -33,8 +33,8 @@
 /// Focused Will in play.
 
 #include "TestHarness.h"
-#include "spells/classes/priest/DivineAegis.h"
-#include "spells/classes/priest/FocusedWill.h"
+#include "spells/classes/priest/discipline/DivineAegis.h"
+#include "spells/classes/priest/discipline/FocusedWill.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/data/SpellMgr.h"
