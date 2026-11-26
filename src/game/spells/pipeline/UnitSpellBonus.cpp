@@ -796,6 +796,20 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
                     }
                 }
 
+                // a heal takes the crit chance of the healed unit's crit-from-caster auras that its healer put on it
+                // and whose class mask names the heal
+                if (damageType == HEAL)
+                {
+                    AuraList const& critFromCaster = pVictim->GetAurasByType(SPELL_AURA_MOD_CRIT_FROM_CASTER);
+                    for (AuraList::const_iterator i = critFromCaster.begin(); i != critFromCaster.end(); ++i)
+                    {
+                        if ((*i)->GetCasterGuid() == GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
+                        {
+                            crit_chance += (*i)->GetModifier()->m_amount;
+                        }
+                    }
+                }
+
                 CritChanceContext critChanceCtx(*this, *pVictim, *spellProto, damageType, crit_chance);
                 SpellHandlerRegistry::Game().Dispatch<CritChanceHook>(spellProto->ID, critChanceCtx);
 
