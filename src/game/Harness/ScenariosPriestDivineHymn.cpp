@@ -296,6 +296,7 @@ namespace Harness
                 const int64 grace = KeptOf(st, kChannelStep, "grace");
                 const int64 graceOwn = KeptOf(st, kChannelStep, "graceOwn");
                 const int64 graceOther = KeptOf(st, kChannelStep, "graceOther");
+                const int64 graceOtherHeld = KeptOf(st, kChannelStep, "graceOtherHeld");
                 const int64 graceWanted = int64(kTakenBase) * (100 + grace) / 100;
 
                 bool ok = count > 0 && friends == int64(kFriends) && grouped == int64(kFriends) + 1 && base > 0 &&
@@ -303,7 +304,7 @@ namespace Harness
                           part <= partWanted + 1 && healing > 0 && voice > 0 && percent == 100 + healing + voice &&
                           donePercentAuras == 0 && wanted > 0 && serenity > 0 && critOwn == serenity &&
                           critNone == 0 && rolls == 1 && grace > 0 && graceOwn == graceWanted &&
-                          graceOther == int64(kTakenBase);
+                          graceOtherHeld == 1 && graceOther == int64(kTakenBase);
 
                 std::vector<Tick> ticks = TicksOf(st.player.GetRawValue());
                 ok = ok && !ticks.empty();
@@ -463,7 +464,10 @@ namespace Harness
                 const std::string graceHolder = HolderOf(healed, kGrace);
                 healed->RemoveAurasDueToSpell(kGrace);
                 PutAura(healed, kGrace, otherFriend);
+                seen.reads["graceOtherHeld"] =
+                    healed->GetSpellAuraHolder(kGrace, otherFriend->GetObjectGuid()) ? 1 : 0;
                 seen.reads["graceOther"] = int64(healed->SpellHealingBonusTaken(p, heal, int32(kTakenBase), HEAL, 1));
+                const std::string graceOtherHolder = HolderOf(healed, kGrace);
                 healed->RemoveAurasDueToSpell(kGrace);
                 m_rec.Note("at the first friend: his " + U(kHymnHeal) + "'s crit chance +" +
                            std::to_string(seen.reads["critOwn"]) + " with his " + U(kSerenity) + " (" +
@@ -471,7 +475,7 @@ namespace Harness
                            " with none, crits at his sheet at 100: " + std::to_string(seen.reads["rolls"]) + "; " +
                            U(kTakenBase) + " of it taken as " + std::to_string(seen.reads["graceOwn"]) + " with his " +
                            U(kGrace) + " (" + graceHolder + "), " + std::to_string(seen.reads["graceOther"]) +
-                           " with the other friend's");
+                           " with the other friend's (" + graceOtherHolder + ")");
             }
 
             /// He and his friends leave the group, which is deleted.
@@ -667,6 +671,8 @@ namespace Harness
                         {
                             PutAura(target, kSerenity, other);
                         }
+                        reads["otherHeld"] =
+                            other && target->GetSpellAuraHolder(kSerenity, other->GetObjectGuid()) ? 1 : 0;
                         reads["flash"] = CritBonusOf(p, target, kFlashHeal, HEAL);
                         note += "; the other priest's " + U(kSerenity) + " on the Camel (" +
                                 HolderOf(target, kSerenity) + "): Flash Heal +" + Shown(reads["flash"]);
@@ -686,14 +692,16 @@ namespace Harness
                 const int64 own = KeptOf(st, 1, "flash");
                 const int64 smite = KeptOf(st, 1, "smite");
                 const int64 others = KeptOf(st, 2, "flash");
+                const int64 otherHeld = KeptOf(st, 2, "otherHeld");
                 const int64 base = KeptOf(st, 0, "flash");
-                const bool ok = value > 0 && own == value && smite == 0 && others == 0 && base == 0;
+                const bool ok = value > 0 && own == value && smite == 0 && otherHeld == 1 && others == 0 && base == 0;
                 const std::string line = "crit=" + Shown(own) + "/" + Shown(smite) + "/" + Shown(others) + ",base=" +
                                          Shown(base);
                 const std::string detail =
                     "wanted his Flash Heal's crit chance at the Camel raised by " + Shown(value) + " (" + U(kSerenity) +
                     "'s effect 1 value) with his " + U(kSerenity) + " on it, his Smite's by nothing, his Flash " +
-                    "Heal's by nothing with the other priest's, and by nothing with none";
+                    "Heal's by nothing with the other priest's (held: " + Shown(otherHeld) +
+                    "), and by nothing with none";
                 return line + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
