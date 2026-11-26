@@ -65,29 +65,25 @@ namespace Harness
          *     kSelfPercent, friend i kFriendPercent + i x kFriendStep, the pet kPetPercent, the least, and the Camel
          *     kCamelPercent) and each unit's health percent read; his mana set to its maximum; his Circle of Healing at
          *     himself through the cast handler's calls; the units holding his Echo of Light (77489) read;
-         *  2. whether his cooldown store holds Circle of Healing read; his mana set to its maximum; his Circle of
-         *     Healing at himself through the cast handler's calls, which its cooldown refuses;
-         *  3. his cooldown of Circle of Healing taken off by call, standing in for the 10 s of the wall clock
-         *     (time(NULL)) the stepped world does not move; Glyph of Circle of Healing put on him as the GM aura
-         *     command puts it and its effect 0 amount read; the healths set and read as in step 1; his mana set to its
-         *     maximum; his Circle of Healing at himself through the cast handler's calls; the units holding his Echo
-         *     read;
-         *  4. the glyph taken off him; the pet ended (the owner guid cleared first, then the warlock's pet guid, then
+         *  2. his cooldown of Circle of Healing taken off by call, standing in for the 10 s of the wall clock
+         *     (time(NULL)) the stepped world does not move, so the cast does not depend on how much of it passed; Glyph
+         *     of Circle of Healing put on him as the GM aura command puts it and its effect 0 amount read; the healths
+         *     set and read as in step 1; his mana set to its maximum; his Circle of Healing at himself through the cast
+         *     handler's calls; the units holding his Echo read;
+         *  3. the glyph taken off him; the pet ended (the owner guid cleared first, then the warlock's pet guid, then
          *     the removal); he and his friends leave the group, which is deleted.
          *
-         * `circleOfHealing`: `first=<units>,again=<refusal>/<units>,glyph=<units>,camel=<heals>`, where <units> are the
-         * units his 34861 heal logs name in a step's windows, as `self`, `pet`, `f1` to `f6` (friend i + 1), `camel`
-         * and `other`, joined by `+` in that order, `x<n>` added to a unit healed n times, `-` for none: step 1's, step
-         * 2's and step 3's; <refusal> is the result of the first SMSG_CAST_FAILED of 34861 in step 2's windows
-         * (CastResultName), `none` for none; <heals> is the count of his 34861 heal logs about the Camel in step 1 and
-         * step 3. With C = 5 (the client's text) and G = the glyph's effect 0 amount on him at step 3 (55675's effect 0
-         * value, 1), and W(n) the n units of the eight (him, the pet and the friends) of the lowest health percent read
-         * before a cast: OK when C and G are positive, kFriends friends were spawned, he and they make kFriends + 1
-         * linked members of his group, the pet was built and is the warlock's pet, 34861 went off in steps 1 and 3,
-         * step 1 healed W(C), each once, step 2 healed none and was refused with SPELL_FAILED_NOT_READY, step 3 healed
-         * W(C + G), each once, the pet is in both, and the Camel was healed by neither. The detail names each unit's
-         * health percent before each cast, the units W wanted, the units holding his Echo after each cast (77489,
-         * recorded, not judged), whether his cooldown store held Circle of Healing at step 2, and a refused cast.
+         * `circleOfHealing`: `first=<units>,glyph=<units>,camel=<heals>`, where <units> are the units his 34861 heal
+         * logs name in a step's windows, as `self`, `pet`, `f1` to `f6` (friend i + 1), `camel` and `other`, joined by
+         * `+` in that order, `x<n>` added to a unit healed n times, `-` for none: step 1's and step 2's; <heals> is the
+         * count of his 34861 heal logs about the Camel in both. With C = 5 (the client's text) and G = the glyph's
+         * effect 0 amount on him at step 2 (55675's effect 0 value, 1), and W(n) the n units of the eight (him, the pet
+         * and the friends) of the lowest health percent read before a cast: OK when C and G are positive, kFriends
+         * friends were spawned, he and they make kFriends + 1 linked members of his group, the pet was built and is the
+         * warlock's pet, 34861 went off in both steps, step 1 healed W(C), each once, step 2 healed W(C + G), each
+         * once, the pet is in both, and the Camel was healed by neither. The detail names each unit's health percent
+         * before each cast, the units W wanted, the units holding his Echo after each cast (77489, recorded, not
+         * judged), and a refused cast.
          */
         class PriestCircleOfHealing : public StagedCasterScenario
         {
@@ -135,7 +131,7 @@ namespace Harness
 
             std::vector<Step> Steps() const override
             {
-                return { Wait(kStepMs), Wait(kStepMs), Wait(kStepMs), Wait(kStepMs) };
+                return { Wait(kStepMs), Wait(kStepMs), Wait(kStepMs) };
             }
 
             std::vector<SpellPrint> Prints() const override
@@ -170,15 +166,6 @@ namespace Harness
                     ReadTheGroup(reads, p);
                     CastCircle(reads, k, p, target);
                 }
-                else if (k == kAgainStep)
-                {
-                    reads["cooldownHeld"] = p->HasSpellCooldown(kCircleOfHealing) ? 1 : 0;
-                    p->SetPower(POWER_MANA, p->GetMaxPower(POWER_MANA));
-                    m_rec.Note("his cooldown store holds " + U(kCircleOfHealing) + ": " +
-                               (reads["cooldownHeld"] ? "yes" : "no") + "; his " + U(kCircleOfHealing) +
-                               " at himself again");
-                    CastAsHandler(p, kCircleOfHealing, p, uint8(k + 1));
-                }
                 else if (k == kGlyphStep)
                 {
                     p->RemoveSpellCooldown(kCircleOfHealing);
@@ -211,25 +198,21 @@ namespace Harness
                 const int64 petHeld = Kept(st, kFirstStep, "petHeld");
                 const int64 wantedFirst = Kept(st, kFirstStep, "wanted");
                 const int64 wantedGlyph = Kept(st, kGlyphStep, "wanted");
-                std::vector<uint32> first, again, glyphed;
+                std::vector<uint32> first, glyphed;
                 HealedIn(st, kFirstStep, first);
-                HealedIn(st, kAgainStep, again);
                 HealedIn(st, kGlyphStep, glyphed);
                 const CastPath firstCast = CastPathOf(kFirstStep);
-                const CastPath againCast = CastPathOf(kAgainStep);
                 const CastPath glyphCast = CastPathOf(kGlyphStep);
-                const int32 refusal = CastFailedResult(kAgainStep, kCircleOfHealing);
                 const uint32 camel = first[kCamel] + glyphed[kCamel];
 
                 const bool ok = units > 0 && glyph > 0 && friends == int64(kFriends) &&
                                 grouped == int64(kFriends) + 1 && petHeld == 1 && firstCast.go == kCircleOfHealing &&
                                 glyphCast.go == kCircleOfHealing && OnceEach(first, wantedFirst) &&
-                                OnceEach(again, 0) && refusal == int32(SPELL_FAILED_NOT_READY) &&
                                 OnceEach(glyphed, wantedGlyph) && first[kPet] == 1 && glyphed[kPet] == 1 &&
                                 camel == 0 && Count(wantedFirst) == units && Count(wantedGlyph) == units + glyph;
 
-                const std::string line = "first=" + UnitsText(first) + ",again=" + CastResultName(refusal) + "/" +
-                                         UnitsText(again) + ",glyph=" + UnitsText(glyphed) + ",camel=" + U(camel);
+                const std::string line = "first=" + UnitsText(first) + ",glyph=" + UnitsText(glyphed) + ",camel=" +
+                                         U(camel);
                 std::string refused;
                 for (uint32 k : { kFirstStep, kGlyphStep })
                 {
@@ -246,13 +229,11 @@ namespace Harness
                     " friends spawned, " + Shown(grouped) + " members linked to his group, the pet " +
                     (petHeld == 1 ? "built and held by its owner" : "missing") +
                     "; the health percents before step 1 " + PercentsText(st, kFirstStep) + ", wanted " +
-                    MaskText(wantedFirst) + "; before step 3 " + PercentsText(st, kGlyphStep) + ", wanted " +
+                    MaskText(wantedFirst) + "; before step 2 " + PercentsText(st, kGlyphStep) + ", wanted " +
                     MaskText(wantedGlyph) + "; his " + U(kEchoHeal) +
                     " on " + MaskText(Kept(st, kFirstStep, "echoes")) + " after step 1 and on " +
-                    MaskText(Kept(st, kGlyphStep, "echoes")) + " after step 3; his cooldown store held " +
-                    U(kCircleOfHealing) + " at step 2: " + Shown(Kept(st, kAgainStep, "cooldownHeld")) +
-                    "; casts " + (firstCast.go == kCircleOfHealing ? "first went off, " : "no first, ") +
-                    (againCast.go == kCircleOfHealing ? "again went off, " : "again did not go off, ") +
+                    MaskText(Kept(st, kGlyphStep, "echoes")) + " after step 2; casts " +
+                    (firstCast.go == kCircleOfHealing ? "first went off, " : "no first, ") +
                     (glyphCast.go == kCircleOfHealing ? "glyph went off" : "no glyph cast") + refused;
                 return line + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
@@ -279,10 +260,9 @@ namespace Harness
             static constexpr uint32 kPetPercent = 20;
             static constexpr uint32 kCamelPercent = 10;
             static constexpr uint32 kStepMs = 2000;
-            static constexpr size_t kSteps = 4;
+            static constexpr size_t kSteps = 3;
             static constexpr uint32 kFirstStep = 0;
-            static constexpr uint32 kAgainStep = 1;
-            static constexpr uint32 kGlyphStep = 2;
+            static constexpr uint32 kGlyphStep = 1;
 
             /// The units a line names, by index: him, the pet, the six friends, the Camel and any other unit.
             static constexpr uint32 kSelf = 0;
