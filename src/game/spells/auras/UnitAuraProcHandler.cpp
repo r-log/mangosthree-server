@@ -27,6 +27,7 @@
 #include "Utilities/MathDefines.h"
 #include <algorithm>
 #include <ctime>
+#include <vector>
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
@@ -37,6 +38,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
 #include "Creature.h"
+#include "Group.h"
 #include "Util.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "spells/data/SpellTables.h"
@@ -269,7 +271,7 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleNULLProc,                                  //222 2 spells in 4.3.4 Prayer of Mending
     &Unit::HandleNULLProc,                                  //223 dummy code (cast damage spell to attacker) and another dummy (jump to another nearby raid member)
     &Unit::HandleNULLProc,                                  //224 unused (3.0.8a-4.3.4)
-    &Unit::HandleMendingAuraProc,                           //225 SPELL_AURA_PRAYER_OF_MENDING
+    &Unit::HandleNULLProc,                                  //225 SPELL_AURA_PRAYER_OF_MENDING, 41635's on-proc row in priest/holy/PrayerOfMending.cpp
     &Unit::HandleNULLProc,                                  //226 SPELL_AURA_PERIODIC_DUMMY
     &Unit::HandleNULLProc,                                  //227 SPELL_AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE
     &Unit::HandleNULLProc,                                  //228 SPELL_AURA_DETECT_STEALTH
@@ -2509,69 +2511,6 @@ SpellAuraProcResult Unit::HandleOverrideClassScriptAuraProc(Unit* pVictim, uint3
     return SPELL_AURA_PROC_OK;
 }
 
-SpellAuraProcResult Unit::HandleMendingAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 /*cooldown*/)
-{
-    // aura can be deleted at casts
-    SpellEntry const* spellProto = triggeredByAura->GetSpellProto();
-    SpellEffectIndex effIdx = triggeredByAura->GetEffIndex();
-    int32 heal = triggeredByAura->GetModifier()->m_amount;
-    ObjectGuid caster_guid = triggeredByAura->GetCasterGuid();
-
-    // jumps
-    int32 jumps = triggeredByAura->GetHolder()->GetAuraCharges() - 1;
-
-    // next target selection
-    if (jumps > 0 && GetTypeId() == TYPEID_PLAYER && caster_guid.IsPlayer())
-    {
-        SpellEffectEntry const* spellEffect = spellProto->GetSpellEffect(effIdx);
-        float radius;
-        if (spellEffect && spellEffect->GetRadiusIndex())
-        {
-            radius = GetSpellRadius(sSpellRadiusStore.LookupEntry(spellEffect->GetRadiusIndex()));
-        }
-        else
-        {
-            radius = GetSpellMaxRange(sSpellRangeStore.LookupEntry(spellProto->RangeIndex));
-        }
-
-        Unit* auraCaster = triggeredByAura->GetCaster();
-        if (Player* caster = auraCaster ? auraCaster->ToPlayer() : NULL)
-        {
-            caster->GetSpellMods()->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius);
-
-            if (Player* target = GetNextRandomRaidMember(radius))
-            {
-                SpellAuraHolder* holder = GetSpellAuraHolder(spellProto->ID, caster->GetObjectGuid());
-                SpellAuraHolder* new_holder = CreateSpellAuraHolder(spellProto, target, caster);
-
-                for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
-                {
-                    Aura* aur = holder->GetAuraByEffectIndex(SpellEffectIndex(i));
-                    if (!aur)
-                    {
-                        continue;
-                    }
-
-                    int32 basePoints = aur->GetBasePoints();
-                    Aura* new_aur = CreateAura(spellProto, aur->GetEffIndex(), &basePoints, new_holder, target, caster);
-                    new_holder->AddAura(new_aur, new_aur->GetEffIndex());
-                }
-                new_holder->SetAuraCharges(jumps, false);
-
-                // lock aura holder (currently SPELL_AURA_PRAYER_OF_MENDING is single target spell, so will attempt removing from old target
-                // when applied to new one)
-                triggeredByAura->SetInUse(true);
-                target->AddSpellAuraHolder(new_holder);
-                triggeredByAura->SetInUse(false);
-            }
-        }
-    }
-
-    // heal
-    CastCustomSpell(this, 33110, &heal, NULL, NULL, true, NULL, NULL, caster_guid, spellProto);
-    return SPELL_AURA_PROC_OK;
-}
-
 /**
  * @brief Handles casting-speed proc auras that require a non-instant trigger spell.
  *
@@ -3259,4 +3198,81 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
             RemoveAurasDueToSpell(*i);
         }
     }
+}
+
+bool OnProcContext::MoveAuraTo(Unit& to, Unit& auraCaster, uint32 charges)
+{
+    SpellAuraHolder* holder = caster.GetSpellAuraHolder(spell.ID, aura.CasterGuid());
+    Aura* procAura = holder ? holder->GetAuraByEffectIndex(effIndex) : NULL;
+    if (!procAura || holder->GetTrackedAuraType() != TRACK_AURA_TYPE_SINGLE_TARGET)
+    {
+        return false;
+    }
+
+    SpellAuraHolder* moved = CreateSpellAuraHolder(&spell, &to, &auraCaster);
+    for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        Aura* effect = holder->GetAuraByEffectIndex(SpellEffectIndex(i));
+        if (!effect)
+        {
+            continue;
+        }
+        int32 basePoints = effect->GetBasePoints();
+        Aura* copy = CreateAura(&spell, effect->GetEffIndex(), &basePoints, moved, &to, &auraCaster);
+        moved->AddAura(copy, copy->GetEffIndex());
+    }
+    moved->SetAuraCharges(charges, false);
+
+    // the old holder goes when the new one lands; its aura stays valid for the rest of the row
+    procAura->SetInUse(true);
+    bool const added = to.AddSpellAuraHolder(moved);
+    procAura->SetInUse(false);
+
+    // only a spell's hit marks the holders it adds ready, and the proc loop passes over a holder that is not
+    if (added)
+    {
+        moved->SetState(SPELLAURAHOLDER_STATE_READY);
+    }
+    return added;
+}
+
+Unit* OnProcContext::RandomGroupUnitNear(float radius) const
+{
+    // a player's own group, as the engine's walk takes it; a pet's is its owner's
+    Player* owner = caster.ToPlayer();
+    if (!owner && caster.IsPet())
+    {
+        owner = caster.GetCharmerOrOwnerPlayerOrPlayerItself();
+    }
+    Group* group = owner ? owner->GetGroup() : NULL;
+    if (!group)
+    {
+        return NULL;
+    }
+
+    std::vector<Unit*> takers;
+    for (GroupReference* itr = group->GetFirstMember(); itr != NULL; itr = itr->next())
+    {
+        Player* member = itr->getSource();
+        if (!member)
+        {
+            continue;
+        }
+        Unit* const candidates[] = { member, member->GetPet() };
+        for (Unit* candidate : candidates)
+        {
+            if (candidate && GroupUnitMayTake(candidate == &caster, candidate->IsAlive(),
+                                              InReach(caster, *candidate, radius), candidate->HasInvisibilityAura(),
+                                              caster.IsHostileTo(candidate)))
+            {
+                takers.push_back(candidate);
+            }
+        }
+    }
+    return takers.empty() ? NULL : takers[urand(0, uint32(takers.size()) - 1)];
+}
+
+bool OnProcContext::GroupUnitMayTake(bool self, bool alive, bool inReach, bool invisible, bool hostile)
+{
+    return !self && alive && inReach && !invisible && !hostile;
 }

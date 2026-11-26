@@ -142,6 +142,11 @@ ObjectGuid AuraHandle::CasterGuid() const
     return m_holder.GetCasterGuid();
 }
 
+Unit* AuraHandle::Caster() const
+{
+    return m_holder.GetCaster();
+}
+
 int32 AuraHandle::Duration() const
 {
     return m_holder.GetAuraDuration();
