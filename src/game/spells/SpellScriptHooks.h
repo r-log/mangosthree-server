@@ -217,6 +217,9 @@ class AuraHandle
         AuraRemoveMode RemoveMode() const;
         /// The guid of the holder's caster.
         ObjectGuid CasterGuid() const;
+        /// The holder's caster: its unit when the aura is its own, else the unit of the caster's guid wherever it is;
+        /// NULL when it is not found.
+        Unit* Caster() const;
         /// The milliseconds the holder has left; -1 when it does not run out.
         int32 Duration() const;
 
@@ -564,6 +567,21 @@ struct OnProcContext
     /// (the store's infinity mark), which starts whole when the aura goes, nor for a unit with no cut sink: one that
     /// is not a player, whose store holds none. Answers whether it cut.
     bool ShortenCooldown(uint32 spellId, uint32 ms);
+    /// The aura's holder moves to `to`: `to` takes a holder of the aura's spell for `auraCaster`, with this holder's
+    /// auras at their base points and `charges` charges, ready to proc as a holder a spell's hit puts on is (one made
+    /// any other way is not until it is told); this holder, a single-target aura, is taken off its unit when the new
+    /// one lands, while the aura this proc is for is held in use, as the engine's proc loop reads it after the row
+    /// returns. False, and nothing moved, when the unit holds no such holder or `to` refuses the new one. Its body sits
+    /// in UnitAuraProcHandler.cpp.
+    bool MoveAuraTo(Unit& to, Unit& auraCaster, uint32 charges);
+    /// A unit at random of the group of the unit that holds the aura, or of its owner's when it is a pet: of the
+    /// members and their pets, one that may take a jumping aura from it (GroupUnitMayTake) within `radius` yards of it;
+    /// NULL when there is none, when there is no group, and when the unit is neither a player nor a pet. Its body sits
+    /// in UnitAuraProcHandler.cpp.
+    Unit* RandomGroupUnitNear(float radius) const;
+    /// Whether a unit may take a jumping aura from its holder: it is not the holder (`self`), it is alive, within
+    /// reach of the holder (`inReach`), not invisible, and not hostile to the holder.
+    static bool GroupUnitMayTake(bool self, bool alive, bool inReach, bool invisible, bool hostile);
 
     Unit& caster;                                   ///< the unit that holds the aura
     Unit* victim;                                   ///< the other unit of the event; NULL when there is none

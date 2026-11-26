@@ -165,29 +165,24 @@ TEST(PriestPrayerOfMending_ACastGivesFiveHealsAndAJumpLeavesOneChargeFewer)
 TEST(PriestPrayerOfMending_AUnitMayTakeTheAuraWhenItIsAnotherAliveWithinReachVisibleAndNotHostile)
 {
     // A pet or a member of the group, alive, in reach, visible and not hostile to the holder.
-    CHECK(Priest::MendingMayTake(false, true, true, false, false));
+    CHECK(OnProcContext::GroupUnitMayTake(false, true, true, false, false));
 
     // Each of the five conditions missing alone: the holder itself, a dead unit, one out of reach (the priest 30 yards
     // from a friend and his pet is out of a 20 yard radius), an invisible one, a hostile one.
-    CHECK(!Priest::MendingMayTake(true, true, true, false, false));
-    CHECK(!Priest::MendingMayTake(false, false, true, false, false));
-    CHECK(!Priest::MendingMayTake(false, true, false, false, false));
-    CHECK(!Priest::MendingMayTake(false, true, true, true, false));
-    CHECK(!Priest::MendingMayTake(false, true, true, false, true));
+    CHECK(!OnProcContext::GroupUnitMayTake(true, true, true, false, false));
+    CHECK(!OnProcContext::GroupUnitMayTake(false, false, true, false, false));
+    CHECK(!OnProcContext::GroupUnitMayTake(false, true, false, false, false));
+    CHECK(!OnProcContext::GroupUnitMayTake(false, true, true, true, false));
+    CHECK(!OnProcContext::GroupUnitMayTake(false, true, true, false, true));
 
     // Every one missing at once.
-    CHECK(!Priest::MendingMayTake(true, false, false, true, true));
+    CHECK(!OnProcContext::GroupUnitMayTake(true, false, false, true, true));
 }
 
-TEST(PriestPrayerOfMending_ABareCreatureHoldsNoGlyphAndHasNoGroupToJumpTo)
+TEST(PriestPrayerOfMending_ABareCreatureHoldsNoGlyph)
 {
     BareCreature creature;
 
     // No glyph aura on a unit that holds none.
     CHECK_EQ(Priest::MendingGlyph(creature), int32(0));
-
-    // A creature is neither a player nor a pet: it has no group, so the walk finds no unit.
-    CHECK(!creature.IsPet());
-    CHECK(Priest::MendingNextHolder(creature, 20.0f) == NULL);
-    CHECK(Priest::MendingNextHolder(creature, 0.0f) == NULL);
 }

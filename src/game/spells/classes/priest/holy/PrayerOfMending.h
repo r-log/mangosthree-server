@@ -45,8 +45,8 @@ class Unit;
  * Glyph of Prayer of Mending (55685, 60 in the client's data), as a percent of the aura's amount, the heal's base value;
  * the heal's spell power part (the spell bonus row of 33110) is added after it. While charges remain after the heal,
  * the aura jumps: a new holder with one charge fewer is made for the priest on a member of the holder's group or a pet
- * of a member (MendingNextHolder), chosen at random, never the holder; the old holder, a single-target aura of the
- * priest's, goes when the new one lands. A holder with no group, or with no unit of its group in reach, keeps the aura
+ * of a member (OnProcContext::RandomGroupUnitNear), chosen at random, never the holder, and marked ready to proc
+ * (OnProcContext::MoveAuraTo); the old holder, a single-target aura of the priest's, goes when the new one lands. A holder with no group, or with no unit of its group in reach, keeps the aura
  * and spends a charge. A jump needs a player holder or a pet holder and a player priest.
  */
 
@@ -68,16 +68,6 @@ namespace Priest
 
     /// The effect 0 amount of the Glyph of Prayer of Mending (55685) `priest` holds; 0 when he holds none.
     int32 MendingGlyph(Unit const& priest);
-
-    /// Whether a unit of the holder's group may take the aura from `holder`: it is not the holder (`self`), it is alive,
-    /// within the aura's radius of him (`inReach`), not invisible, and not hostile to him.
-    bool MendingMayTake(bool self, bool alive, bool inReach, bool invisible, bool hostile);
-
-    /// The unit Prayer of Mending jumps to from `holder`: one at random of the members of the group of `holder`, or of
-    /// his owner when he is a pet, and the pets of those members, that may take it (MendingMayTake) within `radius`
-    /// yards of him, never `holder` himself; NULL when there is none, when `holder` has no group, and when he is
-    /// neither a player nor a pet.
-    Unit* MendingNextHolder(Unit& holder, float radius);
 }
 
 #endif
