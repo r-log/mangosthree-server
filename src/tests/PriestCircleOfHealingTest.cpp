@@ -23,17 +23,22 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Tests of priest/holy/CircleOfHealing.cpp: the rows the file registers, in the game's table too; the units a
-/// heal picks, 5 and the glyph's amount, read from the holder. The units are bare creatures (update fields
-/// allocated; no world, map, template or AI). The glyph (55675) is put into the spell store with its effect 0, a
-/// dummy aura, and taken out again. Scenario 1227 records the heal's units in play, a group's members and a
-/// member's pet among them.
+/// Tests of priest/holy/CircleOfHealing.cpp and of the select-targets context's raid or party pick it calls: the rows
+/// the file registers, in the game's table too; the units a heal picks, 5 and the glyph's amount, read from the holder;
+/// the context's pick, which puts the engine's raid or party pick by health in place of the list (none outside a
+/// cast); and the row at each of the heal's two target modes. The units are bare creatures (update fields allocated;
+/// no world, map, template or AI); a creature in no group stands for itself in the engine's pick, so it is the one
+/// unit a pick finds, and its pet, found only on a map, is never found. The cast is a Spell of the test's own row,
+/// put into the spell store and taken out again, as SpellHandlerRegistryTest builds one. The glyph (55675) is put
+/// into the spell store with its effect 0, a dummy aura, and taken out again. Scenario 1227 records the heal's units in
+/// play, a group's members and a member's pet among them.
 
 #include "TestHarness.h"
 #include "spells/classes/priest/holy/CircleOfHealing.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/auras/SpellAuras.h"
+#include "spells/pipeline/Spell.h"
 #include "data/ServerSpellStore.h"
 #include "Creature.h"
 #include "DBCStores.h"
@@ -41,6 +46,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <list>
+#include <vector>
 
 namespace
 {
@@ -50,6 +57,12 @@ namespace
     uint32 const WILD_GROWTH = 48438;
     uint32 const ECHO_OF_LIGHT_HEAL = 77489;
     uint32 const DIVINE_HYMN_HEAL = 64844;
+
+    /// The test's own spell row, the cast's: no Spell.dbc row holds this id.
+    uint32 const CAST_ROW = 93861;
+
+    /// The radius Spell::SetTargetMap reckons for 34861's effect: SpellRadius.dbc row 10.
+    float const CIRCLE_RADIUS = 30.0f;
 
     // A creature with its update fields allocated and no world, map, template or AI.
     class BareCreature : public Creature
@@ -66,6 +79,25 @@ namespace
                 m_auras.Holders().clear();
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
+            }
+
+            // Its guid: of the high part `high`, the entry `entry` and the counter `counter`.
+            void TakeGuid(HighGuid high, uint32 entry, uint32 counter)
+            {
+                SetGuidValue(OBJECT_FIELD_GUID, ObjectGuid(high, entry, counter));
+            }
+
+            // Its health and maximum health.
+            void Stand(uint32 health, uint32 maxHealth)
+            {
+                SetMaxHealth(maxHealth);
+                SetHealth(health);
+            }
+
+            // Marks the creature dead, as Unit::IsDead reads it, or alive again.
+            void Die(bool dead = true)
+            {
+                m_deathState = dead ? DEAD : ALIVE;
             }
 
             // Puts `holder` in the holder map under `spellId`, as Unit::AddSpellAuraHolder files it.
@@ -90,6 +122,23 @@ namespace
         SpellEntry* row = reinterpret_cast<SpellEntry*>(storage.bytes);
         row->ID = spellId;
         return *row;
+    }
+
+    // The cast's row, put into the spell store, which a Spell's constructor checks it against.
+    SpellRowStorage s_castRow;
+
+    SpellEntry const* StoreCastRow()
+    {
+        SpellRow(s_castRow, CAST_ROW);
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(s_castRow.bytes);
+        sSpellStore.SetEntry(CAST_ROW, row);
+        return row;
+    }
+
+    // Takes it out of the spell store again.
+    void ForgetCastRow()
+    {
+        sSpellStore.SetEntry(CAST_ROW, NULL);
     }
 
     // The glyph, its effect 0 a dummy aura as the client's data holds it.
@@ -131,6 +180,12 @@ namespace
             holder->AddAura(CreateAura(&s_glyph.Entry(), EFFECT_INDEX_0, &amount, holder, &unit), EFFECT_INDEX_0);
         }
         return holder;
+    }
+
+    // The units of `targets`, in their order.
+    std::vector<Unit*> UnitsOf(std::list<Unit*> const& targets)
+    {
+        return std::vector<Unit*>(targets.begin(), targets.end());
     }
 }
 
@@ -191,4 +246,118 @@ TEST(PriestCircleOfHealing_TheHealPicksFiveUnitsAndOneMoreForEachPointOfTheGlyph
     }
     ForgetGlyph();
     CHECK(sSpellStore.LookupEntry(GLYPH_OF_CIRCLE_OF_HEALING) == NULL);
+}
+
+TEST(PriestCircleOfHealing_TheContextPutsTheEnginesRaidOrPartyPickByHealthInPlaceOfTheList)
+{
+    SpellEntry const* row = StoreCastRow();
+    {
+        BareCreature caster;
+        caster.TakeGuid(HIGHGUID_UNIT, 27677, 1);
+        caster.Stand(500, 1000);
+        BareCreature other;
+        other.TakeGuid(HIGHGUID_UNIT, 50249, 2);
+        other.Stand(100, 1000);
+        uint32 maxTargets = 0;
+        std::vector<Unit*> const alone{ &caster };
+
+        // A context built outside a cast leaves the list empty.
+        std::list<Unit*> targets{ &other, &caster };
+        SelectTargetsContext outside(caster, *row, EFFECT_INDEX_0, TARGET_ALL_FRIENDLY_UNITS_IN_AREA, targets,
+                                     maxTargets);
+        outside.RaidOrPartyByHealthWithPets(5);
+        CHECK(targets.empty());
+
+        // With the cast: the area's units give way to the engine's pick. A creature in no group stands for itself, the
+        // centre when the cast has no unit target, so it alone is picked; the other creature, though lower in health,
+        // is no member. The target limit is not touched.
+        Spell cast(&caster, row, true);
+        targets.assign({ &other, &caster });
+        SelectTargetsContext noTarget(caster, *row, EFFECT_INDEX_0, TARGET_ALL_FRIENDLY_UNITS_IN_AREA, targets,
+                                      maxTargets, NULL, &cast, CIRCLE_RADIUS);
+        noTarget.RaidOrPartyByHealthWithPets(5);
+        CHECK(UnitsOf(targets) == alone);
+        CHECK_EQ(maxTargets, uint32(0));
+
+        // The same with the caster as the cast's unit target; a count of 0 picks none.
+        targets.assign({ &other, &caster });
+        SelectTargetsContext atHimself(caster, *row, EFFECT_INDEX_0, TARGET_ALL_FRIENDLY_UNITS_IN_AREA, targets,
+                                       maxTargets, &caster, &cast, CIRCLE_RADIUS);
+        atHimself.RaidOrPartyByHealthWithPets(6);
+        CHECK(UnitsOf(targets) == alone);
+        targets.assign({ &other, &caster });
+        atHimself.RaidOrPartyByHealthWithPets(0);
+        CHECK(targets.empty());
+
+        // A dead caster is not picked: the engine's pick takes the living.
+        caster.Die();
+        targets.assign({ &other, &caster });
+        atHimself.RaidOrPartyByHealthWithPets(5);
+        CHECK(targets.empty());
+        caster.Die(false);
+    }
+    ForgetCastRow();
+    CHECK(sSpellStore.LookupEntry(CAST_ROW) == NULL);
+}
+
+TEST(PriestCircleOfHealing_TheRowPutsThePickInPlaceOfTheAreaAtTheAreaModeAlone)
+{
+    SpellHandlerRegistry registry;
+    Priest::RegisterCircleOfHealing(registry);
+    SpellEntry const* row = StoreCastRow();
+    {
+        BareCreature caster;
+        caster.TakeGuid(HIGHGUID_UNIT, 27677, 1);
+        caster.Stand(500, 1000);
+        BareCreature other;
+        other.TakeGuid(HIGHGUID_UNIT, 50249, 2);
+        other.Stand(100, 1000);
+        BareCreature third;
+        third.TakeGuid(HIGHGUID_UNIT, 50249, 3);
+        third.Stand(200, 1000);
+        Spell cast(&caster, row, true);
+        std::vector<Unit*> const alone{ &caster };
+
+        // For both ranks: the destination's mode leaves the list as it is; the area's puts the engine's pick in place
+        // of the area's units, its caster alone; the target limit is not touched.
+        for (uint32 spellId : { CIRCLE_OF_HEALING, CIRCLE_OF_HEALING_OLD_RANK })
+        {
+            SpellRowStorage storage;
+            std::list<Unit*> targets{ &other, &caster, &third };
+            uint32 maxTargets = 0;
+            SelectTargetsContext destination(caster, SpellRow(storage, spellId), EFFECT_INDEX_0,
+                                             TARGET_DUELVSPLAYER_COORDINATES, targets, maxTargets, &caster, &cast,
+                                             CIRCLE_RADIUS);
+            CHECK(registry.Dispatch<SelectTargetsHook>(spellId, destination).IsContinue());
+            CHECK_EQ(targets.size(), std::size_t(3));
+            SelectTargetsContext area(caster, SpellRow(storage, spellId), EFFECT_INDEX_0,
+                                      TARGET_ALL_FRIENDLY_UNITS_IN_AREA, targets, maxTargets, &caster, &cast,
+                                      CIRCLE_RADIUS);
+            CHECK(registry.Dispatch<SelectTargetsHook>(spellId, area).IsContinue());
+            CHECK(UnitsOf(targets) == alone);
+            CHECK_EQ(maxTargets, uint32(0));
+        }
+
+        // The row asks for 5 units, and 6 with the glyph's 1 on the caster: with the one unit a creature finds, both
+        // pick it; a dead caster leaves none.
+        StoreGlyph();
+        SpellAuraHolder* glyph = GlyphHolder(caster, 1);
+        caster.HoldAura(GLYPH_OF_CIRCLE_OF_HEALING, *glyph);
+        SpellRowStorage storage;
+        std::list<Unit*> targets{ &other, &caster };
+        uint32 maxTargets = 0;
+        SelectTargetsContext area(caster, SpellRow(storage, CIRCLE_OF_HEALING), EFFECT_INDEX_0,
+                                  TARGET_ALL_FRIENDLY_UNITS_IN_AREA, targets, maxTargets, &caster, &cast,
+                                  CIRCLE_RADIUS);
+        CHECK(registry.Dispatch<SelectTargetsHook>(CIRCLE_OF_HEALING, area).IsContinue());
+        CHECK(UnitsOf(targets) == alone);
+        caster.Die();
+        targets.assign({ &other, &caster });
+        CHECK(registry.Dispatch<SelectTargetsHook>(CIRCLE_OF_HEALING, area).IsContinue());
+        CHECK(targets.empty());
+        caster.Die(false);
+        delete glyph;
+        ForgetGlyph();
+    }
+    ForgetCastRow();
 }
