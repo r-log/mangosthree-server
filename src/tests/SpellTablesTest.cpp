@@ -1681,3 +1681,98 @@ TEST(SpellTables_EchoOfLightsHealIsTheHealThatIgnoresTheHealingTakenPercent)
     }
     CHECK_EQ(rows, uint32(1));
 }
+
+// Echo of Light's heal (77489) and Divine Plea (54428) stand together. The rows are the client's shapes, built in the
+// stores: both of icon 2821, the heal a spell of no class options whose effect 0 is a periodic heal, Divine Plea a
+// paladin spell (class set 10, mask 0 / 0x1) whose effect 0 restores mana over time and whose effect 1 is a percent
+// spell modifier, at an index the heal has no effect at, so the generic same-icon rule would keep them apart; beside a
+// third aura of that icon and the heal's shape (the encounters' Fountain of Light and Twilight Renewal are such
+// auras), which the rule keeps from standing beside either. The test takes the spell rows out of the spell store
+// again; the class options and the effects stay with the static rows they point at.
+namespace
+{
+    const uint32 kEchoOfLightHeal = 77489;
+    const uint32 kDivinePlea = 54428;
+    const uint32 kOtherEchoIconAura = 94345;
+    const uint32 kOptionsDivinePlea = 94466;
+    const uint32 kEchoIcon = 2821;
+
+    SpellClassOptionsEntry s_optionsDivinePlea;
+    ServerSpell s_echoIconRows[3];
+    SpellEffectEntry s_divinePleaModifier;
+
+    /// Puts the heal, Divine Plea and the third aura into the spell store, Divine Plea's class options into theirs and
+    /// the effects beside them; the class options and the effects once.
+    void StoreEchoIconRows()
+    {
+        static bool stored = false;
+        uint32 const ids[3] = { kEchoOfLightHeal, kDivinePlea, kOtherEchoIconAura };
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            SpellEntry& row = s_echoIconRows[i].Entry();
+            row.ID = ids[i];
+            row.SpellIconID = kEchoIcon;
+            row.ClassOptionsID = ids[i] == kDivinePlea ? kOptionsDivinePlea : 0;
+            sSpellStore.SetEntry(ids[i], &row);
+            if (stored)
+            {
+                continue;
+            }
+            SpellEffectEntry& effect = s_echoIconRows[i].effect;
+            effect.SpellID = ids[i];
+            effect.EffectIndex = EFFECT_INDEX_0;
+            effect.Effect = SPELL_EFFECT_APPLY_AURA;
+            effect.EffectAura = ids[i] == kDivinePlea ? SPELL_AURA_OBS_MOD_MANA : SPELL_AURA_PERIODIC_HEAL;
+            AddSpellEffectEntry(&effect);
+        }
+        if (!stored)
+        {
+            s_optionsDivinePlea.SpellClassSet = SPELLFAMILY_PALADIN;
+            s_optionsDivinePlea.SpellClassMask = ClassFamilyMask(UI64LIT(0), 0x1);
+            sSpellClassOptionsStore.SetEntry(kOptionsDivinePlea, &s_optionsDivinePlea);
+            s_divinePleaModifier.SpellID = kDivinePlea;
+            s_divinePleaModifier.EffectIndex = EFFECT_INDEX_1;
+            s_divinePleaModifier.Effect = SPELL_EFFECT_APPLY_AURA;
+            s_divinePleaModifier.EffectAura = SPELL_AURA_ADD_PCT_MODIFIER;
+            AddSpellEffectEntry(&s_divinePleaModifier);
+        }
+        stored = true;
+    }
+
+    /// Takes them out of the spell store.
+    void ForgetEchoIconRows()
+    {
+        for (uint32 spellId : { kEchoOfLightHeal, kDivinePlea, kOtherEchoIconAura })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(SpellTables_EchoOfLightsHealAndDivinePleaStandTogetherInEitherOrder)
+{
+    StoreEchoIconRows();
+    CHECK(sSpellStore.LookupEntry(kDivinePlea)->GetSpellFamilyName() == SPELLFAMILY_PALADIN);
+    CHECK(sSpellStore.LookupEntry(kEchoOfLightHeal)->GetSpellClassOptions() == NULL);
+
+    // The heal arriving beside Divine Plea keeps it, and Divine Plea arriving beside the heal keeps it.
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kEchoOfLightHeal, kDivinePlea));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kDivinePlea, kEchoOfLightHeal));
+
+    // The generic rule stands for the icon's other pairs: the third aura against each of them, both ways.
+    for (uint32 spellId : { kEchoOfLightHeal, kDivinePlea })
+    {
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherEchoIconAura, spellId));
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(spellId, kOtherEchoIconAura));
+    }
+
+    // Divine Aegis and Power Word: Shield still stand together beside them.
+    StorePriestAbsorbs();
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kDivineAegis, kPowerWordShield));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kPowerWordShield, kDivineAegis));
+    ForgetPriestAbsorbs();
+
+    ForgetEchoIconRows();
+    CHECK(sSpellStore.LookupEntry(kEchoOfLightHeal) == NULL);
+    CHECK(sSpellStore.LookupEntry(kDivinePlea) == NULL);
+}
