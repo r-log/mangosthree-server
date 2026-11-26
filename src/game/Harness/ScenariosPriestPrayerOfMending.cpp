@@ -282,7 +282,8 @@ namespace Harness
                     Shown(friendPet) + " from the friend, within it; " + U(kGlyph) + "'s effect 0 on him " + Shown(glyph) +
                     ", " + U(kMendingAura) + "'s charges in the data " + Shown(full) + " and its amount on the friend " +
                     "after the cast " + Shown(amount) + ", so the first heal wanted " + Shown(rise) + " more than the " +
-                    "third (counted " + Shown(gained) + ", within " + std::to_string(kRiseTolerance) +
+                    "third, " + U(kGlyph) + "'s percent of the third heal (counted " + Shown(gained) + ", within " +
+                    std::to_string(kRiseTolerance) +
                     " points), the third and the fifth equal (" + U(heals[2].amount) + ", " + U(heals[4].amount) + "), the " +
                     "second and the fourth equal (" + U(heals[1].amount) + ", " + U(heals[3].amount) + "); the holders " +
                     "wanted " + wantedHolders + ", counted " + holders + "; each hit one heal log of " + U(kMendingHeal) +

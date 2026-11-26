@@ -120,6 +120,11 @@ TEST(PriestPrayerOfMending_OnlyTheFirstHealOfACastTakesTheGlyphsPercent)
     CHECK_EQ(Priest::MendingHealAmount(5000, 500, GLYPH, CHARGES, CHARGES), int32(8300));
     CHECK_EQ(Priest::MendingHealAmount(5000, 500, GLYPH, 4, CHARGES), int32(5000));
 
+    // A cast that starts with 6 charges (the two pieces of Regalia of Faith add one) has its first heal at 6 of 6; the
+    // heal at 5 of 6 is a later one.
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, GLYPH, CHARGES + 1, CHARGES + 1), int32(8000));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, GLYPH, CHARGES, CHARGES + 1), int32(5000));
+
     // The percent is the glyph's amount: 100 doubles the amount, and the heal never wraps its 32 bits.
     CHECK_EQ(Priest::MendingHealAmount(5000, 0, 100, CHARGES, CHARGES), int32(10000));
     CHECK_EQ(Priest::MendingHealAmount(INT32_MAX, 0, GLYPH, CHARGES, CHARGES), int32(INT32_MAX));
