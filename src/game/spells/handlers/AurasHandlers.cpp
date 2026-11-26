@@ -2011,39 +2011,6 @@ static SpellHandlerOutcome<void> AuraBoostMagePushingTheLimit(AuraBoostContext& 
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 552: absent from the client's spell data
-static SpellHandlerOutcome<void> AuraBoostPriest552(AuraBoostContext& ctx)
-{
-        // Abolish Disease (remove 1 more poison effect with Body and Soul)
-    if (ctx.apply)
-    {
-        int chance = 0;
-        Unit::AuraList const& dummyAuras = ctx.holder->GetTarget()->GetAurasByType(SPELL_AURA_DUMMY);
-        for (Unit::AuraList::const_iterator itr = dummyAuras.begin(); itr != dummyAuras.end(); ++itr)
-        {
-            SpellEntry const* dummyEntry = (*itr)->GetSpellProto();
-            // Body and Soul (talent ranks)
-            if (dummyEntry->GetSpellFamilyName() == SPELLFAMILY_PRIEST && dummyEntry->SpellIconID == 2218 &&
-                dummyEntry->SpellVisualID[0]==0)
-            {
-                chance = (*itr)->GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_1);
-                break;
-            }
-        }
-
-        if (roll_chance_i(chance))
-        {
-            ctx.spellId1 = 64134;               // Body and Soul (periodic dispel effect)
-        }
-    }
-    else
-    {
-        ctx.spellId1 = 64134;                   // Body and Soul (periodic dispel effect)
-    }
-    return SpellHandlerOutcome<void>::Continue();
-// Dispersion mana reg and immunity
-}
-
 /// 47585: Dispersion
 static SpellHandlerOutcome<void> AuraBoostPriest47585(AuraBoostContext& ctx)
 {
@@ -2528,7 +2495,6 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
 
     static AurasRow<AuraBoostPriestSite> const boostPriest[] =
     {
-        { 552, &AuraBoostPriest552 },
         { 47585, &AuraBoostPriest47585 },
     };
 
