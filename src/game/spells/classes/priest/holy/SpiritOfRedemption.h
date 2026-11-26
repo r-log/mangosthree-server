@@ -44,10 +44,12 @@
  *    immunity to the damage of every school, at himself. 62371 is a passive, so Unit::RemoveAllAurasOnDeath would not
  *    take it off his corpse;
  *  - an aura-remove row on 27792: the form ends by taking its boosts off in the order they were cast, 27792 first and
- *    then 27795, whose aura 176 kills him inside its own removal, so this is the last moment he is alive: he casts
- *    99755, the end's stun, at himself (SpiritOfRedemptionStuns). The form's own removal row would run after the
- *    holder's auras, 27795's among them, and so after his death;
- *  - an aura-remove row on 27827: 62371 leaves him with the form, whatever takes the form off.
+ *    then 27795, whose aura 176 kills him inside its own removal, so this is the last moment he is alive: he takes
+ *    62371 off, as while it stands the stun misses him as immune (Unit::SpellHitResult), then casts 99755, the end's
+ *    stun, at himself (SpiritOfRedemptionStuns). The form's own removal row would run after the holder's auras,
+ *    27795's among them, and so after his death;
+ *  - an aura-remove row on 27827: 62371 leaves him with the form, whatever takes the form off, when the root's row
+ *    has not taken it already.
  * 27792, 27795, 62371 and 99755 share a name and the spell icon 1 but are no chain of ranks, and the no-stack rules
  * never set a passive beside a spell that is not one (SpellMgr.cpp, IsNoStackSpellDueToSpell) or beside another
  * passive that is no rank of it (Unit::RemoveNoStackAurasDueToAuraHolder), so no pair needs an exemption: 99755 is the

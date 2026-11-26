@@ -74,8 +74,8 @@ namespace
     }
 
     /// 27827: the form: once it is off the priest, whatever took it off, 62371 goes with it, when RootRemoved has not
-    /// taken it already: it is a passive, and a death takes no passive off. The form's removal runs this after the removal of its boosts, his death among them.
-    /// The holder's boosts run after it.
+    /// taken it already: it is a passive, and a death takes no passive off. The form's removal runs this after the
+    /// removal of its boosts, his death among them. The holder's boosts run after it.
     SpellHandlerOutcome<void> FormRemoved(AuraRemoveContext& ctx)
     {
         ctx.RemoveAura(ctx.target, SPIRIT_IMMUNITY);
