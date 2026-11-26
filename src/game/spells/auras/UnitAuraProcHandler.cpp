@@ -1015,27 +1015,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
                     break;
                 }
-                // Empowered Renew
-                case 3021:
-                {
-                    if (!procSpell)
-                    {
-                        return SPELL_AURA_PROC_FAILED;
-                    }
-
-                    // Renew
-                    Aura* healingAura = pVictim->GetAura(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_PRIEST, UI64LIT(0x40), 0, GetObjectGuid());
-                    if (!healingAura)
-                    {
-                        return SPELL_AURA_PROC_FAILED;
-                    }
-
-                    int32 healingfromticks = healingAura->GetModifier()->m_amount * GetSpellAuraMaxTicks(procSpell);
-
-                    basepoints[0] = healingfromticks * triggerAmount / 100;
-                    triggered_spell_id = 63544;
-                    break;
-                }
                 // Improved Devouring Plague
                 case 3790:
                 {

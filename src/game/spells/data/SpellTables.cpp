@@ -1005,6 +1005,7 @@ namespace
     constexpr uint32 HEALS_WITHOUT_DONE_BONUS[] =
     {
         56160,  // Glyph of Power Word: Shield
+        63544,  // Divine Touch
     };
 }
 
