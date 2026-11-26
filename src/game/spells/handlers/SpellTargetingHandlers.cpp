@@ -109,19 +109,35 @@ static SpellHandlerOutcome<void> TargetEffectDummyDefault(SpellTargetEffectDummy
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 64844: Divine Hymn
+/// The channels that cast Divine Hymn's heal (64844) and Hymn of Hope's mana (64904); each holds in its effect 1 how
+/// many units the spell it casts picks.
+static uint32 const DIVINE_HYMN_CHANNEL = 64843;
+static uint32 const HYMN_OF_HOPE_CHANNEL = 64901;
+
+/// The value of effect 1 of `channelSpellId` in the client's data, the most units the spell the channel casts picks:
+/// 5 for Divine Hymn, 3 for Hymn of Hope; 0 when the store lacks the channel or the value is not positive.
+static uint32 HymnTargetCount(uint32 channelSpellId)
+{
+    SpellEntry const* channel = sSpellStore.LookupEntry(channelSpellId);
+    int32 const count = channel ? channel->CalculateSimpleValue(EFFECT_INDEX_1) : 0;
+    return count > 0 ? uint32(count) : 0;
+}
+
+/// 64844: Divine Hymn: the raid or party members around the caster with the lowest health, him included, as many as
+/// Divine Hymn's channel (64843) names in its effect 1
 static SpellHandlerOutcome<void> TargetAllFriendlyUnitsAroundCaster64844(SpellTargetAllFriendlyUnitsAroundCasterContext& ctx)
 {
-    // target amount stored in parent spell dummy effect but hard to access
-    ctx.spell->FillRaidOrPartyHealthPriorityTargets(ctx.targetUnitMap, ctx.m_caster, ctx.m_caster, ctx.radius, 3, true, false, true);
+    ctx.spell->FillRaidOrPartyHealthPriorityTargets(ctx.targetUnitMap, ctx.m_caster, ctx.m_caster, ctx.radius,
+                                                    HymnTargetCount(DIVINE_HYMN_CHANNEL), true, false, true);
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 64904: Hymn of Hope
+/// 64904: Hymn of Hope: the raid or party members around the caster with the lowest mana, him included, as many as
+/// Hymn of Hope's channel (64901) names in its effect 1
 static SpellHandlerOutcome<void> TargetAllFriendlyUnitsAroundCaster64904(SpellTargetAllFriendlyUnitsAroundCasterContext& ctx)
 {
-    // target amount stored in parent spell dummy effect but hard to access
-    ctx.spell->FillRaidOrPartyManaPriorityTargets(ctx.targetUnitMap, ctx.m_caster, ctx.m_caster, ctx.radius, 3, true, false, true);
+    ctx.spell->FillRaidOrPartyManaPriorityTargets(ctx.targetUnitMap, ctx.m_caster, ctx.m_caster, ctx.radius,
+                                                  HymnTargetCount(HYMN_OF_HOPE_CHANNEL), true, false, true);
     return SpellHandlerOutcome<void>::Continue();
 }
 
