@@ -169,7 +169,8 @@ namespace Spells
 
     /// Whether a heal of `spellId` takes none of its caster's healing-done bonus (Unit::SpellHealingBonusDone): the
     /// amount it was cast with heals, before the target's taken side and a crit. Glyph of Power Word: Shield's heal
-    /// (56160) alone, whose retail heals are a fifth of the shield and twice that on a crit.
+    /// (56160), whose retail heals are a fifth of the shield and twice that on a crit, and Divine Touch's heal (63544),
+    /// cast for a share of a Renew tick that already holds the done bonus.
     bool HealTakesNoDoneBonus(uint32 spellId);
 
     /// Whether a heal of `spellId` whose damage class is none acts as a spell heal, as HealRuleDamageClass takes it:

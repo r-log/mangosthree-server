@@ -282,6 +282,11 @@ TEST(PriestDivineTouch_BothRanksHoldTheProcScriptInTheGame)
     // The heal holds no row.
     CHECK(game.Find<OnProcHook>(DIVINE_TOUCH_HEAL) == NULL);
     CHECK(game.Find<CheckProcHook>(DIVINE_TOUCH_HEAL) == NULL);
+
+    // The heal is cast for a share of a Renew tick that already holds the done bonus, so it takes none again; Renew
+    // itself takes it.
+    CHECK(Spells::HealTakesNoDoneBonus(DIVINE_TOUCH_HEAL));
+    CHECK(!Spells::HealTakesNoDoneBonus(RENEW));
 }
 
 TEST(PriestDivineTouch_ItsOwnHealNeverStartsItAgain)
