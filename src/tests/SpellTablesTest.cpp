@@ -1780,3 +1780,90 @@ TEST(SpellTables_EchoOfLightsHealAndDivinePleaStandTogetherInEitherOrder)
     CHECK(sSpellStore.LookupEntry(kEchoOfLightHeal) == NULL);
     CHECK(sSpellStore.LookupEntry(kDivinePlea) == NULL);
 }
+
+// Holy Word: Sanctuary's caster aura (88685) and Divine Hymn's healing buff (64844) stand together. The rows are the
+// client's shapes, built in the stores: each a priest spell (class set 6) of icon 2845, Sanctuary on mask 0x200000 /
+// 0 / 0x400000 and the buff on mask 0 / 0 / 0x4, beside a third priest aura of that icon, which the generic same-icon
+// rule keeps from standing beside either. The rows hold no effect: the rule reads the effects only for a spell
+// modifier, which neither of the client's two holds. The test takes the spell rows out of the spell store again.
+namespace
+{
+    const uint32 kSanctuaryAura = 88685;
+    const uint32 kHymnBuff = 64844;
+    const uint32 kOtherSanctuaryIconAura = 94343;
+    const uint32 kOptionsSanctuary = 94467;
+    const uint32 kOptionsHymnBuff = 94468;
+    const uint32 kSanctuaryIcon = 2845;
+
+    SpellClassOptionsEntry s_optionsSanctuary;
+    SpellClassOptionsEntry s_optionsHymnBuff;
+    ServerSpell s_sanctuaryIconRows[3];
+
+    /// Puts Sanctuary's aura, the Hymn's buff and the third aura into the spell store and their class options into
+    /// theirs; the class options once.
+    void StoreSanctuaryIconRows()
+    {
+        static bool stored = false;
+        if (!stored)
+        {
+            stored = true;
+            s_optionsSanctuary.SpellClassSet = SPELLFAMILY_PRIEST;
+            s_optionsSanctuary.SpellClassMask = ClassFamilyMask(UI64LIT(0x200000), 0x400000);
+            s_optionsHymnBuff.SpellClassSet = SPELLFAMILY_PRIEST;
+            s_optionsHymnBuff.SpellClassMask = ClassFamilyMask(UI64LIT(0), 0x4);
+            sSpellClassOptionsStore.SetEntry(kOptionsSanctuary, &s_optionsSanctuary);
+            sSpellClassOptionsStore.SetEntry(kOptionsHymnBuff, &s_optionsHymnBuff);
+        }
+        uint32 const ids[3] = { kSanctuaryAura, kHymnBuff, kOtherSanctuaryIconAura };
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            SpellEntry& row = s_sanctuaryIconRows[i].Entry();
+            row.ID = ids[i];
+            row.SpellIconID = kSanctuaryIcon;
+            row.ClassOptionsID = ids[i] == kSanctuaryAura ? kOptionsSanctuary : kOptionsHymnBuff;
+            sSpellStore.SetEntry(ids[i], &row);
+        }
+    }
+
+    /// Takes them out of the spell store.
+    void ForgetSanctuaryIconRows()
+    {
+        for (uint32 spellId : { kSanctuaryAura, kHymnBuff, kOtherSanctuaryIconAura })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(SpellTables_SanctuarysAuraAndDivineHymnsBuffStandTogetherInEitherOrder)
+{
+    StoreSanctuaryIconRows();
+
+    // Either arriving beside the other keeps it.
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kSanctuaryAura, kHymnBuff));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kHymnBuff, kSanctuaryAura));
+
+    // The generic rule stands for the icon's other pairs: the third aura against each of them, both ways.
+    for (uint32 spellId : { kSanctuaryAura, kHymnBuff })
+    {
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherSanctuaryIconAura, spellId));
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(spellId, kOtherSanctuaryIconAura));
+    }
+
+    // The two pairs of the priest's earlier waves still stand together beside them, and the generic rule still keeps
+    // the third priest absorb from either of the first.
+    StorePriestAbsorbs();
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kDivineAegis, kPowerWordShield));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kPowerWordShield, kDivineAegis));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kPowerWordShield));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherPriestAbsorb, kDivineAegis));
+    ForgetPriestAbsorbs();
+    StoreEchoIconRows();
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kEchoOfLightHeal, kDivinePlea));
+    CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kDivinePlea, kEchoOfLightHeal));
+    ForgetEchoIconRows();
+
+    ForgetSanctuaryIconRows();
+    CHECK(sSpellStore.LookupEntry(kSanctuaryAura) == NULL);
+    CHECK(sSpellStore.LookupEntry(kHymnBuff) == NULL);
+}

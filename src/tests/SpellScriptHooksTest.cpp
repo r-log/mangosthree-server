@@ -1839,3 +1839,19 @@ TEST(SpellScriptHooks_AnAfterHitContextShowsImmuneAsTheEngineDoesAndCastsNothing
     CHECK_EQ(uint32(notices.lastMiss), uint32(SPELL_MISS_IMMUNE));
     CHECK(target.GetSpellAuraHolderMap().empty());
 }
+
+TEST(SpellScriptHooks_APeriodicTickContextWithNoCasterCastsNothingAtAPoint)
+{
+    BareCreature target;
+    SpellEntry const& spell = HookSpell();
+    HolderStorage storage;
+    SpellAuraHolder& holder = HolderFilledWith(storage, 0);
+    uint32 tick = 100;
+
+    // An aura whose caster cannot be found casts nothing at a point: the tick's amount and the unit it ticks on stay
+    // as they are.
+    PeriodicTickContext orphan(target, NULL, spell, EFFECT_INDEX_1, AuraHandle(holder), tick, true);
+    orphan.CastTriggeredAt(1.0f, 2.0f, 3.0f, kOtherSpell);
+    CHECK_EQ(tick, uint32(100));
+    CHECK(target.GetSpellAuraHolderMap().empty());
+}

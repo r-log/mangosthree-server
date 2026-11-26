@@ -2739,6 +2739,13 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // Holy Word: Sanctuary's caster aura (88685) and Divine Hymn's healing buff (64844) share an icon and stand together
+    // on one unit
+    if ((spellId_1 == 88685 && spellId_2 == 64844) || (spellId_1 == 64844 && spellId_2 == 88685))
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)

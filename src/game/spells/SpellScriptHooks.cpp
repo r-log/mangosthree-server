@@ -289,6 +289,14 @@ void DummyAuraContext::RemoveAura(Unit& from, uint32 spellId)
     from.RemoveAurasDueToSpell(spellId);
 }
 
+void PeriodicTickContext::CastTriggeredAt(float x, float y, float z, uint32 spellId)
+{
+    if (caster)
+    {
+        caster->CastSpell(x, y, z, spellId, true, NULL, NULL, ObjectGuid(), &spell);
+    }
+}
+
 void AfterCastContext::CastTriggeredAt(float x, float y, float z, uint32 spellId)
 {
     caster.CastSpell(x, y, z, spellId, true, NULL, NULL, ObjectGuid(), &spell);

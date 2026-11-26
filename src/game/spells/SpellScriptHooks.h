@@ -86,7 +86,8 @@ struct SpellEntry;
  *   crit, its absorb and resist), `Aura::PeriodicDummyTick`, before its family switch, and `Aura::TriggerSpell`, for
  *   the tick of a periodic trigger whose aura has a caster and a trigger target, before its trigger spell is looked
  *   up, with `dummy` true and the effect's amount. Return() ends the tick with nothing dealt or cast. A body may change
- *   the amount; a body that removes the ticking aura must Return().
+ *   the amount and cast at a point (PeriodicTickContext::CastTriggeredAt); a body that removes the ticking aura must
+ *   Return().
  * - CheckProc: `Unit::ProcDamageAndSpellFor`, after the proc event accepted a holder. Return(false) drops the holder
  *   from this proc. Return(true) keeps it, and for a holder with no spell_proc_event row its effects then skip
  *   Aura::CanProcFrom (their class mask and the hit's kind, which refuses a hit that dealt nothing), as the core's
@@ -267,8 +268,13 @@ struct CheckCastContext
 /// SelectTargets's context. Value: void.
 struct SelectTargetsContext
 {
-    /// `cast` is the cast whose targets are selected and `effectRadius` the radius Spell::SetTargetMap reckoned for
-    /// the effect (Spell::GetSpellRangeAndRadius); a context built outside a cast has neither.
+    /// `cast` is the cast whose targets are selected and `effectRadius` the radius Spell::SetTargetMap holds when the
+    /// hook runs: the effect's, as Spell::GetSpellRangeAndRadius reckons it with the caster's radius modifiers, except
+    /// where the target mode rescales it first: TARGET_RANDOM_NEARBY_LOC takes 30 yards for spell 40869 and then a
+    /// random share of it (SpellTargeting.cpp:203-207); TARGET_91 and TARGET_RANDOM_NEARBY_DEST a random share of it
+    /// when it is above 0 (:232); and each of the four dynamic-object modes, in a cast that carries no destination,
+    /// 0 for an effect with no radius index and 10 yards for spell 50019 (:1415, :1420). A context built outside a
+    /// cast has neither.
     SelectTargetsContext(Unit& casterUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
                          uint32 implicitTargetMode, std::list<Unit*>& unitTargets, uint32& maxTargetCount,
                          Unit* castTargetUnit = NULL, Spell* cast = NULL, float effectRadius = 0.0f)
@@ -280,7 +286,7 @@ struct SelectTargetsContext
     }
 
     /// Puts in the list, in place of the units it holds, the `count` living units of the lowest health percent among
-    /// the members of the caster's raid or party and their pets, him and his pet included, within the effect's radius
+    /// the members of the caster's raid or party and their pets, him and his pet included, within the context's radius
     /// of the cast's unit target (of the caster when the cast has none): Spell::FillRaidOrPartyHealthPriorityTargets
     /// of the cast, for the whole raid, with the pets and the caster. Circle of Healing's pick. A context built outside
     /// a cast leaves the list empty.
@@ -297,7 +303,9 @@ struct SelectTargetsContext
 
 private:
     Spell* m_cast;                                  ///< the cast whose targets are selected; NULL outside a cast
-    float m_radius;                                 ///< the effect's radius, as Spell::SetTargetMap reckoned it
+    float m_radius;                                 ///< the radius Spell::SetTargetMap holds when the hook runs: the
+                                                    ///< effect's, rescaled first by the random-point and the
+                                                    ///< dynamic-object target modes (the constructor's comment)
 };
 
 /// EffectValue's context. Value: void.
@@ -482,6 +490,11 @@ struct PeriodicTickContext
     {
         target.AssertSpellSeamOwner();
     }
+
+    /// The aura's caster casts `spellId` at the point, triggered, with the ticking aura's spell as the trigger and no
+    /// triggering aura, as AfterCastContext::CastTriggeredAt casts: a cast of the caster's own, so its hits start his
+    /// procs. Nothing when the aura has no caster.
+    void CastTriggeredAt(float x, float y, float z, uint32 spellId);
 
     Unit& target;                                   ///< the unit the aura ticks on
     Unit* caster;                                   ///< the aura's caster; NULL when it cannot be found
