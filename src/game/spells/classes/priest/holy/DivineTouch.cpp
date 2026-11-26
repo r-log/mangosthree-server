@@ -25,8 +25,6 @@
 
 #include "spells/classes/priest/holy/DivineTouch.h"
 #include "spells/data/SpellMgr.h"
-#include "spells/PeriodicTiming.h"
-#include "spells/SpellModMgr.h"
 #include "entities/Unit.h"
 #include "DBCStores.h"
 
@@ -43,15 +41,20 @@ namespace
     /// Divine Touch's heal, cast at the unit the priest's Renew hit.
     uint32 const DIVINE_TOUCH_HEAL = 63544;
 
+    /// Retail's factor on the rank's percent of the Renew tick, in hundredths. Every Divine Touch heal in the retail
+    /// capture is 0.444 of the Renew tick on the same unit at rank 2 (10% x 4.44), at both hastes it shows (Renew
+    /// every 2738 and 2875 ms): haste does not change it, and the client's data holds no field for it.
+    int64 const TICK_FACTOR_HUNDREDTHS = 444;
+
     typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
 
     /// 63534, 63542: Divine Touch: on a hit of the priest's Renew that landed (Priest::DivineTouchFrom), the priest
     /// casts its heal (63544) at the unit hit, triggered by the rank's aura: the rank's percent (the aura's amount,
     /// effect 0's 5 or 10) of the tick his Renew there holds (its amount, his done-side bonus included, before a
-    /// crit), times Renew's base duration over its period as his Renew's aura reckons it (Priest::RenewPeriod),
-    /// through Priest::DivineTouchHeal. The heal's hit starts procs (TriggeredCastStartsProcs). CANT_TRIGGER for an
-    /// effect but effect 0 and for every event that is not such a hit, its own heal's among them; FAILED, with nothing
-    /// cast, when the unit holds no Renew of his, the heal comes to 0 or the cast is refused.
+    /// crit), times retail's 4.44, through Priest::DivineTouchHeal. The heal's hit starts procs
+    /// (TriggeredCastStartsProcs). CANT_TRIGGER for an effect but effect 0 and for every event that is not such a hit,
+    /// its own heal's among them; FAILED, with nothing cast, when the unit holds no Renew of his, the heal comes to 0
+    /// or the cast is refused.
     ProcOutcome DivineTouchProc(OnProcContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0 || !ctx.procSpell ||
@@ -66,9 +69,7 @@ namespace
         }
 
         AuraHandle const held(*renew);
-        int32 const heal = Priest::DivineTouchHeal(held.Amount(EFFECT_INDEX_0), ctx.triggerAmount,
-                                                   GetSpellDuration(ctx.procSpell),
-                                                   Priest::RenewPeriod(ctx.caster, *ctx.procSpell));
+        int32 const heal = Priest::DivineTouchHeal(held.Amount(EFFECT_INDEX_0), ctx.triggerAmount);
         if (heal <= 0)
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
@@ -92,31 +93,12 @@ bool Priest::DivineTouchFrom(uint32 procFlag, uint32 procEx, uint32 spellId)
     return spellId == RENEW && helpfulHit && landed && !tick;
 }
 
-int32 Priest::RenewPeriod(Unit const& priest, SpellEntry const& renew)
+int32 Priest::DivineTouchHeal(int32 tick, int32 percent)
 {
-    SpellEffectEntry const* effect = renew.GetSpellEffect(EFFECT_INDEX_0);
-    if (!effect || !effect->EffectAuraPeriod)
+    if (tick <= 0 || percent <= 0)
     {
         return 0;
     }
-    int32 period = int32(effect->EffectAuraPeriod);
-    if (SpellModMgr* modOwner = priest.GetSpellMods())
-    {
-        modOwner->ApplySpellMod(renew.ID, SPELLMOD_ACTIVATION_TIME, period);
-    }
-    if (renew.HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECTS_PERIODIC) && !renew.HasAttribute(SPELL_ATTR_EX3_NO_DONE_BONUS))
-    {
-        period = Spells::HastedPeriod(period, priest.GetFloatValue(UNIT_MOD_CAST_HASTE));
-    }
-    return period;
-}
-
-int32 Priest::DivineTouchHeal(int32 tick, int32 percent, int32 baseDurationMs, int32 periodMs)
-{
-    if (tick <= 0 || percent <= 0 || baseDurationMs <= 0 || periodMs <= 0)
-    {
-        return 0;
-    }
-    double const heal = double(tick) * double(percent) / 100.0 * double(baseDurationMs) / double(periodMs) + 0.5;
-    return heal < double(INT32_MAX) ? int32(heal) : INT32_MAX;
+    int64 const heal = (int64(tick) * int64(percent) * TICK_FACTOR_HUNDREDTHS + 5000) / 10000;
+    return heal < int64(INT32_MAX) ? int32(heal) : INT32_MAX;
 }
