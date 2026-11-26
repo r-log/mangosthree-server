@@ -23,8 +23,9 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The Fire, Frost and Arcane talents' spell_proc_event rows and the Discipline priest's (Divine Aegis, Focused Will)
-/// against the proc gate, with the spells their 4.3.4 texts name and the ones they leave out; and the interrupt mark a
+/// The Fire, Frost and Arcane talents' spell_proc_event rows, the Discipline priest's (Divine Aegis, Focused Will) and
+/// the Holy priest's (Surge of Light, Inspiration, Blessed Resilience, Divine Touch) against the proc gate, with the
+/// spells their 4.3.4 texts name and the ones they leave out; and the interrupt mark a
 /// hit's proc event carries when its interrupt effect
 /// stopped a cast, against Improved Counterspell's row, an aura with no row and a row that asks for the mark. A row is
 /// built by hand with the values the world database holds for it. The gate is the two checks a proc event meets
@@ -128,6 +129,24 @@ namespace
     ProcSpell const kSmite = { 585, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000080), 0 };
     ProcSpell const kShadowWordPain = { 589, SPELL_SCHOOL_MASK_SHADOW, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000008000),
                                         0 };
+    /// The priest's spells the Holy rows name or leave out: Heal, Greater Heal, Binding Heal (B 0x4), the instant Flash
+    /// Heal Surge of Light gives (101062, Flash Heal's bit), Power Word: Shield, Prayer of Mending and its heal (33076
+    /// and 33110, B 0x20), Circle of Healing and Divine Touch's heal (C 0x1000).
+    ProcSpell const kHeal = { 2050, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000400), 0 };
+    ProcSpell const kGreaterHeal = { 2060, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000001000), 0 };
+    ProcSpell const kBindingHeal = { 32546, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000400000000),
+                                     0 };
+    ProcSpell const kSurgeFlashHeal = { 101062, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST,
+                                        UI64LIT(0x0000000000000800), 0 };
+    ProcSpell const kPowerWordShield = { 17, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000001),
+                                         0 };
+    ProcSpell const kPrayerOfMending = { 33076, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST,
+                                         UI64LIT(0x0000002000000000), 0 };
+    ProcSpell const kPrayerOfMendingHeal = { 33110, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST,
+                                             UI64LIT(0x0000002000000000), 0 };
+    ProcSpell const kCircleOfHealing = { 34861, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST,
+                                         UI64LIT(0x0000000010000000), 0 };
+    ProcSpell const kDivineTouchHeal = { 63544, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, 0, 0x00001000 };
 
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
                                   kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
@@ -136,7 +155,9 @@ namespace
                                   kArcaneBrilliance, kMageArmor, kManaShield, kBlink, kClearcasting, kPresenceOfMind,
                                   kArcanePower, kLightningBolt, kBlizzardChillRankTwo, kPiercingChill, kOrbHitRankOne,
                                   kFlameOrbHit, kShatteredBarrierFreeze, kRingFreeze, kFlashHeal, kPrayerOfHealing,
-                                  kRenew, kPenanceHeal, kSmite, kShadowWordPain };
+                                  kRenew, kPenanceHeal, kSmite, kShadowWordPain, kHeal, kGreaterHeal, kBindingHeal,
+                                  kSurgeFlashHeal, kPowerWordShield, kPrayerOfMending, kPrayerOfMendingHeal,
+                                  kCircleOfHealing, kDivineTouchHeal };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -268,6 +289,36 @@ namespace
     uint32 const kDivineAegisRank3Flags = kDivineAegisFlags | PROC_FLAG_SUCCESSFUL_POSITIVE_AOE_HIT;
     uint32 const kFocusedWillFlags = 0x222a8;
 
+    /// Surge of Light 88687, a new row (its rank 2, 88690, takes it): family 6, the five spells its text names on every
+    /// effect, Smite (A 0x80), Heal (A 0x400), Flash Heal (A 0x800), Greater Heal (A 0x1000) and Binding Heal (B 0x4),
+    /// the Spell.dbc proc flags, no hit kind and no custom chance, so the client's 3% and 6% roll.
+    SpellProcEventEntry const kSurgeOfLight = ProcRow(0, SPELLFAMILY_PRIEST, UI64LIT(0x0000000400001C80), 0,
+                                                      PROC_EX_NONE);
+    /// Inspiration 14892 (its rank 2, 15362, takes its row): family 6, Prayer of Healing, Heal, Flash Heal, Greater
+    /// Heal and Circle of Healing (A 0x10001E00), Binding Heal, Prayer of Mending's heal and Penance's heal (B
+    /// 0x10024), a critical hit; and the row it held before, whose B words (0x10004) left Prayer of Mending's heal out.
+    SpellProcEventEntry const kInspiration = ProcRow(0, SPELLFAMILY_PRIEST, UI64LIT(0x0001002410001E00), 0,
+                                                     PROC_EX_CRITICAL_HIT);
+    SpellProcEventEntry const kInspirationBefore = ProcRow(0, SPELLFAMILY_PRIEST, UI64LIT(0x0001000410001E00), 0,
+                                                           PROC_EX_CRITICAL_HIT);
+    /// Blessed Resilience 33142 (its rank 2, 33145, takes its row): every school, no family, no mask, the Spell.dbc
+    /// proc flags, a normal or a critical hit; and the row it held before, a critical hit alone. Its script refuses the
+    /// normal hits not greater than 10% of the priest's health (PriestBlessedResilienceTest).
+    SpellProcEventEntry const kBlessedResilience = ProcRow(SPELL_SCHOOL_MASK_ALL, 0, 0, 0,
+                                                           PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT);
+    SpellProcEventEntry const kBlessedResilienceBefore = ProcRow(SPELL_SCHOOL_MASK_ALL, 0, 0, 0, PROC_EX_CRITICAL_HIT);
+    /// Divine Touch 63534 (its rank 2, 63542, takes its row): family 6, Renew (A 0x40) on every effect, a helpful spell
+    /// landed (the client gives the talent no proc flags), no hit kind, a chance of 100 (the client gives it none).
+    SpellProcEventEntry const kDivineTouch = WithCooldownAndChance(
+        ProcRow(0, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000000040), PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_NONE),
+        0, 100.0f);
+    /// The Spell.dbc proc flags: Surge of Light's, a helpful or a harmful spell landed (0x14000); Inspiration's, the
+    /// helpful spell and the helpful area hit among them (0x15550); Blessed Resilience's, Focused Will's hits taken
+    /// (0x222a8), no periodic tick.
+    uint32 const kSurgeOfLightFlags = PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL | PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT;
+    uint32 const kInspirationFlags = 0x15550;
+    uint32 const kBlessedResilienceFlags = 0x222a8;
+
 
     /// The proc flags the aura answers: the row's, or Spell.dbc's when the row holds none.
     uint32 EventFlags(SpellProcEventEntry const* row, uint32 spellProcFlags)
@@ -308,6 +359,14 @@ namespace
     bool Takes(SpellProcEventEntry const& row, ProcSpell const& spell, uint32 procEx)
     {
         return FitsMask(row, spell) && PassesGate(row, spell, procEx);
+    }
+
+    /// Whether the row of an aura whose Spell.dbc proc flags are `spellProcFlags` takes `spell` at an event of the flag
+    /// `procFlag` and the hit kind `procEx`: its mask and the gate both.
+    bool TakesAt(SpellProcEventEntry const& row, uint32 spellProcFlags, ProcSpell const& spell, uint32 procFlag,
+                 uint32 procEx)
+    {
+        return FitsMask(row, spell) && Gate(row, spellProcFlags, spell, procFlag, procEx);
     }
 }
 
@@ -726,4 +785,150 @@ TEST(SpellProcEventRows_FocusedWillTakesTheNormalAndCriticalHitsItsOwnerTakesAnd
     // A periodic tick taken carries a flag the talent does not name, critical or not.
     CHECK(!Gate(kFocusedWill, kFocusedWillFlags, kShadowWordPain, PROC_FLAG_ON_TAKE_PERIODIC, PROC_EX_CRITICAL_HIT));
     CHECK(!Gate(kFocusedWill, kFocusedWillFlags, kShadowWordPain, PROC_FLAG_ON_TAKE_PERIODIC, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_SurgeOfLightTakesItsFiveSpellsAndNotShieldRenewMendingOrCircle)
+{
+    CHECK_EQ(kSurgeOfLightFlags, uint32(0x14000));
+    CHECK_EQ(kSurgeOfLight.schoolMask, uint32(0));
+    CHECK_EQ(kSurgeOfLight.spellFamilyName, uint32(SPELLFAMILY_PRIEST));
+    CHECK_EQ(kSurgeOfLight.procFlags, uint32(0));
+    CHECK_EQ(kSurgeOfLight.procEx, uint32(PROC_EX_NONE));
+    CHECK(kSurgeOfLight.customChance == 0.0f);
+    CHECK_EQ(kSurgeOfLight.cooldown, uint32(0));
+
+    // Smite's hit, a harmful spell landed, normal or critical.
+    CHECK(TakesAt(kSurgeOfLight, kSurgeOfLightFlags, kSmite, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT,
+                  PROC_EX_NORMAL_HIT));
+    CHECK(TakesAt(kSurgeOfLight, kSurgeOfLightFlags, kSmite, PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT,
+                  PROC_EX_CRITICAL_HIT));
+
+    // The four heals' hits, a helpful spell landed, normal or critical; the instant Flash Heal of Surge of Light's
+    // own buff shares Flash Heal's bit, so it rolls again too (the client's data).
+    for (ProcSpell const& spell : { kHeal, kFlashHeal, kGreaterHeal, kBindingHeal, kSurgeFlashHeal })
+    {
+        CHECK(TakesAt(kSurgeOfLight, kSurgeOfLightFlags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                      PROC_EX_NORMAL_HIT));
+        CHECK(TakesAt(kSurgeOfLight, kSurgeOfLightFlags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                      PROC_EX_CRITICAL_HIT));
+        CHECK(!TakesAt(kSurgeOfLight, kSurgeOfLightFlags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_MISS));
+    }
+
+    // Power Word: Shield, Renew, Prayer of Mending and its heal, Circle of Healing, and the priest's other heals and
+    // harmful spells: none of the row's bits. Without the row any of their hits rolled.
+    for (ProcSpell const& spell : { kPowerWordShield, kRenew, kPrayerOfMending, kPrayerOfMendingHeal, kCircleOfHealing,
+                                    kPrayerOfHealing, kPenanceHeal, kDivineTouchHeal, kShadowWordPain })
+    {
+        CHECK(!FitsMask(kSurgeOfLight, spell));
+        CHECK(!TakesAt(kSurgeOfLight, kSurgeOfLightFlags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                       PROC_EX_NORMAL_HIT));
+        CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(NULL, kSurgeOfLightFlags, Row(spell),
+                                                       PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_NORMAL_HIT));
+    }
+
+    // Another class's spell is not the row's family.
+    CHECK(!Gate(kSurgeOfLight, kSurgeOfLightFlags, kFireball, kHarmfulSpellLanded, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_InspirationTakesTheCriticalHealOfPrayerOfMendingAsWellAsItsOtherHeals)
+{
+    CHECK_EQ(kInspirationFlags & PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, uint32(PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL));
+    CHECK_EQ(kInspiration.spellFamilyName, uint32(SPELLFAMILY_PRIEST));
+    CHECK_EQ(kInspiration.procFlags, uint32(0));
+    CHECK_EQ(kInspiration.procEx, uint32(PROC_EX_CRITICAL_HIT));
+
+    // Prayer of Mending's heal (33110), at a crit: the retail 4.3.4 sniff (build 15595, 2012-05-28) shows its critical
+    // heal of 14638, packet 168443, followed by Inspiration, packets 168615 and 168616. Not at a normal heal. The row
+    // before took none of it.
+    CHECK(TakesAt(kInspiration, kInspirationFlags, kPrayerOfMendingHeal, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                  PROC_EX_CRITICAL_HIT));
+    CHECK(!TakesAt(kInspiration, kInspirationFlags, kPrayerOfMendingHeal, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                   PROC_EX_NORMAL_HIT));
+    CHECK(!FitsMask(kInspirationBefore, kPrayerOfMendingHeal));
+
+    // The other heals its text names, at a crit, with this row and the one before: Flash Heal, Heal, Greater Heal,
+    // Binding Heal, Penance's heal, Prayer of Healing and Circle of Healing.
+    for (ProcSpell const& spell : { kFlashHeal, kHeal, kGreaterHeal, kBindingHeal, kPenanceHeal, kPrayerOfHealing,
+                                    kCircleOfHealing })
+    {
+        CHECK(TakesAt(kInspiration, kInspirationFlags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                      PROC_EX_CRITICAL_HIT));
+        CHECK(!TakesAt(kInspiration, kInspirationFlags, spell, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL,
+                       PROC_EX_NORMAL_HIT));
+        CHECK(FitsMask(kInspirationBefore, spell));
+    }
+
+    // Renew, Power Word: Shield, Smite and Divine Touch's heal are not among them.
+    for (ProcSpell const& spell : { kRenew, kPowerWordShield, kSmite, kDivineTouchHeal })
+    {
+        CHECK(!FitsMask(kInspiration, spell));
+    }
+}
+
+TEST(SpellProcEventRows_BlessedResilienceTakesTheNormalAndCriticalHitsItsOwnerTakesAndNoTick)
+{
+    CHECK_EQ(kBlessedResilienceFlags, uint32(0x222a8));
+    CHECK_EQ(kBlessedResilience.procEx, uint32(3));
+    CHECK_EQ(kBlessedResilience.schoolMask, uint32(127));
+    CHECK_EQ(kBlessedResilience.spellFamilyName, uint32(0));
+    CHECK_EQ(kBlessedResilience.procFlags, uint32(0));
+    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        CHECK(!kBlessedResilience.spellFamilyMask[i]);
+    }
+
+    // A melee hit taken, normal or critical, passes; with the row before, a normal hit did not. A dodge, a parry, a
+    // miss and a block do not.
+    uint32 const meleeTaken = PROC_FLAG_TAKEN_MELEE_HIT | PROC_FLAG_TAKEN_ANY_DAMAGE;
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kBlessedResilience, kBlessedResilienceFlags, NULL, meleeTaken,
+                                                   PROC_EX_NORMAL_HIT));
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kBlessedResilience, kBlessedResilienceFlags, NULL, meleeTaken,
+                                                   PROC_EX_CRITICAL_HIT));
+    CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(&kBlessedResilienceBefore, kBlessedResilienceFlags, NULL,
+                                                    meleeTaken, PROC_EX_NORMAL_HIT));
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kBlessedResilienceBefore, kBlessedResilienceFlags, NULL,
+                                                   meleeTaken, PROC_EX_CRITICAL_HIT));
+    for (uint32 procEx : { uint32(PROC_EX_DODGE), uint32(PROC_EX_PARRY), uint32(PROC_EX_MISS), uint32(PROC_EX_BLOCK) })
+    {
+        CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(&kBlessedResilience, kBlessedResilienceFlags, NULL, meleeTaken,
+                                                        procEx));
+    }
+
+    // A harmful spell's hit taken, of any school, normal or critical; never its resist.
+    for (ProcSpell const& spell : { kSmite, kShadowWordPain, kFireball, kFrostbolt })
+    {
+        CHECK(Gate(kBlessedResilience, kBlessedResilienceFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                   PROC_EX_NORMAL_HIT));
+        CHECK(Gate(kBlessedResilience, kBlessedResilienceFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                   PROC_EX_CRITICAL_HIT));
+        CHECK(!Gate(kBlessedResilience, kBlessedResilienceFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                    PROC_EX_RESIST));
+    }
+
+    // A periodic tick taken carries flags the talent does not name, critical or not, however large.
+    uint32 const tickTaken = PROC_FLAG_ON_TAKE_PERIODIC | PROC_FLAG_TAKEN_ANY_DAMAGE;
+    CHECK(!Gate(kBlessedResilience, kBlessedResilienceFlags, kShadowWordPain, tickTaken, PROC_EX_NORMAL_HIT));
+    CHECK(!Gate(kBlessedResilience, kBlessedResilienceFlags, kShadowWordPain, tickTaken, PROC_EX_CRITICAL_HIT));
+}
+
+TEST(SpellProcEventRows_DivineTouchRollsAtAChanceOf100WhenThePriestsRenewLands)
+{
+    CHECK(kDivineTouch.customChance == 100.0f);
+    CHECK_EQ(kDivineTouch.procFlags, uint32(PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL));
+    CHECK_EQ(kDivineTouch.procEx, uint32(PROC_EX_NONE));
+    CHECK_EQ(kDivineTouch.spellFamilyName, uint32(SPELLFAMILY_PRIEST));
+    CHECK_EQ(kDivineTouch.cooldown, uint32(0));
+
+    // Renew's hit, normal or critical; the client gives the talent no proc flags, so the row's are the event's.
+    CHECK_EQ(EventFlags(&kDivineTouch, 0), uint32(PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL));
+    CHECK(TakesAt(kDivineTouch, 0, kRenew, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_NORMAL_HIT));
+    CHECK(TakesAt(kDivineTouch, 0, kRenew, PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL, PROC_EX_CRITICAL_HIT));
+
+    // Renew's ticks carry a flag the row does not name; Divine Touch's own heal and the other heals fit none of its
+    // bits.
+    CHECK(!Gate(kDivineTouch, 0, kRenew, PROC_FLAG_ON_DO_PERIODIC, PROC_EX_PERIODIC_POSITIVE | PROC_EX_NORMAL_HIT));
+    for (ProcSpell const& spell : { kDivineTouchHeal, kFlashHeal, kPrayerOfMendingHeal, kSurgeFlashHeal })
+    {
+        CHECK(!FitsMask(kDivineTouch, spell));
+    }
 }
