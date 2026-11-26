@@ -1840,7 +1840,7 @@ TEST(SpellScriptHooks_AnAfterHitContextShowsImmuneAsTheEngineDoesAndCastsNothing
     CHECK(target.GetSpellAuraHolderMap().empty());
 }
 
-TEST(SpellScriptHooks_APeriodicTickContextCastsAtAPointForItsCasterAndForNoOneElse)
+TEST(SpellScriptHooks_APeriodicTickContextWithNoCasterCastsNothingAtAPoint)
 {
     BareCreature target;
     SpellEntry const& spell = HookSpell();
