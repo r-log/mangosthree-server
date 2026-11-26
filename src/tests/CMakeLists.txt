@@ -671,7 +671,7 @@ if(Python3_Interpreter_FOUND)
             --class Player --header ${CMAKE_SOURCE_DIR}/src/game/entities/player/Player.h)
 
     add_test(NAME unit_methods
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 672
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --all --gate 671
             --class Unit --header ${CMAKE_SOURCE_DIR}/src/game/entities/Unit.h)
 
     add_test(NAME world_session_methods
