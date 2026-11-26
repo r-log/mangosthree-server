@@ -34,6 +34,10 @@
 #include "spells/classes/priest/holy/PrayerOfMending.h"
 #include "spells/SpellScriptHooks.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
+#include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
+#include "spells/SpellCooldownMgr.h"
+#include "DBCStructure.h"
 #include "Creature.h"
 
 #include <cstddef>
@@ -68,6 +72,38 @@ namespace
                 m_uint32Values = NULL;
             }
     };
+
+    struct SpellRowStorage
+    {
+        alignas(SpellEntry) unsigned char bytes[sizeof(SpellEntry)];
+    };
+
+    struct HolderStorage
+    {
+        alignas(SpellAuraHolder) unsigned char bytes[sizeof(SpellAuraHolder)];
+    };
+
+    // A Spell.dbc row with only its id, which the contexts name; it is not in the spell store.
+    SpellEntry const& SpellRow(SpellRowStorage& storage, uint32 spellId)
+    {
+        for (unsigned char& byte : storage.bytes)
+        {
+            byte = 0;
+        }
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(storage.bytes);
+        row->ID = spellId;
+        return *row;
+    }
+
+    // A holder's storage without its constructor, every byte 0: the context only names it.
+    SpellAuraHolder& EmptyHolder(HolderStorage& storage)
+    {
+        for (unsigned char& byte : storage.bytes)
+        {
+            byte = 0;
+        }
+        return *reinterpret_cast<SpellAuraHolder*>(storage.bytes);
+    }
 }
 
 TEST(PriestPrayerOfMending_TheFileHoldsOneOnProcRowOnTheAuraInTheGameToo)
@@ -179,10 +215,20 @@ TEST(PriestPrayerOfMending_AUnitMayTakeTheAuraWhenItIsAnotherAliveWithinReachVis
     CHECK(!OnProcContext::GroupUnitMayTake(true, false, false, true, true));
 }
 
-TEST(PriestPrayerOfMending_ABareCreatureHoldsNoGlyph)
+TEST(PriestPrayerOfMending_ABareCreatureHoldsNoGlyphAndHasNoGroupToJumpTo)
 {
     BareCreature creature;
 
     // No glyph aura on a unit that holds none.
     CHECK_EQ(Priest::MendingGlyph(creature), int32(0));
+
+    // A creature is neither a player nor a pet: it has no group, so the proc context's walk finds no unit.
+    CHECK(!creature.IsPet());
+    SpellRowStorage auraRow;
+    HolderStorage storage;
+    SpellCooldownMgr cooldowns;
+    OnProcContext ctx(creature, NULL, SpellRow(auraRow, MENDING_AURA), EFFECT_INDEX_0, AuraHandle(EmptyHolder(storage)),
+                      NULL, PROC_FLAG_TAKEN_MELEE_HIT, PROC_EX_NORMAL_HIT, 0, 0, ObjectGuid(), 0, NULL, cooldowns);
+    CHECK(ctx.RandomGroupUnitNear(20.0f) == NULL);
+    CHECK(ctx.RandomGroupUnitNear(0.0f) == NULL);
 }

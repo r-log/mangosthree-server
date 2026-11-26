@@ -46,8 +46,9 @@ class Unit;
  * the heal's spell power part (the spell bonus row of 33110) is added after it. While charges remain after the heal,
  * the aura jumps: a new holder with one charge fewer is made for the priest on a member of the holder's group or a pet
  * of a member (OnProcContext::RandomGroupUnitNear), chosen at random, never the holder, and marked ready to proc
- * (OnProcContext::MoveAuraTo); the old holder, a single-target aura of the priest's, goes when the new one lands. A holder with no group, or with no unit of its group in reach, keeps the aura
- * and spends a charge. A jump needs a player holder or a pet holder and a player priest.
+ * (OnProcContext::MoveAuraTo); the old holder, a single-target aura of the priest's, goes when the new one lands. A
+ * holder with no group, or with no unit of its group in reach, keeps the aura and spends a charge. A jump needs a
+ * player holder or a pet holder and a player priest.
  */
 
 namespace Priest

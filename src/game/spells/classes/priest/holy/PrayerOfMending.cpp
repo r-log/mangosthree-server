@@ -94,7 +94,8 @@ namespace
     /// 41635: Prayer of Mending's aura, when its holder is hit: the proc handler of aura type 225. While the holder
     /// keeps more than one charge and its caster is a player in the world, the aura jumps to a unit of the holder's
     /// group within its radius (OnProcContext::RandomGroupUnitNear, with the radius the priest's modifiers give), when
-    /// there is one (OnProcContext::MoveAuraTo, one charge fewer). Then the holder is healed: it casts Prayer of Mending's heal at itself, triggered, for the aura's amount,
+    /// there is one (OnProcContext::MoveAuraTo, one charge fewer). Then the holder is healed: it casts Prayer of
+    /// Mending's heal at itself, triggered, for the aura's amount,
     /// raised by the priest's Glyph of Prayer of Mending when this is the cast's first heal, by its percent of the whole
     /// heal, his spell power's part included (Priest::MendingHealAmount),
     /// with the priest as the original caster and the aura's spell as the trigger, and no triggering aura, so that the
