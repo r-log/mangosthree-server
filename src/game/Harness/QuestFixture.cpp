@@ -100,6 +100,7 @@ namespace Harness
             bool   dealsDamage = false;           // the run's casts deal damage (the spell family)
             bool   takesDamage = false;           // the player takes damage (the spell family, D11 PR 2)
             bool   heals = false;                 // the player heals or is healed (D11 PR 2)
+            bool   dies = false;                  // the player dies in the run (Spirit of Redemption, 1232)
             std::set<uint32> exploredAreas;       // the areas the player's movement explores (D11 PR 2)
         };
 
@@ -219,7 +220,8 @@ namespace Harness
             DamageDealt,        ///< a damage type: the run deals damage at all, whatever the amount
             DamageTaken,        ///< a damage-received type: the player takes damage at all
             Healing,            ///< a healing type: the player heals or is healed at all
-            Explores            ///< an exploration type: the overlay holds an area the run explores
+            Explores,           ///< an exploration type: the overlay holds an area the run explores
+            Dies                ///< a death type: the player dies in the run at all
         };
 
         struct JudgeRow
@@ -279,6 +281,15 @@ namespace Harness
             { ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED,     Judge::Healing },
             { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED,   Judge::Healing },
             { ACHIEVEMENT_CRITERIA_TYPE_EXPLORE_AREA,               Judge::Explores },
+            // a death: Player::SetDeathState moves the three death types, Unit::DealDamage the killed-by
+            // type of the killer, the environment the deaths-from type; read as reached by any death the
+            // plan names, the loosest sound bound, as the damage types above are
+            { ACHIEVEMENT_CRITERIA_TYPE_DEATH_AT_MAP,               Judge::Dies },
+            { ACHIEVEMENT_CRITERIA_TYPE_DEATH,                      Judge::Dies },
+            { ACHIEVEMENT_CRITERIA_TYPE_DEATH_IN_DUNGEON,           Judge::Dies },
+            { ACHIEVEMENT_CRITERIA_TYPE_KILLED_BY_CREATURE,         Judge::Dies },
+            { ACHIEVEMENT_CRITERIA_TYPE_KILLED_BY_PLAYER,           Judge::Dies },
+            { ACHIEVEMENT_CRITERIA_TYPE_DEATHS_FROM,                Judge::Dies },
         };
 
         /// The row of `type`, or NULL for a type the closure does not model.
@@ -427,6 +438,7 @@ namespace Harness
                     case Judge::DamageTaken:        yes = m_t.takesDamage; break;
                     case Judge::Healing:            yes = m_t.heals; break;
                     case Judge::Explores:           yes = OverlayExplored(asset, m_t.exploredAreas); break;
+                    case Judge::Dies:               yes = m_t.dies; break;
                     default:
                         // A row whose judge this switch has no case for: the closure cannot vouch
                         // for it, so CheckQuestPlan refuses the scenario instead of reading it as
@@ -797,6 +809,7 @@ namespace Harness
         t.dealsDamage = plan.dealsDamage;
         t.takesDamage = plan.takesDamage;
         t.heals = plan.heals;
+        t.dies = plan.dies;
         t.exploredAreas = plan.exploredAreas;
         if (q)
         {

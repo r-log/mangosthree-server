@@ -58,6 +58,17 @@
 
 namespace
 {
+    /// Spirit of Redemption, the Holy talent: a passive that the client's data gives one school absorb effect. It takes
+    /// no part of a blow, and DealDamage looks for it at a priest's killing blow to start the form (27827).
+    uint32 const SPIRIT_OF_REDEMPTION_TALENT = 20711;
+
+    /// Spirit of Redemption's form: the priest who holds it takes no damage (DealDamage) but the form's own end.
+    uint32 const SPIRIT_OF_REDEMPTION_FORM = 27827;
+
+    /// The form's spirit aura, whose removal kills him (aura 176): its damage passes the form's guard, so a removal
+    /// that takes it off before the form (`.unaura all` goes by spell id) still ends in his death.
+    uint32 const SPIRIT_OF_REDEMPTION_SPIRIT = 27795;
+
     /// The amount of `holder`'s aura of `effect`; `fallback` when `effect` is -1, 0 when the holder has no aura there.
     int32 DeathPreventionAmount(SpellAuraHolder const* holder, int8 effect, int32 fallback)
     {
@@ -115,7 +126,8 @@ uint32 Unit::CalcArmorReducedDamage(Unit* pVictim, const uint32 damage)
  * @brief Calculates resistance, absorbs, and split-damage effects for incoming damage.
  *
  * A blow that would still kill the unit after them meets its death-prevention auras (DeathPreventionFor): one of them
- * may save him, and what it absorbs of the blow is counted in `absorb`.
+ * may save him, and what it absorbs of the blow is counted in `absorb`. The Spirit of Redemption talent's absorb takes
+ * nothing of a blow and keeps its amount, so that DealDamage finds the talent on the priest at his killing blow.
  *
  * @param pCaster The attacking caster.
  * @param schoolMask The incoming damage school mask.
@@ -237,6 +249,12 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
         if (DeathPreventionRow const* row = DeathPreventionFor(spellProto->ID))
         {
             deathPreventions.push_back(std::make_pair(*i, row));
+            continue;
+        }
+
+        // The Spirit of Redemption talent absorbs nothing: a hit would spend it and take the talent off the priest
+        if (spellProto->ID == SPIRIT_OF_REDEMPTION_TALENT)
+        {
             continue;
         }
 
@@ -1139,6 +1157,16 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         return 0;
     }
 
+    // A priest in Spirit of Redemption's form takes no damage. The form's immunity (62371) misses the hits that reach
+    // here with no immunity check (a lava tick, the fall into the void), and a lethal one would find the talent again
+    // and cast the form anew, ending it at once. The form's own end still kills him: 27827 has left him by then, and
+    // the spirit aura's own damage passes in any case.
+    if (victimPlayer && pVictim->HasAura(SPIRIT_OF_REDEMPTION_FORM) &&
+        !(spellProto && spellProto->ID == SPIRIT_OF_REDEMPTION_SPIRIT))
+    {
+        return 0;
+    }
+
     DEBUG_FILTER_LOG(LOG_FILTER_DAMAGE, "DealDamageStart");
 
     uint32 health = pVictim->GetHealth();
@@ -1323,15 +1351,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         if (!damageFromSpiritOfRedemtionTalent &&           // not called from SPELL_AURA_SPIRIT_OF_REDEMPTION
             victimPlayer && pVictim->getClass() == CLASS_PRIEST)
         {
-            AuraList const& vDummyAuras = pVictim->GetAurasByType(SPELL_AURA_DUMMY);
-            for (AuraList::const_iterator itr = vDummyAuras.begin(); itr != vDummyAuras.end(); ++itr)
-            {
-                if ((*itr)->GetSpellProto()->SpellIconID == 1654)
-                {
-                    spiritOfRedemtionTalentReady = *itr;
-                    break;
-                }
-            }
+            spiritOfRedemtionTalentReady = pVictim->GetAura(SPIRIT_OF_REDEMPTION_TALENT, EFFECT_INDEX_0);
         }
 
         /*
@@ -1422,7 +1442,8 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
 
             // achievement stuff
             victimPlayer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_DAMAGE_RECEIVED, health);
-            if (player_tap)
+            // a player who kills himself (Spirit of Redemption's end) makes no PvP kill, as the kill proc above
+            if (player_tap && player_tap != pVictim)
             {
                 player_tap->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_SPECIAL_PVP_KILL, 1, 0, pVictim);
             }

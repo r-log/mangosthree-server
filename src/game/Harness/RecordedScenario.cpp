@@ -80,6 +80,7 @@ namespace Harness
     {
         const bool takesDamage = spellPlan && spellPlan->takesDamage;
         const bool heals = spellPlan && spellPlan->heals;
+        const bool dies = spellPlan && spellPlan->dies;
         char persist[640];
         const std::vector<uint32> criteriaIds = Rec().FiredCriteriaIds();
         std::set<uint32> firedTypes;
@@ -149,6 +150,12 @@ namespace Harness
                             firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED) || firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED)))
         {
             snprintf(persist, sizeof(persist), "BUG(a healing criteria fired though the plan heals nothing, which the closure reads as reaching none)");
+        }
+        else if (!dies && (firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_DEATH_AT_MAP) || firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_DEATH) ||
+                           firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_DEATH_IN_DUNGEON) || firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_KILLED_BY_CREATURE) ||
+                           firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_KILLED_BY_PLAYER) || firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_DEATHS_FROM)))
+        {
+            snprintf(persist, sizeof(persist), "BUG(a death criteria fired though the plan's player does not die, which the closure reads as reaching none)");
         }
         else if (!unexplored.empty())
         {

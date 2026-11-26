@@ -64,6 +64,7 @@ namespace Harness
         bool   dealsDamage = false;         ///< the scenario's casts deal damage (the spell family, decoupling D11)
         bool   takesDamage = false;         ///< the player takes damage (the spell family, D11 PR 2)
         bool   heals = false;               ///< the player heals or is healed (the spell family, D11 PR 2)
+        bool   dies = false;                ///< the player dies in the run (the spell family: Spirit of Redemption)
         std::set<uint32> exploredAreas;     ///< the areas the player's own movement explores (D11 PR 2)
     };
 

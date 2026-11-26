@@ -142,6 +142,7 @@ namespace Harness
             plan.dealsDamage = true;
             plan.takesDamage = TakesDamage();
             plan.heals = Heals();
+            plan.dies = Dies();
             for (size_t i = 0; i < steps.size(); ++i)
             {
                 plan.takesDamage = plan.takesDamage || steps[i].swing || steps[i].blow || steps[i].swingAtMs;
@@ -627,6 +628,8 @@ namespace Harness
         virtual bool TakesDamage() const { return false; }
         /// Whether the mage heals or is healed.
         virtual bool Heals() const { return false; }
+        /// Whether the caster dies in the run.
+        virtual bool Dies() const { return false; }
         /// His health set before a swing or a blow; 0 for his maximum.
         virtual uint32 SwingHealth() const { return 0; }
         /// What the scenario does to him right after he is staged, before the staged line is read.
