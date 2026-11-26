@@ -1249,6 +1249,13 @@ namespace
 {
     /// Run Speed Marker: the hidden aura a speed buff's aura restrictions row excludes its caster on.
     constexpr uint32 SPEED_BUFF_MARKER = 96223;
+
+    /// The speed buffs that carry the marker though the client's data gives them no restrictions row naming it: Body
+    /// and Soul's second rank (65081), whose every holder takes 96223 with it in the retail capture, 11 of 11.
+    constexpr uint32 MARKER_CARRIERS_WITHOUT_A_ROW[] =
+    {
+        65081,  // Body and Soul, rank 2
+    };
 }
 
 uint32 SpeedBuffMarker()
@@ -1258,6 +1265,10 @@ uint32 SpeedBuffMarker()
 
 bool CarriesSpeedBuffMarker(SpellEntry const& spell)
 {
+    if (Holds(MARKER_CARRIERS_WITHOUT_A_ROW, spell.ID))
+    {
+        return true;
+    }
     SpellAuraRestrictionsEntry const* restrictions = spell.GetSpellAuraRestrictions();
     return restrictions && restrictions->ExcludeCasterAuraSpell == SPEED_BUFF_MARKER;
 }

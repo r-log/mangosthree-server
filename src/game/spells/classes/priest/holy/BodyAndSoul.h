@@ -39,12 +39,14 @@ class Unit;
  *
  * BodyAndSoul.cpp registers three rows. Power Word: Shield (17), once its holder is added to a unit: the priest who
  * cast it casts his rank's speed (BodyAndSoulSpeed: 64128, +30%, or 65081, +60%, for 4 seconds) at that unit. Leap of
- * Faith (73325), once his cast of it is over: he casts the same at the unit it pulled. Its dummy effect is
- * LeapOfFaith.cpp's row, and its hit deals no heal and no damage, so no after-hit row would run for it. Cure Disease
+ * Faith (73325), once his cast of it is over: he casts the same at the unit it was cast at, when that is not himself.
+ * Its dummy effect is LeapOfFaith.cpp's row, and its hit deals no heal and no damage, so no after-hit row would run
+ * for it. Cure Disease
  * (528), once his cast of it at himself is over: at his rank's chance (BodyAndSoulPoisonChance: effect 1 of the rank,
  * 50 or 100 in the client's data) he casts 64136 at himself, the client's Body and Soul dispel, whose effect takes
- * one poison off him through the engine's dispel of its type. The talent's effect masks name Power Word: Shield alone,
- * so the script keys on the three spells' ids.
+ * one poison off him through the engine's dispel of its type. The talent's effect 0 mask names Power Word: Shield and
+ * its effect 1 mask Divine Hymn (64844), neither Leap of Faith nor Cure Disease, so the script keys on the three
+ * spells' ids.
  */
 
 namespace Priest

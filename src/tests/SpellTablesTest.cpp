@@ -1078,6 +1078,10 @@ TEST(SpellTables_EverySpellWhoseRestrictionsExcludeItsCasterOnTheMarkerCarriesIt
     // The row decides, not the id: Sprint's id on no restrictions row carries nothing.
     MarkerRowStorage bare = {};
     CHECK(!CarriesSpeedBuffMarker(RestrictedSpell(bare, 2983, 0)));
+
+    // Body and Soul's second rank alone carries it by its id, on no restrictions row, as retail marks its holders.
+    MarkerRowStorage bodyAndSoul = {};
+    CHECK(CarriesSpeedBuffMarker(RestrictedSpell(bodyAndSoul, 65081, 0)));
 }
 
 TEST(SpellTables_ASpellCarriesNoMarkerWhenItsRestrictionsDoNotExcludeItsCasterOnIt)
