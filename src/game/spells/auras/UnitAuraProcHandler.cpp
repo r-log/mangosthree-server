@@ -3204,7 +3204,7 @@ bool OnProcContext::MoveAuraTo(Unit& to, Unit& auraCaster, uint32 charges)
 {
     SpellAuraHolder* holder = caster.GetSpellAuraHolder(spell.ID, aura.CasterGuid());
     Aura* procAura = holder ? holder->GetAuraByEffectIndex(effIndex) : NULL;
-    if (!procAura)
+    if (!procAura || holder->GetTrackedAuraType() != TRACK_AURA_TYPE_SINGLE_TARGET)
     {
         return false;
     }
@@ -3223,7 +3223,7 @@ bool OnProcContext::MoveAuraTo(Unit& to, Unit& auraCaster, uint32 charges)
     }
     moved->SetAuraCharges(charges, false);
 
-    // the old holder goes when the new one lands; the proc loop reads its aura after the row returns
+    // the old holder goes when the new one lands; its aura stays valid for the rest of the row
     procAura->SetInUse(true);
     bool const added = to.AddSpellAuraHolder(moved);
     procAura->SetInUse(false);
