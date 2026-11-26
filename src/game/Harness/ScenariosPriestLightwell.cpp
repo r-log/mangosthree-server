@@ -68,9 +68,10 @@ namespace Harness
          *  1. the data's values read; his Lightwell at his feet, as the cast handler starts a ground cast (his mana set
          *     to its maximum first);
          *  2. the Lightwells: every live 31897 within kSearchYards of him counted, the first kept and any other taken
-         *     away by call (Creature::ForcedDespawn); the first one's owner, creator and 59907; then he enters combat
-         *     with the Camel (Unit::SetInCombatState, five seconds of it) and the combat state of him and the
-         *     Lightwell is read;
+         *     away by call (Creature::ForcedDespawn); the first one's owner, creator and 59907; then he is flagged in
+         *     combat with the Camel (Unit::SetInCombatState, five seconds of it: a flag only, no hit and no threat, so
+         *     it runs none of the paths that could spread combat) and the combat state of him and the Lightwell is
+         *     read;
          *  3. the combat states read; the friend's health set to half; his click (CMSG_SPELLCLICK to the spell-click
          *     handler); the charges and the friend's 7001 read;
          *  4. the combat states read; the Camel's hit of 31 percent of the friend's maximum health; his 7001
@@ -97,8 +98,9 @@ namespace Harness
          * glyph held, wells=1, owner=him, holder=him, charges=C+G/C+G-1/C+G-1/C+G-2/C+G-2/0, renew=him/him/him,
          * hits=gone/kept, ticks=3 x the amount the second Renew holds, which is its scaled amount before the done side
          * and 0.308 of his spell power, one point either way, none of them a crit, combat=5/0/0 (five reads, each with
-         * him in combat and the Lightwell out of it, and no click made in combat) and gone=1; cleared is recorded, not
-         * judged. Master records no 59907 and a click that gives nothing.
+         * him flagged in combat and the Lightwell out of it, and no click made in combat: the click handler's
+         * preconditions, recorded as master records them too, not a proof that his combat never spreads) and gone=1;
+         * cleared is recorded, not judged. Master records no 59907 and a click that gives nothing.
          */
         class PriestLightwell : public StagedCasterScenario
         {
