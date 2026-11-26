@@ -97,27 +97,32 @@ TEST(PriestPrayerOfMending_OnlyTheFirstHealOfACastTakesTheGlyphsPercent)
 {
     // The first heal, the holder's charges all of the cast's, takes the glyph's percent of the amount: 60 percent of
     // 5000 is 3000, of 7319 is 4391 (4391.4 cut), of 1 is 0.
-    CHECK_EQ(Priest::MendingHealAmount(5000, GLYPH, CHARGES, CHARGES), int32(8000));
-    CHECK_EQ(Priest::MendingHealAmount(7319, GLYPH, CHARGES, CHARGES), int32(11710));
-    CHECK_EQ(Priest::MendingHealAmount(1, GLYPH, CHARGES, CHARGES), int32(1));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, GLYPH, CHARGES, CHARGES), int32(8000));
+    CHECK_EQ(Priest::MendingHealAmount(7319, 0, GLYPH, CHARGES, CHARGES), int32(11710));
+    CHECK_EQ(Priest::MendingHealAmount(1, 0, GLYPH, CHARGES, CHARGES), int32(1));
 
     // The four heals after it, charges 4, 3, 2 and 1, take the amount alone: the heals of the chain are equal.
     for (uint32 charges : { uint32(4), uint32(3), uint32(2), uint32(1) })
     {
-        CHECK_EQ(Priest::MendingHealAmount(5000, GLYPH, charges, CHARGES), int32(5000));
+        CHECK_EQ(Priest::MendingHealAmount(5000, 0, GLYPH, charges, CHARGES), int32(5000));
     }
 
     // No glyph, or an amount of the glyph that is not above 0: the amount alone, the first heal's too.
-    CHECK_EQ(Priest::MendingHealAmount(5000, 0, CHARGES, CHARGES), int32(5000));
-    CHECK_EQ(Priest::MendingHealAmount(5000, -60, CHARGES, CHARGES), int32(5000));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, 0, CHARGES, CHARGES), int32(5000));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, -60, CHARGES, CHARGES), int32(5000));
 
     // A cast whose whole count the data does not hold has no first heal to tell: the amount alone.
-    CHECK_EQ(Priest::MendingHealAmount(5000, GLYPH, 0, 0), int32(5000));
-    CHECK_EQ(Priest::MendingHealAmount(5000, GLYPH, CHARGES, 0), int32(5000));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, GLYPH, 0, 0), int32(5000));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, GLYPH, CHARGES, 0), int32(5000));
+
+    // The glyph raises the whole heal: with 500 the priest's spell power adds after the amount, 60 percent of 5500 is
+    // 3300 more, so the first heal (8300 + 500) is 1.6 times a later one (5000 + 500); a later heal takes no part of it.
+    CHECK_EQ(Priest::MendingHealAmount(5000, 500, GLYPH, CHARGES, CHARGES), int32(8300));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 500, GLYPH, 4, CHARGES), int32(5000));
 
     // The percent is the glyph's amount: 100 doubles the amount, and the heal never wraps its 32 bits.
-    CHECK_EQ(Priest::MendingHealAmount(5000, 100, CHARGES, CHARGES), int32(10000));
-    CHECK_EQ(Priest::MendingHealAmount(INT32_MAX, GLYPH, CHARGES, CHARGES), int32(INT32_MAX));
+    CHECK_EQ(Priest::MendingHealAmount(5000, 0, 100, CHARGES, CHARGES), int32(10000));
+    CHECK_EQ(Priest::MendingHealAmount(INT32_MAX, 0, GLYPH, CHARGES, CHARGES), int32(INT32_MAX));
 }
 
 TEST(PriestPrayerOfMending_ACastGivesFiveHealsAndAJumpLeavesOneChargeFewer)
@@ -147,7 +152,7 @@ TEST(PriestPrayerOfMending_ACastGivesFiveHealsAndAJumpLeavesOneChargeFewer)
     uint32 raised = 0;
     for (uint32 i = 0; i < 5; ++i)
     {
-        raised += Priest::MendingHealAmount(1000, GLYPH, seen[i], CHARGES) != 1000 ? 1 : 0;
+        raised += Priest::MendingHealAmount(1000, 0, GLYPH, seen[i], CHARGES) != 1000 ? 1 : 0;
     }
     CHECK_EQ(raised, uint32(1));
 }

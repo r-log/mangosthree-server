@@ -50,9 +50,9 @@ namespace Harness
          * holder for the priest) and, while charges remain, jumps with one charge fewer to a unit of the holder's group
          * or a pet of a member, chosen at random within the aura's radius (20 yards, 41635's effect 0), never the
          * holder. Glyph of Prayer of Mending (55685, effect 0 value 60) raises the first heal, the one the holder takes
-         * with all 5 charges, by that percent of the aura's amount. The retail 4.3.4 sniff (build 15595, 2012-05-28)
-         * shows five heals, charges 5, 4, 3, 2 and 1, the fourth holder the second again and the last a pet, the heals
-         * equal and a critical one double; it holds no glyph.
+         * with all 5 charges, by that percent of the whole heal (the aura's amount and his spell power's part). The
+         * retail 4.3.4 sniff (build 15595, 2012-05-28) shows five heals, charges 5, 4, 3, 2 and 1, the fourth holder
+         * the second again and the last a pet, the heals equal and a critical one double; it holds no glyph.
          * Staged: a level 85 human priest (StagedCasterScenario with CLASS_PRIEST) with no talents, Glyph of Prayer of
          * Mending (glyph 271), the Camel ten yards in front of him; and, once he is staged, a level 85 human warlock,
          * the friend, kPriestYards yards behind him, with an Imp (416), his pet, kPetApart yards from him, both level
@@ -82,8 +82,8 @@ namespace Harness
          * friend, G and B are positive, C is 5, the aura was on the friend with C charges after the cast and with no
          * other unit, and the holders read `f<C>/p<C-1>/f<C-2>/p<C-3>/f<C-4>/-` (the aura on the pet with 4 charges
          * after the first hit, back on the friend with 3, and so on to the last heal, which leaves none), and each hit
-         * gave one heal log of 33110, about the unit hit and not critical, the first of them B x G / 100 more than the
-         * third, within 2 points, the third and the fifth the same, the second and the fourth the same. The line
+         * gave one heal log of 33110, about the unit hit and not critical, the first of them H x G / 100 more than the
+         * third, H, within 2 points, the third and the fifth the same, the second and the fourth the same. The line
          * keeps the amounts; the detail names the data, the yards and the unit each heal log names as healer. Master
          * records the first heal without the rise and no holder after the first jump: the pet is no player, so the
          * friend keeps the aura and spends a charge, and the pet's hits heal nothing.
@@ -262,7 +262,7 @@ namespace Harness
                                                                     : std::string("none"));
                     healsOk = healsOk && heal.logs == 1 && heal.onTarget && !heal.crit;
                 }
-                const int64 rise = amount > 0 && glyph > 0 ? amount * glyph / 100 : -1;
+                const int64 rise = amount > 0 && glyph > 0 ? int64(heals[2].amount) * glyph / 100 : -1;
                 const int64 gained = int64(heals[0].amount) - int64(heals[2].amount);
                 const bool riseOk = rise > kRiseTolerance && gained >= rise - kRiseTolerance &&
                                     gained <= rise + kRiseTolerance;

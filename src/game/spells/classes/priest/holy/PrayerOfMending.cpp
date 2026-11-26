@@ -97,11 +97,38 @@ namespace
         aura.SetInUse(false);
     }
 
+    /// The charges Prayer of Mending's aura holds on its first holder: the data's, with the priest's charge modifiers
+    /// (the two pieces of Regalia of Faith, 60154, add one), as the holder's constructor counts them.
+    uint32 MendingFullCharges(SpellEntry const& aura, Unit* priest)
+    {
+        uint32 charges = aura.GetProcCharges();
+        if (SpellModMgr* mods = priest ? priest->GetSpellMods() : NULL)
+        {
+            mods->ApplySpellMod(aura.ID, SPELLMOD_CHARGES, charges);
+        }
+        return charges;
+    }
+
+    /// The part of Prayer of Mending's heal that the priest's spell power adds after its amount, as
+    /// Unit::SpellHealingBonusDone reckons it (his healing bonus through the heal's coefficient), so that the glyph
+    /// raises the whole heal; 0 when the heal's spell is missing.
+    int32 MendingSpellPowerPart(Unit& priest)
+    {
+        SpellEntry const* heal = sSpellStore.LookupEntry(MENDING_HEAL);
+        if (!heal)
+        {
+            return 0;
+        }
+        return priest.SpellBonusWithCoeffs(heal, 0, priest.SpellBaseHealingBonusDone(GetSpellSchoolMask(heal)), 0, HEAL,
+                                           true, SPELL_BONUS_KIND_HEAL);
+    }
+
     /// 41635: Prayer of Mending's aura, when its holder is hit: the proc handler of aura type 225. While the holder
     /// keeps more than one charge and its caster is a player in the world, the aura jumps to a unit of the holder's
     /// group within its radius (Priest::MendingNextHolder, with the radius the priest's modifiers give), when there is
     /// one. Then the holder is healed: it casts Prayer of Mending's heal at itself, triggered, for the aura's amount,
-    /// raised by the priest's Glyph of Prayer of Mending when this is the cast's first heal (Priest::MendingHealAmount),
+    /// raised by the priest's Glyph of Prayer of Mending when this is the cast's first heal, by its percent of the whole
+    /// heal, his spell power's part included (Priest::MendingHealAmount),
     /// with the priest as the original caster and the aura's spell as the trigger, and no triggering aura, so that the
     /// heal starts the priest's procs. OK, so the engine spends the holder's charge (the old holder is gone when the
     /// aura jumped).
@@ -126,7 +153,9 @@ namespace
             }
         }
 
-        int32 const heal = Priest::MendingHealAmount(amount, glyph, charges, ctx.spell.GetProcCharges());
+        uint32 const fullCharges = MendingFullCharges(ctx.spell, priest);
+        int32 const spellPower = priest && glyph > 0 && charges == fullCharges ? MendingSpellPowerPart(*priest) : 0;
+        int32 const heal = Priest::MendingHealAmount(amount, spellPower, glyph, charges, fullCharges);
         ctx.caster.CastCustomSpell(&ctx.caster, MENDING_HEAL, &heal, NULL, NULL, true, NULL, NULL, casterGuid,
                                    &ctx.spell);
         return ProcOutcome::Return(SPELL_AURA_PROC_OK);
@@ -138,13 +167,13 @@ uint32 Priest::RegisterPrayerOfMending(SpellHandlerRegistry& registry)
     return RegisterRanks<OnProcHook>(registry, MENDING_AURA, &MendingProc);
 }
 
-int32 Priest::MendingHealAmount(int32 amount, int32 glyph, uint32 charges, uint32 fullCharges)
+int32 Priest::MendingHealAmount(int32 amount, int32 spellPower, int32 glyph, uint32 charges, uint32 fullCharges)
 {
     if (glyph <= 0 || !fullCharges || charges != fullCharges)
     {
         return amount;
     }
-    int64 const raised = int64(amount) + int64(amount) * glyph / 100;
+    int64 const raised = int64(amount) + (int64(amount) + int64(spellPower)) * glyph / 100;
     return raised > INT32_MAX ? INT32_MAX : int32(raised);
 }
 

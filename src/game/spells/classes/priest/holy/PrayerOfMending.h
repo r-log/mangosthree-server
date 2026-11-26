@@ -56,10 +56,11 @@ namespace Priest
     /// registered.
     uint32 RegisterPrayerOfMending(SpellHandlerRegistry& registry);
 
-    /// The amount Prayer of Mending's heal takes: `amount`, the aura's, raised by `glyph` percent when the holder's
-    /// `charges` are all of the cast's, `fullCharges`, so that this is the first heal of the cast, held to the largest
-    /// int32; `amount` alone for any later heal, for a glyph of 0 or less, and when `fullCharges` is 0.
-    int32 MendingHealAmount(int32 amount, int32 glyph, uint32 charges, uint32 fullCharges);
+    /// The amount Prayer of Mending's heal takes: `amount`, the aura's, raised by `glyph` percent of the whole heal,
+    /// `amount` and `spellPower` (the part the priest's spell power adds after it), when the holder's `charges` are all
+    /// of the cast's, `fullCharges`, so that this is the first heal of the cast, held to the largest int32; `amount`
+    /// alone for any later heal, for a glyph of 0 or less, and when `fullCharges` is 0.
+    int32 MendingHealAmount(int32 amount, int32 spellPower, int32 glyph, uint32 charges, uint32 fullCharges);
 
     /// The charges the aura keeps on its next holder when its holder holding `charges` is hit: one fewer; 0 for 1 or 0
     /// charges, which jump nowhere.
