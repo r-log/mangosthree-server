@@ -24,7 +24,6 @@
  */
 
 #include "spells/classes/priest/holy/CircleOfHealing.h"
-#include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "entities/Unit.h"
 
 namespace
@@ -40,28 +39,19 @@ namespace
     /// Glyph of Circle of Healing: its effect 0, a dummy aura, holds the units it adds (1).
     uint32 const GLYPH_OF_CIRCLE_OF_HEALING = 55675;
 
-    /// Whether `unit` is the current pet of `owner`: a pet whose guid `owner` holds as its pet's.
-    bool IsCurrentPetOf(Unit const& unit, Unit const& owner)
-    {
-        return unit.IsPet() && owner.GetPetGuid() == unit.GetObjectGuid();
-    }
-
-    /// 34861, 49306: Circle of Healing: at its area target mode (TARGET_ALL_FRIENDLY_UNITS_IN_AREA), of the friendly
-    /// units the engine's area fill found within the effect's yards of the cast's destination, its unit target, the
-    /// heal keeps those it may take (Priest::CircleOfHealingTakes: the caster's raid or party members and their pets)
-    /// and of them the living ones of the lowest health percent, as many as Priest::CircleOfHealingUnits names for the
-    /// caster's glyph (Priest::CircleOfHealingMostInjured). Its other target mode, the destination's, fills no unit and
-    /// is left as it is. The caster's removal and the cut to the spell's target limit run after it, as before.
+    /// 34861, 49306: Circle of Healing: at its area target mode (TARGET_ALL_FRIENDLY_UNITS_IN_AREA), the units the
+    /// engine's area fill found give way to the engine's raid or party pick by health with the pets
+    /// (SelectTargetsContext::RaidOrPartyByHealthWithPets: the members of the caster's raid or party and their pets
+    /// within the effect's radius of the cast's unit target, or of the caster without one, the living ones of the
+    /// lowest health percent first), as many as Priest::CircleOfHealingUnits names for the caster's glyph. A creature's
+    /// cast, with no player behind it, takes itself and its pet. Its other target mode, the destination's, fills no
+    /// unit and is left as it is. The caster's removal and the cut to the spell's target limit run after it.
     SpellHandlerOutcome<void> CircleOfHealingTargets(SelectTargetsContext& ctx)
     {
-        if (ctx.targetMode != TARGET_ALL_FRIENDLY_UNITS_IN_AREA)
+        if (ctx.targetMode == TARGET_ALL_FRIENDLY_UNITS_IN_AREA)
         {
-            return SpellHandlerOutcome<void>::Continue();
+            ctx.RaidOrPartyByHealthWithPets(Priest::CircleOfHealingUnits(Priest::CircleOfHealingGlyph(ctx.caster)));
         }
-        Unit const& caster = ctx.caster;
-        ctx.targets.remove_if([&caster](Unit* unit) { return !unit || !Priest::CircleOfHealingTakes(caster, *unit); });
-        Priest::CircleOfHealingMostInjured(ctx.targets,
-                                           Priest::CircleOfHealingUnits(Priest::CircleOfHealingGlyph(caster)));
         return SpellHandlerOutcome<void>::Continue();
     }
 }
@@ -80,46 +70,4 @@ int32 Priest::CircleOfHealingGlyph(Unit const& caster)
 {
     SpellAuraHolder* glyph = caster.GetSpellAuraHolder(GLYPH_OF_CIRCLE_OF_HEALING);
     return glyph ? AuraHandle(*glyph).Amount(EFFECT_INDEX_0) : 0;
-}
-
-bool Priest::CircleOfHealingTakes(Unit const& caster, Unit const& unit)
-{
-    Player const* leader = caster.GetCharmerOrOwnerPlayerOrPlayerItself();
-    if (!leader)
-    {
-        Unit const* self = caster.GetCharmerOrOwner() ? caster.GetCharmerOrOwner() : &caster;
-        return &unit == self || IsCurrentPetOf(unit, *self);
-    }
-
-    // The player the unit stands for: the unit itself, or the owner whose current pet it is.
-    Unit const* member = &unit;
-    if (unit.GetTypeId() != TYPEID_PLAYER)
-    {
-        member = unit.IsPet() ? unit.GetOwner() : NULL;
-        if (!member || member->GetTypeId() != TYPEID_PLAYER || !IsCurrentPetOf(unit, *member))
-        {
-            return false;
-        }
-    }
-    Player const* memberPlayer = member->ToPlayer();
-    return (memberPlayer == leader || CastsRaidWideBuff(leader, memberPlayer)) && !caster.IsHostileTo(member);
-}
-
-uint32 Priest::CircleOfHealingHealthPercent(Unit const& unit)
-{
-    uint32 const maxHealth = unit.GetMaxHealth();
-    return maxHealth ? uint32(uint64(unit.GetHealth()) * 100 / maxHealth) : 0;
-}
-
-void Priest::CircleOfHealingMostInjured(std::list<Unit*>& units, uint32 count)
-{
-    units.remove_if([](Unit* unit) { return !unit || unit->IsDead(); });
-    units.sort([](Unit* a, Unit* b)
-    {
-        return Priest::CircleOfHealingHealthPercent(*a) < Priest::CircleOfHealingHealthPercent(*b);
-    });
-    if (units.size() > count)
-    {
-        units.resize(count);
-    }
 }

@@ -28,23 +28,21 @@
 
 #include "spells/classes/priest/Priest.h"
 
-#include <list>
-
 class Unit;
 
 /**
  * @file CircleOfHealing.h
- * @brief Circle of Healing, the Holy talent (34861): the units its heal picks, the members of the priest's raid or
- * party and their pets, the most injured first: the leaves of CircleOfHealing.cpp.
+ * @brief Circle of Healing, the Holy talent (34861): the units its heal picks, the most injured members of the
+ * priest's raid or party and their pets: the leaves of CircleOfHealing.cpp.
  *
  * CircleOfHealing.cpp registers two rows, at the select-targets hook of 34861, the priest's Circle of Healing, and of
  * 49306, an older rank a creature casts at itself. The heal's effect fills its units in two target modes: the first
  * (TARGET_DUELVSPLAYER_COORDINATES) puts the cast's destination at its unit target, the second
- * (TARGET_ALL_FRIENDLY_UNITS_IN_AREA) takes every friendly unit within the effect's yards of that destination, the
- * engine's area fill. At the second, the row keeps of them the units the heal may take (CircleOfHealingTakes): the
- * members of the caster's raid or party and the pet of each, him and his own pet included, and of those the living
- * ones of the lowest health percent (CircleOfHealingMostInjured), as many as CircleOfHealingUnits names: 5, and one
- * more for each point of the effect 0 amount of his Glyph of Circle of Healing (55675, 1 in the client's data;
+ * (TARGET_ALL_FRIENDLY_UNITS_IN_AREA) takes every friendly unit within the effect's yards of that destination. At the
+ * second, the row puts in their place the engine's raid or party pick by health with the pets
+ * (SelectTargetsContext::RaidOrPartyByHealthWithPets: Spell::FillRaidOrPartyHealthPriorityTargets around the cast's
+ * unit target, or the caster without one, within the effect's radius), as many as CircleOfHealingUnits names: 5, and
+ * one more for each point of the effect 0 amount of his Glyph of Circle of Healing (55675, 1 in the client's data;
  * CircleOfHealingGlyph).
  */
 
@@ -61,23 +59,6 @@ namespace Priest
 
     /// The effect 0 amount of the Glyph of Circle of Healing (55675) `caster` holds; 0 when he holds none.
     int32 CircleOfHealingGlyph(Unit const& caster);
-
-    /// Whether a Circle of Healing `caster` casts may heal `unit`, as the engine's raid and party target fill takes
-    /// its units with pets (Spell::FillRaidOrPartyTargets): with a player behind the caster (himself, his charmer or
-    /// his owner), a player that is that player or a member of his group, and the pet of such a player (its owner's
-    /// current pet), the player not hostile to the caster; with none, the caster's charmer or owner, or the caster
-    /// itself without one, and that unit's current pet. Membership is the raid buffs' rule (CastsRaidWideBuff): the
-    /// whole raid, every subgroup.
-    bool CircleOfHealingTakes(Unit const& caster, Unit const& unit);
-
-    /// The health percent Circle of Healing ranks `unit` by: its health times 100 over its maximum health, truncated,
-    /// as the engine's health-priority fill ranks it; 0 for a maximum health of 0.
-    uint32 CircleOfHealingHealthPercent(Unit const& unit);
-
-    /// Keeps of `units` the `count` living ones of the lowest health percent (CircleOfHealingHealthPercent), in that
-    /// order; units of one percent keep their order in the list. A dead unit, or none, is dropped; `count` 0 leaves
-    /// none.
-    void CircleOfHealingMostInjured(std::list<Unit*>& units, uint32 count);
 }
 
 #endif

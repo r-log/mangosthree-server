@@ -38,6 +38,7 @@ class Item;
 class GameObject;
 class Aura;
 class SpellAuraHolder;
+class Spell;
 struct SpellEntry;
 
 /**
@@ -51,13 +52,15 @@ struct SpellEntry;
  *   SPELL_CAST_OK refuses the cast; Return(SPELL_CAST_OK) is the same as Continue(). It runs at every check of a cast
  *   (its preparation, its cast, each update of an auto-repeat spell, the trade window's), so a body is a pure check:
  *   it changes nothing and gives the same answer each time. Its units are const.
- * - SelectTargets: `Spell::SetTargetMap`, after the target mode filled the effect's unit list. A body may remove,
- *   add or reorder units, and change the maximum target count the cut after it applies. Return() skips the two filters
- *   after it: the caster's removal for SPELL_ATTR_EX_CANT_TARGET_SELF and the cut to the maximum target count; the
- *   game object targets, cut to the same count, and `Spell::CheckTarget` in `Spell::FillTargetMap` still apply. It
- *   runs once per call of `Spell::SetTargetMap`, so once for each of an effect's two target modes, both filling one
- *   list, and again for the party recursion of TARGET_AREAEFFECT_PARTY; it does not run for an effect that takes the
- *   list of an earlier effect, nor when the target mode ends `Spell::SetTargetMap` itself.
+ * - SelectTargets: `Spell::SetTargetMap`, after the target mode filled the effect's unit list. A body may remove, add
+ *   or reorder units, put the caster's raid or party in their place by health
+ *   (SelectTargetsContext::RaidOrPartyByHealthWithPets), and change the maximum target count the cut after it applies.
+ *   Return() skips the two filters after it: the caster's removal for SPELL_ATTR_EX_CANT_TARGET_SELF and the cut to the
+ *   maximum target count; the game object targets, cut to the same count, and `Spell::CheckTarget` in
+ *   `Spell::FillTargetMap` still apply. It runs once per call of `Spell::SetTargetMap`, so once for each of an effect's
+ *   two target modes, both filling one list, and again for the party recursion of TARGET_AREAEFFECT_PARTY; it does not
+ *   run for an effect that takes the list of an earlier effect, nor when the target mode ends `Spell::SetTargetMap`
+ *   itself.
  * - EffectValue: `Spell::HandleEffects`, after the effect's value for this target is calculated. A body changes only
  *   the value.
  * - DummyEffect: `Spell::EffectDummy` and `Spell::EffectScriptEffect`, before their family switches. Return() ends the
@@ -264,14 +267,24 @@ struct CheckCastContext
 /// SelectTargets's context. Value: void.
 struct SelectTargetsContext
 {
+    /// `cast` is the cast whose targets are selected and `effectRadius` the radius Spell::SetTargetMap reckoned for
+    /// the effect (Spell::GetSpellRangeAndRadius); a context built outside a cast has neither.
     SelectTargetsContext(Unit& casterUnit, SpellEntry const& spellEntry, SpellEffectIndex effectIndex,
                          uint32 implicitTargetMode, std::list<Unit*>& unitTargets, uint32& maxTargetCount,
-                         Unit* castTargetUnit = NULL)
+                         Unit* castTargetUnit = NULL, Spell* cast = NULL, float effectRadius = 0.0f)
         : caster(casterUnit), spell(spellEntry), effIndex(effectIndex), targetMode(implicitTargetMode),
-          targets(unitTargets), maxTargets(maxTargetCount), castTarget(castTargetUnit)
+          targets(unitTargets), maxTargets(maxTargetCount), castTarget(castTargetUnit), m_cast(cast),
+          m_radius(effectRadius)
     {
         caster.AssertSpellSeamOwner();
     }
+
+    /// Puts in the list, in place of the units it holds, the `count` living units of the lowest health percent among
+    /// the members of the caster's raid or party and their pets, him and his pet included, within the effect's radius
+    /// of the cast's unit target (of the caster when the cast has none): Spell::FillRaidOrPartyHealthPriorityTargets
+    /// of the cast, for the whole raid, with the pets and the caster. Circle of Healing's pick. A context built outside
+    /// a cast leaves the list empty.
+    void RaidOrPartyByHealthWithPets(uint32 count);
 
     Unit& caster;                                   ///< the caster
     SpellEntry const& spell;                        ///< the spell cast
@@ -281,6 +294,10 @@ struct SelectTargetsContext
     uint32& maxTargets;                             ///< the most targets the cut after the hook keeps, 0 for no cut,
                                                     ///< which a body may change
     Unit* castTarget;                               ///< the cast's explicit unit target; NULL when it has none
+
+private:
+    Spell* m_cast;                                  ///< the cast whose targets are selected; NULL outside a cast
+    float m_radius;                                 ///< the effect's radius, as Spell::SetTargetMap reckoned it
 };
 
 /// EffectValue's context. Value: void.
