@@ -241,13 +241,17 @@ TEST(PriestSpiritOfRedemption_TheRowsCastNothingBeforeTheStackingChecksOrWhereNo
         CHECK(FormApplied(registry, priest, false).IsContinue());
         CHECK(!priest.HasAura(FORM_IMMUNITY));
 
-        // The root's removal for a priest who is not in the world, whatever he holds: no stun.
+        // The root's removal for a priest who is not in the world, whatever he holds: no stun, and the immunity,
+        // which the row takes off only right before the stun, stays.
+        Hold(FORM_IMMUNITY, priest);
         for (AuraRemoveMode mode : { AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
                                      AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_STACK })
         {
             CHECK(Removed(registry, FORM_ROOT, priest, mode).IsContinue());
             CHECK(!priest.HasAura(FORM_END_STUN));
+            CHECK(priest.HasAura(FORM_IMMUNITY));
         }
+        priest.RemoveAurasDueToSpell(FORM_IMMUNITY);
 
         // The same through the engine: a root taken off him, with the form standing and then without it, leaves the
         // form as it was. He is not in the world and has no health, so he takes no stun whatever the rule says: these
@@ -277,7 +281,8 @@ TEST(PriestSpiritOfRedemption_TheFormTakesTheImmunityOffWhateverTookItOff)
         BareCreature priest;
 
         // Every removal of the form takes the immunity off, a recast's (AURA_REMOVE_BY_STACK) too: the new form casts
-        // it again. A death takes no passive off, so the immunity leaves only here.
+        // it again. A death takes no passive off, so the immunity leaves here, or at the root's removal right before the
+        // end's stun.
         for (AuraRemoveMode mode : { AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DEATH,
                                      AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_STACK })
         {

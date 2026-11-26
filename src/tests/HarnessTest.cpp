@@ -595,7 +595,7 @@ TEST(HarnessTrace_the_rules_d4f0_2_added)
 TEST(HarnessClosure_models_exactly_the_types_of_its_one_table)
 {
     // The achievement closure's table (QuestFixture.cpp kJudges) is the one list both the judge
-    // and ClosureModelsCriteriaType read: these 37 types and nothing else.
+    // and ClosureModelsCriteriaType read: these 43 types and nothing else.
     const uint32 modelled[] =
     {
         ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT, ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST,
@@ -618,9 +618,13 @@ TEST(HarnessClosure_models_exactly_the_types_of_its_one_table)
         ACHIEVEMENT_CRITERIA_TYPE_HEALING_DONE, ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEAL_CASTED,
         ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED, ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED,
         ACHIEVEMENT_CRITERIA_TYPE_EXPLORE_AREA,
+        // the player's death, for a scenario that kills him (StagedCasterScenario::Dies)
+        ACHIEVEMENT_CRITERIA_TYPE_DEATH_AT_MAP, ACHIEVEMENT_CRITERIA_TYPE_DEATH, ACHIEVEMENT_CRITERIA_TYPE_DEATH_IN_DUNGEON,
+        ACHIEVEMENT_CRITERIA_TYPE_KILLED_BY_CREATURE, ACHIEVEMENT_CRITERIA_TYPE_KILLED_BY_PLAYER,
+        ACHIEVEMENT_CRITERIA_TYPE_DEATHS_FROM,
     };
     const uint32 count = sizeof(modelled) / sizeof(modelled[0]);
-    CHECK_EQ(count, 37u);
+    CHECK_EQ(count, 43u);
     for (uint32 i = 0; i < count; ++i)
     {
         CHECK(Harness::ClosureModelsCriteriaType(modelled[i]));

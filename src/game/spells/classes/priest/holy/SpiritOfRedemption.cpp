@@ -57,21 +57,24 @@ namespace
     /// 27792: the form's root: once it is off the priest, which the removal of the form does first of its boosts for
     /// the end, a dispel, a cancel or a recast of the form (the removal of 27795 that follows kills him,
     /// Aura::HandleSpiritOfRedemption), he casts 99755 at himself, triggered, when he is alive and in the world and the
-    /// form is no longer on him (Priest::SpiritOfRedemptionStuns): the stun comes before his death. Nothing when the
-    /// root alone is taken off while the form stands, for a priest with no health left, whom another death killed
-    /// while the form stood, or for one who stands off the map. The holder's boosts run after it.
+    /// form is no longer on him (Priest::SpiritOfRedemptionStuns): the stun comes before his death. 62371 is taken off
+    /// him first: the form's own removal runs FormRemoved only after its boosts, and while 62371 stands a stun, a
+    /// harmful spell, misses him as immune (Unit::SpellHitResult). Nothing when the root alone is taken off while the
+    /// form stands, for a priest with no health left, whom another death killed while the form stood, or for one who
+    /// stands off the map. The holder's boosts run after it.
     SpellHandlerOutcome<void> RootRemoved(AuraRemoveContext& ctx)
     {
         if (Priest::SpiritOfRedemptionStuns(ctx.target.IsAlive(), ctx.target.GetHealth(), ctx.target.IsInWorld(),
                                             ctx.target.HasAura(SPIRIT_OF_REDEMPTION)))
         {
+            ctx.RemoveAura(ctx.target, SPIRIT_IMMUNITY);
             ctx.CastTriggered(ctx.target, SPIRIT_END_STUN);
         }
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 27827: the form: once it is off the priest, whatever took it off, 62371 goes with it: it is a passive, and a
-    /// death takes no passive off. The form's removal runs this after the removal of its boosts, his death among them.
+    /// 27827: the form: once it is off the priest, whatever took it off, 62371 goes with it, when RootRemoved has not
+    /// taken it already: it is a passive, and a death takes no passive off. The form's removal runs this after the removal of its boosts, his death among them.
     /// The holder's boosts run after it.
     SpellHandlerOutcome<void> FormRemoved(AuraRemoveContext& ctx)
     {
