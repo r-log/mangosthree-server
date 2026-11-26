@@ -163,6 +163,7 @@ namespace Harness
             }
             std::vector<uint32> Spells() const override { return { kTalent, kFlashHeal }; }
             bool Heals() const override { return true; }
+            bool Dies() const override { return true; }
 
             void AfterStage(Player& p) override
             {

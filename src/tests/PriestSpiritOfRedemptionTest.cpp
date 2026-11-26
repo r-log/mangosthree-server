@@ -249,8 +249,9 @@ TEST(PriestSpiritOfRedemption_TheRowsCastNothingBeforeTheStackingChecksOrWhereNo
             CHECK(!priest.HasAura(FORM_END_STUN));
         }
 
-        // The same through the engine: a root taken off him, with the form standing and then without it, leaves him
-        // no stun and the form as it was.
+        // The same through the engine: a root taken off him, with the form standing and then without it, leaves the
+        // form as it was. He is not in the world and has no health, so he takes no stun whatever the rule says: these
+        // checks show the engine's removal path runs the row, not the stun rule, which the checks above pin.
         Hold(FORM, priest);
         Hold(FORM_ROOT, priest);
         priest.RemoveAurasDueToSpell(FORM_ROOT);
