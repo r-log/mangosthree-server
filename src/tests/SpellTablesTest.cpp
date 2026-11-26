@@ -309,11 +309,12 @@ TEST(SpellTables_TheAuraTargetLimitsAreTheTablesRowsAndNoOther)
     }
 }
 
-TEST(SpellTables_TheChillsLivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredCastsThatStartProcs)
+TEST(SpellTables_TheChillsLivingBombsExplosionMoltenArmorsHitAndDivineTouchsHealAreTheTriggeredCastsThatStartProcs)
 {
     // Ice Shards' Chilled at both ranks and Piercing Chill's chill, which the talents' auras cast, Living Bomb's
-    // explosion, which the bomb's aura casts when it runs out, and Molten Armor's hit
-    for (uint32 spellId : { 12484u, 12485u, 83154u, 44461u, 34913u })
+    // explosion, which the bomb's aura casts when it runs out, Molten Armor's hit, and Divine Touch's heal, which the
+    // talent's aura casts at the target of the priest's Renew
+    for (uint32 spellId : { 12484u, 12485u, 83154u, 44461u, 34913u, 63544u })
     {
         CHECK(TriggeredCastStartsProcs(spellId));
     }
@@ -325,7 +326,13 @@ TEST(SpellTables_TheChillsLivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredC
         CHECK(!TriggeredCastStartsProcs(spellId));
     }
 
-    // The table holds exactly its five rows
+    // Divine Touch's talent ranks (63534, 63542) and Renew (139) do not
+    for (uint32 spellId : { 63534u, 63542u, 139u })
+    {
+        CHECK(!TriggeredCastStartsProcs(spellId));
+    }
+
+    // The table holds exactly its six rows
     uint32 rows = 0;
     for (uint32 spellId = 0; spellId < 1000000; ++spellId)
     {
@@ -334,7 +341,7 @@ TEST(SpellTables_TheChillsLivingBombsExplosionAndMoltenArmorsHitAreTheTriggeredC
             ++rows;
         }
     }
-    CHECK_EQ(rows, uint32(5));
+    CHECK_EQ(rows, uint32(6));
 }
 
 TEST(SpellTables_MoltenArmorsHitAndTheChillsStartOnlyTheProcsOfAurasThatCanProcFromProcs)
@@ -352,7 +359,7 @@ TEST(SpellTables_MoltenArmorsHitAndTheChillsStartOnlyTheProcsOfAurasThatCanProcF
     CHECK(TriggeredCastStartsProcsOf(83154, 0x04000000));
     // Brain Freeze's Ex3 (44546: 0x04080000) holds the bit too
     CHECK(TriggeredCastStartsProcsOf(12485, 0x04080000));
-    for (uint32 spellId : { 44461u, 7321u, 83073u, 82739u, 30482u, 12345u, 0u })
+    for (uint32 spellId : { 44461u, 63544u, 7321u, 83073u, 82739u, 30482u, 12345u, 0u })
     {
         CHECK(TriggeredCastStartsProcsOf(spellId, 0));
         CHECK(TriggeredCastStartsProcsOf(spellId, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS));
@@ -1370,4 +1377,58 @@ TEST(SpellTables_StrengthOfSoulsImmunitiesAndWeakenedSoulStandTogetherInEitherOr
 
     ForgetSoulIconRows();
     CHECK(sSpellStore.LookupEntry(kWeakenedSoul) == NULL);
+}
+
+TEST(SpellTables_DivineHymnsHealAndLightwellsRenewAreTheClassNoneHealsThatTakeTheDoneBonus)
+{
+    // Divine Hymn's heal (64844) and Lightwell's Renew (7001), whose damage class is none in the client's data
+    CHECK(Spells::HealTakesDoneBonus(64844));
+    CHECK(Spells::HealTakesDoneBonus(7001));
+
+    // Divine Hymn's channel (64843), Glyph of Power Word: Shield's heal (56160), Echo of Light's heal over time
+    // (77489), Flash Heal (2061), Renew (139) and an id no table holds do not
+    for (uint32 spellId : { 64843u, 56160u, 77489u, 2061u, 139u, 12345u, 0u })
+    {
+        CHECK(!Spells::HealTakesDoneBonus(spellId));
+    }
+
+    // No heal is both given the done bonus and kept from it
+    for (uint32 spellId : { 64844u, 7001u, 56160u })
+    {
+        CHECK(!(Spells::HealTakesDoneBonus(spellId) && Spells::HealTakesNoDoneBonus(spellId)));
+    }
+
+    // The table holds exactly its two rows
+    uint32 rows = 0;
+    for (uint32 spellId = 0; spellId < 1000000; ++spellId)
+    {
+        if (Spells::HealTakesDoneBonus(spellId))
+        {
+            ++rows;
+        }
+    }
+    CHECK_EQ(rows, uint32(2));
+}
+
+TEST(SpellTables_EchoOfLightsHealIsTheHealThatIgnoresTheHealingTakenPercent)
+{
+    CHECK(Spells::HealIgnoresTakenPercent(77489));
+
+    // Echo of Light's mastery (77485), Divine Hymn's heal (64844), Lightwell's Renew (7001), Guardian Spirit (47788),
+    // Flash Heal (2061) and an id no table holds do not
+    for (uint32 spellId : { 77485u, 64844u, 7001u, 47788u, 2061u, 12345u, 0u })
+    {
+        CHECK(!Spells::HealIgnoresTakenPercent(spellId));
+    }
+
+    // The table holds exactly its one row
+    uint32 rows = 0;
+    for (uint32 spellId = 0; spellId < 1000000; ++spellId)
+    {
+        if (Spells::HealIgnoresTakenPercent(spellId))
+        {
+            ++rows;
+        }
+    }
+    CHECK_EQ(rows, uint32(1));
 }
