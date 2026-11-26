@@ -172,6 +172,15 @@ namespace Harness
                         seen.reads["held"] = EchoOf(p, friendPlayer) ? 1 : 0;
                         m_rec.Note("his " + U(kEchoHeal) + " on the friend after its last tick: " +
                                    (seen.reads["held"] ? "held" : "none"));
+                        // another caster's Echo, then his, on the friend: both stand, each its caster's own
+                        PutAura(friendPlayer, kEchoHeal, friendPlayer);
+                        PutAura(friendPlayer, kEchoHeal, p);
+                        seen.reads["two"] =
+                            (friendPlayer->GetSpellAuraHolder(kEchoHeal, friendPlayer->GetObjectGuid()) ? 1 : 0) +
+                            (friendPlayer->GetSpellAuraHolder(kEchoHeal, p->GetObjectGuid()) ? 1 : 0);
+                        m_rec.Note("the friend's own " + U(kEchoHeal) + " put on him, then his: " +
+                                   std::to_string(seen.reads["two"]) + " held; both taken off");
+                        friendPlayer->RemoveAurasDueToSpell(kEchoHeal);
                     }
                     return;
                 }
@@ -272,6 +281,7 @@ namespace Harness
                 const bool renewCrit = !renew.empty() && renew[0].crit;
                 const int64 heldAtCrit = Kept(st, kCritStep, "held");
                 const int64 heldAtLast = Kept(st, kLastStep, "held");
+                const int64 two = Kept(st, kLastStep, "two");
                 const int64 firstLasts = Kept(st, kFirstStep, "echoMaxDuration");
                 const int64 critLasts = Kept(st, kCritStep, "echoMaxDuration");
 
@@ -288,14 +298,15 @@ namespace Harness
                     renewCrit && ticks[kRenewStep].empty() && !Triggered(st.seen[kRenewStep], kEchoHeal) &&
                     heldAtCrit == 0 && int64(ticks[kCritStep].size()) == fresh &&
                     AllAre(ticks[kCritStep], critWanted) && ticks[kLastStep].empty() && heldAtLast == 0 &&
-                    critTicks == 0;
+                    critTicks == 0 && two == 2;
 
                 const std::string value =
                     "first=" + TicksText(ticks[kFirstStep]) + ",merged=" + TicksText(ticks[kMergeStep]) + "+" +
                     TicksText(ticks[kGuardianStep]) + ",phase=" + Shown(afterTimer) + "/" + Shown(beforeTimer) + "@" +
                     Shown(afterDuration) + ",guardian=" + Shown(guardian) + ",renew=" +
                     (renew.empty() ? std::string("none") : U(renew[0].amount) + (renewCrit ? "c" : "")) + "/" +
-                    Shown(heldAtCrit) + ",crit=" + TicksText(ticks[kCritStep]) + ",critTicks=" + U(critTicks);
+                    Shown(heldAtCrit) + ",crit=" + TicksText(ticks[kCritStep]) + ",critTicks=" + U(critTicks) +
+                    ",two=" + Shown(two);
                 const std::string detail =
                     "his mastery " + Shown(masteryCenti) + "/100 points (the passive's " + Shown(passive) +
                     ") at " + Shown(coefficientMilli) + "/1000 (wanted " + std::to_string(kCoefficientMilli) +
@@ -309,7 +320,7 @@ namespace Harness
                     " ms, those under " + U(kGuardianSpirit) + "'s +" + Shown(guardianData) +
                     "% the same; a critical " + U(kRenew) + " tick and no Echo after it; " + Shown(fresh) +
                     " ticks of " + Shown(critWanted) + " after the critical heal; none left at the end; no critical " +
-                    "tick of " + U(kEchoHeal);
+                    "tick of " + U(kEchoHeal) + "; another caster's " + U(kEchoHeal) + " and his standing together";
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
