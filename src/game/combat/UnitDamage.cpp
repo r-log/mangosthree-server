@@ -62,6 +62,9 @@ namespace
     /// no part of a blow, and DealDamage looks for it at a priest's killing blow to start the form (27827).
     uint32 const SPIRIT_OF_REDEMPTION_TALENT = 20711;
 
+    /// Spirit of Redemption's form: the priest who holds it takes no damage (DealDamage).
+    uint32 const SPIRIT_OF_REDEMPTION_FORM = 27827;
+
     /// The amount of `holder`'s aura of `effect`; `fallback` when `effect` is -1, 0 when the holder has no aura there.
     int32 DeathPreventionAmount(SpellAuraHolder const* holder, int8 effect, int32 fallback)
     {
@@ -1147,6 +1150,14 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
             victimPlayer->RewardRage(cleanDamage->damage, 0, false);
         }
 
+        return 0;
+    }
+
+    // A priest in Spirit of Redemption's form takes no damage. The form's immunity (62371) misses the hits that reach
+    // here with no immunity check (a lava tick, the fall into the void), and a lethal one would find the talent again
+    // and cast the form anew, ending it at once. The form's own end still kills him: 27827 has left him by then.
+    if (victimPlayer && pVictim->HasAura(SPIRIT_OF_REDEMPTION_FORM))
+    {
         return 0;
     }
 
