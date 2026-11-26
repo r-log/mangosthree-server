@@ -25,8 +25,11 @@
 
 #include "TestHarness.h"
 
+#include "Auth/BigNumber.h"
 #include "Creature.h"
 #include "DBCStores.h"
+#include "Player.h"
+#include "WorldSession.h"
 #include "data/ServerSpellStore.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
@@ -1408,6 +1411,252 @@ TEST(SpellTables_DivineHymnsHealAndLightwellsRenewAreTheClassNoneHealsThatActAsS
         }
     }
     CHECK_EQ(rows, uint32(2));
+}
+
+TEST(SpellTables_TheHealRulesTakeTheTwoSpellHealsAsMagicAndEveryOtherSpellAsItsOwnClass)
+{
+    // Class none in the client's data: the two heals are taken as magic, Echo of Light's heal and any other spell as
+    // none
+    CHECK_EQ(Spells::HealRuleDamageClass(64844, SPELL_DAMAGE_CLASS_NONE), uint32(SPELL_DAMAGE_CLASS_MAGIC));
+    CHECK_EQ(Spells::HealRuleDamageClass(7001, SPELL_DAMAGE_CLASS_NONE), uint32(SPELL_DAMAGE_CLASS_MAGIC));
+    for (uint32 spellId : { 77489u, 56160u, 12345u, 0u })
+    {
+        CHECK_EQ(Spells::HealRuleDamageClass(spellId, SPELL_DAMAGE_CLASS_NONE), uint32(SPELL_DAMAGE_CLASS_NONE));
+    }
+
+    // Any other class stays as it is, for the two heals too
+    for (uint32 damageClass : { uint32(SPELL_DAMAGE_CLASS_MAGIC), uint32(SPELL_DAMAGE_CLASS_MELEE),
+                                uint32(SPELL_DAMAGE_CLASS_RANGED) })
+    {
+        for (uint32 spellId : { 64844u, 7001u, 2061u, 12345u })
+        {
+            CHECK_EQ(Spells::HealRuleDamageClass(spellId, damageClass), damageClass);
+        }
+    }
+}
+
+// The two effects of the spell-heal table past the done bonus, on units: a heal stored as Divine Hymn's (64844), of
+// damage class none, beside a class-none heal of the test's own that no table names, both of the priest family with
+// Divine Hymn's class bit (C 0x4), and two auras of the test's own whose effect masks name that bit, standing for Grace
+// (aura 283, 8%) and Holy Word: Serenity's crit aura (aura 308). The healer is a player, so his crit rolls, with the
+// sheet of his holy crit set by call; the healed unit and the other caster are bare creatures (update fields
+// allocated; no map, template or AI) with guids of their own. The auras are made through their constructors on rows
+// put into the spell store, their holders naming their caster by guid, and put in the healed unit's list of their
+// type.
+namespace
+{
+    const uint32 kSpellHymnHeal = 64844;
+    const uint32 kOtherClassNoneHeal = 94540;
+    const uint32 kGraceLike = 94541;
+    const uint32 kSerenityLike = 94542;
+    const uint32 kOptionsHymnBit = 94543;
+    const uint32 kOptionsPriestAura = 94544;
+
+    SpellClassOptionsEntry s_optionsHymnBit;
+    SpellClassOptionsEntry s_optionsPriestAura;
+    ServerSpell s_healRuleRows[4];
+
+    /// Puts the two heals and the two auras into the spell store, their class options into theirs and their effects
+    /// beside them; the class options and the effects once.
+    void StoreHealRuleRows()
+    {
+        static bool stored = false;
+        struct Row
+        {
+            uint32 spellId;
+            uint32 options;
+            uint32 effect;
+            uint32 aura;
+            int32 points;
+        };
+        Row const rows[4] =
+        {
+            { kSpellHymnHeal, kOptionsHymnBit, SPELL_EFFECT_HEAL, 0, 1000 },
+            { kOtherClassNoneHeal, kOptionsHymnBit, SPELL_EFFECT_HEAL, 0, 1000 },
+            { kGraceLike, kOptionsPriestAura, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_HEALING_RECEIVED, 8 },
+            { kSerenityLike, kOptionsPriestAura, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_CRIT_FROM_CASTER, 100 },
+        };
+        for (std::size_t i = 0; i < 4; ++i)
+        {
+            SpellEntry& row = s_healRuleRows[i].Entry();
+            row.ID = rows[i].spellId;
+            row.ClassOptionsID = rows[i].options;
+            row.SchoolMask = SPELL_SCHOOL_MASK_HOLY;
+            sSpellStore.SetEntry(rows[i].spellId, &row);
+            if (stored)
+            {
+                continue;
+            }
+            SpellEffectEntry& effect = s_healRuleRows[i].effect;
+            effect.SpellID = rows[i].spellId;
+            effect.EffectIndex = EFFECT_INDEX_0;
+            effect.Effect = rows[i].effect;
+            effect.EffectAura = rows[i].aura;
+            effect.EffectBasePoints = rows[i].points;
+            effect.EffectSpellClassMask = rows[i].aura ? ClassFamilyMask(0, 0x4) : ClassFamilyMask();
+            AddSpellEffectEntry(&effect);
+        }
+        if (!stored)
+        {
+            s_optionsHymnBit.SpellClassSet = SPELLFAMILY_PRIEST;
+            s_optionsHymnBit.SpellClassMask = ClassFamilyMask(0, 0x4);
+            s_optionsPriestAura.SpellClassSet = SPELLFAMILY_PRIEST;
+            sSpellClassOptionsStore.SetEntry(kOptionsHymnBit, &s_optionsHymnBit);
+            sSpellClassOptionsStore.SetEntry(kOptionsPriestAura, &s_optionsPriestAura);
+        }
+        stored = true;
+    }
+
+    /// Takes the four rows out of the spell store.
+    void ForgetHealRuleRows()
+    {
+        for (uint32 spellId : { kSpellHymnHeal, kOtherClassNoneHeal, kGraceLike, kSerenityLike })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+
+    /// A creature of guid `guidLow` with its update fields allocated and no world, map, template or AI.
+    class HealRuleUnit : public Creature
+    {
+        public:
+            explicit HealRuleUnit(uint32 guidLow)
+            {
+                Object::_Create(guidLow, 50249, HIGHGUID_UNIT);
+            }
+
+            // The lists ListAura filled are emptied before the unit goes; their auras are the test's own.
+            ~HealRuleUnit()
+            {
+                for (AuraType type : m_listedTypes)
+                {
+                    m_auras.ByType(type).clear();
+                }
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+
+            /// Puts `aura` in the list of `type`, so the unit's reads of that aura type read it.
+            void ListAura(AuraType type, Aura* aura)
+            {
+                m_auras.ByType(type).push_back(aura);
+                m_listedTypes.push_back(type);
+            }
+
+            /// Empties the list of `type`.
+            void Unlist(AuraType type)
+            {
+                m_auras.ByType(type).clear();
+            }
+
+        private:
+            std::vector<AuraType> m_listedTypes;
+    };
+
+    /// A player of guid `guidLow`, never in a world.
+    class HealRulePlayer : public Player
+    {
+        public:
+            HealRulePlayer(WorldSession& session, uint32 guidLow) : Player(&session)
+            {
+                Object::_Create(guidLow, 0, HIGHGUID_PLAYER);
+            }
+
+            ~HealRulePlayer()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+
+    /// An aura of the stored spell `spellId` at `points` on `healed`, whose holder names `caster` as its caster, put
+    /// in the healed unit's list of `type`; its holder, which the caller deletes.
+    SpellAuraHolder* ListedAura(HealRuleUnit& healed, uint32 spellId, AuraType type, int32 points, ObjectGuid caster)
+    {
+        SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
+        SpellAuraHolder* holder = new SpellAuraHolder(spell, &healed, NULL, NULL, NULL);
+        holder->SetCasterGuid(caster);
+        holder->AddAura(CreateAura(spell, EFFECT_INDEX_0, &points, holder, &healed), EFFECT_INDEX_0);
+        healed.ListAura(type, holder->GetAuraByEffectIndex(EFFECT_INDEX_0));
+        return holder;
+    }
+}
+
+TEST(SpellTables_DivineHymnsHealTakesItsHealersGraceAsASpellHealDoesAndAnotherClassNoneHealDoesNot)
+{
+    StoreHealRuleRows();
+    {
+        WorldSession session(1, "heal", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+        HealRulePlayer healer(session, 1);
+        HealRuleUnit other(2);
+        HealRuleUnit healed(3);
+        SpellEntry const* hymn = sSpellStore.LookupEntry(kSpellHymnHeal);
+        SpellEntry const* otherHeal = sSpellStore.LookupEntry(kOtherClassNoneHeal);
+        REQUIRE(hymn != NULL && otherHeal != NULL);
+        CHECK_EQ(hymn->GetDmgClass(), uint32(SPELL_DAMAGE_CLASS_NONE));
+        CHECK_EQ(otherHeal->GetDmgClass(), uint32(SPELL_DAMAGE_CLASS_NONE));
+        CHECK(healer.GetObjectGuid() != other.GetObjectGuid());
+
+        // No aura on the healed unit: 1000 of either heal is taken as 1000.
+        CHECK_EQ(healed.SpellHealingBonusTaken(&healer, hymn, 1000, HEAL, 1), uint32(1000));
+        CHECK_EQ(healed.SpellHealingBonusTaken(&healer, otherHeal, 1000, HEAL, 1), uint32(1000));
+
+        // His Grace, 8%: the Hymn's heal from him, and its tick, take it; from the other caster they do not; the other
+        // class-none heal, though Grace's mask names its class bit, returns before it.
+        SpellAuraHolder* grace = ListedAura(healed, kGraceLike, SPELL_AURA_MOD_HEALING_RECEIVED, 8,
+                                            healer.GetObjectGuid());
+        CHECK_EQ(healed.SpellHealingBonusTaken(&healer, hymn, 1000, HEAL, 1), uint32(1080));
+        CHECK_EQ(healed.SpellHealingBonusTaken(&healer, hymn, 1000, DOT, 1), uint32(1080));
+        CHECK_EQ(healed.SpellHealingBonusTaken(&other, hymn, 1000, HEAL, 1), uint32(1000));
+        CHECK_EQ(healed.SpellHealingBonusTaken(&healer, otherHeal, 1000, HEAL, 1), uint32(1000));
+        healed.Unlist(SPELL_AURA_MOD_HEALING_RECEIVED);
+        delete grace;
+    }
+    ForgetHealRuleRows();
+    CHECK(sSpellStore.LookupEntry(kSpellHymnHeal) == NULL);
+}
+
+TEST(SpellTables_DivineHymnsHealRollsItsCritAsAMagicHealDoesAndAnotherClassNoneHealNever)
+{
+    StoreHealRuleRows();
+    {
+        WorldSession session(1, "heal", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+        HealRulePlayer healer(session, 1);
+        HealRuleUnit other(2);
+        HealRuleUnit healed(3);
+        SpellEntry const* hymn = sSpellStore.LookupEntry(kSpellHymnHeal);
+        SpellEntry const* otherHeal = sSpellStore.LookupEntry(kOtherClassNoneHeal);
+        REQUIRE(hymn != NULL && otherHeal != NULL);
+        uint16 const holySheet = uint16(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_HOLY);
+
+        // His holy crit at 100: the Hymn's heal crits; the other class-none heal never rolls.
+        healer.SetFloatValue(holySheet, 100.0f);
+        CHECK(healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
+        CHECK(!healer.IsSpellCrit(&healed, otherHeal, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
+
+        // At 0, nothing crits.
+        healer.SetFloatValue(holySheet, 0.0f);
+        CHECK(!healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
+
+        // His crit-from-caster aura at 100 on the healed unit, its mask naming the class bit: the Hymn's heal crits;
+        // the other class-none heal still never rolls; a hit that is not a heal does not read the aura.
+        SpellAuraHolder* own = ListedAura(healed, kSerenityLike, SPELL_AURA_MOD_CRIT_FROM_CASTER, 100,
+                                          healer.GetObjectGuid());
+        CHECK(healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
+        CHECK(!healer.IsSpellCrit(&healed, otherHeal, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
+        CHECK(!healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, SPELL_DIRECT_DAMAGE));
+        healed.Unlist(SPELL_AURA_MOD_CRIT_FROM_CASTER);
+        delete own;
+
+        // The other caster's: nothing crits.
+        SpellAuraHolder* others = ListedAura(healed, kSerenityLike, SPELL_AURA_MOD_CRIT_FROM_CASTER, 100,
+                                             other.GetObjectGuid());
+        CHECK(!healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
+        healed.Unlist(SPELL_AURA_MOD_CRIT_FROM_CASTER);
+        delete others;
+    }
+    ForgetHealRuleRows();
+    CHECK(sSpellStore.LookupEntry(kSpellHymnHeal) == NULL);
 }
 
 TEST(SpellTables_EchoOfLightsHealIsTheHealThatIgnoresTheHealingTakenPercent)
