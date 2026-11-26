@@ -77,10 +77,10 @@ namespace
 
     typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
 
-    /// 14751: Chakra: keeps the holder for the events of a spell that enters a state (Priest::ChakraStateOf): its
-    /// effects then skip their class masks, and the engine lets no cast end proc a holder a script keeps, so the
-    /// spell's hit spends the charge. Drops it for every other event: Prayer of Mending's heal, which a bounce casts
-    /// for him, the states' own casts, a melee swing.
+    /// 14751: Chakra: keeps the holder for the events of a spell that enters a state (Priest::ChakraStateOf). With no
+    /// spell_proc_event row for 14751, its effects then skip their class masks, and the engine lets no cast end proc a
+    /// holder a script keeps, so the spell's hit spends the charge. Drops it for every other event: Prayer of Mending's
+    /// heal, which a bounce casts for him, the states' own casts, a melee swing.
     SpellHandlerOutcome<bool> ChakraCheckProc(CheckProcContext& ctx)
     {
         return SpellHandlerOutcome<bool>::Return(ctx.procSpell && Priest::ChakraStateOf(ctx.procSpell->ID) != 0);
@@ -116,9 +116,9 @@ namespace
     }
 
     /// 81208: Serenity: keeps the holder for an event of one of the four direct heals that enter Serenity
-    /// (Priest::ChakraStateOf), whose effects then skip their class masks, so its effect 1 casts its refresh (81585) at
-    /// the unit healed; drops it for every other event. The client's effect 1 mask names Smite and Flash Heal (0x880),
-    /// not the heals Serenity's text names.
+    /// (Priest::ChakraStateOf). With no spell_proc_event row for 81208, its effects then skip their class masks, so its
+    /// effect 1 casts its refresh (81585) at the unit healed; drops it for every other event. The client's effect 1
+    /// mask names Smite and Flash Heal (0x880), not the heals Serenity's text names.
     SpellHandlerOutcome<bool> SerenityCheckProc(CheckProcContext& ctx)
     {
         return SpellHandlerOutcome<bool>::Return(ctx.procSpell &&
