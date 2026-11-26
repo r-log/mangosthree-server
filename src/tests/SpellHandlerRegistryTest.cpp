@@ -4869,15 +4869,15 @@ namespace
 
 TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 147 labels at seventeen sites and twelve defaults: 159 rows, 147 keys and twelve defaults, none twice. The
+    // 146 labels at seventeen sites and twelve defaults: 158 rows, 146 keys and twelve defaults, none twice. The
     // generic, hunter, druid, shaman and custom trigger-spell switches hold 45, 3, 5, 2 and 11; the damage tick's 8
     // and the mana leech's 3; the generic, mage, druid, rogue and hunter periodic dummy tick switches 44, 1, 2, 1 and
-    // 2; the generic, mage, priest, hunter and death knight boost switches 7, 1, 2, 6 and 4; the custom, mana-leech
+    // 2; the generic, mage, priest, hunter and death knight boost switches 7, 1, 1, 6 and 4; the custom, mana-leech
     // and death knight boost switches have no default. The mage trigger-spell site's row, the other one of the
     // mage boost site and the three mage sites' defaults are RegisterMageScripts'.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAurasHandlers(registry), uint32(159));
-    CHECK_EQ(registry.Count(), std::size_t(147));
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(158));
+    CHECK_EQ(registry.Count(), std::size_t(146));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(0));
@@ -4894,13 +4894,13 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickHunterSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraBoostGenericSite::Key), std::size_t(7));
     CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(1));
-    CHECK_EQ(registry.CountAt(AuraBoostPriestSite::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AuraBoostPriestSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraBoostHunterSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraBoostDeathKnightSite::Key), std::size_t(4));
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterAurasHandlers(registry), uint32(159));
-    CHECK_EQ(registry.Count(), std::size_t(147));
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(158));
+    CHECK_EQ(registry.Count(), std::size_t(146));
     CHECK_EQ(registry.CountDefaults(), std::size_t(12));
 
     // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
@@ -5446,7 +5446,7 @@ namespace
     // The labels of the five boost sites, each in its switch's order.
     uint32 const BOOST_GENERIC_IDS[] = { 29865, 55053, 50720, 57350, 58914, 62692, 71905 };
     uint32 const BOOST_MAGE_IDS[] = { 57761 };
-    uint32 const BOOST_PRIEST_IDS[] = { 552, 47585 };
+    uint32 const BOOST_PRIEST_IDS[] = { 47585 };
     uint32 const BOOST_HUNTER_IDS[] = { 34074, 19574, 34471, 34027, 35029, 35030 };
     uint32 const BOOST_DEATH_KNIGHT_IDS[] = { 49039, 48263, 48265, 48266 };
 
@@ -5480,10 +5480,10 @@ TEST(AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults)
     RegisterAurasHandlers(registry);
     RegisterMageScripts(registry);                              // the mage sites' other rows and their defaults
 
-    // The generic, mage, priest, hunter and death knight switches: 7, 1, 2, 6 and 4 labels in 7, 1, 2, 5 and 2 bodies.
+    // The generic, mage, priest, hunter and death knight switches: 7, 1, 1, 6 and 4 labels in 7, 1, 1, 5 and 2 bodies.
     CheckSiteLabels<AuraBoostGenericSite>(registry, BOOST_GENERIC_IDS, 7);
     CheckSiteLabels<AuraBoostMageSite>(registry, BOOST_MAGE_IDS, 1);
-    CheckSiteLabels<AuraBoostPriestSite>(registry, BOOST_PRIEST_IDS, 2);
+    CheckSiteLabels<AuraBoostPriestSite>(registry, BOOST_PRIEST_IDS, 1);
     CheckSiteLabels<AuraBoostHunterSite>(registry, BOOST_HUNTER_IDS, 5);
     CheckSiteLabels<AuraBoostDeathKnightSite>(registry, BOOST_DEATH_KNIGHT_IDS, 2);
 
@@ -5494,6 +5494,10 @@ TEST(AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults)
     CHECK(registry.Find<AuraBoostMageSite>(11129) == NULL);
     CHECK(registry.Find<AuraBoostMageSite>(28682) == NULL);
     CHECK(registry.Find<AuraBoostMageSite>(44401) == NULL);
+    // Nor is 552, which the client's data lacks, a label of the priest switch: Body and Soul's poison is its after-cast
+    // row on Cure Disease (BodyAndSoul.cpp).
+    CHECK(registry.Find<AuraBoostPriestSite>(552) == NULL);
+    CHECK(SpellHandlerRegistry::Game().Find<AuraBoostPriestSite>(552) == NULL);
     CHECK(registry.Find<AuraBoostHunterSite>(34471) == registry.Find<AuraBoostHunterSite>(19574));
     CHECK(registry.Find<AuraBoostDeathKnightSite>(48265) == registry.Find<AuraBoostDeathKnightSite>(48263));
     CHECK(registry.Find<AuraBoostDeathKnightSite>(48266) == registry.Find<AuraBoostDeathKnightSite>(48263));
