@@ -207,7 +207,7 @@ namespace
 
 TEST(PriestShield_TheGlyphHealIsAFifthOfTheShieldWithNoHealingDoneBonusAndTwiceThatOnACrit)
 {
-    // The table names Glyph of Power Word: Shield's heal alone.
+    // The table names Glyph of Power Word: Shield's heal, and none of the shield's or the priest's other heals.
     CHECK(Spells::HealTakesNoDoneBonus(GLYPH_HEAL));
     for (uint32 spellId : { 0u, 17u, 2061u, 2060u, 47750u, 33110u, 139u, 47753u })
     {

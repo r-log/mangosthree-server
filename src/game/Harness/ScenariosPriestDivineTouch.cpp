@@ -34,8 +34,7 @@
 /**
  * @file ScenariosPriestDivineTouch.cpp
  * @brief The priest's Divine Touch scenario, order 1223: a hasted priest's Renew on a friend heals it at once for his
- * rank's percent of the Renew tick times Renew's base duration over its hasted period, once, and Echo of Light follows
- * that heal.
+ * rank's percent of the Renew tick times retail's 4.44, haste or not, once, and Echo of Light follows that heal.
  */
 
 namespace Harness
@@ -60,13 +59,14 @@ namespace Harness
          *  2. kLastStepMs later, a last read.
          *
          * `divineTouch`: `heal=<the 63544 heal log of his about the friend in step 1's windows, c for a crit>/<the
-         * heal wanted>,tick=<the first Renew tick log there, c for a crit>/<his Renew's amount>,factor=<Renew's base
-         * duration>/<his Renew's period>,percent=<63542's effect 0 value>,casts=<the 63544 casts in step 1's
+         * heal wanted>,tick=<the first Renew tick log there, c for a crit>/<his Renew's amount>,period=<his Renew's
+         * period>/<Renew's effect 0 period>,percent=<63542's effect 0 value>,casts=<the 63544 casts in step 1's
          * windows>,echo=<after when a 77489 cast follows the first 63544 cast there, else none>`. With p the percent,
-         * D Renew's base duration (GetSpellDuration), P0 its effect 0 period, P his Renew's period and T its amount,
-         * the heal wanted is T x p / 100 x D / P rounded to the nearest, a half up. OK when p, D and T are above 0, P
-         * is above 0 and below P0 (the haste shortened it), step 1 holds one 63544 heal log, not a crit, of the heal
-         * wanted, a Renew tick log, not a crit, of T, one 63544 cast and a 77489 cast after it. The detail prints
+         * P0 Renew's effect 0 period, P his Renew's period and T its amount, the heal wanted is T x p / 100 x 4.44
+         * (retail's factor: every heal in the retail capture is 0.444 of the tick at rank 2, at both its hastes)
+         * rounded to the nearest, a half up; the haste shortens P and changes nothing in it. OK when p and T are above
+         * 0, P is above 0 and below P0 (the haste shortened it), step 1 holds one 63544 heal log, not a crit, of the
+         * heal wanted, a Renew tick log, not a crit, of T, one 63544 cast and a 77489 cast after it. The detail prints
          * 63542's proc chance as the proc roll takes it (spell_proc_event's custom chance over the spell's own, which
          * the client's data leaves at 0): at 0 the talent never procs and no 63544 comes.
          */
@@ -192,25 +192,24 @@ namespace Harness
                     std::find(fired.begin(), fired.end(), kDivineTouchHeal);
                 const bool echoAfter = touch != fired.end() && std::find(touch, fired.end(), kEchoHeal) != fired.end();
 
-                // the heal wanted, as the script reckons it: the tick's percent times the base duration over the
-                // period, the fraction kept until the end; and, for the detail, the whole unhasted ticks the old case
-                // took
-                const int64 wanted = percent > 0 && tick > 0 && base > 0 && period > 0 ?
-                    int64(double(tick) * double(percent) / 100.0 * double(base) / double(period) + 0.5) : -1;
+                // the heal wanted: the tick's percent times retail's 4.44, rounded to the nearest; and, for the
+                // detail, the whole unhasted ticks the old case took
+                const int64 wanted = percent > 0 && tick > 0 ?
+                    (tick * percent * kTickFactorHundredths + 5000) / 10000 : -1;
                 const int64 wholeTicks = basePeriod > 0 ? base / basePeriod : -1;
                 const int64 oldCase = percent > 0 && tick > 0 && wholeTicks > 0 ?
                     tick * wholeTicks * percent / 100 : -1;
 
                 const bool ok =
-                    percent > 0 && base > 0 && tick > 0 && period > 0 && basePeriod > 0 && period < basePeriod &&
+                    percent > 0 && tick > 0 && period > 0 && basePeriod > 0 && period < basePeriod &&
                     heals.size() == 1 && !heals[0].crit && int64(heals[0].amount) == wanted &&
                     !ticks.empty() && !ticks[0].crit && int64(ticks[0].amount) == tick &&
                     casts == 1 && echoAfter;
 
                 const std::string value =
                     "heal=" + LogsText(heals) + "/" + Shown(wanted) + ",tick=" +
-                    (ticks.empty() ? std::string("none") : LogText(ticks[0])) + "/" + Shown(tick) + ",factor=" +
-                    Shown(base) + "/" + Shown(period) + ",percent=" + Shown(percent) + ",casts=" +
+                    (ticks.empty() ? std::string("none") : LogText(ticks[0])) + "/" + Shown(tick) + ",period=" +
+                    Shown(period) + "/" + Shown(basePeriod) + ",percent=" + Shown(percent) + ",casts=" +
                     std::to_string(casts) + ",echo=" + (echoAfter ? "after" : "none");
                 const std::string detail =
                     U(kDivineTouchRank2) + "'s effect 0 " + Shown(percent) + "%, its proc chance " + Shown(chance) +
@@ -218,7 +217,7 @@ namespace Harness
                     " ms at " + Shown(basePeriod) + " ms; his cast haste " + Shown(haste) + "/1000000 under " +
                     U(kPowerInfusion) + ": his " + U(kRenew) + " ticks every " + Shown(period) + " ms for " +
                     Shown(lasts) + " ms, its tick " + Shown(tick) + "; wanted one " + U(kDivineTouchHeal) + " of " +
-                    Shown(tick) + " x " + Shown(percent) + "% x " + Shown(base) + " / " + Shown(period) + " = " +
+                    Shown(tick) + " x " + Shown(percent) + "% x 4.44 = " +
                     Shown(wanted) + " (the old case's " + Shown(wholeTicks) + " whole ticks: " + Shown(oldCase) +
                     "), not a crit, a " + U(kRenew) + " tick of " + Shown(tick) + ", " + U(kDivineTouchHeal) +
                     " cast once and " + U(kEchoHeal) + " cast after it; " + std::to_string(ticks.size()) + " " +
@@ -227,6 +226,7 @@ namespace Harness
             }
 
         private:
+            static constexpr int64 kTickFactorHundredths = 444;  ///< retail's 4.44: every heal 0.444 of the tick
             static constexpr uint32 kDivineFuryTalent = 9549;
             static constexpr uint32 kDivineFuryRankIndex = 0;
             static constexpr uint32 kMasteryPassive = 86475;
