@@ -26,6 +26,7 @@
 #include "spells/SpellScriptHooks.h"
 #include "spells/auras/SpellAuras.h"
 #include "spells/data/SpellMgr.h"
+#include "spells/pipeline/Spell.h"
 #include "DBCStores.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -159,6 +160,17 @@ void AuraHandle::Shorten(int32 ms)
         m_holder.SetAuraFlags(m_holder.GetAuraFlags() | AFLAG_DURATION);
     }
     m_holder.SendAuraUpdate(false);
+}
+
+void SelectTargetsContext::RaidOrPartyByHealthWithPets(uint32 count)
+{
+    targets.clear();
+    if (!m_cast)
+    {
+        return;
+    }
+    Unit* center = castTarget ? castTarget : &caster;
+    m_cast->FillRaidOrPartyHealthPriorityTargets(targets, &caster, center, m_radius, count, true, true, true);
 }
 
 void DummyEffectContext::CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints)

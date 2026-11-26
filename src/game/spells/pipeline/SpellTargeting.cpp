@@ -894,24 +894,6 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                         targetUnitMap.push_back(target);
                     }
             }
-            // Circle of Healing
-            else if (m_spellInfo->GetSpellFamilyName() == SPELLFAMILY_PRIEST && m_spellInfo->SpellVisualID[0] == 8253)
-            {
-                Unit* target = m_targets.getUnitTarget();
-                if (!target)
-                {
-                    target = m_caster;
-                }
-
-                uint32 count = 5;
-                // Glyph of Circle of Healing
-                if (Aura const* glyph = m_caster->GetDummyAura(55675))
-                {
-                    count += glyph->GetModifier()->m_amount;
-                }
-
-                FillRaidOrPartyHealthPriorityTargets(targetUnitMap, m_caster, target, radius, count, true, false, true);
-            }
             // Wild Growth
             else if (m_spellInfo->GetSpellFamilyName() == SPELLFAMILY_DRUID && m_spellInfo->SpellIconID == 2864)
             {
@@ -1663,7 +1645,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
     }
 
     SelectTargetsContext selectTargetsCtx(*m_caster, *m_spellInfo, effIndex, targetMode, targetUnitMap, unMaxTargets,
-                                          m_targets.getUnitTarget());
+                                          m_targets.getUnitTarget(), this, radius);
     bool const targetsFinal = SpellHandlerRegistry::Game().Dispatch<SelectTargetsHook>(m_spellInfo->ID, selectTargetsCtx).IsReturn();
 
     // remove caster from the list if required by attribute
