@@ -297,9 +297,10 @@ namespace Harness
          *
          * `inspirationMending`: `mending=<the charges of his 41635 on the friend at step 2; none>,heal=<crit or normal
          * for the first 33110 heal log about the friend in step 3; none>,inspiration=<the effect 0 amount of his 15357
-         * on the friend at step 3; none>x<the 15357 casts in step 3>,surge=<the 88688 casts in steps 1 to 3>`. With V
-         * 15357's effect 0 value, OK when the friend held his Mending, the heal crit and the friend holds his 15357 of
-         * V, cast once. Surge of Light's count is recorded, not judged: its 3% and 6% roll cannot be pinned, and with
+         * on the friend at step 3; none>x<1 when the friend holds his 15357 after the hit, else 0>,surge=<the 88688
+         * casts in steps 1 to 3>`. 15357 sends no SMSG_SPELL_GO, so the buff is read on the friend, not counted as a
+         * cast. With V 15357's effect 0 value, OK when the friend held his Mending, the heal crit and the friend holds
+         * his 15357 of V. Surge of Light's count is recorded, not judged: its 3% and 6% roll cannot be pinned, and with
          * the world update's row neither Shield nor Mending can roll it. The detail prints the two proc rows as the
          * server loaded them: Inspiration's B words (65572 with Prayer of Mending's heal, 65540 before), Surge of
          * Light's class masks (none before the update).
@@ -432,8 +433,6 @@ namespace Harness
                 const int64 mending = Kept(st, kMendingStep, "mending");
                 const bool held = Kept(st, kHitStep, "inspirationHeld") == 1;
                 const int64 inspiration = Kept(st, kHitStep, "inspiration");
-                std::vector<uint32> const& fired = st.seen[kHitStep].triggered;
-                const int64 inspirationCasts = int64(std::count(fired.begin(), fired.end(), kInspirationBuff));
                 int64 surges = 0;
                 std::string surgeSteps;
                 for (uint32 k = 0; k < kSteps; ++k)
@@ -446,13 +445,13 @@ namespace Harness
                 const HealRead heal = MendingHealOf(kHitStep, healed);
 
                 const bool ok = dataRead && value != 0 && mending > 0 && heal.seen && heal.crit && held &&
-                                inspiration == value && inspirationCasts == 1;
+                                inspiration == value;
 
                 const std::string line =
                     "mending=" + Shown(mending) + ",heal=" +
                     (heal.seen ? std::string(heal.crit ? "crit" : "normal") : std::string("none")) + ",inspiration=" +
-                    (held ? std::to_string(inspiration) : std::string("none")) + "x" +
-                    std::to_string(inspirationCasts) + ",surge=" + std::to_string(surges);
+                    (held ? std::to_string(inspiration) : std::string("none")) + "x" + (held ? "1" : "0") +
+                    ",surge=" + std::to_string(surges);
                 const std::string detail =
                     U(kInspirationRank2) + "'s proc row: B words " + Shown(Kept(st, kShieldStep, "inspirationB")) +
                     " (65572 names Prayer of Mending's heal, 65540 does not), procEx " +
@@ -468,7 +467,7 @@ namespace Harness
                                           : std::string("none")) +
                     "; " + U(kSurgeBuff) + " casts by step " + surgeSteps + " (recorded, not judged); wanted a " +
                     "critical heal and his " + U(kInspirationBuff) + " of " + std::to_string(value) + " on the " +
-                    "friend, cast once";
+                    "friend after the hit";
                 return line + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
 
