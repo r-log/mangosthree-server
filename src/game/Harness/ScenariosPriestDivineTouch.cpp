@@ -60,15 +60,17 @@ namespace Harness
          *
          * `divineTouch`: `heal=<the 63544 heal log of his about the friend in step 1's windows, c for a crit>/<the
          * heal wanted>,tick=<the first Renew tick log there, c for a crit>/<his Renew's amount>,period=<his Renew's
-         * period>/<Renew's effect 0 period>,percent=<63542's effect 0 value>,casts=<the 63544 casts in step 1's
-         * windows>,echo=<after when a 77489 cast follows the first 63544 cast there, else none>`. With p the percent,
-         * P0 Renew's effect 0 period, P his Renew's period and T its amount, the heal wanted is T x p / 100 x 4.44
+         * period>/<Renew's effect 0 period>,percent=<63542's effect 0 value>,heals=<his 63544 heal logs about the
+         * friend in step 1's windows>,echo=<after when the friend holds his 77489 right after his Renew and did not
+         * before it, else none>`. 63544 sends no SMSG_SPELL_GO, so its heal log and the Echo it leaves are read
+         * instead of a cast. With p the percent, P0 Renew's effect 0 period, P his Renew's period and T its amount,
+         * the heal wanted is T x p / 100 x 4.44
          * (retail's factor: every heal in the retail capture is 0.444 of the tick at rank 2, at both its hastes)
          * rounded to the nearest, a half up; the haste shortens P and changes nothing in it. OK when p and T are above
          * 0, P is above 0 and below P0 (the haste shortened it), step 1 holds one 63544 heal log, not a crit, of the
-         * heal wanted, a Renew tick log, not a crit, of T, one 63544 cast and a 77489 cast after it. The detail prints
-         * 63542's proc chance as the proc roll takes it (spell_proc_event's custom chance over the spell's own, which
-         * the client's data leaves at 0): at 0 the talent never procs and no 63544 comes.
+         * heal wanted, a Renew tick log, not a crit, of T, and his Echo on the friend after the Renew. The detail
+         * prints 63542's proc chance as the proc roll takes it (spell_proc_event's custom chance over the spell's
+         * own, which the client's data leaves at 0): at 0 the talent never procs and no 63544 comes.
          */
         class PriestDivineTouch : public StagedCasterScenario
         {
@@ -149,8 +151,13 @@ namespace Harness
                     PutReadyAura(p, kPowerInfusion, kAuraMs);
                     seen.reads["hasteMicro"] = int64(p->GetFloatValue(UNIT_MOD_CAST_HASTE) * 1000000.0f + 0.5f);
                     const uint32 healthBefore = friendPlayer->GetHealth();
+                    seen.reads["echoBefore"] = friendPlayer->GetSpellAuraHolder(kEchoHeal, p->GetObjectGuid()) ? 1 : 0;
                     p->CastSpell(friendPlayer, kRenew, true);
+                    seen.reads["echoAfter"] = friendPlayer->GetSpellAuraHolder(kEchoHeal, p->GetObjectGuid()) ? 1 : 0;
                     KeepRenew(seen, p, friendPlayer);
+                    m_rec.Note("his " + U(kEchoHeal) + " on the friend before his " + U(kRenew) + ": " +
+                               (seen.reads["echoBefore"] ? "held" : "none") + "; right after it: " +
+                               (seen.reads["echoAfter"] ? "held" : "none"));
                     m_rec.Note("his holders that proc by chance [" + LiveProcHolders(p) + "], that never proc [" +
                                DeadProcHolders(p) + "]");
                     m_rec.Note(U(kPowerInfusion) + " put on him: his cast haste " +
@@ -186,11 +193,8 @@ namespace Harness
 
                 const std::vector<Log> heals = HealsOf(kRenewStep, kDivineTouchHeal, self, healed);
                 const std::vector<Log> ticks = TicksOf(kRenewStep, kRenew, self, healed);
-                std::vector<uint32> const& fired = st.seen[kRenewStep].triggered;
-                const int64 casts = int64(std::count(fired.begin(), fired.end(), kDivineTouchHeal));
-                std::vector<uint32>::const_iterator const touch =
-                    std::find(fired.begin(), fired.end(), kDivineTouchHeal);
-                const bool echoAfter = touch != fired.end() && std::find(touch, fired.end(), kEchoHeal) != fired.end();
+                const bool echoAfter =
+                    Kept(st, kRenewStep, "echoBefore") == 0 && Kept(st, kRenewStep, "echoAfter") == 1;
 
                 // the heal wanted: the tick's percent times retail's 4.44, rounded to the nearest; and, for the
                 // detail, the whole unhasted ticks the old case took
@@ -204,13 +208,13 @@ namespace Harness
                     percent > 0 && tick > 0 && period > 0 && basePeriod > 0 && period < basePeriod &&
                     heals.size() == 1 && !heals[0].crit && int64(heals[0].amount) == wanted &&
                     !ticks.empty() && !ticks[0].crit && int64(ticks[0].amount) == tick &&
-                    casts == 1 && echoAfter;
+                    echoAfter;
 
                 const std::string value =
                     "heal=" + LogsText(heals) + "/" + Shown(wanted) + ",tick=" +
                     (ticks.empty() ? std::string("none") : LogText(ticks[0])) + "/" + Shown(tick) + ",period=" +
-                    Shown(period) + "/" + Shown(basePeriod) + ",percent=" + Shown(percent) + ",casts=" +
-                    std::to_string(casts) + ",echo=" + (echoAfter ? "after" : "none");
+                    Shown(period) + "/" + Shown(basePeriod) + ",percent=" + Shown(percent) + ",heals=" +
+                    std::to_string(heals.size()) + ",echo=" + (echoAfter ? "after" : "none");
                 const std::string detail =
                     U(kDivineTouchRank2) + "'s effect 0 " + Shown(percent) + "%, its proc chance " + Shown(chance) +
                     "%; " + U(kRenew) + " " + Shown(base) +
@@ -220,7 +224,8 @@ namespace Harness
                     Shown(tick) + " x " + Shown(percent) + "% x 4.44 = " +
                     Shown(wanted) + " (the old case's " + Shown(wholeTicks) + " whole ticks: " + Shown(oldCase) +
                     "), not a crit, a " + U(kRenew) + " tick of " + Shown(tick) + ", " + U(kDivineTouchHeal) +
-                    " cast once and " + U(kEchoHeal) + " cast after it; " + std::to_string(ticks.size()) + " " +
+                    " healed once and his " + U(kEchoHeal) + " on the friend after it; " +
+                    std::to_string(ticks.size()) + " " +
                     U(kRenew) + " tick logs in the step";
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
