@@ -42,6 +42,7 @@ option(DEBUG                "Enable debug build (only on non IDEs)"         OFF)
 option(WITHOUT_GIT          "Disable Git revision detection"                OFF)
 option(MANGOS_STRICT_TICK   "Assert on a synchronous DB acquisition on a tick thread" OFF)
 option(MSVC_DEBUG_IN_OBJECTS "MSVC Release: debug info in each object (/Z7), not a shared compile PDB (/Zi)" OFF)
+option(RELEASE_DEBUG_INFO   "GCC and Clang Release: debug info in every object (-g)"   ON)
 message("")
 message(
   "This script builds the MaNGOS server.
@@ -73,6 +74,10 @@ message(
                             (/Z7) instead of a shared compile PDB (/Zi), so ccache can
                             cache the compiles. The linker still writes the full PDBs.
                             Off by default; CI turns it on.
+    RELEASE_DEBUG_INFO      GCC and Clang Release builds carry debug info (-g). On by
+                            default. Off, the objects carry none: the compiles take
+                            about a third less time and a stripped binary is the same
+                            but for its build id. MSVC keeps its PDBs either way.
     DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
    Scripting engines:
     SCRIPT_LIB_SD3          Compile with support for ScriptDev3 scripts

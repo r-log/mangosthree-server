@@ -71,7 +71,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang"
         -Wextra
         -Winit-self
 
-        $<$<CONFIG:Release>:-g>
+        $<$<AND:$<CONFIG:Release>,$<BOOL:${RELEASE_DEBUG_INFO}>>:-g>
 
         $<$<CONFIG:Release>:-fno-omit-frame-pointer>
     )
