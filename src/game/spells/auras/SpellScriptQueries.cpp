@@ -125,6 +125,8 @@ bool CopyAuraHolder(Unit& from, Unit& to, uint32 spellId, ObjectGuid const& cast
     // a periodic aura's apply adds its caster's bonus to the amount; the source's amount holds that bonus already
     if (SpellAuraHolder* added = to.GetSpellAuraHolder(spellId, caster))
     {
+        // a copy is no spell's hit, so it procs from the add on
+        added->SetState(SPELLAURAHOLDER_STATE_READY);
         for (int32 eff = 0; eff < MAX_EFFECT_INDEX; ++eff)
         {
             Aura* aura = added->GetAuraByEffectIndex(SpellEffectIndex(eff));
