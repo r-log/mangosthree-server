@@ -477,20 +477,6 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
                         DoneTotalMod *= (aur->GetModifier()->m_amount + 100.0f) / 100.0f;
                     }
             }
-            // Shadow word: Death
-            else if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000200000000)))
-            {
-                // Glyph of Shadow word: Death
-                if (SpellAuraHolder const* glyph = GetSpellAuraHolder(55682))
-                {
-                    Aura const* hpPct = glyph->GetAuraByEffectIndex(EFFECT_INDEX_0);
-                    Aura const* dmPct = glyph->GetAuraByEffectIndex(EFFECT_INDEX_1);
-                    if (hpPct && dmPct && pVictim->GetHealth() * 100 <= pVictim->GetMaxHealth() * hpPct->GetModifier()->m_amount)
-                    {
-                        DoneTotalMod *= (dmPct->GetModifier()->m_amount + 100.0f) / 100.0f;
-                    }
-                }
-            }
             break;
         }
         case SPELLFAMILY_DRUID:

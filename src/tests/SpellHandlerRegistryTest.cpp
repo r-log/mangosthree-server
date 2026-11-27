@@ -6633,7 +6633,7 @@ TEST(SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer)
 
 namespace
 {
-    uint32 const SPELL_DAMAGE_TAKEN_IDS[] = { 45182, 20911, 25899, 47580, 47581, 47582 };
+    uint32 const SPELL_DAMAGE_TAKEN_IDS[] = { 45182, 20911, 25899 };
     uint32 const SPELL_HEALING_DONE_IDS[] = { 34246, 60779 };
     uint32 const MELEE_DAMAGE_TAKEN_IDS[] = { 45182, 20911, 25899 };
 
@@ -6662,7 +6662,7 @@ namespace
     SpellClassOptionsEntry s_bonusOptions[2];
     alignas(SpellEntry) unsigned char s_bonusSpellBytes[3][sizeof(SpellEntry)] = {};
 
-    // Spell.dbc rows for the Pain and Suffering body: 0 has no class options, 1 holds Shadow Word: Death's class flag,
+    // Spell.dbc rows for the damage-taken contexts: 0 has no class options, 1 holds Shadow Word: Death's class flag,
     // 2 the flag next to it.
     SpellEntry const* BonusSpell(std::size_t slot)
     {
@@ -6753,18 +6753,18 @@ namespace
 
 TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 6, 2 and 3 labels at three sites and no default: 11 rows and 11 keys, none twice.
+    // 3, 2 and 3 labels at three sites and no default: 8 rows and 8 keys, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterUnitSpellBonusHandlers(registry), uint32(11));
-    CHECK_EQ(registry.Count(), std::size_t(11));
+    CHECK_EQ(RegisterUnitSpellBonusHandlers(registry), uint32(8));
+    CHECK_EQ(registry.Count(), std::size_t(8));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
-    CHECK_EQ(registry.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
+    CHECK_EQ(registry.CountAt(SpellDamageTakenSite::Key), std::size_t(3));
     CHECK_EQ(registry.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(MeleeDamageTakenSite::Key), std::size_t(3));
 
     // Registering again on the same table changes nothing: every key is taken.
-    CHECK_EQ(RegisterUnitSpellBonusHandlers(registry), uint32(11));
-    CHECK_EQ(registry.Count(), std::size_t(11));
+    CHECK_EQ(RegisterUnitSpellBonusHandlers(registry), uint32(8));
+    CHECK_EQ(registry.Count(), std::size_t(8));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
@@ -6783,8 +6783,8 @@ TEST(UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault)
     SpellHandlerRegistry registry;
     RegisterUnitSpellBonusHandlers(registry);
 
-    // The spell site's 6 labels in 3 bodies, the healing site's 2 in 1, the melee site's 3 in 2; no default.
-    CheckSiteLabels<SpellDamageTakenSite>(registry, SPELL_DAMAGE_TAKEN_IDS, 3);
+    // The spell site's 3 labels in 2 bodies, the healing site's 2 in 1, the melee site's 3 in 2; no default.
+    CheckSiteLabels<SpellDamageTakenSite>(registry, SPELL_DAMAGE_TAKEN_IDS, 2);
     CheckSiteLabels<SpellHealingDoneSite>(registry, SPELL_HEALING_DONE_IDS, 1);
     CheckSiteLabels<MeleeDamageTakenSite>(registry, MELEE_DAMAGE_TAKEN_IDS, 2);
     CHECK(registry.FindDefault<SpellDamageTakenSite>() == NULL);
@@ -6793,8 +6793,6 @@ TEST(UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault)
 
     // Each run's labels have one body.
     CHECK(registry.Find<SpellDamageTakenSite>(25899) == registry.Find<SpellDamageTakenSite>(20911));
-    CHECK(registry.Find<SpellDamageTakenSite>(47581) == registry.Find<SpellDamageTakenSite>(47580));
-    CHECK(registry.Find<SpellDamageTakenSite>(47582) == registry.Find<SpellDamageTakenSite>(47580));
     CHECK(registry.Find<SpellHealingDoneSite>(60779) == registry.Find<SpellHealingDoneSite>(34246));
     CHECK(registry.Find<MeleeDamageTakenSite>(25899) == registry.Find<MeleeDamageTakenSite>(20911));
 
@@ -6901,14 +6899,11 @@ TEST(UnitSpellBonusHandlers_TheDamageTakenBodiesScaleByTheAurasAmount)
     ValuedCreature creature;
     StandingPlayerShape player;
     SpellEntry const* noOptions = BonusSpell(0);
-    SpellEntry const* death = BonusSpell(1);
-    SpellEntry const* other = BonusSpell(2);
     int32 const physical = SPELL_SCHOOL_MASK_NORMAL;
     int32 const fire = SPELL_SCHOOL_MASK_FIRE;
 
     // Cheating Death scales a player's multiplier for a physical aura; a creature takes the loop's next aura, and a
-    // magic aura leaves it for either. Sanctuary scales for any unit. Pain and Suffering scales only for a spell with
-    // Shadow Word: Death's class flag.
+    // magic aura leaves it for either. Sanctuary scales for any unit.
     DamageTakenCase const spellCases[] =
     {
         { 45182, &player, noOptions, physical, -50, false, 1.0f },
@@ -6917,11 +6912,6 @@ TEST(UnitSpellBonusHandlers_TheDamageTakenBodiesScaleByTheAurasAmount)
         { 45182, &creature, noOptions, fire, -50, false, 2.0f },
         { 20911, &creature, noOptions, 0, -75, false, 0.5f },
         { 25899, &player, noOptions, 0, 100, false, 4.0f },
-        { 47580, &creature, death, 0, 100, false, 4.0f },
-        { 47581, &creature, death, 0, -50, false, 1.0f },
-        { 47582, &player, death, 0, -75, false, 0.5f },
-        { 47580, &creature, noOptions, 0, 100, false, 2.0f },
-        { 47581, &creature, other, 0, 100, false, 2.0f },
     };
     CheckSpellDamageTaken(spellCases);
 
