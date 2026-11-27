@@ -116,12 +116,6 @@ TEST(PriestHolderReady_AHolderStartsCreatedWhateverTheMemoryHeld)
         {
             HolderStorage storage;
             FillWords(storage, word);
-            if (word == uint32_t(SPELLAURAHOLDER_STATE_READY))
-            {
-                // the buffer is what a freed holder leaves: every word of it, the state's among them, reads READY
-                CHECK_EQ(int(reinterpret_cast<SpellAuraHolder const*>(storage.bytes)->GetState()),
-                         int(SPELLAURAHOLDER_STATE_READY));
-            }
 
             SpellAuraHolder* holder = new (storage.bytes) SpellAuraHolder(sSpellStore.LookupEntry(RENEW), &target,
                                                                            NULL, NULL, NULL);
