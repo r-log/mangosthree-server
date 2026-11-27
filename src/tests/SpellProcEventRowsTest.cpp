@@ -23,9 +23,10 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The Fire, Frost and Arcane talents' spell_proc_event rows, the Discipline priest's (Divine Aegis, Focused Will) and
-/// the Holy priest's (Surge of Light, Inspiration, Blessed Resilience, Divine Touch) against the proc gate, with the
-/// spells their 4.3.4 texts name and the ones they leave out; and the interrupt mark a
+/// The Fire, Frost and Arcane talents' spell_proc_event rows, the Discipline priest's (Divine Aegis, Focused Will), the
+/// Holy priest's (Surge of Light, Inspiration, Blessed Resilience, Divine Touch) and the Shadow priest's (Harnessed
+/// Shadows, Mind Melt, Paralysis) against the proc gate, with the spells their 4.3.4 texts name and the ones they
+/// leave out; and the interrupt mark a
 /// hit's proc event carries when its interrupt effect
 /// stopped a cast, against Improved Counterspell's row, an aura with no row and a row that asks for the mark. A row is
 /// built by hand with the values the world database holds for it. The gate is the two checks a proc event meets
@@ -147,6 +148,10 @@ namespace
     ProcSpell const kCircleOfHealing = { 34861, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST,
                                          UI64LIT(0x0000000010000000), 0 };
     ProcSpell const kDivineTouchHeal = { 63544, SPELL_SCHOOL_MASK_HOLY, SPELLFAMILY_PRIEST, 0, 0x00001000 };
+    /// The Shadow priest's Mind Blast (A 0x2000) and Mind Spike (C 0x10000, a shadow and frost spell).
+    ProcSpell const kMindBlast = { 8092, SPELL_SCHOOL_MASK_SHADOW, SPELLFAMILY_PRIEST, UI64LIT(0x0000000000002000), 0 };
+    ProcSpell const kMindSpike = { 73510, SPELL_SCHOOL_MASK_SHADOW | SPELL_SCHOOL_MASK_FROST, SPELLFAMILY_PRIEST, 0,
+                                   0x00010000 };
 
     ProcSpell const kSpells[] = { kFireball, kFireBlast, kScorch, kPyroblast, kFrostfireBolt, kPyroblastInstant, kArcaneBlast,
                                   kArcaneMissiles, kArcaneMissile, kArcaneBarrage, kStarfire, kPolymorph, kFrostbolt,
@@ -157,7 +162,7 @@ namespace
                                   kFlameOrbHit, kShatteredBarrierFreeze, kRingFreeze, kFlashHeal, kPrayerOfHealing,
                                   kRenew, kPenanceHeal, kSmite, kShadowWordPain, kHeal, kGreaterHeal, kBindingHeal,
                                   kSurgeFlashHeal, kPowerWordShield, kPrayerOfMending, kPrayerOfMendingHeal,
-                                  kCircleOfHealing, kDivineTouchHeal };
+                                  kCircleOfHealing, kDivineTouchHeal, kMindBlast, kMindSpike };
     std::size_t const kSpellCount = sizeof(kSpells) / sizeof(kSpells[0]);
     uint32 const kFirstOptionsId = 95801;
 
@@ -318,6 +323,39 @@ namespace
     uint32 const kSurgeOfLightFlags = PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL | PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT;
     uint32 const kInspirationFlags = 0x15550;
     uint32 const kBlessedResilienceFlags = 0x222a8;
+
+    /// `row` with the family mask of effect `effect` alone, `mask`; the other effects hold none.
+    SpellProcEventEntry OnEffectOnly(SpellProcEventEntry row, int effect, ClassFamilyMask const& mask)
+    {
+        for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+        {
+            row.spellFamilyMask[i] = i == effect ? mask : ClassFamilyMask();
+        }
+        return row;
+    }
+
+    /// Harnessed Shadows 33191 (its rank 2, 78228, takes its row): every school, no family, no mask, the Spell.dbc
+    /// proc flags (the hits its owner takes, 0x222a8, the flags of Focused Will and Blessed Resilience), a critical
+    /// hit; and the row it held before, family 6 with the mask of the client's second effect (A 0x808000, B 0x400) on
+    /// its first, no hit kind.
+    SpellProcEventEntry const kHarnessedShadows = ProcRow(SPELL_SCHOOL_MASK_ALL, 0, 0, 0, PROC_EX_CRITICAL_HIT);
+    SpellProcEventEntry const kHarnessedShadowsBefore =
+        OnEffectZeroOnly(ProcRow(0, SPELLFAMILY_PRIEST, UI64LIT(0x0000040000808000), 0, PROC_EX_NONE));
+    uint32 const kHarnessedShadowsFlags = 0x222a8;
+
+    /// Mind Melt 14910 (its rank 2, 33371, takes its row): family 6, Mind Spike (C 0x10000) on the effect that casts the
+    /// cast-time buff, its second, and no mask on the others, the Spell.dbc proc flags (a harmful spell landed,
+    /// 0x10000), no hit kind; and the client's mask for that effect, the damage-over-time mask (A 0x2008000, B 0x400).
+    SpellProcEventEntry const kMindMelt = OnEffectOnly(ProcRow(0, SPELLFAMILY_PRIEST, 0, 0, PROC_EX_NONE),
+                                                       EFFECT_INDEX_1, ClassFamilyMask(0, 0x00010000));
+    ClassFamilyMask const kMindMeltClientMask = ClassFamilyMask(UI64LIT(0x0000040002008000), 0);
+
+    /// Paralysis 87192 (its rank 2, 87195, takes its row): family 6, Mind Blast (A 0x2000) on its one effect, the
+    /// Spell.dbc proc flags (a harmful spell landed), a critical hit; and the client's mask for that effect, the one
+    /// only Shadow Orb Power carries (C 0x100000).
+    SpellProcEventEntry const kParalysis = OnEffectOnly(ProcRow(0, SPELLFAMILY_PRIEST, 0, 0, PROC_EX_CRITICAL_HIT),
+                                                        EFFECT_INDEX_0, ClassFamilyMask(UI64LIT(0x2000), 0));
+    ClassFamilyMask const kParalysisClientMask = ClassFamilyMask(0, 0x00100000);
 
 
     /// The proc flags the aura answers: the row's, or Spell.dbc's when the row holds none.
@@ -930,5 +968,124 @@ TEST(SpellProcEventRows_DivineTouchRollsAtAChanceOf100WhenThePriestsRenewLands)
     for (ProcSpell const& spell : { kDivineTouchHeal, kFlashHeal, kPrayerOfMendingHeal, kSurgeFlashHeal })
     {
         CHECK(!FitsMask(kDivineTouch, spell));
+    }
+}
+
+TEST(SpellProcEventRows_HarnessedShadowsTakesTheCriticalHitsItsOwnerTakesOfAnyFamilyAndNoNormalHitOrTick)
+{
+    CHECK_EQ(kHarnessedShadowsFlags, uint32(0x222a8));
+    CHECK_EQ(kHarnessedShadows.procEx, uint32(PROC_EX_CRITICAL_HIT));
+    CHECK_EQ(kHarnessedShadows.schoolMask, uint32(127));
+    CHECK_EQ(kHarnessedShadows.spellFamilyName, uint32(0));
+    CHECK_EQ(kHarnessedShadows.procFlags, uint32(0));
+    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+    {
+        CHECK(!kHarnessedShadows.spellFamilyMask[i]);
+    }
+
+    // A melee hit taken passes when it is a critical one; a normal hit, a dodge, a parry, a miss and a block do not.
+    uint32 const meleeTaken = PROC_FLAG_TAKEN_MELEE_HIT | PROC_FLAG_TAKEN_ANY_DAMAGE;
+    CHECK(SpellMgr::IsSpellProcEventCanTriggeredBy(&kHarnessedShadows, kHarnessedShadowsFlags, NULL, meleeTaken,
+                                                   PROC_EX_CRITICAL_HIT));
+    CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(&kHarnessedShadows, kHarnessedShadowsFlags, NULL, meleeTaken,
+                                                    PROC_EX_NORMAL_HIT));
+    for (uint32 procEx : { uint32(PROC_EX_DODGE), uint32(PROC_EX_PARRY), uint32(PROC_EX_MISS), uint32(PROC_EX_BLOCK) })
+    {
+        CHECK(!SpellMgr::IsSpellProcEventCanTriggeredBy(&kHarnessedShadows, kHarnessedShadowsFlags, NULL, meleeTaken,
+                                                        procEx));
+    }
+
+    // A harmful spell's hit taken, a mage's among them, passes when it is a critical one; a normal hit and a resist do
+    // not. The row before took none of the mage's: it asked the priest family.
+    for (ProcSpell const& spell : { kFireball, kFrostbolt, kSmite, kShadowWordPain, kMindBlast })
+    {
+        CHECK(Gate(kHarnessedShadows, kHarnessedShadowsFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                   PROC_EX_CRITICAL_HIT));
+        CHECK(!Gate(kHarnessedShadows, kHarnessedShadowsFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                    PROC_EX_NORMAL_HIT));
+        CHECK(!Gate(kHarnessedShadows, kHarnessedShadowsFlags, spell, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                    PROC_EX_RESIST));
+    }
+    CHECK(!Gate(kHarnessedShadowsBefore, kHarnessedShadowsFlags, kFireball, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                PROC_EX_CRITICAL_HIT));
+    CHECK(!Gate(kHarnessedShadowsBefore, kHarnessedShadowsFlags, kFireball, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+                PROC_EX_NORMAL_HIT));
+
+    // The row before let a priest's normal hit through as it let a critical one: its hit kind was none.
+    CHECK(Gate(kHarnessedShadowsBefore, kHarnessedShadowsFlags, kShadowWordPain, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT,
+               PROC_EX_NORMAL_HIT));
+
+    // A periodic tick taken carries flags the talent does not name, critical or not.
+    uint32 const tickTaken = PROC_FLAG_ON_TAKE_PERIODIC | PROC_FLAG_TAKEN_ANY_DAMAGE;
+    CHECK(!Gate(kHarnessedShadows, kHarnessedShadowsFlags, kShadowWordPain, tickTaken, PROC_EX_CRITICAL_HIT));
+    CHECK(!Gate(kHarnessedShadows, kHarnessedShadowsFlags, kShadowWordPain, tickTaken, PROC_EX_NORMAL_HIT));
+}
+
+TEST(SpellProcEventRows_MindMeltTakesTheHitOfMindSpikeOnItsSecondEffectAndNoOtherSpell)
+{
+    CHECK_EQ(kMindMelt.spellFamilyName, uint32(SPELLFAMILY_PRIEST));
+    CHECK_EQ(kMindMelt.schoolMask, uint32(0));
+    CHECK_EQ(kMindMelt.procFlags, uint32(0));
+    CHECK_EQ(kMindMelt.procEx, uint32(PROC_EX_NONE));
+    CHECK(!kMindMelt.spellFamilyMask[EFFECT_INDEX_0]);
+    CHECK(!kMindMelt.spellFamilyMask[EFFECT_INDEX_2]);
+    CHECK(kMindMelt.spellFamilyMask[EFFECT_INDEX_1]);
+
+    // Mind Spike's hit, a harmful spell landed, normal or critical, fits the second effect's mask and passes the
+    // gate; the client's mask for the effect, the damage-over-time mask, did not fit it.
+    ClassFamilyMask const& mask = kMindMelt.spellFamilyMask[EFFECT_INDEX_1];
+    CHECK(Row(kMindSpike)->IsFitToFamilyMask(mask));
+    CHECK(!Row(kMindSpike)->IsFitToFamilyMask(kMindMeltClientMask));
+    CHECK(PassesGate(kMindMelt, kMindSpike, PROC_EX_NORMAL_HIT));
+    CHECK(PassesGate(kMindMelt, kMindSpike, PROC_EX_CRITICAL_HIT));
+
+    // Mind Blast, Shadow Word: Pain and the priest's other spells fit no bit of it: Mind Blast's class bit (A 0x2000)
+    // is not Mind Spike's (C 0x10000).
+    for (ProcSpell const& spell : { kMindBlast, kShadowWordPain, kSmite, kFlashHeal, kRenew })
+    {
+        CHECK(!Row(spell)->IsFitToFamilyMask(mask));
+    }
+
+    // Another class's spell is not the row's family.
+    CHECK(!PassesGate(kMindMelt, kFireball, PROC_EX_NORMAL_HIT));
+
+    // A miss, a resist and a dodge of Mind Spike do not pass the gate.
+    for (uint32 procEx : { uint32(PROC_EX_MISS), uint32(PROC_EX_RESIST), uint32(PROC_EX_DODGE) })
+    {
+        CHECK(!PassesGate(kMindMelt, kMindSpike, procEx));
+    }
+}
+
+TEST(SpellProcEventRows_ParalysisTakesTheCriticalHitOfMindBlastAndNeitherItsNormalHitNorMindSpikes)
+{
+    CHECK_EQ(kParalysis.spellFamilyName, uint32(SPELLFAMILY_PRIEST));
+    CHECK_EQ(kParalysis.schoolMask, uint32(0));
+    CHECK_EQ(kParalysis.procFlags, uint32(0));
+    CHECK_EQ(kParalysis.procEx, uint32(PROC_EX_CRITICAL_HIT));
+    CHECK(kParalysis.spellFamilyMask[EFFECT_INDEX_0]);
+    CHECK(!kParalysis.spellFamilyMask[EFFECT_INDEX_1]);
+    CHECK(!kParalysis.spellFamilyMask[EFFECT_INDEX_2]);
+
+    // Mind Blast's critical hit passes; its normal hit does not.
+    CHECK(Row(kMindBlast)->IsFitToFamilyMask(kParalysis.spellFamilyMask[EFFECT_INDEX_0]));
+    CHECK(PassesGate(kParalysis, kMindBlast, PROC_EX_CRITICAL_HIT));
+    CHECK(!PassesGate(kParalysis, kMindBlast, PROC_EX_NORMAL_HIT));
+
+    // Mind Spike's critical hit passes the gate and fits no bit of the mask; neither do Shadow Word: Pain's or
+    // Smite's.
+    CHECK(PassesGate(kParalysis, kMindSpike, PROC_EX_CRITICAL_HIT));
+    for (ProcSpell const& spell : { kMindSpike, kShadowWordPain, kSmite })
+    {
+        CHECK(!Row(spell)->IsFitToFamilyMask(kParalysis.spellFamilyMask[EFFECT_INDEX_0]));
+    }
+
+    // The client's mask for the effect, the one only Shadow Orb Power carries, does not fit Mind Blast: its critical
+    // hit met no Paralysis without the row.
+    CHECK(!Row(kMindBlast)->IsFitToFamilyMask(kParalysisClientMask));
+
+    // The end of Mind Blast's cast, a miss and a resist do not pass the gate.
+    for (uint32 procEx : { uint32(PROC_EX_CAST_END), uint32(PROC_EX_MISS), uint32(PROC_EX_RESIST) })
+    {
+        CHECK(!PassesGate(kParalysis, kMindBlast, procEx));
     }
 }
