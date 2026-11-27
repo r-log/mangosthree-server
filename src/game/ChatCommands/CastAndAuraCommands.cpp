@@ -345,7 +345,11 @@ bool ChatHandler::HandleAuraCommand(char* args)
             holder->AddAura(aur, SpellEffectIndex(i));
         }
     }
-    target->AddSpellAuraHolder(holder);
+    if (target->AddSpellAuraHolder(holder))
+    {
+        // the command is no spell's hit, so the holder procs from the add on
+        holder->SetState(SPELLAURAHOLDER_STATE_READY);
+    }
 
     return true;
 }

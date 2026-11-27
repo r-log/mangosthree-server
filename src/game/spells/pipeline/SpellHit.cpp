@@ -82,6 +82,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     }
     target->processed = true;                               // Target checked in apply effects procedure
 
+    // only the holder this target takes is marked ready at the end; one left from an earlier target is not this hit's
+    m_spellAuraHolder = NULL;
+
     // Get mask of effects for target
     uint32 mask = target->effectMask;
 
@@ -335,9 +338,20 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         real_caster->AI()->SpellHitTarget(unit, m_spellInfo);
     }
 
+    // the hit's own damage or a hook may have taken the holder off again (a killing blow deletes it at once), so it is
+    // marked only while the unit that took it still holds it
     if (m_spellAuraHolder)
     {
-        m_spellAuraHolder->SetState(SPELLAURAHOLDER_STATE_READY);
+        Unit* const holderUnit = missInfo == SPELL_MISS_REFLECT ? m_caster : unit;
+        Unit::SpellAuraHolderBounds bounds = holderUnit->GetSpellAuraHolderBounds(m_spellInfo->ID);
+        for (Unit::SpellAuraHolderMap::iterator iter = bounds.first; iter != bounds.second; ++iter)
+        {
+            if (iter->second == m_spellAuraHolder)
+            {
+                m_spellAuraHolder->SetState(SPELLAURAHOLDER_STATE_READY);
+                break;
+            }
+        }
     }
 }
 
@@ -544,6 +558,7 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                 if (duration == 0)
                 {
                     delete m_spellAuraHolder;
+                    m_spellAuraHolder = NULL;
                     return;
                 }
             }
@@ -556,11 +571,17 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                 m_spellAuraHolder->SetAuraDuration(duration);
             }
 
-            unit->AddSpellAuraHolder(m_spellAuraHolder);
+            // a refused add has deleted the holder, merged it into the one the unit holds or queued it for deletion:
+            // nothing is left to mark
+            if (!unit->AddSpellAuraHolder(m_spellAuraHolder))
+            {
+                m_spellAuraHolder = NULL;
+            }
         }
         else
         {
             delete m_spellAuraHolder;
+            m_spellAuraHolder = NULL;
         }
     }
 }

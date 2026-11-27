@@ -363,7 +363,7 @@ namespace Harness
             uint32 item = 0;                    ///< an aura cast at himself as the use of his item of this entry (UseItemAsClient)
         };
         /// The aura of `spell` put on `unit` as the GM aura command puts it: a holder and one aura per aura effect,
-        /// with no cast. `caster` is the holder's caster; `unit` itself when NULL.
+        /// with no cast, ready to proc once the unit holds it. `caster` is the holder's caster; `unit` itself when NULL.
         static void PutAura(Unit* unit, uint32 spell, Unit* caster = NULL)
         {
             SpellEntry const* info = sSpellStore.LookupEntry(spell);
@@ -382,7 +382,10 @@ namespace Harness
                                     SpellEffectIndex(i));
                 }
             }
-            unit->AddSpellAuraHolder(holder);
+            if (unit->AddSpellAuraHolder(holder))
+            {
+                holder->SetState(SPELLAURAHOLDER_STATE_READY);
+            }
         }
         /// The aura of `spell` put on `unit` as PutAura puts it, for `durationMs`, and ready as a cast leaves it, so
         /// that its procs run.

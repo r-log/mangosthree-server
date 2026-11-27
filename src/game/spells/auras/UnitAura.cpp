@@ -1293,7 +1293,11 @@ void Unit::RemoveAurasDueToSpellBySteal(uint32 spellId, ObjectGuid casterGuid, U
     // strange but intended behaviour: Stolen single target auras won't be treated as single targeted
     new_holder->SetTrackedAuraType(TRACK_AURA_TYPE_NOT_TRACKED);
 
-    stealer->AddSpellAuraHolder(new_holder);
+    if (stealer->AddSpellAuraHolder(new_holder))
+    {
+        // a stolen aura is no spell's hit, so it procs from the add on
+        new_holder->SetState(SPELLAURAHOLDER_STATE_READY);
+    }
 }
 
 /**

@@ -568,12 +568,12 @@ struct OnProcContext
     /// is not a player, whose store holds none. Answers whether it cut.
     bool ShortenCooldown(uint32 spellId, uint32 ms);
     /// The aura's holder moves to `to`: `to` takes a holder of the aura's spell for `auraCaster`, with this holder's
-    /// auras at their base points and `charges` charges, marked ready to proc as a spell's hit marks the holder it
-    /// puts on (only that hit marks one, and the proc loop passes over a holder that is not marked); this holder, a
-    /// single-target aura, is taken off its unit when the new one lands, while the aura this proc is for is held in use
-    /// so that it stays valid for the rest of the row. False, and nothing moved, when the unit holds no such holder,
-    /// when the aura's spell is not a single-target one (the old holder would stay), or when `to` refuses the new one.
-    /// Its body sits in UnitAuraProcHandler.cpp.
+    /// auras at their base points and `charges` charges, marked ready to proc as every adder marks the holder it
+    /// puts on (a spell's hit marks its own after its procs; the proc loop passes over a holder that is not marked);
+    /// this holder, a single-target aura, is taken off its unit when the new one lands, while the aura this proc is
+    /// for is held in use so that it stays valid for the rest of the row. False, and nothing moved, when the unit
+    /// holds no such holder, when the aura's spell is not a single-target one (the old holder would stay), or when
+    /// `to` refuses the new one. Its body sits in UnitAuraProcHandler.cpp.
     bool MoveAuraTo(Unit& to, Unit& auraCaster, uint32 charges);
     /// A unit at random of the group of the unit that holds the aura, or of its owner's when it is a pet: of the
     /// members and their pets, one that may take a jumping aura from it (GroupUnitMayTake) within `radius` yards of it;

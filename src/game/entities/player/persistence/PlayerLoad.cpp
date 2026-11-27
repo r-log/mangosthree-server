@@ -399,7 +399,11 @@ void Player::_LoadAuras(std::vector<LoginAuraRow> const& rows, uint32 timediff)
                     holder->SetTrackedAuraType(TRACK_AURA_TYPE_NOT_TRACKED);
                 }
 
-                AddSpellAuraHolder(holder);
+                // a loaded holder is no spell's hit, so it procs from the add on
+                if (AddSpellAuraHolder(holder))
+                {
+                    holder->SetState(SPELLAURAHOLDER_STATE_READY);
+                }
                 DETAIL_LOG("Added auras from spellid %u", spellproto->ID);
             }
             else
