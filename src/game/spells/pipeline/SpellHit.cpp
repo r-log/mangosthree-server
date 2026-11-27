@@ -82,6 +82,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     }
     target->processed = true;                               // Target checked in apply effects procedure
 
+    // only the holder this target takes is marked ready at the end; one left from an earlier target is not this hit's
+    m_spellAuraHolder = NULL;
+
     // Get mask of effects for target
     uint32 mask = target->effectMask;
 
@@ -544,6 +547,7 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                 if (duration == 0)
                 {
                     delete m_spellAuraHolder;
+                    m_spellAuraHolder = NULL;
                     return;
                 }
             }
@@ -556,11 +560,16 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                 m_spellAuraHolder->SetAuraDuration(duration);
             }
 
-            unit->AddSpellAuraHolder(m_spellAuraHolder);
+            // a refused add has deleted the holder (or merged it into the one the unit holds): nothing is left to mark
+            if (!unit->AddSpellAuraHolder(m_spellAuraHolder))
+            {
+                m_spellAuraHolder = NULL;
+            }
         }
         else
         {
             delete m_spellAuraHolder;
+            m_spellAuraHolder = NULL;
         }
     }
 }

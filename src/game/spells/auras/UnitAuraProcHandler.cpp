@@ -3228,7 +3228,7 @@ bool OnProcContext::MoveAuraTo(Unit& to, Unit& auraCaster, uint32 charges)
     bool const added = to.AddSpellAuraHolder(moved);
     procAura->SetInUse(false);
 
-    // only a spell's hit marks the holders it adds ready, and the proc loop passes over a holder that is not
+    // marked ready as every adder marks the holder it puts on; the proc loop passes over a holder that is not
     if (added)
     {
         moved->SetState(SPELLAURAHOLDER_STATE_READY);
