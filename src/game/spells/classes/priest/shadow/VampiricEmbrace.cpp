@@ -58,7 +58,7 @@ namespace
     /// 15286: Vampiric Embrace: for a hit or a tick of the priest's that heals (Priest::VampiricEmbraceHeals: not
     /// damage he dealt himself, not an area spell's, and with damage), the priest casts the heal (15290) at himself,
     /// triggered by the aura, with the party's share on its effect 0 (Priest::VampiricEmbracePartyHeal) and his own on
-    /// its effect 1 (Priest::VampiricEmbraceSelfHeal) as base points; a hit too small for either casts nothing. The
+    /// its effect 1 (Priest::VampiricEmbraceSelfHeal) as base points; a hit that heals neither casts nothing. The
     /// aura's effect 0 amount is the percent. FAILED for any event it refuses and for an effect other than the first;
     /// OK once the heal is cast, with no hidden cooldown.
     ProcOutcome VampiricEmbraceProc(OnProcContext& ctx)

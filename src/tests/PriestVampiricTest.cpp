@@ -350,7 +350,7 @@ TEST(PriestVampiric_VampiricEmbraceHealsHalfThePercentToTheGroupAndTheRestToHim)
     CHECK_EQ(Priest::VampiricEmbraceSelfHeal(6, 1999), int32(60));
     CHECK_EQ(Priest::VampiricEmbracePartyHeal(6, 1999) + Priest::VampiricEmbraceSelfHeal(6, 1999), int32(119));
 
-    // A hit too small to heal 1 gives nothing of either; 17 gives the party 0 and him 1.
+    // A hit that would heal less than 1 gives nothing of either; 17 gives the party 0 and him 1.
     CHECK_EQ(Priest::VampiricEmbracePartyHeal(6, 10), int32(0));
     CHECK_EQ(Priest::VampiricEmbraceSelfHeal(6, 10), int32(0));
     CHECK_EQ(Priest::VampiricEmbracePartyHeal(6, 17), int32(0));
