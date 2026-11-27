@@ -1643,12 +1643,13 @@ TEST(SpellTables_DivineHymnsHealRollsItsCritAsAMagicHealDoesAndAnotherClassNoneH
         CHECK(!healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
 
         // His crit-from-caster aura at 100 on the healed unit, its mask naming the class bit: the Hymn's heal crits;
-        // the other class-none heal still never rolls; a hit that is not a heal does not read the aura.
+        // the other class-none heal still never rolls; the mask decides, not the kind of hit, so the same spell read
+        // as a hit takes the aura too.
         SpellAuraHolder* own = ListedAura(healed, kSerenityLike, SPELL_AURA_MOD_CRIT_FROM_CASTER, 100,
                                           healer.GetObjectGuid());
         CHECK(healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
         CHECK(!healer.IsSpellCrit(&healed, otherHeal, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, HEAL));
-        CHECK(!healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, SPELL_DIRECT_DAMAGE));
+        CHECK(healer.IsSpellCrit(&healed, hymn, SPELL_SCHOOL_MASK_HOLY, BASE_ATTACK, SPELL_DIRECT_DAMAGE));
         healed.Unlist(SPELL_AURA_MOD_CRIT_FROM_CASTER);
         delete own;
 
