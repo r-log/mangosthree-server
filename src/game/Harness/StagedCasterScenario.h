@@ -35,7 +35,7 @@
 /**
  * @file StagedCasterScenario.h
  * @brief StagedCasterScenario, the base of every scenario that stages a caster of a class against a target and runs
- * steps at it. The mage's scenarios derive from it through MageProcScenario (ScenariosSpell.cpp); a class's scenario
+ * steps at it. The mage's scenarios derive from it through MageProcScenario (below); a class's scenario
  * file, Harness/Scenarios<Class><Topic>.cpp, derives from it with the class it stages.
  */
 
@@ -1660,6 +1660,16 @@ namespace Harness
         }
 
         uint8 m_classId;                    ///< the class of the human the scenario stages
+    };
+
+    /**
+     * The base of the mage scenarios: a StagedCasterScenario whose staged human is a mage.
+     */
+    class MageProcScenario : public StagedCasterScenario
+    {
+    public:
+        MageProcScenario(char const* name, int order, char const* ownCategory)
+            : StagedCasterScenario(name, order, ownCategory, CLASS_MAGE) {}
     };
 }
 

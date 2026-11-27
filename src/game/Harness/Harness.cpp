@@ -132,8 +132,9 @@ namespace Harness
         // The quest family (RegisterQuestScenarios, decoupling D4f0) is orders 920 on, after
         // everything else: what a quest reward does, recorded packet by packet and folded into
         // one digest category per scenario.
-        // The spell family (RegisterSpellScenarios, decoupling D11) is orders 930 on, up to 1199,
-        // after the quest family: what a cast does, recorded on the same machinery (Recorder.h).
+        // The spell family (RegisterSpellScenarios and the mage's ScenariosMage<Spec>.cpp files, decoupling D11) is
+        // orders 930 on, up to 1199, after the quest family: what a cast does, recorded on the same machinery
+        // (Recorder.h).
         // Orders 1200-1299 are the priest's: his scenario files, Harness/ScenariosPriest<Topic>.cpp.
         // The families above register by name, in kNamedFamilies' order; every other scenario
         // file of ScenarioFiles() registers after them, in file-name order.

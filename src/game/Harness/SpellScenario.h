@@ -81,7 +81,8 @@
  * @brief What every scenario of the spell family shares, wherever its file: the guard's parts (the
  * fingerprints CheckReachedSpell compares, CheckActor, CheckSpellPlan), the reads of a unit's holders and
  * cooldowns, and SpellScenario, the recorder and the cast as the CAST_SPELL handler makes it.
- * ScenariosSpell.cpp and a class's scenario file, Harness/Scenarios<Class><Topic>.cpp, include it.
+ * ScenariosSpell.cpp, the mage's ScenariosMageFire.cpp, ScenariosMageFrost.cpp and ScenariosMageArcane.cpp, and a
+ * class's scenario file, Harness/Scenarios<Class><Topic>.cpp, include it.
  */
 
 namespace Harness
