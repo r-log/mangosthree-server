@@ -155,10 +155,25 @@ static SpellHandlerOutcome<void> AuraEnergizeOwlkinFrenzy(AuraPeriodicEnergizeCo
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 57669, 61782: Replenishment: 0.2 percent of the target's maximum mana
+/// The mana one tick of Replenishment gives: `basePoints` percent of `maxMana` for each 10 seconds of the aura's
+/// period, which is what the client's text says ("$s1% of maximum mana per 10 sec"): maxMana x basePoints / 100 x
+/// periodMs / 10000, rounded to the nearest whole mana. Replenishment's effect holds 1 and 1000 ms, so a tick is 0.1
+/// percent of the maximum mana. A base value below 0 gives none.
+uint32 ReplenishmentTickAmount(uint32 maxMana, int32 basePoints, uint32 periodMs)
+{
+    uint64 const percentPerTenSeconds = basePoints > 0 ? uint64(basePoints) : 0;
+    uint64 const whole = uint64(maxMana) * percentPerTenSeconds * periodMs;
+    uint64 const divisor = 100 * 10000;
+    return uint32((whole + divisor / 2) / divisor);
+}
+
+/// 57669, 61782: Replenishment: the aura's base percent of the target's maximum mana for each 10 seconds of its
+/// period (ReplenishmentTickAmount), read at the apply
 static SpellHandlerOutcome<void> AuraEnergizeReplenishment(AuraPeriodicEnergizeContext& ctx)
 {
-    ctx.aura->GetModifier()->m_amount = ctx.target->GetMaxPower(POWER_MANA) * 2 / 1000;
+    ctx.aura->GetModifier()->m_amount = int32(ReplenishmentTickAmount(ctx.target->GetMaxPower(POWER_MANA),
+                                                                      ctx.aura->GetBasePoints(),
+                                                                      ctx.aura->GetModifier()->periodictime));
     return SpellHandlerOutcome<void>::Continue();
 }
 
