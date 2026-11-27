@@ -62,6 +62,7 @@ namespace
 
     /// The ids each row is registered under.
     uint32 const SHADOW_WORD_DEATH_ROW[] = { SHADOW_WORD_DEATH };
+    uint32 const RECOIL_ROW[] = { Priest::SHADOW_WORD_DEATH_RECOIL };
 
     /// The effect `index` of `spellId` in the client's data; 0 when the store lacks the spell.
     int32 DataValue(uint32 spellId, SpellEffectIndex index)
@@ -77,6 +78,17 @@ namespace
     {
         ctx.doneTotalMod *= Priest::ShadowWordDeathMultiplier(ctx.damageType, ctx.victim.GetHealth(),
                                                               ctx.victim.GetMaxHealth());
+        return SpellHandlerOutcome<void>::Continue();
+    }
+
+    /// 32409: Shadow Word: Death's recoil: the priest takes the whole hit back, and his own done modifiers do not raise
+    /// it. The retail 4.3.4 sniff (build 15595, 2012-05-28) shows a priest who held Twin Disciplines (+6% Shadow done)
+    /// take recoils equal to his hits (packets 126596 / 126814, 134483 / 134743), while the engine computes the
+    /// recoil's amount through his done path at the aura's apply; so the periodic amount's done multiplier is set back
+    /// to 1 (Priest::RecoilDoneMultiplier). His damage-taken auras still apply at the tick.
+    SpellHandlerOutcome<void> RecoilDamageDone(DamageDoneContext& ctx)
+    {
+        ctx.doneTotalMod = Priest::RecoilDoneMultiplier(ctx.damageType, ctx.doneTotalMod);
         return SpellHandlerOutcome<void>::Continue();
     }
 
@@ -119,7 +131,8 @@ namespace
             }
         }
 
-        // the target's health before the hit: what it has now and the damage the hit dealt it
+        // the target's health before the hit: what it has now and the damage the hit dealt it (in a duel, or at a
+        // creature that cannot die, DealDamage stops the health above 0 and the sum reads more than the target had)
         uint64 const healthBeforeHit = uint64(ctx.target.GetHealth()) + ctx.amount;
         if (priest.HasAura(GLYPH_OF_SHADOW_WORD_DEATH) &&
             Priest::GlyphResetsShadowWordDeath(targetLives, healthBeforeHit, ctx.target.GetMaxHealth(),
@@ -149,7 +162,13 @@ uint32 Priest::RegisterShadowWordDeath(SpellHandlerRegistry& registry)
     rows += RegisterRanks<AfterHitHook>(registry, SHADOW_WORD_DEATH_ROW, &ShadowWordDeathAfterHit);
     rows += RegisterRanks<DamageDoneHook>(registry, MIND_MELT_ROW_1, &MindMeltDamageDone<MIND_MELT_RANK_1>);
     rows += RegisterRanks<DamageDoneHook>(registry, MIND_MELT_ROW_2, &MindMeltDamageDone<MIND_MELT_RANK_2>);
+    rows += RegisterRanks<DamageDoneHook>(registry, RECOIL_ROW, &RecoilDamageDone);
     return rows;
+}
+
+float Priest::RecoilDoneMultiplier(DamageEffectType damageType, float doneMultiplier)
+{
+    return damageType == DOT ? 1.0f : doneMultiplier;
 }
 
 float Priest::ShadowWordDeathMultiplier(DamageEffectType damageType, uint32 health, uint32 maxHealth)
