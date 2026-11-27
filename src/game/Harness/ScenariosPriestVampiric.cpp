@@ -279,9 +279,11 @@ namespace Harness
          * 1 of the amount wanted, for him and for the friend, the Mind Sear step healed neither of them and logged at
          * least one hit of its tick, each of them holds Replenishment for 15000 ms with a tick of 0.1% of his maximum
          * mana (within 1 mana), each logged at least two ticks and every tick the holder's amount. On a tree where
-         * the friend is healed 1.2% (the legacy split, which gave the group 15286's effect 0 x D / 500), where an area
-         * spell heals, and where Replenishment gives 0.2%, the friend's heals are 12 thousandths, Mind Sear heals and
-         * the ticks are 20 ten thousandths, which is BUG.
+         * the friend is healed 1.2% (the legacy split, which gave the group 15286's effect 0 x D / 500) and where
+         * Replenishment gives 0.2%, the friend's heals are 12 thousandths and the ticks 20 ten thousandths, which is BUG.
+         * Mind Sear's tick (49821) is cast by its channel's aura and starts no procs on either tree, so `sear` reads
+         * 0/<hits> on both: it guards against an area spell's heal should the tick ever start procs; the area refusal
+         * itself is unit-tested.
          */
         class PriestVampiricEmbrace : public PriestVampiricScenario
         {
@@ -625,9 +627,11 @@ namespace Harness
          * (33371) and Paralysis (87195) are holders that proc besides Improved Devouring Plague's and Phantasm's. Three
          * more Camels stand on the line across from the first, which is the one he casts at: the dispeller H,
          * kHostileAcross yards from it, a second hostile S kSecondAcross yards on, 4 yards from H, and a third U
-         * kThirdAcross yards on, 10 yards from H. A Camel is friendly to its kind (one faction template), so H's Dispel Magic
-         * takes the harmful Vampiric Touch off the first Camel as it would off a friend, and the fear takes the Camels
-         * around H as it takes the allies of a dispeller. H holds Precision (put by call,
+         * kThirdAcross yards on, 10 yards from H. The Camel's own faction template (7) names no friend, so at the first
+         * step the four Camels are set by call to template 15, the same faction with itself as its friend: neutral to him
+         * as before, and friends to one another, so that H's Dispel Magic takes the harmful Vampiric Touch off the first
+         * Camel as it would off a friend, and the fear takes the Camels around H as it takes the allies of a dispeller;
+         * none of them calls for assistance (set by call), so the friendship draws none into the fight. H holds Precision (put by call,
          * as the aura command puts it), so that nothing he casts misses the others. Steps:
          *  1. a wait: the data read, the distances noted, Precision put on H;
          *  2. Vampiric Touch at the first Camel;
@@ -742,6 +746,20 @@ namespace Harness
                     }
                     Creature* second = st.targets.size() > kSecond ? Get(st.targets[kSecond]) : NULL;
                     Creature* third = st.targets.size() > kThird ? Get(st.targets[kThird]) : NULL;
+                    Creature* camels[] = { target, hostile, second, third };
+                    for (Creature* camel : camels)
+                    {
+                        if (camel)
+                        {
+                            camel->setFaction(kKinTemplate);
+                            camel->SetNoCallAssistance(true);
+                            camel->SetNoSearchAssistance(true);
+                        }
+                    }
+                    seen.reads["kin"] = hostile && second && third && target->IsFriendlyTo(hostile) && hostile->IsFriendlyTo(second) &&
+                                        hostile->IsFriendlyTo(third) && !p->IsFriendlyTo(target) ? 1 : 0;
+                    m_rec.Note("the four Camels set to faction template " + U(kKinTemplate) + ": friends to one another and not to him " +
+                               Shown(seen.reads["kin"]));
                     m_rec.Note("Sin and Punishment's chance " + Shown(seen.reads["chance"]) + ", its cut " + Shown(seen.reads["cutData"]) +
                                " s; yards from H to the first Camel " + Shown(Yards(hostile, target)) + ", to S " + Shown(Yards(hostile, second)) +
                                ", to U " + Shown(Yards(hostile, third)) + "; Precision put on H: " +
@@ -798,6 +816,7 @@ namespace Harness
                     return "BUG(" + U(st.steps.size()) + " steps, " + U(uint32(kSteps)) + " wanted)";
                 }
                 const int64 chance = Kept(st, kSetup, "chance");
+                const int64 kin = Kept(st, kSetup, "kin");
                 const int64 cutData = Kept(st, kSetup, "cutData");
                 const int64 vtBefore = Kept(st, kDispel, "vtBefore");
                 const int64 vtAfter = Kept(st, kDispel, "vtAfter");
@@ -813,15 +832,15 @@ namespace Harness
                 const int64 plainTicks = Kept(st, kEnd, "plainTicks");
                 const int64 plainCrits = Kept(st, kEnd, "plainCrits");
 
-                const bool ok = chance == 100 && cutData > 0 && vtBefore == 1 && vtAfter == 0 && backlash == 0 && fearH == 1 &&
+                const bool ok = kin == 1 && chance == 100 && cutData > 0 && vtBefore == 1 && vtAfter == 0 && backlash == 0 && fearH == 1 &&
                                 fearS == 1 && fearU == 0 && fearT == 0 && criticalTicks >= 1 && criticalCrits == criticalTicks &&
                                 criticalCut == criticalCrits * cutData && plainTicks >= 1 && plainCrits == 0 && plainCut == 0;
-                const std::string value = "vt=" + Shown(vtBefore) + "/" + Shown(vtAfter) + ",backlash=" + Shown(backlash) + ",fear=" +
+                const std::string value = "kin=" + Shown(kin) + ",vt=" + Shown(vtBefore) + "/" + Shown(vtAfter) + ",backlash=" + Shown(backlash) + ",fear=" +
                                           Shown(fearH) + "/" + Shown(fearS) + "/" + Shown(fearU) + "/" + Shown(fearT) + ",cut=" +
                                           Shown(criticalCut) + "/" + Shown(criticalCrits) + " of " + Shown(criticalTicks) + ",plain=" +
                                           Shown(plainCut) + "/" + Shown(plainCrits) + " of " + Shown(plainTicks);
                 const std::string detail =
-                    "wanted the rank's chance " + Shown(chance) + " at 100, his Vampiric Touch on the first Camel before the dispel and gone "
+                    "wanted the four Camels friends to one another, the rank's chance " + Shown(chance) + " at 100, his Vampiric Touch on the first Camel before the dispel and gone "
                     "after, no hit of 64085, his fear on H and on S, none on U (10 yards from H) and none on the first Camel (20 yards from "
                     "H), every tick of the first Mind Flay critical and each taking " + Shown(cutData) +
                     " s off the Shadowfiend's cooldown, and no tick of the second critical or taking anything off";
@@ -830,6 +849,7 @@ namespace Harness
 
         private:
             static constexpr uint32 kDispelMagic = 97690;
+            static constexpr uint32 kKinTemplate = 15;          ///< faction 7 (the Camel's) with faction 7 as its friend
             static constexpr uint32 kFear = 87204;
             static constexpr uint32 kBacklash = 64085;
             static constexpr uint32 kShadowfiend = 34433;

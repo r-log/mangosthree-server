@@ -476,8 +476,8 @@ struct AuraRemoveContext
     /// triggering spell. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
     /// `from` casts `spellId` at `to`, triggered, as its own cast with the aura's caster as the original caster: with
-    /// no triggering spell or aura. The spell picks its targets as a cast of `from` does (units friendly to `from`
-    /// around `from`), and the auras and hits it puts on are the aura's caster's.
+    /// no triggering spell or aura. The spell picks its targets as a cast of `from` does (a spell that takes the units
+    /// friendly to its caster takes `from`'s friends), and the auras and hits it puts on are the aura's caster's.
     void CastTriggeredFrom(Unit& from, Unit& to, uint32 spellId);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
