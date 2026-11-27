@@ -489,6 +489,7 @@ namespace
         bool destination;
         float x, y, z;
         uint32 itemEntry;
+        Unit const* dispeller;
     };
 
     Seen s_seen;
@@ -954,6 +955,47 @@ TEST(SpellScriptHooks_TheAuraHooksReturnWhatTheirBodiesAnswer)
     CHECK_EQ(int(s_seen.mode), int(AURA_REMOVE_BY_EXPIRE));
     CHECK_EQ(dummyAmount, 88);
     CHECK(registry.Dispatch<DummyAuraHook>(kOtherSpell, dummyRemove).IsMiss());
+}
+
+TEST(SpellScriptHooks_AnAuraRemoveContextNamesNoDispellerOutsideADispel)
+{
+    // The engine builds the context for every removal with the dispeller the dispel under way names, and for a removal
+    // that is no dispel with none: the constructor's five arguments leave it NULL, whatever the mode.
+    BareCreature owner;
+    BareCreature other;
+    BareCreature dispeller;
+    SpellEntry const& spell = HookSpell();
+    HolderStorage storage;
+    SpellAuraHolder& holder = HolderFilledWith(storage, 0);
+    for (AuraRemoveMode mode : { AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL,
+                                 AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_EXPIRE,
+                                 AURA_REMOVE_BY_DAMAGE })
+    {
+        AuraRemoveContext plain(owner, &other, spell, AuraHandle(holder), mode);
+        CHECK(plain.dispeller == NULL);
+        CHECK_EQ(int(plain.mode), int(mode));
+    }
+
+    // A dispel names its dispeller, which a body reads; the unit is the caller's, not the context's.
+    AuraRemoveContext dispelled(owner, &other, spell, AuraHandle(holder), AURA_REMOVE_BY_DISPEL, &dispeller);
+    CHECK(dispelled.dispeller == &dispeller);
+    CHECK(dispelled.caster == &other);
+    CHECK(&dispelled.target == &owner);
+
+    // The hook sees it.
+    SpellHandlerRegistry registry;
+    CHECK(registry.Register<AuraRemoveHook>(kHookSpell, [](AuraRemoveContext& ctx)
+    {
+        s_seen.dispeller = ctx.dispeller;
+        return SpellHandlerOutcome<void>::Continue();
+    }));
+    Forget();
+    s_seen.dispeller = &owner;
+    AuraRemoveContext none(owner, &other, spell, AuraHandle(holder), AURA_REMOVE_BY_EXPIRE);
+    CHECK(registry.Dispatch<AuraRemoveHook>(kHookSpell, none).IsContinue());
+    CHECK(s_seen.dispeller == NULL);
+    CHECK(registry.Dispatch<AuraRemoveHook>(kHookSpell, dispelled).IsContinue());
+    CHECK(s_seen.dispeller == &dispeller);
 }
 
 namespace

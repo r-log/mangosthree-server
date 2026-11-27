@@ -269,6 +269,11 @@ void AuraRemoveContext::CastTriggered(Unit& to, uint32 spellId, int32 const* bas
     CastTriggeredSpell(target, to, spellId, basePoints, NULL, NULL, aura.CasterGuid(), NULL);
 }
 
+void AuraRemoveContext::CastTriggeredFrom(Unit& from, Unit& to, uint32 spellId)
+{
+    CastTriggeredSpell(from, to, spellId, NULL, NULL, NULL, aura.CasterGuid(), NULL);
+}
+
 void AuraRemoveContext::RemoveAura(Unit& from, uint32 spellId)
 {
     from.RemoveAurasDueToSpell(spellId);

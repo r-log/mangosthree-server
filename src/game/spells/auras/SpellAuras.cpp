@@ -3699,35 +3699,11 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
         }
         case SPELLFAMILY_PRIEST:
         {
-            // Shadow Word: Pain (need visual check fro skip improvement talent) or Vampiric Touch
+            // Shadow Word: Pain (need visual check fro skip improvement talent) or Vampiric Touch: no boosts, whatever
+            // the way they end
             if ((m_spellProto->SpellIconID == 234 && m_spellProto->SpellVisualID[0]) || m_spellProto->SpellIconID == 2213)
             {
-                if (!apply && m_removeMode == AURA_REMOVE_BY_DISPEL)
-                {
-                    Unit* caster = GetCaster();
-                    if (!caster)
-                    {
-                        return;
-                    }
-
-                    Unit::AuraList const& dummyAuras = caster->GetAurasByType(SPELL_AURA_DUMMY);
-                    for (Unit::AuraList::const_iterator itr = dummyAuras.begin(); itr != dummyAuras.end(); ++itr)
-                    {
-                        // Shadow Affinity
-                        if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_PRIEST
-                            && (*itr)->GetSpellProto()->SpellIconID == 178)
-                        {
-                            // custom cast code
-                            int32 basepoints0 = (*itr)->GetModifier()->m_amount * caster->GetCreateMana() / 100;
-                            caster->CastCustomSpell(caster, 64103, &basepoints0, NULL, NULL, true, NULL);
-                            return;
-                        }
-                    }
-                }
-                else
-                {
-                    return;
-                }
+                return;
             }
             // Power Word: Shield
             else if (apply && classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000000000001) && m_spellProto->GetMechanic() == MECHANIC_SHIELD)

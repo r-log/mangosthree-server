@@ -81,7 +81,8 @@ struct SpellEntry;
  *   cast, remove other auras, take an effect off its own holder and set the script words.
  * - AuraRemove: `Unit::RemoveSpellAuraHolder`, where `SpellAuraHolder::HandleSpellSpecificBoosts(false)` runs, so
  *   never for AURA_REMOVE_BY_DELETE. Return() skips the boosts. A body may cast and remove other auras. It is the
- *   boosts' moment; a dummy effect's own body runs on DummyAura.
+ *   boosts' moment; a dummy effect's own body runs on DummyAura. The holder a dispel takes names the unit whose dispel
+ *   it was (AuraRemoveContext::dispeller; Unit::RemoveAuraHolderDueToSpellByDispel); every other removal names none.
  * - PeriodicTick: `Aura::PeriodicTick`, for a damage or a heal tick, before the target's steps (its taken bonus, the
  *   crit, its absorb and resist), `Aura::PeriodicDummyTick`, before its family switch, and `Aura::TriggerSpell`, for
  *   the tick of a periodic trigger whose aura has a caster and a trigger target, before its trigger spell is looked
@@ -464,8 +465,9 @@ struct AuraApplyContext
 struct AuraRemoveContext
 {
     AuraRemoveContext(Unit& targetUnit, Unit* casterUnit, SpellEntry const& spellEntry, AuraHandle const& holder,
-                      AuraRemoveMode removeMode)
-        : target(targetUnit), caster(casterUnit), spell(spellEntry), aura(holder), mode(removeMode)
+                      AuraRemoveMode removeMode, Unit* dispellingUnit = NULL)
+        : target(targetUnit), caster(casterUnit), spell(spellEntry), aura(holder), mode(removeMode),
+          dispeller(dispellingUnit)
     {
         target.AssertSpellSeamOwner();
     }
@@ -473,6 +475,10 @@ struct AuraRemoveContext
     /// The target casts `spellId` at `to`, triggered, for the aura's caster, as the holder's boosts cast: with no
     /// triggering spell. `basePoints`, when given, holds MAX_EFFECT_INDEX values; a zero keeps that effect's own value.
     void CastTriggered(Unit& to, uint32 spellId, int32 const* basePoints = NULL);
+    /// `from` casts `spellId` at `to`, triggered, as its own cast with the aura's caster as the original caster: with
+    /// no triggering spell or aura. The spell picks its targets as a cast of `from` does (units friendly to `from`
+    /// around `from`), and the auras and hits it puts on are the aura's caster's.
+    void CastTriggeredFrom(Unit& from, Unit& to, uint32 spellId);
     /// Removes every aura of `spellId` from `from`.
     void RemoveAura(Unit& from, uint32 spellId);
 
@@ -481,6 +487,8 @@ struct AuraRemoveContext
     SpellEntry const& spell;                        ///< the aura's spell
     AuraHandle aura;                                ///< the aura's holder
     AuraRemoveMode mode;                            ///< why the aura is removed
+    Unit* dispeller;                                ///< the unit whose dispel took the holder; NULL for every other
+                                                    ///< removal
 };
 
 /// PeriodicTick's context. Value: void.
