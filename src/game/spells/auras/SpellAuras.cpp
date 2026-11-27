@@ -1093,9 +1093,10 @@ void AreaAura::Update(uint32 diff)
                     aur->ApplyModifier(true, true);
                     holder->SetInUse(false);
                 }
-                else
+                else if ((*tIter)->AddSpellAuraHolder(holder))
                 {
-                    (*tIter)->AddSpellAuraHolder(holder);
+                    // no spell's hit marks this holder, so it procs from the add on
+                    holder->SetState(SPELLAURAHOLDER_STATE_READY);
                 }
 
             }
@@ -1315,7 +1316,11 @@ void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
         holder = CreateSpellAuraHolder(spellInfo, target, i_dynobject.GetCaster());
         PersistentAreaAura* Aur = new PersistentAreaAura(spellInfo, eff_index, NULL, holder, target, i_dynobject.GetCaster());
         holder->AddAura(Aur, eff_index);
-        target->AddSpellAuraHolder(holder);
+        if (target->AddSpellAuraHolder(holder))
+        {
+            // no spell's hit marks this holder, so it procs from the add on
+            holder->SetState(SPELLAURAHOLDER_STATE_READY);
+        }
     }
 
     i_dynobject.AddAffected(target);
@@ -2796,6 +2801,7 @@ bool Aura::HasMechanic(uint32 mechanic) const
 SpellAuraHolder::SpellAuraHolder(SpellEntry const* spellproto, Unit* target, WorldObject* caster, Item* castItem, SpellEntry const* triggeredBy) :
     m_spellProto(spellproto), m_target(target),
     m_castItemGuid(castItem ? castItem->GetObjectGuid() : ObjectGuid()), m_triggeredBy(triggeredBy),
+    m_spellAuraHolderState(SPELLAURAHOLDER_STATE_CREATED),
     m_auraSlot(MAX_AURAS), m_auraFlags(AFLAG_NONE), m_auraLevel(1),
     m_procCharges(0), m_stackAmount(1), m_stackCap(0),
     m_timeCla(1000), m_removeMode(AURA_REMOVE_BY_DEFAULT), m_AuraDRGroup(DIMINISHING_NONE),
