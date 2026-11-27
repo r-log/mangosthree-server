@@ -54,8 +54,8 @@ namespace
     uint32 const MIND_BLAST = 8092;
     uint32 const MIND_SPIKE = 73510;
 
-    /// 77486: Shadow Orb Power: its proc flags let every harmful hit and tick of the priest through, and its own class
-    /// mask, which no spell of his fits, would stop them. The script answers true for the damage tick of Shadow Word:
+    /// 77486: Shadow Orb Power: its proc flags let every harmful hit and tick of the priest through, and its effects
+    /// name no class mask, so the engine's check alone would let every harmful hit and tick through as well. The script answers true for the damage tick of Shadow Word:
     /// Pain or Mind Flay (Priest::OrbFromTick) and false for every other event, so the engine's class mask and hit
     /// kind do not run for the aura, which has no spell_proc_event row, and its chance is the client's 10 plus what
     /// Harnessed Shadows adds to it.
