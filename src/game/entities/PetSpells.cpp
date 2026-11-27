@@ -309,7 +309,11 @@ void Pet::_LoadAuras(uint32 timediff, PlayerPetCache const& cache)
 
             if (!holder->IsEmptyHolder())
             {
-                AddSpellAuraHolder(holder);
+                // a loaded holder is no spell's hit, so it procs from the add on
+                if (AddSpellAuraHolder(holder))
+                {
+                    holder->SetState(SPELLAURAHOLDER_STATE_READY);
+                }
             }
             else
             {
