@@ -47,8 +47,8 @@ namespace Harness
          * (77486), and its primary spells; Precision (13843, +6% spell hit) put on him before each cast so that no
          * cast misses the level 85 Camel; the Camel ten yards in front of him. The talents before a talent of a higher
          * tier are the filler the tree's rule asks for (five points of the tree for each tier above the first), the
-         * ones whose spells touch neither Mind Blast, Mind Spike nor the orbs but for Darkness, which adds 2% spell haste
-         * to Mind Blast.
+         * ones whose spells touch neither Mind Blast, Mind Spike nor the orbs but for Darkness, which adds 2% (rank 2,
+         * 1234) or 3% (rank 3, 1235) spell haste to Mind Blast and Mind Spike.
          */
         class PriestShadowScenario : public StagedCasterScenario
         {
@@ -94,6 +94,10 @@ namespace Harness
             static constexpr uint32 kCritRolls = 2000;
 
             uint32 CasterAura() const override { return kPrecision; }
+            /// A cast is read once its 1.5 s cast has landed and before the next cast step starts: a step's damage log
+            /// is looked for only in its own windows, and the read of an earlier step opens a window that takes it.
+            uint32 CastReadMs() const override { return kShadowCastReadMs; }
+            static constexpr uint32 kShadowCastReadMs = 1800;
 
             /// What ReadOwn kept of step k under `name`; -2 when the step was not read.
             static int64 Kept(St const& st, uint32 k, char const* name)
@@ -413,7 +417,7 @@ namespace Harness
             static constexpr uint32 kBlasts = 20;
             static constexpr uint32 kEmpoweredMs = 15000;
             static constexpr uint32 kSetupMs = 600;
-            static constexpr uint32 kBlastEveryMs = 1700;
+            static constexpr uint32 kBlastEveryMs = 2000;
             static constexpr uint32 kTicksMs = 19000;
             static constexpr int64 kRatioSlackMilli = 150;
 
@@ -582,6 +586,7 @@ namespace Harness
                     m_friend = friendPlayer->GetObjectGuid();
                     friendPlayer->SetLevel(kFriendLevel);
                     friendPlayer->InitStatsForLevel(true);
+                    PutAura(friendPlayer, kPrecision);  // his Mind Blast then always lands
                 }
             }
 
@@ -660,6 +665,7 @@ namespace Harness
                     ReadAuras(seen, p, target);
                     seen.reads["read"] = CritBonusOf(p, target, kMindBlast);
                     seen.reads["data"] = DataValue(kMindSpikeDebuff, EFFECT_INDEX_0);
+                    seen.reads["camel"] = int64(target->GetHealth());
                     if (friendPlayer)
                     {
                         friendPlayer->CastSpell(target, kMindBlast, true);
@@ -673,6 +679,7 @@ namespace Harness
                 else if (k == kAfterFriend)
                 {
                     seen.reads["friend"] = StacksOf(target, kMindSpikeDebuff, p->GetObjectGuid());
+                    seen.reads["camel"] = int64(target->GetHealth());
                     p->SetFloatValue(uint16(PLAYER_SPELL_CRIT_PERCENTAGE1 + SPELL_SCHOOL_SHADOW), kSheet);
                     m_rec.Note("after the friend's Mind Blast: his " + U(kMindSpikeDebuff) + " on the Camel " +
                                HolderOf(target, kMindSpikeDebuff) + "; his shadow crit sheet set to " + std::to_string(kSheet));
@@ -713,6 +720,8 @@ namespace Harness
                 const int64 melt3 = Kept(st, kAfterThird, "melt");
                 const int64 read = Kept(st, kAfterThird, "read");
                 const int64 friendStacks = Kept(st, kAfterFriend, "friend");
+                const bool friendHit = Kept(st, kAfterFriend, "camel") >= 0 &&
+                                       Kept(st, kAfterFriend, "camel") < Kept(st, kAfterThird, "camel");
                 const int64 cast = Kept(st, kBlast, "cast");
                 const bool crit = st.seen[kBlast].logRead && st.seen[kBlast].crit;
                 const int64 root = Kept(st, kEarly, "root");
@@ -721,19 +730,19 @@ namespace Harness
                 const int64 dotsBefore = Kept(st, kDots, "dots");
 
                 const bool ok = data > 0 && dotsBefore == 3 && dots == 0 && debuff1 == 1 && debuff3 == 3 &&
-                                melt3 == 2 && read == int64(kStacks) * data && friendStacks == 3 && cast == 0 &&
+                                melt3 == 2 && read == int64(kStacks) * data && friendStacks == 3 && friendHit && cast == 0 &&
                                 crit && root == int64(kRootMs) && lateDebuff == 0 && lateMelt == 0;
 
                 const std::string value =
                     "dots=" + Shown(dots) + ",debuff=" + Shown(debuff1) + "/" + Shown(debuff3) + ",melt=" + Shown(melt1) +
-                    "/" + Shown(melt3) + ",read=" + Shown(read) + ",friend=" + Shown(friendStacks) + ",cast=" + Shown(cast) +
+                    "/" + Shown(melt3) + ",read=" + Shown(read) + ",friend=" + Shown(friendStacks) + (friendHit ? "/hit" : "/none") + ",cast=" + Shown(cast) +
                     ",crit=" + (crit ? "1" : "0") + ",root=" + Shown(root) + ",gone=" + Shown(lateDebuff) + "/" +
                     Shown(lateMelt);
                 const std::string detail =
                     "his three damage over time stood on the Camel before the first Mind Spike (" + Shown(dotsBefore) +
                     "); wanted none after it, the debuff at 1 then 3, Mind Melt's buff at 2 after the third, a crit " +
                     "chance read of 3 x " + Shown(data) + " (the debuff's effect 0 value), the debuff at 3 after the " +
-                    "friend's Mind Blast, his Mind Blast instant and critical, Paralysis's root for " + U(kRootMs) +
+                    "friend's Mind Blast hit the Camel, his Mind Blast instant and critical, Paralysis's root for " + U(kRootMs) +
                     " ms, and the debuff and the buff gone later";
                 return value + (ok ? "(OK: " : "(BUG: ") + detail + ")";
             }
@@ -745,7 +754,7 @@ namespace Harness
             static constexpr uint32 kRootMs = 4000;
             static constexpr float kSheet = 10.0f;
             static constexpr uint32 kSetupMs = 900;
-            static constexpr uint32 kBriefMs = 100;
+            static constexpr uint32 kBriefMs = 400;             ///< past the wait's own read, 300 ms in
             static constexpr uint32 kSpikeEveryMs = 2000;
             static constexpr uint32 kBlastEveryMs = 1000;
             static constexpr uint32 kToFriendReadMs = 1900;
