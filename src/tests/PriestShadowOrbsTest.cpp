@@ -162,7 +162,7 @@ namespace
     }
 
     // The two spells the orb percent is read from, as the client holds them: Shadow Orb Power, a mastery spell
-    // (SPELL_ATTR_EX8_MASTERY) whose effect 0 is a dummy of 0 points with a bonus coefficient of 1.45, and Empowered
+    // (SPELL_ATTR_EX8_MASTERY) whose effect 0, its proc trigger of 0 points, holds a bonus coefficient of 1.45, and Empowered
     // Shadow, whose effect 0 holds 10; and Shadow Orb, which the holder of the orbs is made of.
     ServerSpell s_orbPowerRow;
     ServerSpell s_empoweredRow;
@@ -252,7 +252,7 @@ TEST(PriestShadowOrbs_TheOrbPercentIsEmpoweredShadowsTenPlusTheCoefficientTimesT
     CHECK(Priest::ShadowOrbPercent(priest) == 0.0f);
 
     // The Mastery passive's 8 points at 1.45 a point: 10 + 11.6 = 21.6; the retail 4.3.4 sniff's 12.46 points: 10 +
-    // 18.067, its fraction kept, where the orbs' whole number would hold 28 for the first and 28 for the second.
+    // 18.067, its fraction kept, where the orbs' whole number would hold 21 (22 rounded) for the first and 28 for the second.
     StoreOrbRows(true);
     CHECK(Near(Priest::ShadowOrbPercent(priest), 21.6f));
     priest.SetFloatValue(PLAYER_MASTERY, 12.46f);
