@@ -6971,7 +6971,7 @@ namespace
                                               68161, 66808, 68160, 69739, 69755, 71903, 72178 };
     uint32 const DUMMY_PROC_MAGE_IDS[] = { 64411 };
     uint32 const DUMMY_PROC_WARLOCK_IDS[] = { 18094, 18095, 56218, 30293, 30295, 30296, 37377, 37381, 39437, 63108 };
-    uint32 const DUMMY_PROC_PRIEST_IDS[] = { 15286, 40438, 26169, 39372, 28809, 55680, 70770 };
+    uint32 const DUMMY_PROC_PRIEST_IDS[] = { 40438, 26169, 39372, 28809, 55680, 70770 };
     uint32 const DUMMY_PROC_DRUID_IDS[] = { 24932, 28719, 28847, 37288, 37295, 40442, 44835, 54754, 54821, 70664,
                                             70723 };
     uint32 const DUMMY_PROC_ROGUE_IDS[] = { 23582, 32748, 57934, 76806, 76838 };
@@ -7096,10 +7096,10 @@ namespace
 
 TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 37, 0, 10, 7, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 19 at the haste, crit-chance
-    // and two proc-trigger sites, and no default: 144 rows and 144 keys, none twice. The mage dummy proc site's
+    // 37, 0, 10, 6, 11, 5, 26 and 10 labels at the eight dummy proc sites, 2, 1, 16 and 19 at the haste, crit-chance
+    // and two proc-trigger sites, and no default: 143 rows and 143 keys, none twice. The mage dummy proc site's
     // row is RegisterMageScripts'.
-    std::size_t const perSite[] = { 37, 0, 10, 7, 11, 5, 26, 10, 2, 1, 16, 19 };
+    std::size_t const perSite[] = { 37, 0, 10, 6, 11, 5, 26, 10, 2, 1, 16, 19 };
     uint32 const siteKeys[] = { DummyAuraProcGenericSite::Key, DummyAuraProcMageSite::Key,
                                 DummyAuraProcWarlockSite::Key, DummyAuraProcPriestSite::Key,
                                 DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
@@ -7107,8 +7107,8 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
                                 HasteAuraProcRogueSite::Key, SpellCritChanceAuraProcMageSite::Key,
                                 ProcTriggerSpellAuraProcGenericSite::Key, ProcTriggerSpellAuraProcTriggeredSite::Key };
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(144));
-    CHECK_EQ(registry.Count(), std::size_t(144));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(143));
+    CHECK_EQ(registry.Count(), std::size_t(143));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     for (std::size_t k = 0; k < 12; ++k)
     {
@@ -7116,8 +7116,8 @@ TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
     }
 
     // Registering again on the same table changes nothing: every key is taken.
-    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(144));
-    CHECK_EQ(registry.Count(), std::size_t(144));
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(143));
+    CHECK_EQ(registry.Count(), std::size_t(143));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these with the other files' rows and defaults; its sites hold this file's rows and the
@@ -7182,17 +7182,17 @@ TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
     CHECK(game.Find<DummyAuraProcMageSite>(74396) == NULL);
 
     // An id the switch never held answers Miss and leaves the locals: 12345, the other two sites' labels, and a priest
-    // label (15286, Vampiric Embrace).
+    // label (40438, the priest tier 6 trinket).
     DummyProcLocals locals(NULL);
-    for (uint32 spellId : { 12345u, 64411u, 18094u, 15286u })
+    for (uint32 spellId : { 12345u, 64411u, 18094u, 40438u })
     {
         CHECK(game.Dispatch<DummyAuraProcGenericSite>(spellId, locals.ctx).IsMiss());
     }
-    for (uint32 spellId : { 12345u, 66063u, 18094u, 15286u })
+    for (uint32 spellId : { 12345u, 66063u, 18094u, 40438u })
     {
         CHECK(game.Dispatch<DummyAuraProcMageSite>(spellId, locals.ctx).IsMiss());
     }
-    for (uint32 spellId : { 12345u, 66063u, 64411u, 15286u })
+    for (uint32 spellId : { 12345u, 66063u, 64411u, 40438u })
     {
         CHECK(game.Dispatch<DummyAuraProcWarlockSite>(spellId, locals.ctx).IsMiss());
     }
@@ -7373,9 +7373,9 @@ TEST(UnitAuraProcHandlerHandlers_TheFiveFamilySitesHoldTheirLabelsAndNoDefault)
     SpellHandlerRegistry registry;
     RegisterUnitAuraProcHandlerHandlers(registry);
 
-    // The priest site's 7 labels in 7 bodies, the druid site's 11 in 10, the rogue site's 5 in 5, the paladin site's
+    // The priest site's 6 labels in 6 bodies, the druid site's 11 in 10, the rogue site's 5 in 5, the paladin site's
     // 26 in 21 and the shaman site's 10 in 10; no default.
-    CheckSiteLabels<DummyAuraProcPriestSite>(registry, DUMMY_PROC_PRIEST_IDS, 7);
+    CheckSiteLabels<DummyAuraProcPriestSite>(registry, DUMMY_PROC_PRIEST_IDS, 6);
     CheckSiteLabels<DummyAuraProcDruidSite>(registry, DUMMY_PROC_DRUID_IDS, 10);
     CheckSiteLabels<DummyAuraProcRogueSite>(registry, DUMMY_PROC_ROGUE_IDS, 5);
     CheckSiteLabels<DummyAuraProcPaladinSite>(registry, DUMMY_PROC_PALADIN_IDS, 21);
@@ -7396,7 +7396,7 @@ TEST(UnitAuraProcHandlerHandlers_TheFiveFamilySitesHoldTheirLabelsAndNoDefault)
 
     // Seen from another site, a label of each of the five is held elsewhere.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    for (uint32 spellId : { 15286u, 24932u, 23582u, 20185u, 28823u })
+    for (uint32 spellId : { 40438u, 24932u, 23582u, 20185u, 28823u })
     {
         CHECK(HeldByAnotherSite(game, DummyAuraProcGenericSite::Key, spellId));
     }
@@ -7443,7 +7443,7 @@ TEST(UnitAuraProcHandlerHandlers_TheFiveFamilySitesHoldTheirLabelsAndNoDefault)
 
     // An id the switch never held answers Miss and leaves the locals: 12345 and labels of the other proc sites.
     DummyProcLocals locals(NULL);
-    uint32 const others[] = { 12345, 66063, 15286, 24932, 23582, 20185, 28823 };
+    uint32 const others[] = { 12345, 66063, 40438, 24932, 23582, 20185, 28823 };
     uint32 const sites[] = { DummyAuraProcPriestSite::Key, DummyAuraProcDruidSite::Key, DummyAuraProcRogueSite::Key,
                              DummyAuraProcPaladinSite::Key, DummyAuraProcShamanSite::Key };
     std::size_t const owner[] = { 2, 3, 4, 5, 6 };
@@ -7583,7 +7583,6 @@ TEST(UnitAuraProcHandlerHandlers_TheFamilyGuardsEndTheProcBeforeTheUnitIsRead)
     uint32 const holy = SPELL_SCHOOL_MASK_HOLY;
     GuardCase const cases[] =
     {
-        { DummyAuraProcPriestSite::Key, 15286, 0, false, EFFECT_INDEX_0, 1000, 15 },   // the unit is the victim
         { DummyAuraProcPriestSite::Key, 40438, 0, true, EFFECT_INDEX_0, 1000, 15 },    // no class flag
         { DummyAuraProcPriestSite::Key, 39372, 0, true, EFFECT_INDEX_0, 1000, 15 },    // no proc spell
         { DummyAuraProcPriestSite::Key, 39372, holy, true, EFFECT_INDEX_0, 1000, 15 }, // neither frost nor shadow

@@ -704,25 +704,6 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcWarlock63108(DummyA
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 }
 
-/// 15286: Vampiric Embrace: unless the unit damaged itself, casts 15290 on itself with base points from the aura's
-/// percent of the damage, and the proc ends
-static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcPriest15286(DummyAuraProcContext& ctx)
-{
-    // Vampiric Embrace
-    // Return if self damage
-    if (ctx.unit == ctx.pVictim)
-    {
-        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
-    }
-
-    // Heal amount - Self/Team
-    int32 team = ctx.triggerAmount * ctx.damage / 500;
-    int32 self = ctx.triggerAmount * ctx.damage / 100 - team;
-    ctx.unit->CastCustomSpell(ctx.unit, 15290, &team, &self, NULL, true, ctx.castItem, ctx.triggeredByAura);
-    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);              // no hidden cooldown
-// Priest Tier 6 Trinket (Ashtongue Talisman of Acumen)
-}
-
 /// 40438: Priest Tier 6 Trinket: triggers 40441 on the unit after Shadow Word: Pain, 40440 after Renew; fails otherwise
 static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcPriest40438(DummyAuraProcContext& ctx)
 {
@@ -2472,7 +2453,6 @@ uint32 RegisterUnitAuraProcHandlerHandlers(SpellHandlerRegistry& registry)
 
     static ProcRow<DummyAuraProcPriestSite> const dummyAuraProcPriest[] =
     {
-        { 15286, &DummyAuraProcPriest15286 },
         { 40438, &DummyAuraProcPriest40438 },
         { 26169, &DummyAuraProcPriest26169 },
         { 39372, &DummyAuraProcPriest39372 },
