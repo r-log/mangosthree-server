@@ -33,7 +33,7 @@
  * @brief Shadow Word: Death, the talents and glyphs that change it, and the damage it deals back: the leaves of
  * ShadowWordDeath.cpp.
  *
- * ShadowWordDeath.cpp registers four rows. The damage-done row of Shadow Word: Death (32379) multiplies a direct hit at
+ * ShadowWordDeath.cpp registers five rows. The damage-done row of Shadow Word: Death (32379) multiplies a direct hit at
  * a target below its text's percent of its health by the text's three (ShadowWordDeathMultiplier), the done multiplier
  * the hit's spell power share is under too. The damage-done rows of Mind Melt's two ranks (14910, 33371), whose first
  * effect is a dummy aura, so a row runs for every spell the priest deals, multiply a direct hit of Shadow Word: Death
@@ -45,7 +45,8 @@
  * of the spell and of its category and casts the glyph's lockout (95652) when the target's health before the hit was at
  * or below the glyph's effect 0 percent and the lockout is not held (GlyphResetsShadowWordDeath). When the target died
  * and he holds Glyph of Spirit Tap (63237), a target that yields experience or honor (YieldsExperienceOrHonor) has him
- * cast Spirit Tap (81301) at himself.
+ * cast Spirit Tap (81301) at himself. The damage-done row of the recoil (32409) sets its periodic amount's done
+ * multiplier back to 1 (RecoilDoneMultiplier): the priest's own done modifiers do not raise the hit he takes back.
  */
 
 namespace Priest
@@ -55,8 +56,12 @@ namespace Priest
     uint32 const SHADOW_WORD_DEATH_RECOIL = 32409;
 
     /// Registers the rows of Shadow Word: Death and of Mind Melt on `registry`: the damage-done row and the after-hit
-    /// row of 32379 and the damage-done row of each of Mind Melt's ranks; answers 4, the rows registered.
+    /// row of 32379, the damage-done row of each of Mind Melt's ranks and of the recoil; answers 5, the rows registered.
     uint32 RegisterShadowWordDeath(SpellHandlerRegistry& registry);
+
+    /// The recoil's done multiplier: 1 for its periodic amount, whatever the priest's done modifiers made it; a
+    /// direct amount (none is dealt) keeps `doneMultiplier`.
+    float RecoilDoneMultiplier(DamageEffectType damageType, float doneMultiplier);
 
     /// What the hit takes of Shadow Word: Death's own text, "Deals three times as much damage to targets below 25%
     /// health": 3 for a direct hit (`damageType` SPELL_DIRECT_DAMAGE) at a target with `health` of `maxHealth` health

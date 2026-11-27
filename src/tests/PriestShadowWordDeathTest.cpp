@@ -290,6 +290,24 @@ TEST(PriestShadowWordDeath_ADirectHitBelowTwentyFivePercentOfTheTargetsHealthIsD
     }
 }
 
+TEST(PriestShadowWordDeath_TheRecoilsPeriodicAmountTakesNoneOfThePriestsDoneModifiers)
+{
+    CHECK(Near(Priest::RecoilDoneMultiplier(DOT, 1.15f), 1.0f));
+    CHECK(Near(Priest::RecoilDoneMultiplier(DOT, 0.5f), 1.0f));
+    CHECK(Near(Priest::RecoilDoneMultiplier(SPELL_DIRECT_DAMAGE, 1.15f), 1.15f));
+
+    // The row of 32409 sets the done multiplier the tick holds back to 1, as Shadow Power's +15% would leave it.
+    SpellHandlerRegistry registry;
+    Priest::RegisterShadowWordDeath(registry);
+    BareCreature priest;
+    SpellRowStorage recoilRow;
+    SpellEntry const& recoil = SpellRow(recoilRow, RECOIL);
+    float done = 1.15f;
+    DamageDoneContext tick(priest, priest, recoil, DOT, done);
+    CHECK(!registry.Dispatch<DamageDoneHook>(RECOIL, tick).IsReturn());
+    CHECK(Near(done, 1.0f));
+}
+
 TEST(PriestShadowWordDeath_MindMeltRaisesAHitOfShadowWordDeathAtOrBelowItsPercentAndNoOtherDamage)
 {
     // The first rank's 15 and the second's 30 at the threshold of 25: at 25 and below, 1.15 and 1.30; at 26, once.
@@ -500,13 +518,14 @@ TEST(PriestShadowWordDeath_MasochismTakesTheRecoilTickOfAnySizeAndAHitOfTheTalen
 
 TEST(PriestShadowWordDeath_TheFilesHoldTheirRowsInTheGameAndTheDamageTakenSiteHoldsNoPainAndSuffering)
 {
-    // ShadowWordDeath.cpp: the damage-done row of Shadow Word: Death and of each Mind Melt rank and the after-hit
-    // row of Shadow Word: Death, no default.
+    // ShadowWordDeath.cpp: the damage-done row of Shadow Word: Death, of each Mind Melt rank and of the recoil, and
+    // the after-hit row of Shadow Word: Death, no default.
     SpellHandlerRegistry death;
-    CHECK_EQ(Priest::RegisterShadowWordDeath(death), uint32(4));
-    CHECK_EQ(death.Count(), std::size_t(4));
+    CHECK_EQ(Priest::RegisterShadowWordDeath(death), uint32(5));
+    CHECK_EQ(death.Count(), std::size_t(5));
     CHECK_EQ(death.CountDefaults(), std::size_t(0));
-    CHECK_EQ(death.CountAt(DamageDoneHook::Key), std::size_t(3));
+    CHECK_EQ(death.CountAt(DamageDoneHook::Key), std::size_t(4));
+    CHECK(death.Find<DamageDoneHook>(RECOIL) != NULL);
     CHECK_EQ(death.CountAt(AfterHitHook::Key), std::size_t(1));
     CHECK(death.Find<DamageDoneHook>(SHADOW_WORD_DEATH) != NULL);
     CHECK(death.Find<DamageDoneHook>(MIND_MELT_RANK_1) != NULL);
@@ -524,7 +543,7 @@ TEST(PriestShadowWordDeath_TheFilesHoldTheirRowsInTheGameAndTheDamageTakenSiteHo
     CHECK(masochism.Find<CheckProcHook>(MASOCHISM_RANK_2) == masochism.Find<CheckProcHook>(MASOCHISM_RANK_1));
 
     // The game's table holds the same rows, and no row of the spells these files leave alone: Mind Melt's two ranks
-    // hold no after-hit or check-proc row, Masochism no damage-done row, the recoil none.
+    // hold no after-hit or check-proc row, Masochism no damage-done row, the recoil no after-hit row.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(game.Find<DamageDoneHook>(SHADOW_WORD_DEATH) == death.Find<DamageDoneHook>(SHADOW_WORD_DEATH));
     CHECK(game.Find<DamageDoneHook>(MIND_MELT_RANK_1) == death.Find<DamageDoneHook>(MIND_MELT_RANK_1));
@@ -536,7 +555,7 @@ TEST(PriestShadowWordDeath_TheFilesHoldTheirRowsInTheGameAndTheDamageTakenSiteHo
     CHECK(game.Find<AfterHitHook>(MIND_MELT_RANK_2) == NULL);
     CHECK(game.Find<CheckProcHook>(MIND_MELT_RANK_1) == NULL);
     CHECK(game.Find<DamageDoneHook>(MASOCHISM_RANK_1) == NULL);
-    CHECK(game.Find<DamageDoneHook>(RECOIL) == NULL);
+    CHECK(game.Find<DamageDoneHook>(RECOIL) == death.Find<DamageDoneHook>(RECOIL));
     CHECK(game.Find<AfterHitHook>(RECOIL) == NULL);
 
     // Site 61: Pain and Suffering's victim-side handler and its three rows are gone, so the damage-taken site has no
