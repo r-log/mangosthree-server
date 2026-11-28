@@ -50,17 +50,6 @@ static SpellHandlerOutcome<void> SpellDamageTakenSanctuary(SpellDamageTakenConte
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 47580, 47581, 47582: Pain and Suffering: Shadow Word: Death's damage taken scales by the aura's amount
-static SpellHandlerOutcome<void> SpellDamageTakenPainAndSuffering(SpellDamageTakenContext& ctx)
-{
-    // Shadow Word: Death
-    if (ctx.spellProto->IsFitToFamilyMask(UI64LIT(0x0000000200000000)))
-    {
-        ctx.TakenTotalMod *= ((*ctx.i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-    }
-    return SpellHandlerOutcome<void>::Continue();
-}
-
 /// 34246: Increased Lifebloom Periodic, 60779: Idol of Lush Moss: Lifebloom's flat bonus gains a seventh of the
 /// aura's amount
 static SpellHandlerOutcome<void> SpellHealingDoneLifebloomIdols(SpellHealingDoneContext& ctx)
@@ -116,9 +105,6 @@ uint32 RegisterUnitSpellBonusHandlers(SpellHandlerRegistry& registry)
         { 45182, &SpellDamageTakenCheatingDeath },
         { 20911, &SpellDamageTakenSanctuary },
         { 25899, &SpellDamageTakenSanctuary },
-        { 47580, &SpellDamageTakenPainAndSuffering },
-        { 47581, &SpellDamageTakenPainAndSuffering },
-        { 47582, &SpellDamageTakenPainAndSuffering },
     };
 
     static UnitSpellBonusRow<SpellHealingDoneSite> const spellHealingDone[] =

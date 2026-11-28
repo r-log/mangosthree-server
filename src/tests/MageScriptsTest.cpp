@@ -4590,8 +4590,9 @@ TEST(MageScripts_OnlyTheDamageDoneRowsMeantForEverySpellOfTheirHolderSitOnADummy
     // that aura's spell, so a row keyed by a spell that applies a dummy aura also runs for every other spell of a unit
     // holding it. Every damage-done key of the game's table with the auras its spell applies (any effect, any target;
     // Spell.dbc and SpellEffect.dbc of build 15595): only the rows meant to run that way apply SPELL_AURA_DUMMY, and
-    // each checks the damage spell itself: Torment the Weak's three ranks and the Shadow Orbs 77487 (Mind Blast's and
-    // Mind Spike's direct hits only). A new key fails here until its auras are listed.
+    // each checks the damage spell itself: Torment the Weak's three ranks, the Shadow Orbs 77487 (Mind Blast's and
+    // Mind Spike's direct hits only) and Mind Melt's two ranks 14910 and 33371 (Shadow Word: Death's direct hit only).
+    // A new key fails here until its auras are listed.
     struct KeyAuras
     {
         uint32 spellId;
@@ -4601,13 +4602,14 @@ TEST(MageScripts_OnlyTheDamageDoneRowsMeantForEverySpellOfTheirHolderSitOnADummy
     {
         { 116, { 33, 118 } },   { 120, { 33, 118 } },   { 122, { 26, 0 } },     { 133, { 0, 0 } },
         { 1449, { 0, 0 } },     { 2120, { 3, 0 } },     { 2136, { 0, 0 } },     { 2948, { 0, 0 } },
-        { 7268, { 0, 0 } },     { 11113, { 33, 0 } },   { 11366, { 3, 0 } },    { 29447, { 4, 0 } },
-        { 30451, { 0, 0 } },    { 30455, { 0, 0 } },    { 31661, { 5, 0 } },    { 34913, { 0, 0 } },
+        { 7268, { 0, 0 } },     { 11113, { 33, 0 } },   { 11366, { 3, 0 } },    { 14910, { 4, 42 } },
+        { 29447, { 4, 0 } },    { 30451, { 0, 0 } },    { 30455, { 0, 0 } },    { 31661, { 5, 0 } },
+        { 32379, { 0, 0 } },    { 32409, { 3, 0 } },    { 33371, { 4, 231 } },  { 34913, { 0, 0 } },
         { 42208, { 0, 0 } },    { 44425, { 0, 0 } },    { 44461, { 0, 0 } },    { 44614, { 33, 3 } },
         { 55339, { 4, 0 } },    { 55340, { 4, 0 } },    { 71757, { 0, 0 } },    { 77487, { 4, 0 } },
         { 88148, { 3, 0 } },    { 92315, { 3, 0 } },
     };
-    uint32 const everySpellRows[] = { 77487 };
+    uint32 const everySpellRows[] = { 14910, 33371, 77487 };
     std::set<uint32> listed;
     for (KeyAuras const& key : keys)
     {
@@ -4633,7 +4635,7 @@ TEST(MageScripts_OnlyTheDamageDoneRowsMeantForEverySpellOfTheirHolderSitOnADummy
             registered.insert(key.second);
         }
     }
-    CHECK_EQ(registered.size(), std::size_t(26));
+    CHECK_EQ(registered.size(), std::size_t(30));
     CHECK(registered == listed);
 }
 
