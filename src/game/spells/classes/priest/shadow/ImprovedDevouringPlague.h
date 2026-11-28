@@ -38,8 +38,8 @@
  * on each rank: at a hit of the priest's Devouring Plague (2944) the priest casts the talent's hit (63675) at the target,
  * triggered by the rank's aura, for that percent (ImprovedDevouringPlagueHit) of the whole periodic effect the plague
  * the target holds will deal: the tick it holds, which already has the priest's done bonus, times the ticks it has to
- * run (DevouringPlagueTicks, its time left over its period at the hit, which his haste shortens). The hit itself takes no
- * done bonus (Spells::DamageTakesNoDoneBonus), so the priest's bonus counts once.
+ * run (DevouringPlagueTicks, its time left over its period at the hit, which his haste shortens, rounded up). The hit
+ * itself takes no done bonus (Spells::DamageTakesNoDoneBonus), so the priest's bonus counts once.
  */
 
 namespace Priest
@@ -47,8 +47,11 @@ namespace Priest
     /// Registers the on-proc row of each rank of Improved Devouring Plague on `registry`; answers 2, the rows registered.
     uint32 RegisterImprovedDevouringPlague(SpellHandlerRegistry& registry);
 
-    /// The ticks a periodic aura with `remainingMs` left deals at one tick every `periodMs`: the whole ticks that fit,
-    /// the first at one period; 0 when either is not above 0 (an aura that does not run out has no time to count).
+    /// The ticks a periodic aura with `remainingMs` left deals at one tick every `periodMs`: the time left over the
+    /// period, rounded up. A plague made at the hit has a whole number of periods left, and one that replaced another
+    /// has the time to the old one's next tick as well (UnitAura.cpp CarryPeriodicTimers), which makes a tick of its own
+    /// at that time; the engine counts the same (Spells::TickCount). 0 when either is not above 0 (an aura that does not
+    /// run out has no time to count).
     int32 DevouringPlagueTicks(int32 remainingMs, int32 periodMs);
 
     /// The instant hit of a plague whose tick is `tick` and that has `ticks` ticks to run, for a rank of `percent`

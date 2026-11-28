@@ -86,7 +86,7 @@ int32 Priest::DevouringPlagueTicks(int32 remainingMs, int32 periodMs)
     {
         return 0;
     }
-    return remainingMs / periodMs;
+    return int32((int64(remainingMs) + int64(periodMs) - 1) / int64(periodMs));
 }
 
 int32 Priest::ImprovedDevouringPlagueHit(int32 tick, int32 ticks, int32 percent)

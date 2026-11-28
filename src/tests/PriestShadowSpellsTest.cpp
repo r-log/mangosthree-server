@@ -196,7 +196,7 @@ TEST(PriestShadowSpells_TheHitIsTheRanksPercentOfTheTickTimesTheTicksTruncated)
     CHECK_EQ(Priest::ImprovedDevouringPlagueHit(INT32_MAX, 9, 30), INT32_MAX);
 }
 
-TEST(PriestShadowSpells_ThePlagueHasItsTimeLeftOverItsPeriodInTicksLeft)
+TEST(PriestShadowSpells_ThePlaguesTicksAreItsTimeLeftOverItsPeriodRoundedUp)
 {
     // The plague's 24 s at its unhasted 3000 ms.
     CHECK_EQ(Priest::DevouringPlagueTicks(24000, 3000), 8);
@@ -206,12 +206,15 @@ TEST(PriestShadowSpells_ThePlagueHasItsTimeLeftOverItsPeriodInTicksLeft)
     CHECK_EQ(Priest::DevouringPlagueTicks(22856, 2857), 8);
     CHECK_EQ(Priest::DevouringPlagueTicks(23373, 2597), 9);
 
-    // A tick that does not fit is not counted: 2 ms short of the ninth.
-    CHECK_EQ(Priest::DevouringPlagueTicks(23371, 2597), 8);
+    // A plague that replaced another 1200 ms before its next tick lasts 1200 ms longer, and makes a tick of its own at
+    // that time: 25200 ms at 3000 is 9 ticks, the one at 1200 ms and eight more.
+    CHECK_EQ(Priest::DevouringPlagueTicks(25200, 3000), 9);
+    CHECK_EQ(Priest::DevouringPlagueTicks(24001, 3000), 9);
 
-    // Part way through, the ticks left are the whole ticks that fit in the time left.
+    // Part way through, the ticks left are the periods that remain, the last one a part of one included.
     CHECK_EQ(Priest::DevouringPlagueTicks(9000, 3000), 3);
-    CHECK_EQ(Priest::DevouringPlagueTicks(2999, 3000), 0);
+    CHECK_EQ(Priest::DevouringPlagueTicks(2999, 3000), 1);
+    CHECK_EQ(Priest::DevouringPlagueTicks(1, 3000), 1);
 
     // No time left, an aura that does not run out (-1), and an aura that does not tick: no ticks.
     CHECK_EQ(Priest::DevouringPlagueTicks(0, 3000), 0);

@@ -356,7 +356,7 @@ namespace Harness
                 SpellAuraHolder* holder = target->GetSpellAuraHolder(kPlague, p->GetObjectGuid());
                 Aura const* aura = holder ? holder->GetAuraByEffectIndex(EFFECT_INDEX_0) : NULL;
                 const int64 tick = aura ? int64(aura->GetModifier()->m_amount) : -1;
-                const int64 ticks = ticking && period > 0 && maxDuration > 0 ? int64(maxDuration / period) : 0;
+                const int64 ticks = ticking && period > 0 && maxDuration > 0 ? int64((maxDuration + period - 1) / period) : 0;
                 const int64 percent = DataValue(kRank2, EFFECT_INDEX_0);
                 std::vector<HitLog> const hits = HitLogsOf(k, kPlagueHit, p->GetObjectGuid().GetRawValue());
                 const int64 whole = hits.empty() ? -1 : hits[0].whole;
