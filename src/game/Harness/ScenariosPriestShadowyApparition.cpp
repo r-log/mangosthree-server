@@ -206,7 +206,16 @@ namespace Harness
                 else if (k == kStand || k == kStandEnd || k == kMoveEnd)
                 {
                     reads["pets"] = int64(sObjectMgr.GeneratePetNumber());
-                    m_rec.Note("the pet number the server has reached: " + Shown(reads["pets"]));
+                    if (k == kStand)
+                    {
+                        m_rec.Note("the pet number the server has reached: marked");
+                    }
+                    else
+                    {
+                        const int64 marked = Kept(st, k == kStandEnd ? kStand : kStandEnd, "pets");
+                        m_rec.Note("pets made since the last mark: " +
+                                   (marked >= 0 ? Shown(reads["pets"] - marked - 1) : std::string("unread")));
+                    }
                     if (k == kStandEnd)
                     {
                         MovementInfo moving = p->ClientStatus();
@@ -422,7 +431,7 @@ namespace Harness
                         char buf[256];
                         snprintf(buf, sizeof(buf),
                                  "%s%u: %u %s, %u %s, display %u (his %u), faction %u (his %u), level %u, run speed %.2f, "
-                                 "%.2f yards from the Camel", text.empty() ? "" : "; ", one->GetGUIDLow(), kLook,
+                                 "%.2f yards from the Camel", text.empty() ? "" : "; ", uint32(i + 1), kLook,
                                  HolderOf(one, kLook).c_str(), kVisual, HolderOf(one, kVisual).c_str(),
                                  one->GetDisplayId(), p->GetNativeDisplayId(), one->getFaction(), p->getFaction(),
                                  one->getLevel(), one->GetSpeed(MOVE_RUN), yards);
