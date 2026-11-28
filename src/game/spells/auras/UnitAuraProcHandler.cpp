@@ -998,7 +998,15 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     return SPELL_AURA_PROC_FAILED;
                 }
 
-                // Energize 0.25% of max. mana
+                // 34914 holds two dummy effects (0 and 2) and the dispatcher runs this for each of them: only effect 0
+                // casts, so one Mind Blast gives one Replenishment (a second cast refreshed the first and carried its
+                // next tick into a 16 s holder)
+                if (triggeredByAura->GetEffIndex() != EFFECT_INDEX_0)
+                {
+                    return SPELL_AURA_PROC_FAILED;
+                }
+
+                // Replenishment
                 pVictim->CastSpell(pVictim, 57669, true, castItem, triggeredByAura);
                 return SPELL_AURA_PROC_OK;                  // no hidden cooldown
             }
