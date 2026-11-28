@@ -4584,13 +4584,14 @@ TEST(MageScripts_TormentTheWeaksRanksRaiseTheDamageAtTheDamageDoneHook)
     delete snare;
 }
 
-TEST(MageScripts_OnlyTormentTheWeaksDamageDoneRowsSitOnADummyAura)
+TEST(MageScripts_OnlyTheDamageDoneRowsMeantForEverySpellOfTheirHolderSitOnADummyAura)
 {
     // The engine runs a damage-done row for the damage spell and again for each dummy aura its caster holds, keyed by
-    // that aura's spell, so a row keyed by a spell that applies a dummy aura would also run for every other spell of
-    // a unit holding it. Every damage-done key of the game's table with the auras its spell applies (any effect, any
-    // target; Spell.dbc and SpellEffect.dbc of build 15595): only Torment the Weak's three ranks apply
-    // SPELL_AURA_DUMMY. A new key fails here until its auras are listed.
+    // that aura's spell, so a row keyed by a spell that applies a dummy aura also runs for every other spell of a unit
+    // holding it. Every damage-done key of the game's table with the auras its spell applies (any effect, any target;
+    // Spell.dbc and SpellEffect.dbc of build 15595): only the rows meant to run that way apply SPELL_AURA_DUMMY, and
+    // each checks the damage spell itself: Torment the Weak's three ranks and the Shadow Orbs 77487 (Mind Blast's and
+    // Mind Spike's direct hits only). A new key fails here until its auras are listed.
     struct KeyAuras
     {
         uint32 spellId;
@@ -4603,20 +4604,25 @@ TEST(MageScripts_OnlyTormentTheWeaksDamageDoneRowsSitOnADummyAura)
         { 7268, { 0, 0 } },     { 11113, { 33, 0 } },   { 11366, { 3, 0 } },    { 29447, { 4, 0 } },
         { 30451, { 0, 0 } },    { 30455, { 0, 0 } },    { 31661, { 5, 0 } },    { 34913, { 0, 0 } },
         { 42208, { 0, 0 } },    { 44425, { 0, 0 } },    { 44461, { 0, 0 } },    { 44614, { 33, 3 } },
-        { 55339, { 4, 0 } },    { 55340, { 4, 0 } },    { 71757, { 0, 0 } },    { 88148, { 3, 0 } },
-        { 92315, { 3, 0 } },
+        { 55339, { 4, 0 } },    { 55340, { 4, 0 } },    { 71757, { 0, 0 } },    { 77487, { 4, 0 } },
+        { 88148, { 3, 0 } },    { 92315, { 3, 0 } },
     };
+    uint32 const everySpellRows[] = { 77487 };
     std::set<uint32> listed;
     for (KeyAuras const& key : keys)
     {
         listed.insert(key.spellId);
         bool const dummy = key.auras[0] == uint32(SPELL_AURA_DUMMY) || key.auras[1] == uint32(SPELL_AURA_DUMMY);
-        bool torment = false;
+        bool everySpell = false;
         for (uint32 rank : TORMENT_THE_WEAK_IDS)
         {
-            torment = torment || rank == key.spellId;
+            everySpell = everySpell || rank == key.spellId;
         }
-        CHECK(dummy == torment);
+        for (uint32 id : everySpellRows)
+        {
+            everySpell = everySpell || id == key.spellId;
+        }
+        CHECK(dummy == everySpell);
     }
 
     std::set<uint32> registered;
@@ -4627,7 +4633,7 @@ TEST(MageScripts_OnlyTormentTheWeaksDamageDoneRowsSitOnADummyAura)
             registered.insert(key.second);
         }
     }
-    CHECK_EQ(registered.size(), std::size_t(25));
+    CHECK_EQ(registered.size(), std::size_t(26));
     CHECK(registered == listed);
 }
 
