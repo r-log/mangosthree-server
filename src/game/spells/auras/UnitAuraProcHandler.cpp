@@ -1025,25 +1025,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
                     break;
                 }
-                // Improved Devouring Plague
-                case 3790:
-                {
-                    if (!procSpell)
-                    {
-                        return SPELL_AURA_PROC_FAILED;
-                    }
-
-                    Aura* leachAura = pVictim->GetAura(SPELL_AURA_PERIODIC_LEECH, SPELLFAMILY_PRIEST, UI64LIT(0x02000000), 0, GetObjectGuid());
-                    if (!leachAura)
-                    {
-                        return SPELL_AURA_PROC_FAILED;
-                    }
-
-                    int32 damagefromticks = leachAura->GetModifier()->m_amount * GetSpellAuraMaxTicks(procSpell);
-                    basepoints[0] = damagefromticks * triggerAmount / 100;
-                    triggered_spell_id = 63675;
-                    break;
-                }
             }
 
             DummyAuraProcContext ctx(this, m_spellCooldownMgr, pVictim, damage, triggeredByAura, procSpell, procFlag,

@@ -151,3 +151,9 @@ int32 AuraHandle::Duration() const
 {
     return m_holder.GetAuraDuration();
 }
+
+int32 AuraHandle::Period(SpellEffectIndex eff) const
+{
+    Aura const* aura = m_holder.GetAuraByEffectIndex(eff);
+    return aura ? int32(aura->GetModifier()->periodictime) : 0;
+}

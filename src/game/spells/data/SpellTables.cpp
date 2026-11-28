@@ -335,6 +335,7 @@ namespace
         34913,  // Molten Armor's hit, cast by the armor's aura at the unit that struck the mage
         44461,  // Living Bomb's explosion, cast for the mage by the bomb's aura when it runs out
         63544,  // Divine Touch's heal, cast by the talent's aura at the target of the priest's Renew
+        63675,  // Improved Devouring Plague's hit, cast by the talent's aura at the target of the priest's Devouring Plague
         83154,  // Piercing Chill's chill, cast by the talent's aura at the target of a Frostbolt crit
     };
 
@@ -1023,6 +1024,22 @@ bool Spells::HealTakesNoDoneBonus(uint32 spellId)
 
 namespace
 {
+    /// The damage spells that take none of their caster's damage-done bonus.
+    constexpr uint32 DAMAGE_WITHOUT_DONE_BONUS[] =
+    {
+        63675,  // Improved Devouring Plague's hit
+    };
+
+    static_assert(SortedBySpellId(DAMAGE_WITHOUT_DONE_BONUS), "no-done-bonus damage ids are sorted, each once");
+}
+
+bool Spells::DamageTakesNoDoneBonus(uint32 spellId)
+{
+    return Holds(DAMAGE_WITHOUT_DONE_BONUS, spellId);
+}
+
+namespace
+{
     /// The heals of damage class none that act as spell heals: done bonus, taken bonuses and crit roll.
     constexpr uint32 CLASS_NONE_SPELL_HEALS[] =
     {
@@ -1100,6 +1117,26 @@ namespace
 bool Spells::SummonedPetAssists(uint32 spellId)
 {
     return Holds(SUMMONS_OF_ASSISTING_PETS, spellId);
+}
+
+namespace
+{
+    /// Shadowform, whose looks stand beside it.
+    constexpr uint32 SHADOWFORM = 15473;
+
+    /// The looks Shadowform shows beside it: the form's own and Glyph of Shadow's.
+    constexpr uint32 SHADOWFORM_LOOKS[] =
+    {
+        107903,  // Shadowform's look
+        107904,  // the look with Glyph of Shadow
+    };
+
+    static_assert(SortedBySpellId(SHADOWFORM_LOOKS), "Shadowform look ids are sorted, each once");
+}
+
+bool Spells::IsShadowformWithItsLook(uint32 formId, uint32 lookId)
+{
+    return formId == SHADOWFORM && Holds(SHADOWFORM_LOOKS, lookId);
 }
 
 namespace

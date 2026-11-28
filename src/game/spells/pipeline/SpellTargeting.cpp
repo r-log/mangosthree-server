@@ -721,15 +721,9 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     targetUnitMap.push_back(m_caster);
                     break;
                 default:
+                    // every enemy in the area, the cast's own unit target among them (Mind Sear damages the target it
+                    // is channelled at); a friendly target is no enemy and stays out
                     FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_AOE_DAMAGE);
-
-                    // Mind Sear, triggered
-                    if (m_spellInfo->IsFitToFamily(SPELLFAMILY_PRIEST, UI64LIT(0x0008000000000000)))
-                        if (Unit* unitTarget = m_targets.getUnitTarget())
-                        {
-                            targetUnitMap.remove(unitTarget);
-                        }
-
                     break;
             }
             break;
