@@ -147,11 +147,11 @@ namespace Harness
                 return hits;
             }
 
-            /// The Shadow tree's first seven talents the plague and the form need: fifteen points, the tier of Improved
-            /// Devouring Plague and of Shadowform both reached.
+            /// The Shadow tree's first seven talents the plague and the form need: thirteen points, the tier of
+            /// Improved Devouring Plague and of Shadowform both reached.
             static std::vector<std::pair<uint32, uint32> > PlagueTalents()
             {
-                return { { kDarkness, 2 }, { kImprovedPain, 1 }, { kVeiledShadows, 1 }, { kImprovedScream, 1 },
+                return { { kDarkness, 0 }, { kImprovedPain, 1 }, { kVeiledShadows, 1 }, { kImprovedScream, 1 },
                          { kImprovedMindBlast, 2 }, { kImprovedPlague, 1 }, { kShadowformTalent, 0 } };
             }
 
@@ -180,12 +180,14 @@ namespace Harness
          * spell power), and the hit (63675, a damage effect with a coefficient of 0) is cast for the share of it, so it
          * takes the bonus once, in the tick, and not a second time as damage he deals. The tick count is the plague's
          * 24 s at its hasted period, which the engine rounds to whole periods.
-         * Staged: a level 85 human priest with Darkness 3 (talent 9032) as his first talent, which makes Shadow his
-         * primary tree and teaches its mastery, Improved Devouring Plague 2 (63626), Shadowform 1 and the tree's other
-         * points before them (fifteen: Darkness 3, Improved Shadow Word: Pain 2, Veiled Shadows 2, Improved Psychic
-         * Scream 2, Improved Mind Blast 3), a spell power of kSpellPower and Devouring Plague learned; a Camel ten yards
-         * ahead. Precision is put on him before each cast and the crit aura at -100. Shadowform is cast at himself,
-         * triggered, so its Mind Quickening (49868, 5% spell haste) is on him for both casts.
+         * Staged: a level 85 human priest with Darkness 1 (talent 9032, 1% spell haste) as his first talent, which
+         * makes Shadow his primary tree and teaches its mastery, Improved Devouring Plague 2 (63626), Shadowform 1 and
+         * the tree's other points before them (thirteen: Darkness 1, Improved Shadow Word: Pain 2, Veiled Shadows 2,
+         * Improved Psychic Scream 2, Improved Mind Blast 3), a spell power of kSpellPower and Devouring Plague
+         * learned; a Camel ten yards ahead. Precision is put on him before each cast and the crit aura at -100.
+         * Shadowform is cast at himself, triggered, so its Mind Quickening (49868, 5% spell haste) is on him for both
+         * casts, beside Darkness's 1%: the periods round to 2829 and 2572 ms, 8 and 9 ticks (Darkness 3 would make 9
+         * and 10).
          * Steps:
          *  1. a wait: the client's data read (the two ranks' effect 0, the plague's period);
          *  2. Shadowform at himself, read at its read: he holds it;

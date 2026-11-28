@@ -224,7 +224,7 @@ class AuraHandle
         /// The milliseconds the holder has left; -1 when it does not run out.
         int32 Duration() const;
         /// The milliseconds between the ticks of the holder's aura at `eff`, the caster's haste included (the period
-        /// the aura ticks at, not the spell's data); 0 when the holder has no aura there or its aura does not tick.
+        /// the aura ticks at, not the spell's data), whether that aura ticks or not; 0 when no aura is there.
         /// Its body sits in AuraHandle.cpp.
         int32 Period(SpellEffectIndex eff) const;
 

@@ -44,7 +44,7 @@ namespace
     /// (Spells::IsShadowformWithItsLook).
     SpellHandlerOutcome<void> ShadowformApplied(AuraApplyContext& ctx)
     {
-        if (ctx.real)
+        if (ctx.real && !ctx.target.IsLoading())
         {
             ctx.CastTriggered(ctx.target, Priest::ShadowformLook(ctx.target.HasAura(GLYPH_OF_SHADOW)));
         }
