@@ -2746,6 +2746,13 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
         return false;
     }
 
+    // Shadowform (15473) and the look it shows beside it (107903, or 107904 with Glyph of Shadow) share an icon and stand
+    // together on one unit
+    if (Spells::IsShadowformWithItsLook(spellId_1, spellId_2) || Spells::IsShadowformWithItsLook(spellId_2, spellId_1))
+    {
+        return false;
+    }
+
     // more generic checks
     if (spellInfo_1->SpellIconID == spellInfo_2->SpellIconID &&
         spellInfo_1->SpellIconID != 0 && spellInfo_2->SpellIconID != 0)

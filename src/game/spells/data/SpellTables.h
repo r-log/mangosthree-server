@@ -210,6 +210,11 @@ namespace Spells
     /// and for one loaded from its saved row. The Shadowfiend's summon (34433) alone, which the client's data gives a
     /// target to attack and patch 4.2.0 gives the Assist stance; the pet of any other summon keeps Defensive.
     bool SummonedPetAssists(uint32 spellId);
+
+    /// Whether `formId` and `lookId` are Shadowform (15473) and one of the looks it shows beside it, 107903 and Glyph of
+    /// Shadow's 107904, in that order. The pair share an icon, which the generic no-stack rule reads as one aura
+    /// replacing the other, and stand together on the priest (SpellMgr::IsNoStackSpellDueToSpell).
+    bool IsShadowformWithItsLook(uint32 formId, uint32 lookId);
 }
 
 /// The lockout a haste spell puts on each unit it hastes: Temporal Displacement 80354 for Time Warp 80353, Sated 57724

@@ -1115,6 +1115,26 @@ bool Spells::SummonedPetAssists(uint32 spellId)
 
 namespace
 {
+    /// Shadowform, whose looks stand beside it.
+    constexpr uint32 SHADOWFORM = 15473;
+
+    /// The looks Shadowform shows beside it: the form's own and Glyph of Shadow's.
+    constexpr uint32 SHADOWFORM_LOOKS[] =
+    {
+        107903,  // Shadowform's look
+        107904,  // the look with Glyph of Shadow
+    };
+
+    static_assert(SortedBySpellId(SHADOWFORM_LOOKS), "Shadowform look ids are sorted, each once");
+}
+
+bool Spells::IsShadowformWithItsLook(uint32 formId, uint32 lookId)
+{
+    return formId == SHADOWFORM && Holds(SHADOWFORM_LOOKS, lookId);
+}
+
+namespace
+{
     /// The haste spells that put a lockout on each unit they haste, and that lockout, whose holder none of the four
     /// hastes ("Cannot benefit from Time Warp or other similar effects.").
     constexpr SpellAnswer LUST_LOCKOUTS[] =
