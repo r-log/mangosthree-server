@@ -1868,3 +1868,26 @@ TEST(SpellTables_SanctuarysAuraAndDivineHymnsBuffStandTogetherInEitherOrder)
     CHECK(sSpellStore.LookupEntry(kSanctuaryAura) == NULL);
     CHECK(sSpellStore.LookupEntry(kHymnBuff) == NULL);
 }
+
+TEST(SpellTables_TheShadowfiendsSummonIsTheOneSummonWhosePetAssists)
+{
+    CHECK(Spells::SummonedPetAssists(34433));
+
+    // The other pets' summons keep Defensive: the water elemental (31687), the warlock's imp (688), voidwalker (697),
+    // succubus (712), felhunter (691) and felguard (30146), Inferno (1122), and an id no table holds.
+    for (uint32 spellId : { 31687u, 688u, 697u, 712u, 691u, 30146u, 1122u, 12345u, 0u })
+    {
+        CHECK(!Spells::SummonedPetAssists(spellId));
+    }
+
+    // The table holds exactly its one row.
+    uint32 rows = 0;
+    for (uint32 spellId = 0; spellId < 1000000; ++spellId)
+    {
+        if (Spells::SummonedPetAssists(spellId))
+        {
+            ++rows;
+        }
+    }
+    CHECK_EQ(rows, uint32(1));
+}
