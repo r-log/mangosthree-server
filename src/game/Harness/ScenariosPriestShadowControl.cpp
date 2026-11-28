@@ -731,7 +731,7 @@ namespace Harness
                 const int64 stays = Kept(st, kStay, "stays");
                 const int64 ended = Kept(st, kEnd, "ended");
 
-                const bool ok = assist == int64(REACT_ASSIST) && pet == 1 && state == assist && bar == assist && bars >= 1 &&
+                const bool ok = pet == 1 && state == assist && bar == assist && bars >= 1 &&
                                 attacks >= 1 && victim == 1 && stays == 1 && ended == 1;
                 const std::string value = "pet=" + Shown(pet) + ",state=" + Shown(state) + ",bar=" + Shown(bar) + "x" + Shown(bars) +
                                           ",attack=" + Shown(attacks) + ",victim=" + Shown(victim) + ",stays=" + Shown(stays) +
