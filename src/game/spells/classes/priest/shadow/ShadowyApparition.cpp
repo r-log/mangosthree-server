@@ -207,12 +207,16 @@ namespace
 
             /// The hit: 87532 at `quarry`, cast by the apparition triggered by its own visual aura, with `owner` as
             /// the original caster. The unit that deals it is the priest and it takes his bonuses; the cast triggered
-            /// by an aura starts no proc of his hit.
+            /// by an aura starts no proc of his hit. Without the visual it casts nothing, since a cast with no
+            /// triggering aura would start his procs.
             void Strike(Unit& owner, Unit& quarry)
             {
-                m_creature->CastSpell(&quarry, SHADOWY_APPARITION_HIT, true, NULL,
-                                      m_creature->GetAura(SHADOWY_APPARITION_VISUAL, EFFECT_INDEX_0),
-                                      owner.GetObjectGuid());
+                Aura* const visual = m_creature->GetAura(SHADOWY_APPARITION_VISUAL, EFFECT_INDEX_0);
+                if (!visual)
+                {
+                    return;
+                }
+                m_creature->CastSpell(&quarry, SHADOWY_APPARITION_HIT, true, NULL, visual, owner.GetObjectGuid());
             }
 
             /// The walk: a leg to `quarry`'s place, laid when none is, when the last one has ended and when the unit
