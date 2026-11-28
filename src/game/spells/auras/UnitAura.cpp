@@ -51,6 +51,54 @@
 #include "Map.h"
 #include "Group.h"
 
+namespace
+{
+    /// The dispel one call of Unit::RemoveAuraHolderDueToSpellByDispel is making: the unit whose dispel it is, and the
+    /// spell and the caster of the holder it takes (a caster guid of none names any caster, as the call's own argument
+    /// does).
+    struct DispelNote
+    {
+        Unit* dispeller;
+        uint32 spellId;
+        ObjectGuid casterGuid;
+    };
+
+    /// The innermost dispel call on this thread; NULL while none runs.
+    thread_local DispelNote const* t_dispelNote = NULL;
+
+    /// Puts a dispel's note up for the length of its call and puts the call's outer note back after it, so that a
+    /// removal anywhere else reads none.
+    class DispelScope
+    {
+        public:
+            DispelScope(Unit* dispeller, uint32 spellId, ObjectGuid const& casterGuid)
+                : m_note{ dispeller, spellId, casterGuid }, m_outer(t_dispelNote)
+            {
+                t_dispelNote = &m_note;
+            }
+            ~DispelScope() { t_dispelNote = m_outer; }
+            DispelScope(DispelScope const&) = delete;
+            DispelScope& operator=(DispelScope const&) = delete;
+
+        private:
+            DispelNote m_note;
+            DispelNote const* m_outer;
+    };
+
+    /// The unit whose dispel takes `holder` when it is removed in `mode`: the dispeller of the dispel call under way
+    /// when that call names the holder's spell and caster and the mode is a dispel; NULL for every other removal.
+    Unit* DispellerOf(SpellAuraHolder const& holder, AuraRemoveMode mode)
+    {
+        DispelNote const* note = t_dispelNote;
+        if (!note || mode != AURA_REMOVE_BY_DISPEL || note->spellId != holder.GetId() ||
+            (note->casterGuid && note->casterGuid != holder.GetCasterGuid()))
+        {
+            return NULL;
+        }
+        return note->dispeller;
+    }
+}
+
 /**
  * @brief Sums all aura modifiers of a given type.
  *
@@ -1151,10 +1199,12 @@ void Unit::RemoveSingleAuraFromSpellAuraHolder(uint32 spellId, SpellEffectIndex 
  * @param spellId The dispelled spell identifier.
  * @param stackAmount The number of stacks to remove.
  * @param casterGuid The caster GUID to match.
- * @param dispeller Unused dispelling unit placeholder.
+ * @param dispeller The unit whose dispel takes the stacks; the holder this call removes names it to the AuraRemove
+ * hooks (AuraRemoveContext::dispeller), and a dispel with a backlash casts it at him.
  */
 void Unit::RemoveAuraHolderDueToSpellByDispel(uint32 spellId, uint32 stackAmount, ObjectGuid casterGuid, Unit* dispeller)
 {
+    DispelScope const dispelling(dispeller, spellId, casterGuid);
     SpellEntry const* spellEntry = sSpellStore.LookupEntry(spellId);
     SpellClassOptionsEntry const* classOptions = spellEntry->GetSpellClassOptions();
 
@@ -1226,25 +1276,6 @@ void Unit::RemoveAuraHolderDueToSpellByDispel(uint32 spellId, uint32 stackAmount
             caster->CastSpell(caster, triggeredSpell, true);
         }
         return;
-    }
-    // Vampiric touch (first dummy aura)
-    else if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_PRIEST && classOptions->SpellClassMask & UI64LIT(0x0000040000000000))
-    {
-        if (Aura* dot = GetAura(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_PRIEST, UI64LIT(0x0000040000000000), 0x00000000, casterGuid))
-        {
-            if (dot->GetCaster())
-            {
-                // use clean value for initial damage
-                int32 bp0 = dot->GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_1);
-                bp0 *= 8;
-
-                // Remove spell auras from stack
-                RemoveAuraHolderFromStack(spellId, stackAmount, casterGuid, AURA_REMOVE_BY_DISPEL);
-
-                CastCustomSpell(this, 64085, &bp0, NULL, NULL, true, NULL, NULL, casterGuid);
-                return;
-            }
-        }
     }
 
     RemoveAuraHolderFromStack(spellId, stackAmount, casterGuid, AURA_REMOVE_BY_DISPEL);
@@ -1640,7 +1671,8 @@ void Unit::RemoveSpellAuraHolder(SpellAuraHolder* holder, AuraRemoveMode mode)
 
     if (mode != AURA_REMOVE_BY_DELETE)
     {
-        AuraRemoveContext removeCtx(*this, holder->GetCaster(), *holder->GetSpellProto(), AuraHandle(*holder), mode);
+        AuraRemoveContext removeCtx(*this, holder->GetCaster(), *holder->GetSpellProto(), AuraHandle(*holder), mode,
+                                    DispellerOf(*holder, mode));
         if (!SpellHandlerRegistry::Game().Dispatch<AuraRemoveHook>(holder->GetId(), removeCtx).IsReturn())
         {
             holder->HandleSpellSpecificBoosts(false);
