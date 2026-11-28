@@ -1088,6 +1088,22 @@ float Spells::JumpSpeed(uint32 spellId)
 
 namespace
 {
+    /// The summon spells whose pet takes the Assist stance and attacks the cast's target at once.
+    constexpr uint32 SUMMONS_OF_ASSISTING_PETS[] =
+    {
+        34433,  // Shadowfiend
+    };
+
+    static_assert(SortedBySpellId(SUMMONS_OF_ASSISTING_PETS), "assisting pet summon ids are sorted, each once");
+}
+
+bool Spells::SummonedPetAssists(uint32 spellId)
+{
+    return Holds(SUMMONS_OF_ASSISTING_PETS, spellId);
+}
+
+namespace
+{
     /// The haste spells that put a lockout on each unit they haste, and that lockout, whose holder none of the four
     /// hastes ("Cannot benefit from Time Warp or other similar effects.").
     constexpr SpellAnswer LUST_LOCKOUTS[] =

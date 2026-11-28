@@ -199,6 +199,12 @@ namespace Spells
     /// jump the table names at this speed on the arc of natural gravity, and every other jump as before. Leap of
     /// Faith's jump (92832) alone: 50.
     float JumpSpeed(uint32 spellId);
+
+    /// Whether the pet a summon spell of `spellId` makes for a player takes the Assist stance (REACT_ASSIST) in place of
+    /// Defensive, and starts its attack on the cast's unit target at once (Spell::DoSummonPet), for a newly made pet
+    /// and for one loaded from its saved row. The Shadowfiend's summon (34433) alone, which the client's data gives a
+    /// target to attack and patch 4.2.0 gives the Assist stance; the pet of any other summon keeps Defensive.
+    bool SummonedPetAssists(uint32 spellId);
 }
 
 /// The lockout a haste spell puts on each unit it hastes: Temporal Displacement 80354 for Time Warp 80353, Sated 57724
