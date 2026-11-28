@@ -217,6 +217,9 @@ namespace Harness
             std::vector<std::pair<uint32, uint32> > Talents() const override { return PlagueTalents(); }
             std::vector<uint32> Spells() const override { return { kPlague }; }
             int32 SpellPower() const override { return kSpellPower; }
+            /// The plague heals him for a share of each tick it deals (2944's own heal), and the second plague's first tick
+            /// lands in the last step.
+            bool Heals() const override { return true; }
 
             std::vector<Step> Steps() const override
             {
