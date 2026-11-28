@@ -173,6 +173,11 @@ namespace Spells
     /// cast for a share of a Renew tick that already holds the done bonus.
     bool HealTakesNoDoneBonus(uint32 spellId);
 
+    /// Whether a hit or tick of `spellId` takes none of its caster's damage-done bonus (Unit::SpellDamageBonusDone):
+    /// the amount it was cast with deals, before the target's taken side and a crit. Improved Devouring Plague's hit
+    /// (63675), cast for a share of the plague's tick, which already holds the caster's done bonus.
+    bool DamageTakesNoDoneBonus(uint32 spellId);
+
     /// Whether a heal of `spellId` whose damage class is none acts as a spell heal, as HealRuleDamageClass takes it:
     ///  - it takes its caster's healing-done bonus (Unit::SpellHealingBonusDone): its spell power at its coefficient,
     ///    his healing-done percent and his spell modifiers;

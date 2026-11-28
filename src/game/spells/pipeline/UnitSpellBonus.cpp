@@ -208,6 +208,12 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
         return pdamage;
     }
 
+    // A damage spell the table keeps from the done bonus deals the amount it was cast with
+    if (Spells::DamageTakesNoDoneBonus(spellProto->ID))
+    {
+        return pdamage;
+    }
+
     if (spellProto->HasAttribute(SPELL_ATTR_EX6_NO_DMG_MODS))
     {
         float masteryDamage = float(pdamage);
