@@ -1187,6 +1187,12 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
                 return false;
             }
             break;
+        case SPELL_EFFECT_SCHOOL_DAMAGE:
+            if (HasNegativeDamageEffect(spellproto->ID))
+            {
+                return false;
+            }
+            break;
         case SPELL_EFFECT_SCRIPT_EFFECT:
             if (HasPositiveScriptEffect(spellproto->ID))
             {
