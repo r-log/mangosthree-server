@@ -1236,6 +1236,36 @@ TEST(SpellScriptHooks_TheAuraHandleTakesAnEffectOffAHolderItsTargetHolds)
     delete holder;
 }
 
+TEST(SpellScriptHooks_TheAuraHandleReadsTheTickPeriodOfAnEffectAndZeroForOneThatDoesNotTick)
+{
+    // A holder of three auras whose spell gives them periods of 3000, 0 (no tick) and 2500 ms.
+    static StoredAuras rows;
+    SpellEntry const* spell = StoreAuras(rows, kThreeAuraSpell, MAX_EFFECT_INDEX, 7);
+    rows.spell.effect.EffectAuraPeriod = 3000;
+    rows.more[0].EffectAuraPeriod = 0;
+    rows.more[1].EffectAuraPeriod = 2500;
+    BareCreature target;
+    SpellAuraHolder* holder = AuraHolder(spell, target);
+    AuraHandle handle(*holder);
+    CHECK_EQ(handle.Period(EFFECT_INDEX_0), 3000);
+    CHECK_EQ(handle.Period(EFFECT_INDEX_1), 0);
+    CHECK_EQ(handle.Period(EFFECT_INDEX_2), 2500);
+
+    // It is the period the aura ticks at, its caster's haste in it, and not the spell's data: an aura made to tick
+    // every 2667 ms reads 2667, and the data is as it was.
+    holder->GetAuraByEffectIndex(EFFECT_INDEX_0)->GetModifier()->periodictime = 2667;
+    CHECK_EQ(handle.Period(EFFECT_INDEX_0), 2667);
+    CHECK_EQ(rows.spell.effect.EffectAuraPeriod, uint32(3000));
+    CHECK_EQ(handle.Period(EFFECT_INDEX_2), 2500);
+
+    // An effect the holder has no aura at reads 0, as one that does not tick does.
+    handle.RemoveEffect(EFFECT_INDEX_2);
+    CHECK(holder->GetAuraByEffectIndex(EFFECT_INDEX_2) == NULL);
+    CHECK_EQ(handle.Period(EFFECT_INDEX_2), 0);
+    CHECK_EQ(handle.Period(EFFECT_INDEX_0), 2667);
+    delete holder;
+}
+
 TEST(SpellScriptHooks_TheAuraHandleSetsTheStacksAsAStackChangeDoes)
 {
     // A holder of one aura of -40 on a bare creature that is its caster: two stacks make the amount -80, one stack

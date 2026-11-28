@@ -312,12 +312,13 @@ TEST(SpellTables_TheAuraTargetLimitsAreTheTablesRowsAndNoOther)
     }
 }
 
-TEST(SpellTables_TheChillsLivingBombsExplosionMoltenArmorsHitAndDivineTouchsHealAreTheTriggeredCastsThatStartProcs)
+TEST(SpellTables_TheChillsLivingBombsExplosionMoltenArmorsHitAndTheTwoPriestHitsAreTheTriggeredCastsThatStartProcs)
 {
     // Ice Shards' Chilled at both ranks and Piercing Chill's chill, which the talents' auras cast, Living Bomb's
-    // explosion, which the bomb's aura casts when it runs out, Molten Armor's hit, and Divine Touch's heal, which the
-    // talent's aura casts at the target of the priest's Renew
-    for (uint32 spellId : { 12484u, 12485u, 83154u, 44461u, 34913u, 63544u })
+    // explosion, which the bomb's aura casts when it runs out, Molten Armor's hit, Divine Touch's heal, which the
+    // talent's aura casts at the target of the priest's Renew, and Improved Devouring Plague's hit, which the talent's
+    // aura casts at the target of his Devouring Plague
+    for (uint32 spellId : { 12484u, 12485u, 83154u, 44461u, 34913u, 63544u, 63675u })
     {
         CHECK(TriggeredCastStartsProcs(spellId));
     }
@@ -329,13 +330,14 @@ TEST(SpellTables_TheChillsLivingBombsExplosionMoltenArmorsHitAndDivineTouchsHeal
         CHECK(!TriggeredCastStartsProcs(spellId));
     }
 
-    // Divine Touch's talent ranks (63534, 63542) and Renew (139) do not
-    for (uint32 spellId : { 63534u, 63542u, 139u })
+    // Divine Touch's talent ranks (63534, 63542) and Renew (139) do not, nor do Improved Devouring Plague's ranks (63625,
+    // 63626) and the plague (2944)
+    for (uint32 spellId : { 63534u, 63542u, 139u, 63625u, 63626u, 2944u })
     {
         CHECK(!TriggeredCastStartsProcs(spellId));
     }
 
-    // The table holds exactly its six rows
+    // The table holds exactly its seven rows
     uint32 rows = 0;
     for (uint32 spellId = 0; spellId < 1000000; ++spellId)
     {
@@ -344,7 +346,7 @@ TEST(SpellTables_TheChillsLivingBombsExplosionMoltenArmorsHitAndDivineTouchsHeal
             ++rows;
         }
     }
-    CHECK_EQ(rows, uint32(6));
+    CHECK_EQ(rows, uint32(7));
 }
 
 TEST(SpellTables_MoltenArmorsHitAndTheChillsStartOnlyTheProcsOfAurasThatCanProcFromProcs)
@@ -362,7 +364,7 @@ TEST(SpellTables_MoltenArmorsHitAndTheChillsStartOnlyTheProcsOfAurasThatCanProcF
     CHECK(TriggeredCastStartsProcsOf(83154, 0x04000000));
     // Brain Freeze's Ex3 (44546: 0x04080000) holds the bit too
     CHECK(TriggeredCastStartsProcsOf(12485, 0x04080000));
-    for (uint32 spellId : { 44461u, 63544u, 7321u, 83073u, 82739u, 30482u, 12345u, 0u })
+    for (uint32 spellId : { 44461u, 63544u, 63675u, 7321u, 83073u, 82739u, 30482u, 12345u, 0u })
     {
         CHECK(TriggeredCastStartsProcsOf(spellId, 0));
         CHECK(TriggeredCastStartsProcsOf(spellId, SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS));
@@ -1890,4 +1892,128 @@ TEST(SpellTables_TheShadowfiendsSummonIsTheOneSummonWhosePetAssists)
         }
     }
     CHECK_EQ(rows, uint32(1));
+}
+
+TEST(SpellTables_ImprovedDevouringPlaguesHitIsTheOneDamageSpellThatTakesNoDoneBonus)
+{
+    CHECK(Spells::DamageTakesNoDoneBonus(63675));
+
+    // The plague whose tick it is cast for, the talent's ranks, other shadow damage, the heals the heal table names and
+    // an id no table holds take their casters' bonus as before.
+    for (uint32 spellId : { 2944u, 63625u, 63626u, 589u, 8092u, 15407u, 49821u, 63544u, 56160u, 12345u, 0u })
+    {
+        CHECK(!Spells::DamageTakesNoDoneBonus(spellId));
+    }
+
+    // The damage table and the heal table are two tables: neither holds a row of the other.
+    CHECK(!Spells::HealTakesNoDoneBonus(63675));
+    CHECK(!Spells::DamageTakesNoDoneBonus(63544));
+    CHECK(!Spells::DamageTakesNoDoneBonus(56160));
+
+    // The table holds exactly its one row.
+    uint32 rows = 0;
+    for (uint32 spellId = 0; spellId < 1000000; ++spellId)
+    {
+        if (Spells::DamageTakesNoDoneBonus(spellId))
+        {
+            ++rows;
+        }
+    }
+    CHECK_EQ(rows, uint32(1));
+}
+
+TEST(SpellTables_ShadowformAndItsTwoLooksAreTheOnlyPairsOfTheLookTable)
+{
+    CHECK(Spells::IsShadowformWithItsLook(15473, 107903));
+    CHECK(Spells::IsShadowformWithItsLook(15473, 107904));
+
+    // The form comes first: the answer is for the pair in that order, and the looks are not a pair of each other.
+    CHECK(!Spells::IsShadowformWithItsLook(107903, 15473));
+    CHECK(!Spells::IsShadowformWithItsLook(107904, 15473));
+    CHECK(!Spells::IsShadowformWithItsLook(107903, 107904));
+    CHECK(!Spells::IsShadowformWithItsLook(15473, 15473));
+
+    // Glyph of Shadow (107906), the form's own boost (49868), the second form visual (105431) and an id no table holds
+    // are no look of the form.
+    for (uint32 spellId : { 107906u, 49868u, 105431u, 12345u, 0u })
+    {
+        CHECK(!Spells::IsShadowformWithItsLook(15473, spellId));
+    }
+    CHECK(!Spells::IsShadowformWithItsLook(0, 107903));
+    CHECK(!Spells::IsShadowformWithItsLook(49868, 107903));
+}
+
+// Shadowform (15473) and its looks (107903, 107904) stand together. The rows are the client's shapes, built in the
+// stores: priest spells (class set 6, mask 0) of icon 1552, with no effect, which the same-icon rule reads only for a
+// spell modifier that neither the form nor a look holds, beside a third priest aura of that icon, which the generic rule
+// keeps from standing beside any of them. The test takes the spell rows out of the spell store again.
+namespace
+{
+    const uint32 kShadowform = 15473;
+    const uint32 kShadowformLook = 107903;
+    const uint32 kShadowformGlyphedLook = 107904;
+    const uint32 kOtherShadowformIconAura = 94346;
+    const uint32 kOptionsShadowform = 94469;
+    const uint32 kShadowformIcon = 1552;
+
+    SpellClassOptionsEntry s_optionsShadowform;
+    ServerSpell s_shadowformIconRows[4];
+
+    /// Puts the form, its two looks and the third aura into the spell store and their class options into theirs; the
+    /// class options once.
+    void StoreShadowformIconRows()
+    {
+        static bool stored = false;
+        if (!stored)
+        {
+            stored = true;
+            s_optionsShadowform.SpellClassSet = SPELLFAMILY_PRIEST;
+            s_optionsShadowform.SpellClassMask = ClassFamilyMask(UI64LIT(0), 0);
+            sSpellClassOptionsStore.SetEntry(kOptionsShadowform, &s_optionsShadowform);
+        }
+        uint32 const ids[4] = { kShadowform, kShadowformLook, kShadowformGlyphedLook, kOtherShadowformIconAura };
+        for (std::size_t i = 0; i < 4; ++i)
+        {
+            SpellEntry& row = s_shadowformIconRows[i].Entry();
+            row.ID = ids[i];
+            row.SpellIconID = kShadowformIcon;
+            row.ClassOptionsID = kOptionsShadowform;
+            sSpellStore.SetEntry(ids[i], &row);
+        }
+    }
+
+    /// Takes them out of the spell store.
+    void ForgetShadowformIconRows()
+    {
+        for (uint32 spellId : { kShadowform, kShadowformLook, kShadowformGlyphedLook, kOtherShadowformIconAura })
+        {
+            sSpellStore.SetEntry(spellId, NULL);
+        }
+    }
+}
+
+TEST(SpellTables_ShadowformAndItsLookStandTogetherInEitherOrder)
+{
+    StoreShadowformIconRows();
+
+    // The look arriving beside the form keeps it, and the form arriving beside a look keeps it, for both looks.
+    for (uint32 look : { kShadowformLook, kShadowformGlyphedLook })
+    {
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(look, kShadowform));
+        CHECK(!sSpellMgr.IsNoStackSpellDueToSpell(kShadowform, look));
+    }
+
+    // The generic rule stands for the icon's other pairs: the two looks against each other, and the third aura against
+    // each of the three, both ways.
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kShadowformLook, kShadowformGlyphedLook));
+    CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kShadowformGlyphedLook, kShadowformLook));
+    for (uint32 spellId : { kShadowform, kShadowformLook, kShadowformGlyphedLook })
+    {
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(kOtherShadowformIconAura, spellId));
+        CHECK(sSpellMgr.IsNoStackSpellDueToSpell(spellId, kOtherShadowformIconAura));
+    }
+
+    ForgetShadowformIconRows();
+    CHECK(sSpellStore.LookupEntry(kShadowform) == NULL);
+    CHECK(sSpellStore.LookupEntry(kShadowformLook) == NULL);
 }
