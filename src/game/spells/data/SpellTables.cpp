@@ -625,6 +625,12 @@ namespace
         28441,  // AB Effect 000
     };
 
+    constexpr uint32 NEGATIVE_DAMAGE_EFFECTS[] =
+    {
+        87532,  // Shadowy Apparition's hit: its target type (25) reads as positive, and a guardian casts no positive
+                // spell at a hostile unit
+    };
+
     constexpr uint32 POSITIVE_SCRIPT_EFFECTS[] =
     {
         42436,  // Drink!
@@ -1193,6 +1199,11 @@ bool HasPositiveDummyEffect(uint32 spellId)
 bool HasNegativeDummyEffect(uint32 spellId)
 {
     return Holds(NEGATIVE_DUMMY_EFFECTS, spellId);
+}
+
+bool HasNegativeDamageEffect(uint32 spellId)
+{
+    return Holds(NEGATIVE_DAMAGE_EFFECTS, spellId);
 }
 
 bool HasPositiveScriptEffect(uint32 spellId)
