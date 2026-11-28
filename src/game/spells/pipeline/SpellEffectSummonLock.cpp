@@ -912,7 +912,7 @@ namespace
      * @brief Has a pet its caster's summon made attack the cast's unit target.
      *
      * Nothing when the cast has no unit target, when it is the caster or the pet itself, when it cannot be attacked,
-     * or when the caster is not hostile to it.
+     * or when the caster is friendly to it; a neutral unit the spell was cast at is attacked.
      *
      * @param caster The unit that cast the summon.
      * @param victim The cast's unit target; NULL when it has none.
@@ -921,7 +921,7 @@ namespace
     void StartSummonedPetAttack(Unit& caster, Unit* victim, Pet& pet)
     {
         if (!pet.AI() || !victim || victim == &caster || victim == &pet || !victim->IsTargetableForAttack() ||
-            !caster.IsHostileTo(victim))
+            caster.IsFriendlyTo(victim))
         {
             return;
         }
