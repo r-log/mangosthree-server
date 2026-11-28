@@ -52,11 +52,12 @@ namespace Harness
          * (81662) and Archangel (87151) learned as talent ranks; Mind Flay and Smite learned; Precision (13843) held,
          * so that no hit misses the level 85 Camel; his spell crit at -kCritAuraPoints by Increased Critical Spell
          * (23434), so that no tick or hit crits; the Camel ten yards in front of him. Every cast is his cast through
-         * the cast handler's calls, at the Camel, his mana set to its maximum before each. Steps (each kStepMs a cast,
+         * the cast handler's calls, at the Camel, his mana set to its maximum before each. Steps (a cast every kCastEveryMs,
          * a cast read kCastReadMs after it, which is after its channel's three ticks):
-         *  1-5. Mind Flay, five times: one stack of Dark Evangelism (87118) for each cast, and the marker (87154); the
-         *       stacks stand the same right after the cast and at its read, which the ticks of its channel in between
-         *       leave as they are;
+         *  1-5. Mind Flay, five times: one stack of Dark Evangelism (87118) for each cast, and the marker (87154), at
+         *       its read, after the ticks of its channel, which give none; right after the cast call the channel has
+         *       not begun (the engine casts a channel at its next update), so the stacks read then are the ones from
+         *       before it, recorded and not judged;
          *  6. Archangel: the five stacks consumed: Dark Archangel (87153) on him with effect 0 and effect 1 at its
          *     value for each stack, for its own duration, 87152's mana, its effect 2 value in percent of his maximum
          *     mana for each stack, the stacks and the marker gone, no Evangelism healing bonus (81700), and Archangel
@@ -67,8 +68,8 @@ namespace Harness
          *  9. Smite: while it is cast his Dark stack stands; at its read the Dark stack is gone, and a stack of
          *     Evangelism (81661) stands, with the marker.
          *
-         * `darkEvangelism`: `dark=<the stacks of his own 87118 holder at each step's read>,act=<the same right after
-         * each Mind Flay's cast: steps 1 to 5 and 8>,ticks=<the periodic damage ticks of 15407 of each of those casts>,
+         * `darkEvangelism`: `dark=<the stacks of his own 87118 holder at each step's read>,act=<the stacks right after
+         * each Mind Flay's cast call, before its channel begins: steps 1 to 5 and 8; recorded>,ticks=<the periodic damage ticks of 15407 of each of those casts>,
          * holy=<the stacks of his own 81661 holder at each read>,marker=<1 when he holds 87154 at the read, else 0>,
          * archangel=<his 87153's effect 0 amount / effect 1 amount / its maximum duration in ms right after step 6's
          * cast; none>,energize=<the amounts of 87152's SMSG_SPELLENERGIZELOG at step 6; none>,healing=<1 when he holds
@@ -79,7 +80,7 @@ namespace Harness
          * and the category of 87153 and of 87151, Z = 87151's effect 2 value in seconds, and his maximum mana, all read
          * right after step 1's cast starts, and S(k) = the smaller of k and L after the k-th Mind Flay: OK when D0, D1,
          * L, B, A0, A1, M, T and R are positive, 87153 and 87151 share their category and Z x 1000 is R; at each Mind
-         * Flay he holds S(k) stacks of 87118 right after the cast and at its read, the marker, no 81660, 81661 or
+         * Flay he holds S(k) stacks of 87118 at its read, the marker, no 81660, 81661 or
          * 87117, and the cast's channel ticked at least twice; at step 6 no SMSG_CAST_FAILED came, 87153 holds A0 x
          * S(5) and A1 x S(5) for T milliseconds, 87152 gave his maximum mana x M x S(5) / 100, he holds no stack, no
          * marker and no 81700, and Archangel is on its recovery; step 7 found it on and left it off; after step 8 he
@@ -215,11 +216,10 @@ namespace Harness
                     wanted += sep + Shown(want);
                     if (IsFlay(k))
                     {
+                        // Read before the channel begins (the engine casts it at its next update): recorded.
                         const int64 right = Kept(st, k, "a.dark");
                         const int64 tickCount = int64(TickAmounts(k, kMindFlay).size());
-                        ok = ok && right == want && Kept(st, k, "a.marker") == 1 && Kept(st, k, "a.holy") == 0 &&
-                             Kept(st, k, "a.darkFirst") == 0 && Kept(st, k, "a.holyFirst") == 0 &&
-                             tickCount >= kLeastTicks;
+                        ok = ok && tickCount >= kLeastTicks;
                         const std::string flaySep = act.empty() ? "" : "/";
                         act += flaySep + Shown(right);
                         ticks += flaySep + Shown(tickCount);
@@ -257,8 +257,8 @@ namespace Harness
                 const std::string detail =
                     U(kDarkStack) + " +" + Shown(darkFirst) + "% periodic damage and +" + Shown(darkSecond) +
                     "% damage a stack, up to " + Shown(limit) + " stacks for " + Shown(buffMs) + " ms; wanted stacks " +
-                    wanted + " at the reads and the same right after each Mind Flay, whose ticks (at least " +
-                    Shown(kLeastTicks) + " each) leave them; " + U(kDarkArchangel) + " " + Shown(bonusFirst) + " and " +
+                    wanted + " at the reads, after each Mind Flay's ticks (at least " +
+                    Shown(kLeastTicks) + " each), which give none; " + U(kDarkArchangel) + " " + Shown(bonusFirst) + " and " +
                     Shown(bonusSecond) + " a stack for " + Shown(bonusMs) + " ms and " + U(kMana) + " " +
                     Shown(manaPer) + "% of his maximum mana " + Shown(maxMana) + " a stack, for " + Shown(consumed) +
                     " stacks: wanted " + Shown(bonusFirst * consumed) + "/" + Shown(bonusSecond * consumed) + " for " +
