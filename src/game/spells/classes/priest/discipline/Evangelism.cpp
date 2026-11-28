@@ -36,6 +36,9 @@ namespace
     uint32 const SMITE = 585;
     uint32 const HOLY_FIRE = 14914;
 
+    /// Mind Flay, whose cast gives Dark Evangelism.
+    uint32 const MIND_FLAY = 15407;
+
     /// Penance's bolt at an enemy, which each tick of the channel at an enemy casts.
     uint32 const PENANCE_BOLT = 47666;
 
@@ -43,7 +46,7 @@ namespace
     uint32 const EVANGELISM_RANKS[] = { 81659, 81662 };
     uint32 const EVANGELISM_STACKS[] = { 81660, 81661 };
 
-    /// Dark Evangelism's stacks, of the first and the second rank, which Mind Flay gives.
+    /// Dark Evangelism's stacks, of the first and the second rank, which Mind Flay gives, in the ranks' order.
     uint32 const DARK_EVANGELISM_STACKS[] = { 87117, 87118 };
 
     /// The marker Archangel asks of its caster (its caster aura spell in the client's data).
@@ -55,20 +58,38 @@ namespace
     uint32 const ARCHANGEL_HEALING = 81700;
     uint32 const ARCHANGEL_MANA = 87152;
 
+    /// Dark Archangel, the damage bonus Archangel gives for Dark Evangelism's stacks: its effects 0 and 1 are the
+    /// bonus a stack gives, its effect 2 the percent of his maximum mana a stack gives, in the client's data.
+    uint32 const DARK_ARCHANGEL = 87153;
+
     typedef SpellHandlerOutcome<SpellAuraProcResult> ProcOutcome;
 
-    /// The effect 0 value of `spellId` in the client's data; 0 when the store lacks the spell.
-    int32 EffectZeroValue(uint32 spellId)
+    /// The value of effect `index` of `spellId` in the client's data; 0 when the store lacks the spell.
+    int32 EffectValue(uint32 spellId, SpellEffectIndex index)
     {
         SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
-        return spell ? spell->CalculateSimpleValue(EFFECT_INDEX_0) : 0;
+        return spell ? spell->CalculateSimpleValue(index) : 0;
+    }
+
+    /// The stacks of `kind` that `priest` holds, taken off him; nothing for a stack he does not hold.
+    template <std::size_t N>
+    void TakeOffStacks(Unit& priest, uint32 const (&kind)[N])
+    {
+        for (uint32 stack : kind)
+        {
+            if (priest.HasAura(stack))
+            {
+                priest.RemoveAurasDueToSpell(stack);
+            }
+        }
     }
 
     /// 81659, 81662: Evangelism: its dummy effect's proc flags take the priest's harmful spell hits and his periodic
     /// damage, and its class mask takes Smite and Penance's bolts alone. The script takes a hit of Smite, Holy Fire or
-    /// Penance's bolt, a wholly absorbed one included (Priest::EvangelismFromHit), so Holy Fire's hit, which the class
-    /// mask lacks, procs as Smite's does. Every other event is left to the class mask and the hit kind: Holy Fire's
-    /// ticks, the misses and the other spells give no stack. A body that changes nothing: the holders are being walked.
+    /// Penance's bolt, a wholly absorbed one included, and Mind Flay's cast, its harmful hit at its target
+    /// (Priest::EvangelismFromHit), so Holy Fire's and Mind Flay's hits, which the class mask lacks, proc as Smite's
+    /// does. Every other event is left to the class mask and the hit kind: the ticks of Holy Fire and of Mind Flay, the
+    /// misses and the other spells give no stack. A body that changes nothing: the holders are being walked.
     SpellHandlerOutcome<bool> EvangelismCheckProc(CheckProcContext& ctx)
     {
         if (Priest::EvangelismFromHit(ctx.procSpell ? ctx.procSpell->ID : 0, ctx.procFlag, ctx.procEx))
@@ -79,18 +100,22 @@ namespace
     }
 
     /// 81659, 81662: Evangelism: for a hit that gives a stack (Priest::EvangelismFromHit), the priest casts his rank's
-    /// buff (Priest::EvangelismStack) at himself, triggered by the talent: a stack added up to the buff's limit in the
-    /// client's data, and its duration refreshed. While he holds it he casts the marker (87154) at himself the same
-    /// way, so the marker stands as long as the stacks. CANT_TRIGGER for another event; FAILED, nothing cast, for an
-    /// effect other than the dummy or a spell that is no rank of the talent; FAILED, with no marker, when the buff
-    /// did not stay on him.
+    /// buff at himself, triggered by the talent: a stack added up to the buff's limit in the client's data, and its
+    /// duration refreshed. The buff is Evangelism's (Priest::EvangelismStack) for a hit of Smite, Holy Fire or Penance's
+    /// bolt and Dark Evangelism's (Priest::DarkEvangelismStack) for Mind Flay's cast; the stacks of the other kind are
+    /// then taken off him (Priest::TakeOffOtherEvangelism), the two never standing together (patch 4.3.0). While he
+    /// holds the buff he casts the marker (87154) at himself the same way, so the marker stands as long as the stacks.
+    /// CANT_TRIGGER for another event; FAILED, nothing cast, for an effect other than the dummy or a spell that is no
+    /// rank of the talent; FAILED, with no marker and the other kind left, when the buff did not stay on him.
     ProcOutcome EvangelismProc(OnProcContext& ctx)
     {
         if (!ctx.procSpell || !Priest::EvangelismFromHit(ctx.procSpell->ID, ctx.procFlag, ctx.procEx))
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_CANT_TRIGGER);
         }
-        uint32 const stack = Priest::EvangelismStack(ctx.spell.ID);
+        uint32 const stack = Priest::DarkEvangelismFromSpell(ctx.procSpell->ID)
+                                 ? Priest::DarkEvangelismStack(ctx.spell.ID)
+                                 : Priest::EvangelismStack(ctx.spell.ID);
         if (ctx.effIndex != EFFECT_INDEX_0 || !stack)
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
@@ -100,13 +125,14 @@ namespace
         {
             return ProcOutcome::Return(SPELL_AURA_PROC_FAILED);
         }
+        Priest::TakeOffOtherEvangelism(ctx.caster, ctx.procSpell->ID);
         ctx.CastTriggered(ctx.caster, EVANGELISM_MARKER);
         return ProcOutcome::Return(SPELL_AURA_PROC_OK);
     }
 
-    /// 81660, 81661: Evangelism's buffs: when one leaves the priest and he holds no stack of either kind of
-    /// Evangelism (Priest::HoldsEvangelism), the marker (87154) leaves him too. A marker that Dark Evangelism's stacks
-    /// stand for stays while they do. The holder's own boosts run after it.
+    /// 81660, 81661, 87117, 87118: the buffs of Evangelism and of Dark Evangelism: when one leaves the priest and he
+    /// holds no stack of either kind of Evangelism (Priest::HoldsEvangelism), the marker (87154) leaves him too. A
+    /// marker that the stacks of the other kind stand for stays while they do. The holder's own boosts run after it.
     SpellHandlerOutcome<void> EvangelismStackRemove(AuraRemoveContext& ctx)
     {
         if (!Priest::HoldsEvangelism(ctx.target))
@@ -116,35 +142,68 @@ namespace
         return SpellHandlerOutcome<void>::Continue();
     }
 
-    /// 87151: Archangel's script effect: the priest's stacks of Evangelism (Priest::EvangelismStacks) are consumed. He
-    /// casts the healing done bonus (81700) at himself, triggered by Archangel, with its effect 0 value for each stack,
-    /// while he still holds the stacks, which 81700 asks of its caster in the client's data; then the mana (87152), a
-    /// percent of his maximum mana, with its effect 0 value for each stack (Priest::ArchangelPoints). Then his buffs of
-    /// both ranks are taken off him, and the marker with them (EvangelismStackRemove). 81700's cast puts its
-    /// category's recovery, from the client's data, on the category's spells, Archangel among them: that is
+    /// Dark Archangel: the priest's `stacks` stacks of Dark Evangelism (Priest::DarkEvangelismStacks) are consumed. He
+    /// casts Dark Archangel (87153) at himself, triggered by Archangel, with its effect 0 and effect 1 values, the bonus
+    /// a stack gives, for each stack (Priest::ArchangelPoints); then the mana (87152), a percent of his maximum mana,
+    /// with Dark Archangel's effect 2 value for each stack. Then his Dark Evangelism buffs of both ranks are taken off
+    /// him, and the marker with them (EvangelismStackRemove). 87153's cast puts its category's recovery, from the
+    /// client's data, on the category's spells, Archangel among them: that is Archangel's cooldown. Nothing is cast for
+    /// a value the client's data lacks.
+    void DarkArchangel(DummyEffectContext& ctx, uint32 stacks)
+    {
+        int32 const damage = Priest::ArchangelPoints(EffectValue(DARK_ARCHANGEL, EFFECT_INDEX_0), stacks);
+        int32 const periodic = Priest::ArchangelPoints(EffectValue(DARK_ARCHANGEL, EFFECT_INDEX_1), stacks);
+        if (damage > 0 && periodic > 0)
+        {
+            int32 const basePoints[MAX_EFFECT_INDEX] = { damage, periodic, 0 };
+            ctx.CastTriggered(ctx.caster, DARK_ARCHANGEL, basePoints);
+        }
+        int32 const mana = Priest::ArchangelPoints(EffectValue(DARK_ARCHANGEL, EFFECT_INDEX_2), stacks);
+        if (mana > 0)
+        {
+            int32 const basePoints[MAX_EFFECT_INDEX] = { mana, 0, 0 };
+            ctx.CastTriggered(ctx.caster, ARCHANGEL_MANA, basePoints);
+        }
+        for (uint32 stack : DARK_EVANGELISM_STACKS)
+        {
+            ctx.RemoveAura(ctx.caster, stack);
+        }
+    }
+
+    /// 87151: Archangel's script effect: the priest's stacks of Dark Evangelism (Priest::DarkEvangelismStacks) are
+    /// consumed into Dark Archangel (DarkArchangel), and his stacks of Evangelism (Priest::EvangelismStacks) after
+    /// them. He casts the healing done bonus (81700) at himself, triggered by Archangel, with its effect 0 value for each
+    /// stack, while he still holds the stacks, which 81700 asks of its caster in the client's data; then the mana
+    /// (87152), a percent of his maximum mana, with its effect 0 value for each stack (Priest::ArchangelPoints). Then
+    /// his buffs of both ranks are taken off him, and the marker with them (EvangelismStackRemove). 81700's cast puts
+    /// its category's recovery, from the client's data, on the category's spells, Archangel among them: that is
     /// Archangel's cooldown. With no stack nothing is cast and nothing taken off.
-    /// The Dark Evangelism arm, Mind Flay's stacks (87117, 87118) consumed into Dark Archangel (87153), is not done
-    /// here: this body leaves those stacks, that spell and the marker they stand for as it finds them. That arm belongs
-    /// inside this body, before 81700's cast: the cast puts the category's recovery on 87153 too, so a Dark Archangel
-    /// cast after it, here or in a later hook, is refused as not ready.
+    /// The two kinds never stand together, so one of the arms finds nothing. The Dark arm is first, before 81700's
+    /// cast: the cast puts the category's recovery on 87153 too, so a Dark Archangel cast after it, here or in a later
+    /// hook, is refused as not ready.
     SpellHandlerOutcome<void> ArchangelEffect(DummyEffectContext& ctx)
     {
         if (ctx.effIndex != EFFECT_INDEX_0)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
+        uint32 const darkStacks = Priest::DarkEvangelismStacks(ctx.caster);
+        if (darkStacks)
+        {
+            DarkArchangel(ctx, darkStacks);
+        }
         uint32 const stacks = Priest::EvangelismStacks(ctx.caster);
         if (!stacks)
         {
             return SpellHandlerOutcome<void>::Continue();
         }
-        int32 const healing = Priest::ArchangelPoints(EffectZeroValue(ARCHANGEL_HEALING), stacks);
+        int32 const healing = Priest::ArchangelPoints(EffectValue(ARCHANGEL_HEALING, EFFECT_INDEX_0), stacks);
         if (healing > 0)
         {
             int32 const basePoints[MAX_EFFECT_INDEX] = { healing, 0, 0 };
             ctx.CastTriggered(ctx.caster, ARCHANGEL_HEALING, basePoints);
         }
-        int32 const mana = Priest::ArchangelPoints(EffectZeroValue(ARCHANGEL_MANA), stacks);
+        int32 const mana = Priest::ArchangelPoints(EffectValue(ARCHANGEL_MANA, EFFECT_INDEX_0), stacks);
         if (mana > 0)
         {
             int32 const basePoints[MAX_EFFECT_INDEX] = { mana, 0, 0 };
@@ -163,6 +222,7 @@ uint32 Priest::RegisterEvangelism(SpellHandlerRegistry& registry)
     uint32 rows = RegisterRanks<CheckProcHook>(registry, EVANGELISM_RANKS, &EvangelismCheckProc);
     rows += RegisterRanks<OnProcHook>(registry, EVANGELISM_RANKS, &EvangelismProc);
     rows += RegisterRanks<AuraRemoveHook>(registry, EVANGELISM_STACKS, &EvangelismStackRemove);
+    rows += RegisterRanks<AuraRemoveHook>(registry, DARK_EVANGELISM_STACKS, &EvangelismStackRemove);
     rows += RegisterRanks<DummyEffectHook>(registry, ARCHANGEL, &ArchangelEffect);
     return rows;
 }
@@ -172,9 +232,15 @@ bool Priest::EvangelismFromSpell(uint32 spellId)
     return spellId == SMITE || spellId == HOLY_FIRE || spellId == PENANCE_BOLT;
 }
 
+bool Priest::DarkEvangelismFromSpell(uint32 spellId)
+{
+    return spellId == MIND_FLAY;
+}
+
 bool Priest::EvangelismFromHit(uint32 spellId, uint32 procFlag, uint32 procEx)
 {
-    return EvangelismFromSpell(spellId) && (procFlag & PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT) &&
+    return (EvangelismFromSpell(spellId) || DarkEvangelismFromSpell(spellId)) &&
+           (procFlag & PROC_FLAG_SUCCESSFUL_NEGATIVE_SPELL_HIT) &&
            (procEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT));
 }
 
@@ -190,9 +256,45 @@ uint32 Priest::EvangelismStack(uint32 rankSpellId)
     return 0;
 }
 
+uint32 Priest::DarkEvangelismStack(uint32 rankSpellId)
+{
+    for (std::size_t i = 0; i < sizeof(EVANGELISM_RANKS) / sizeof(EVANGELISM_RANKS[0]); ++i)
+    {
+        if (EVANGELISM_RANKS[i] == rankSpellId)
+        {
+            return DARK_EVANGELISM_STACKS[i];
+        }
+    }
+    return 0;
+}
+
+void Priest::TakeOffOtherEvangelism(Unit& priest, uint32 hitSpellId)
+{
+    if (DarkEvangelismFromSpell(hitSpellId))
+    {
+        TakeOffStacks(priest, EVANGELISM_STACKS);
+    }
+    else if (EvangelismFromSpell(hitSpellId))
+    {
+        TakeOffStacks(priest, DARK_EVANGELISM_STACKS);
+    }
+}
+
 uint32 Priest::EvangelismStacks(Unit const& priest)
 {
     for (uint32 stack : EVANGELISM_STACKS)
+    {
+        if (SpellAuraHolder* holder = priest.GetSpellAuraHolder(stack, priest.GetObjectGuid()))
+        {
+            return AuraHandle(*holder).Stacks();
+        }
+    }
+    return 0;
+}
+
+uint32 Priest::DarkEvangelismStacks(Unit const& priest)
+{
+    for (uint32 stack : DARK_EVANGELISM_STACKS)
     {
         if (SpellAuraHolder* holder = priest.GetSpellAuraHolder(stack, priest.GetObjectGuid()))
         {

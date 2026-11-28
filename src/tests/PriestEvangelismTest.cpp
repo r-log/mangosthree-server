@@ -25,8 +25,9 @@
 
 /// Tests of priest/discipline/Evangelism.cpp: which hits give a stack of Evangelism, which buff each rank gives,
 /// the value Archangel casts its spells with, the rows the file registers, in the game's table too, with Dark
-/// Evangelism's and Dark Archangel's ids left free, the exits of its scripts that cast nothing, and the stacks and the
-/// marker on a unit that holds them. The scripts run on a bare Creature (update fields allocated; no world, map,
+/// Archangel's id left free, the exits of its scripts that cast nothing, and the stacks and the marker on a unit that
+/// holds them. PriestDarkEvangelismTest.cpp tests the Dark arm: Mind Flay's cast, the ranks' Dark buffs, the exclusion
+/// and Dark Archangel. The scripts run on a bare Creature (update fields allocated; no world, map,
 /// template or AI); the spells are Spell.dbc rows with only their id, not in the spell store, and the store holds none
 /// of the buffs, so a cast of one ends at its lookup and builds nothing. The last test puts rows of the buffs and the
 /// marker with only their id into the store, to make holders of them, and takes them out again. Scenario 1205 records
@@ -158,9 +159,10 @@ TEST(PriestEvangelism_SmiteHolyFireAndPenancesBoltGiveAStackByTheirHitsThatDealt
         CHECK(!Priest::EvangelismFromHit(spellId, 0, PROC_EX_NORMAL_HIT));
     }
 
-    // Mind Flay's tick and hit, and a swing's, give none.
+    // Mind Flay's cast, its harmful hit, gives a stack of Dark Evangelism, which PriestDarkEvangelismTest.cpp tests;
+    // its tick and a swing give none.
     CHECK(!Priest::EvangelismFromHit(MIND_FLAY, TICK, PROC_EX_NORMAL_HIT));
-    CHECK(!Priest::EvangelismFromHit(MIND_FLAY, HARMFUL_HIT, PROC_EX_NORMAL_HIT));
+    CHECK(Priest::EvangelismFromHit(MIND_FLAY, HARMFUL_HIT, PROC_EX_NORMAL_HIT));
     CHECK(!Priest::EvangelismFromHit(0, MELEE, PROC_EX_NORMAL_HIT));
 }
 
@@ -193,17 +195,17 @@ TEST(PriestEvangelism_ArchangelCastsEachSpellsValueForEachStack)
     CHECK_EQ(Priest::ArchangelPoints(1, 2147483646u), int32(2147483646));
 }
 
-TEST(PriestEvangelism_TheFileHoldsItsSevenRowsInTheGameAndLeavesTheDarkArmFree)
+TEST(PriestEvangelism_TheFileHoldsItsNineRowsInTheGameAndLeavesDarkArchangelFree)
 {
-    // Seven rows: each rank at the check-proc and proc hooks, each rank's buff at the aura-remove hook, Archangel at
-    // the dummy-effect hook; no default.
+    // Nine rows: each rank at the check-proc and proc hooks, the buffs of both kinds, two of each, at the aura-remove
+    // hook, Archangel at the dummy-effect hook; no default.
     SpellHandlerRegistry registry;
-    CHECK_EQ(Priest::RegisterEvangelism(registry), uint32(7));
-    CHECK_EQ(registry.Count(), std::size_t(7));
+    CHECK_EQ(Priest::RegisterEvangelism(registry), uint32(9));
+    CHECK_EQ(registry.Count(), std::size_t(9));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     CHECK_EQ(registry.CountAt(CheckProcHook::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(OnProcHook::Key), std::size_t(2));
-    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AuraRemoveHook::Key), std::size_t(4));
     CHECK_EQ(registry.CountAt(DummyEffectHook::Key), std::size_t(1));
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 rank : EVANGELISM_RANKS)
@@ -222,9 +224,19 @@ TEST(PriestEvangelism_TheFileHoldsItsSevenRowsInTheGameAndLeavesTheDarkArmFree)
     CHECK(registry.Find<DummyEffectHook>(ARCHANGEL) != NULL);
     CHECK(game.Find<DummyEffectHook>(ARCHANGEL) == registry.Find<DummyEffectHook>(ARCHANGEL));
 
-    // Dark Evangelism's stacks, Dark Archangel, the marker and Archangel's two spells hold no row of this file.
-    for (uint32 spellId : { DARK_EVANGELISM_STACKS[0], DARK_EVANGELISM_STACKS[1], DARK_ARCHANGEL, EVANGELISM_MARKER,
-                            ARCHANGEL_HEALING, ARCHANGEL_MANA })
+    // Dark Evangelism's stacks hold the aura-remove row of the other buffs and no other row of this file.
+    for (uint32 stack : DARK_EVANGELISM_STACKS)
+    {
+        CHECK(registry.Find<AuraRemoveHook>(stack) == registry.Find<AuraRemoveHook>(EVANGELISM_STACKS[0]));
+        CHECK(game.Find<AuraRemoveHook>(stack) == registry.Find<AuraRemoveHook>(stack));
+        CHECK(registry.Find<CheckProcHook>(stack) == NULL);
+        CHECK(registry.Find<OnProcHook>(stack) == NULL);
+        CHECK(registry.Find<DummyEffectHook>(stack) == NULL);
+        CHECK(game.Find<OnProcHook>(stack) == NULL);
+    }
+
+    // Dark Archangel, the marker and Archangel's two spells hold no row of this file.
+    for (uint32 spellId : { DARK_ARCHANGEL, EVANGELISM_MARKER, ARCHANGEL_HEALING, ARCHANGEL_MANA })
     {
         CHECK(registry.Find<CheckProcHook>(spellId) == NULL);
         CHECK(registry.Find<OnProcHook>(spellId) == NULL);
@@ -269,9 +281,10 @@ TEST(PriestEvangelism_TheCheckTakesTheHitsThatGiveAStackAndLeavesEveryOtherEvent
         { &holyFire, HARMFUL_HIT, PROC_EX_CRITICAL_HIT, 1500, true },     // its hit, which the class mask lacks
         { &bolt, HARMFUL_HIT, PROC_EX_NORMAL_HIT, 600, true },
         { &holyFire, TICK, PROC_EX_NORMAL_HIT, 52, false },             // its tick: the class mask refuses it
+        { &flay, HARMFUL_HIT, PROC_EX_NORMAL_HIT, 0, true },            // its cast's hit, which the class mask lacks
         { &smite, HARMFUL_HIT, PROC_EX_MISS, 0, false },
         { &smite, HARMFUL_HIT, PROC_EX_CAST_END, 0, false },
-        { &flay, TICK, PROC_EX_NORMAL_HIT, 700, false },                // Dark Evangelism's: left as it was
+        { &flay, TICK, PROC_EX_NORMAL_HIT, 700, false },                // Mind Flay's tick: left to the engine
         { NULL, MELEE, PROC_EX_NORMAL_HIT, 700, false },
     };
     for (uint32 rank : EVANGELISM_RANKS)
@@ -308,7 +321,8 @@ TEST(PriestEvangelism_TheProcCastsNothingForAnEventThatGivesNoStackAndNoMarkerWi
     SpellEntry const& holyFire = SpellRow(holyFireRow, HOLY_FIRE);
     SpellEntry const& flay = SpellRow(flayRow, MIND_FLAY);
     SpellCooldownMgr cooldowns;
-    for (uint32 stack : EVANGELISM_STACKS)
+    for (uint32 stack : { EVANGELISM_STACKS[0], EVANGELISM_STACKS[1], DARK_EVANGELISM_STACKS[0],
+                          DARK_EVANGELISM_STACKS[1] })
     {
         CHECK(sSpellStore.LookupEntry(stack) == NULL);
     }
@@ -325,7 +339,7 @@ TEST(PriestEvangelism_TheProcCastsNothingForAnEventThatGivesNoStackAndNoMarkerWi
     };
     Exit const exits[] =
     {
-        { 81662, &flay, TICK, PROC_EX_NORMAL_HIT, EFFECT_INDEX_0, 700, SPELL_AURA_PROC_CANT_TRIGGER },     // Mind Flay
+        { 81662, &flay, TICK, PROC_EX_NORMAL_HIT, EFFECT_INDEX_0, 700, SPELL_AURA_PROC_CANT_TRIGGER },     // its tick
         { 81662, NULL, MELEE, PROC_EX_NORMAL_HIT, EFFECT_INDEX_0, 700, SPELL_AURA_PROC_CANT_TRIGGER },     // a swing
         { 81662, &holyFire, TICK, PROC_EX_NORMAL_HIT, EFFECT_INDEX_0, 52, SPELL_AURA_PROC_CANT_TRIGGER },  // a tick
         { 81662, &smite, HARMFUL_HIT, PROC_EX_MISS, EFFECT_INDEX_0, 0, SPELL_AURA_PROC_CANT_TRIGGER },     // a miss
@@ -334,6 +348,9 @@ TEST(PriestEvangelism_TheProcCastsNothingForAnEventThatGivesNoStackAndNoMarkerWi
         // A hit that gives a stack, whose buff the store lacks: the buff does not stay on him, so no marker.
         { 81662, &smite, HARMFUL_HIT, PROC_EX_NORMAL_HIT, EFFECT_INDEX_0, 900, SPELL_AURA_PROC_FAILED },
         { 81659, &holyFire, HARMFUL_HIT, PROC_EX_CRITICAL_HIT, EFFECT_INDEX_0, 1500, SPELL_AURA_PROC_FAILED },
+        // Mind Flay's cast, whose Dark Evangelism buff the store lacks: it does not stay on him, so no marker.
+        { 81662, &flay, HARMFUL_HIT, PROC_EX_NORMAL_HIT, EFFECT_INDEX_0, 0, SPELL_AURA_PROC_FAILED },
+        { 81659, &flay, HARMFUL_HIT, PROC_EX_NORMAL_HIT, EFFECT_INDEX_0, 0, SPELL_AURA_PROC_FAILED },
     };
     for (Exit const& exit : exits)
     {
@@ -448,12 +465,15 @@ TEST(PriestEvangelism_TheStacksAreHisBuffsAndTheMarkerLeavesWithTheLastStackOfEi
         CHECK(Priest::HoldsEvangelism(priest));
         CHECK(priest.HasAura(EVANGELISM_MARKER));
 
-        // Dark Evangelism's own stack leaving runs no row of this file: the marker stays.
+        // Dark Evangelism's own stack leaving runs the aura-remove row as the other buffs' do: it is the last stack of
+        // either kind, so the marker goes with it.
         priest.RemoveSpellAuraHolder(dark);
         CHECK(!Priest::HoldsEvangelism(priest));
-        CHECK(priest.HasAura(EVANGELISM_MARKER));
+        CHECK(!priest.HasAura(EVANGELISM_MARKER));
 
-        // His first rank's buff, one stack: its leaving, the last stack of either kind, takes the marker with it.
+        // His first rank's buff, one stack, and the marker again: its leaving, the last stack of either kind, takes the
+        // marker with it.
+        OwnHolder(EVANGELISM_MARKER, priest);
         SpellAuraHolder* first = OwnHolder(EVANGELISM_STACKS[0], priest);
         CHECK_EQ(Priest::EvangelismStacks(priest), uint32(1));
         priest.RemoveSpellAuraHolder(first, AURA_REMOVE_BY_CANCEL);
