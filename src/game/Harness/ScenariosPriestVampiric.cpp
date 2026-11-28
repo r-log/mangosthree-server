@@ -789,7 +789,9 @@ namespace Harness
                 {
                     PutShadowfiend(p);
                     seen.reads["end0"] = ShadowfiendEnd(p);
-                    m_rec.Note("his Shadowfiend's cooldown put for " + U(kShadowfiendSeconds) + " s: stored end " + Shown(seen.reads["end0"]));
+                    // the stored end is wall-clock time: the trace names only whether one is stored, the cuts below are differences
+                    m_rec.Note("his Shadowfiend's cooldown put for " + U(kShadowfiendSeconds) + " s: an end stored " +
+                               Shown(seen.reads["end0"] > 0 ? 1 : 0));
                 }
                 else if (k == kCut)
                 {
@@ -797,15 +799,14 @@ namespace Harness
                     seen.reads["cut"] = seen.reads["end"] > 0 ? Kept(st, kPut, "end0") - seen.reads["end"] : -1;
                     PutShadowfiend(p);
                     seen.reads["end1"] = ShadowfiendEnd(p);
-                    m_rec.Note("after the first Mind Flay his Shadowfiend's stored end " + Shown(seen.reads["end"]) + ", " + Shown(seen.reads["cut"]) +
-                               " s cut; put again: " + Shown(seen.reads["end1"]));
+                    m_rec.Note("after the first Mind Flay his Shadowfiend's stored end is " + Shown(seen.reads["cut"]) +
+                               " s earlier; put again: an end stored " + Shown(seen.reads["end1"] > 0 ? 1 : 0));
                 }
                 else if (k == kEnd)
                 {
                     seen.reads["end"] = ShadowfiendEnd(p);
                     seen.reads["cut"] = seen.reads["end"] > 0 ? Kept(st, kCut, "end1") - seen.reads["end"] : -1;
-                    m_rec.Note("after the second Mind Flay his Shadowfiend's stored end " + Shown(seen.reads["end"]) + ", " + Shown(seen.reads["cut"]) +
-                               " s cut");
+                    m_rec.Note("after the second Mind Flay his Shadowfiend's stored end is " + Shown(seen.reads["cut"]) + " s earlier");
                 }
             }
 
