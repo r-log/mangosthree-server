@@ -274,6 +274,9 @@ uint32 GetSpellRequiredAreaId(uint32 spellId);
 /// targets and attributes say; false for a spell the table does not hold.
 bool HasPositiveDummyEffect(uint32 spellId);
 bool HasNegativeDummyEffect(uint32 spellId);
+/// Whether a spell's school damage effect is negative whatever its target type says (IsPositiveTarget reads type 25
+/// as positive); false for a spell the table does not hold.
+bool HasNegativeDamageEffect(uint32 spellId);
 bool HasPositiveScriptEffect(uint32 spellId);
 bool HasPositiveDummyAura(uint32 spellId);
 bool HasNegativeDummyAura(uint32 spellId);

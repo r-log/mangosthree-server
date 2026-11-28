@@ -847,6 +847,15 @@ TEST(SpellTables_TheEffectCastAuraAndPacketTablesAnswerTheirSwitchesLiveRows)
     CHECK_EQ(GetJudgementDebuffSpell(12345), uint32(0));
 }
 
+TEST(SpellTables_ShadowyApparitionsHitIsTheOneNegativeDamageEffectRow)
+{
+    CHECK(HasNegativeDamageEffect(87532));
+    for (uint32 spellId : { 0u, 589u, 15407u, 87426u, 87427u, 28441u })
+    {
+        CHECK(!HasNegativeDamageEffect(spellId));
+    }
+}
+
 TEST(SpellTables_IsPositiveEffectsSetsHoldTheirSwitchesLabelsAndNoOthers)
 {
     for (uint32 spellId : { 10258u, 18153u, 32312u, 37388u, 45863u, 49634u, 54530u, 56099u, 58533u, 58552u, 62105u, 63745u, 63747u, 64402u })
