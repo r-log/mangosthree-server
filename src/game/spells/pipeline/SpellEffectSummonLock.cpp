@@ -906,6 +906,29 @@ bool Spell::DoSummonPossessed(CreatureSummonPositions& list, SummonPropertiesEnt
     return true;
 }
 
+namespace
+{
+    /**
+     * @brief Has a pet its caster's summon made attack the cast's unit target.
+     *
+     * Nothing when the cast has no unit target, when it is the caster or the pet itself, when it cannot be attacked,
+     * or when the caster is not hostile to it.
+     *
+     * @param caster The unit that cast the summon.
+     * @param victim The cast's unit target; NULL when it has none.
+     * @param pet The pet the summon made.
+     */
+    void StartSummonedPetAttack(Unit& caster, Unit* victim, Pet& pet)
+    {
+        if (!pet.AI() || !victim || victim == &caster || victim == &pet || !victim->IsTargetableForAttack() ||
+            !caster.IsHostileTo(victim))
+        {
+            return;
+        }
+        pet.AI()->AttackStart(victim);
+    }
+}
+
 bool Spell::DoSummonPet(SpellEffectEntry const* effect)
 {
     Player* const casterPlayer = m_caster->ToPlayer();
@@ -949,6 +972,14 @@ bool Spell::DoSummonPet(SpellEffectEntry const* effect)
             if (m_duration > 0)
             {
                 Combat::TakeOwnerHitSnapshot(*spawnCreature);
+            }
+
+            // a pet of a spell that names one for the Assist stance comes back in it, on the bar too, and attacks
+            if (Spells::SummonedPetAssists(m_spellInfo->ID))
+            {
+                spawnCreature->GetCharmInfo()->SetReactState(REACT_ASSIST);
+                casterPlayer->PetSpellInitialize();
+                StartSummonedPetAttack(*m_caster, m_targets.getUnitTarget(), *spawnCreature);
             }
 
             return true;
@@ -1008,9 +1039,15 @@ bool Spell::DoSummonPet(SpellEffectEntry const* effect)
 
     if (casterPlayer)
     {
-        spawnCreature->GetCharmInfo()->SetReactState(REACT_DEFENSIVE);
+        // a pet of a spell that names one takes the Assist stance in place of Defensive, before the bar is sent
+        bool const assists = Spells::SummonedPetAssists(m_spellInfo->ID);
+        spawnCreature->GetCharmInfo()->SetReactState(assists ? REACT_ASSIST : REACT_DEFENSIVE);
         spawnCreature->SavePetToDB(PET_SAVE_AS_CURRENT);
         casterPlayer->PetSpellInitialize();
+        if (assists)
+        {
+            StartSummonedPetAttack(*m_caster, m_targets.getUnitTarget(), *spawnCreature);
+        }
     }
     else
     {
