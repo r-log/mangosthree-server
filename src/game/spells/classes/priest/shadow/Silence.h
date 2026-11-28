@@ -35,8 +35,9 @@
  * Silence (15487) silences its target for 5 s, and its text adds "Non-player victim spellcasting is also interrupted
  * for $32747d". Silence.cpp registers one row, the aura-apply row of 15487: once the holder stands on a target that is
  * no player (SilenceInterrupts), the priest casts the interrupt (32747, an interrupt-cast effect and 3 s) at it,
- * triggered, as his own cast; the effect ends the target's cast in progress and locks its school for the 3 s. A player
- * is silenced alone, as before.
+ * triggered, as his own cast; the effect ends the target's cast in progress. Its school lock is the player's
+ * (Player::ProhibitSpellSchool; a creature's is empty), so on a creature the lock waits on the engine, and
+ * Silence's own aura already stops the cast. A player is silenced alone, as before.
  */
 
 namespace Priest
