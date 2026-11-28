@@ -387,6 +387,9 @@ state_allow(pet src/game/Harness/Trace.cpp
 state_allow(pet src/tests/HarnessTest.cpp
     WHY "unit test of the harness decoders: hand-builds the packet's bytes as its writers lay them out and checks the decoded record, sends nothing"
     NAMES SMSG_PET_SPELLS)
+state_allow(pet src/game/Harness/ScenariosPriestShadowControl.cpp
+    WHY "harness scenario 1244: finds the Shadowfiend's pet bar among the recorded packets by opcode and reads its react state, builds and sends nothing"
+    NAMES SMSG_PET_SPELLS)
 
 state_row(social
     OWNER   PlayerSocial
