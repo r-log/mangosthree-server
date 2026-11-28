@@ -797,17 +797,14 @@ bool Unit::IsSpellCrit(Unit* pVictim, SpellEntry const* spellProto, SpellSchoolM
                     }
                 }
 
-                // a heal takes the crit chance of the healed unit's crit-from-caster auras that its healer put on it
-                // and whose class mask names the heal
-                if (damageType == HEAL)
+                // a spell takes the crit chance of the victim's crit-from-caster auras that its caster put on it and
+                // whose class mask names the spell: a heal, a hit or a periodic tick alike
+                AuraList const& critFromCaster = pVictim->GetAurasByType(SPELL_AURA_MOD_CRIT_FROM_CASTER);
+                for (AuraList::const_iterator i = critFromCaster.begin(); i != critFromCaster.end(); ++i)
                 {
-                    AuraList const& critFromCaster = pVictim->GetAurasByType(SPELL_AURA_MOD_CRIT_FROM_CASTER);
-                    for (AuraList::const_iterator i = critFromCaster.begin(); i != critFromCaster.end(); ++i)
+                    if ((*i)->GetCasterGuid() == GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
                     {
-                        if ((*i)->GetCasterGuid() == GetObjectGuid() && (*i)->isAffectedOnSpell(spellProto))
-                        {
-                            crit_chance += (*i)->GetModifier()->m_amount;
-                        }
+                        crit_chance += (*i)->GetModifier()->m_amount;
                     }
                 }
 
